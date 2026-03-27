@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Search, Calendar, CheckCircle, MapPin, Shield, Users, Star, TrendingUp, Award, ChevronRight, GraduationCap } from 'lucide-react';
+import { Building2, Search, Calendar, CheckCircle, MapPin, Shield, Users, Star, TrendingUp, Award, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { BookingFormWidget } from '../components/landing/BookingFormWidget';
 import { ROUTES } from '../constants/routes';
@@ -53,9 +53,9 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(ROUTES.LANDING)}>
               <div className="bg-gradient-to-br from-blue-600 to-teal-600 p-2 rounded-lg">
-                <GraduationCap className="text-white" size={28} />
+                <Building2 className="text-white" size={28} />
               </div>
-              <span className="text-2xl font-bold text-gray-900">GovBook</span>
+              <span className="text-2xl font-bold text-gray-900">FMS</span>
             </div>
 
             <div className="hidden md:flex items-center gap-8">
@@ -111,16 +111,16 @@ export const LandingPage: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="animate-slideInLeft">
               <div className="inline-block mb-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold animate-slideDown">
-                Trusted by Government Departments
+                Trusted Platform
               </div>
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-                GOVERNMENT FACILITIES
+                FACILITIES
                 <span className="block mt-2 bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
                   & BOOKING SYSTEM
                 </span>
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Book Government Guest Houses, Conference Halls, Conventions, & Parks seamlessly.
+                Book Guest Houses, Conference Halls, Conventions, & Parks seamlessly.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Button
@@ -234,7 +234,7 @@ export const LandingPage: React.FC = () => {
           <div className={`text-center mb-16 ${visibleSections.has('features') ? 'animate-fadeIn' : 'opacity-0'}`}>
             <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Explore Our Facilities</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Choose from a wide range of government facilities across the country
+              Choose from a wide range of facilities across the country
             </p>
           </div>
 
@@ -242,8 +242,8 @@ export const LandingPage: React.FC = () => {
             {[
               {
                 icon: <Building2 size={48} />,
-                title: 'Government Guest Houses',
-                features: ['Government guest houses', 'Details find details'],
+                title: 'Guest Houses',
+                features: ['Premium guest houses', 'Complete amenities'],
                 gradient: 'from-blue-500 to-blue-600',
                 delay: '0s',
               },
@@ -360,9 +360,9 @@ export const LandingPage: React.FC = () => {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white" data-animate id="why-choose">
         <div className="max-w-7xl mx-auto">
           <div className={`text-center mb-16 ${visibleSections.has('why-choose') ? 'animate-fadeIn' : 'opacity-0'}`}>
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Why Choose GovBook?</h2>
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Why Choose FMS?</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              The most trusted platform for government facility bookings
+              The most trusted platform for facility bookings
             </p>
           </div>
 
@@ -371,7 +371,7 @@ export const LandingPage: React.FC = () => {
               {
                 icon: <Shield size={40} />,
                 title: 'Secure & Verified',
-                description: 'Government-verified platform with secure payment processing and data protection',
+                description: 'Verified and secure platform with trusted payment processing and data protection',
                 color: 'blue',
               },
               {
@@ -444,12 +444,12 @@ export const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-gradient-to-br from-blue-600 to-teal-600 p-2 rounded-lg">
-                  <GraduationCap className="text-white" size={24} />
+                  <Building2 className="text-white" size={24} />
                 </div>
-                <span className="text-2xl font-bold text-white">GovBook</span>
+                <span className="text-2xl font-bold text-white">FMS</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed mb-4">
-                Professional facilities management for government and public use. Trusted, secure, and efficient.
+                Professional facilities management for organizations and public use. Trusted, secure, and efficient.
               </p>
               <div className="flex items-center gap-2 text-sm">
                 <Shield size={16} className="text-green-400" />
@@ -540,7 +540,7 @@ export const LandingPage: React.FC = () => {
           <div className="pt-8 border-t border-gray-800">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="text-sm text-gray-400">
-                GOVERNMENT OF [Country Name] - Dept. of Public Works
+                Facilities Management System - Professional Booking Platform
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-lg">
