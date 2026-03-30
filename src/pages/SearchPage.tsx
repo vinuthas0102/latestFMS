@@ -212,6 +212,11 @@ export const SearchPage: React.FC = () => {
                           {property.propertyType.name}
                         </span>
                       )}
+                      {property.module?.code === 'OTHER_FAC' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Instant Booking
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{property.name}</h3>
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">

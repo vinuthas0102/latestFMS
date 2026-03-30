@@ -8,13 +8,14 @@ import {
   AvailabilityResultDTO,
   BookingStatus,
 } from '../types';
+import { generateOTP as generateOTPService, verifyOTP as verifyOTPService } from './otpService';
+
+const GUEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export const bookingService = {
   createBooking: async (userId: string, bookingData: CreateBookingDTO): Promise<BookingDTO> => {
     const bookingNumber = await generateBookingNumber();
-    const otp = generateOTP();
-    const otpExpiresAt = new Date();
-    otpExpiresAt.setHours(otpExpiresAt.getHours() + 24);
+    const otpResult = generateOTPService();
 
     const totalAmount = await calculateBookingAmount(
       bookingData.propertyId,
@@ -42,8 +43,9 @@ export const bookingService = {
           paid_amount: 0,
           balance_amount: totalAmount,
           payment_status: 'PENDING',
-          otp: otp,
-          otp_expires_at: otpExpiresAt.toISOString(),
+          otp: otpResult.otp,
+          otp_expires_at: otpResult.otpExpiresAt,
+          is_guest_booking: false,
         },
       ])
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
@@ -51,6 +53,63 @@ export const bookingService = {
 
     if (error) throw error;
     return mapBookingFromDb(data);
+  },
+
+  createGuestBooking: async (bookingData: CreateBookingDTO, guestInfo: {
+    name: string;
+    email: string;
+    phone: string;
+  }): Promise<{ booking: BookingDTO; otp: string }> => {
+    const bookingNumber = await generateBookingNumber();
+    const otpResult = generateOTPService();
+
+    const totalAmount = await calculateBookingAmount(
+      bookingData.propertyId,
+      bookingData.roomTypeId,
+      bookingData.quantity,
+      bookingData.checkInDate,
+      bookingData.checkOutDate
+    );
+
+    const guestDetails = {
+      ...bookingData.guestDetails,
+      name: guestInfo.name,
+      email: guestInfo.email,
+      phone: guestInfo.phone,
+    };
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert([
+        {
+          booking_number: bookingNumber,
+          user_id: GUEST_USER_ID,
+          property_id: bookingData.propertyId,
+          room_type_id: bookingData.roomTypeId,
+          quantity: bookingData.quantity,
+          check_in_date: bookingData.checkInDate,
+          check_out_date: bookingData.checkOutDate,
+          guest_details: guestDetails,
+          special_requirements: bookingData.specialRequirements || '',
+          status: 'REQUESTED',
+          total_amount: totalAmount,
+          paid_amount: 0,
+          balance_amount: totalAmount,
+          payment_status: 'PENDING',
+          otp_hash: otpResult.otpHash,
+          otp_expires_at: otpResult.otpExpiresAt,
+          is_guest_booking: true,
+        },
+      ])
+      .select('*, property:properties(*), roomType:room_types(*)')
+      .single();
+
+    if (error) throw error;
+
+    return {
+      booking: mapBookingFromDb(data),
+      otp: otpResult.otp,
+    };
   },
 
   getBookings: async (filters?: BookingFilters): Promise<BookingDTO[]> => {
@@ -230,17 +289,23 @@ export const bookingService = {
       .from('bookings')
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
       .eq('booking_number', bookingNumber)
-      .eq('otp', otp)
       .maybeSingle();
 
     if (error) throw error;
     if (!data) return null;
 
-    const now = new Date();
-    const expiresAt = new Date(data.otp_expires_at);
+    if (data.is_guest_booking) {
+      const isValid = verifyOTPService(otp, data.otp_hash, data.otp_expires_at);
+      if (!isValid) return null;
+    } else {
+      if (data.otp !== otp) return null;
 
-    if (now > expiresAt) {
-      return null;
+      const now = new Date();
+      const expiresAt = new Date(data.otp_expires_at);
+
+      if (now > expiresAt) {
+        return null;
+      }
     }
 
     return mapBookingFromDb(data);
@@ -290,16 +355,13 @@ function mapBookingFromDb(dbBooking: any): BookingDTO {
     property: dbBooking.property,
     roomType: dbBooking.roomType,
     user: dbBooking.user,
+    isGuestBooking: dbBooking.is_guest_booking || false,
   };
 }
 
 async function generateBookingNumber(): Promise<string> {
   const { data } = await supabase.rpc('generate_booking_number');
   return data || `BK${Date.now()}`;
-}
-
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 async function calculateBookingAmount(

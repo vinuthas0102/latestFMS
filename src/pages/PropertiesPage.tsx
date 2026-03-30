@@ -174,6 +174,11 @@ export const PropertiesPage: React.FC = () => {
                               {property.propertyType.name}
                             </Badge>
                           )}
+                          {property.module?.code === 'OTHER_FAC' && (
+                            <Badge variant="success" className="text-xs bg-green-100 text-green-800">
+                              Instant Booking
+                            </Badge>
+                          )}
                         </div>
                         <h3 className="text-base font-bold text-gray-900 mb-2">{property.name}</h3>
                         <p className="text-xs text-gray-600 mb-3 line-clamp-2">

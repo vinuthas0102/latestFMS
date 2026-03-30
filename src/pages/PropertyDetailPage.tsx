@@ -77,10 +77,13 @@ export const PropertyDetailPage: React.FC = () => {
   };
 
   const canManage = user && canManageProperties(user.role);
+  const isOtherFacilities = currentProperty?.module?.code === 'OTHER_FAC';
+  const isGovtFacilities = currentProperty?.module?.code === 'GOVT_FAC';
+  const requiresLogin = isGovtFacilities;
 
   const handleBooking = async () => {
-    if (!user) {
-      addToast('Please login to make a booking', 'error');
+    if (requiresLogin && !user) {
+      addToast('Please login to make a booking for Government Facilities', 'error');
       navigate(ROUTES.LOGIN);
       return;
     }
@@ -90,47 +93,102 @@ export const PropertyDetailPage: React.FC = () => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(guestEmail)) {
+      addToast('Please enter a valid email address', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
-      const eligibility = await bookingEligibilityService.checkAvailability(
-        user.id,
-        id!,
-        roomTypeId,
-        checkIn,
-        checkOut,
-        quantity
-      );
+      if (user) {
+        const eligibility = await bookingEligibilityService.checkAvailability(
+          user.id,
+          id!,
+          roomTypeId,
+          checkIn,
+          checkOut,
+          quantity
+        );
 
-      if (!eligibility.canBook) {
-        addToast(eligibility.reason || 'Cannot book for selected dates', 'error');
-        setLoading(false);
-        return;
+        if (!eligibility.canBook) {
+          addToast(eligibility.reason || 'Cannot book for selected dates', 'error');
+          setLoading(false);
+          return;
+        }
+
+        const guestDetails: GuestDetails = {
+          fullName: guestName,
+          email: guestEmail,
+          phone: guestPhone,
+          numberOfGuests: quantity,
+        };
+
+        const booking = await bookingService.createBooking(user.id, {
+          propertyId: id!,
+          roomTypeId,
+          quantity,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          guestDetails,
+          specialRequirements: requirements,
+        });
+
+        const paymentParams = new URLSearchParams({
+          bookingId: booking.id,
+          amount: booking.totalAmount.toString(),
+          returnUrl: ROUTES.BOOKING_CONFIRMATION,
+        });
+
+        navigate(`${ROUTES.PAYMENT}?${paymentParams.toString()}`);
+      } else {
+        const availability = await bookingService.checkAvailability({
+          propertyId: id!,
+          roomTypeId,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          quantity,
+        });
+
+        if (!availability.available) {
+          addToast('Selected rooms are not available for these dates', 'error');
+          setLoading(false);
+          return;
+        }
+
+        const guestDetails: GuestDetails = {
+          fullName: guestName,
+          email: guestEmail,
+          phone: guestPhone,
+          numberOfGuests: quantity,
+        };
+
+        const result = await bookingService.createGuestBooking(
+          {
+            propertyId: id!,
+            roomTypeId,
+            quantity,
+            checkInDate: checkIn,
+            checkOutDate: checkOut,
+            guestDetails,
+            specialRequirements: requirements,
+          },
+          {
+            name: guestName,
+            email: guestEmail,
+            phone: guestPhone,
+          }
+        );
+
+        const paymentParams = new URLSearchParams({
+          bookingId: result.booking.id,
+          amount: result.booking.totalAmount.toString(),
+          returnUrl: ROUTES.BOOKING_CONFIRMATION,
+          otp: result.otp,
+        });
+
+        navigate(`${ROUTES.PAYMENT}?${paymentParams.toString()}`);
       }
-
-      const guestDetails: GuestDetails = {
-        fullName: guestName,
-        email: guestEmail,
-        phone: guestPhone,
-        numberOfGuests: quantity,
-      };
-
-      const booking = await bookingService.createBooking(user.id, {
-        propertyId: id!,
-        roomTypeId,
-        quantity,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-        guestDetails,
-        specialRequirements: requirements,
-      });
-
-      const paymentParams = new URLSearchParams({
-        bookingId: booking.id,
-        amount: booking.totalAmount.toString(),
-        returnUrl: ROUTES.BOOKING_CONFIRMATION,
-      });
-
-      navigate(`${ROUTES.PAYMENT}?${paymentParams.toString()}`);
     } catch (error: any) {
       addToast(error.message || 'Booking failed', 'error');
     } finally {
@@ -285,7 +343,39 @@ export const PropertyDetailPage: React.FC = () => {
       case 'booking':
         return (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Book This Property</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Book This Property</h2>
+              {isOtherFacilities && !user && (
+                <Badge variant="success">No Login Required</Badge>
+              )}
+              {isGovtFacilities && (
+                <Badge variant="warning">Login Required</Badge>
+              )}
+            </div>
+
+            {isOtherFacilities && !user && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-800">
+                  <strong>Instant Booking Available!</strong> No account needed. Your booking details and OTP will be sent to your email.
+                  {' '}
+                  <button
+                    onClick={() => navigate(ROUTES.LOGIN)}
+                    className="underline hover:text-blue-900"
+                  >
+                    Already have an account? Login here
+                  </button>
+                </p>
+              </div>
+            )}
+
+            {import.meta.env.VITE_ENABLE_MOCK_OTP === 'true' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800">
+                  <strong>Development Mode Active:</strong> All bookings will use OTP: <code className="bg-yellow-100 px-2 py-1 rounded">123456</code>
+                </p>
+              </div>
+            )}
+
             <Card>
               <CardBody>
                 <div className="space-y-4">

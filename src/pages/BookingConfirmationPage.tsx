@@ -3,13 +3,15 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { CheckCircle, XCircle, Calendar, MapPin, Home, CreditCard, Key, Clock, Download } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, MapPin, Home, CreditCard, Key, Clock, Download, Copy, Check } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { paymentService } from '../services/paymentService';
 import { BookingDTO, TransactionDTO } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { formatDate } from '../utils/dateHelpers';
 import { ROUTES } from '../constants/routes';
+import { useBookingEmailNotification } from '../hooks/useBookingEmailNotification';
+import { getMockOTP } from '../services/otpService';
 
 export const BookingConfirmationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,10 +19,14 @@ export const BookingConfirmationPage: React.FC = () => {
   const [booking, setBooking] = useState<BookingDTO | null>(null);
   const [transactions, setTransactions] = useState<TransactionDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedBooking, setCopiedBooking] = useState(false);
+  const [copiedOtp, setCopiedOtp] = useState(false);
+  const { sendBookingConfirmation } = useBookingEmailNotification();
 
   const success = searchParams.get('success') === 'true';
   const transactionId = searchParams.get('transactionId');
   const bookingId = searchParams.get('bookingId');
+  const otpParam = searchParams.get('otp');
 
   useEffect(() => {
     if (bookingId) {
@@ -37,10 +43,25 @@ export const BookingConfirmationPage: React.FC = () => {
 
       setBooking(bookingData);
       setTransactions(transactionsData);
+
+      if (bookingData?.isGuestBooking && otpParam) {
+        sendBookingConfirmation(bookingData, otpParam);
+      }
     } catch (error) {
       console.error('Failed to load booking details:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, type: 'booking' | 'otp') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'booking') {
+      setCopiedBooking(true);
+      setTimeout(() => setCopiedBooking(false), 2000);
+    } else {
+      setCopiedOtp(true);
+      setTimeout(() => setCopiedOtp(false), 2000);
     }
   };
 
@@ -90,6 +111,8 @@ export const BookingConfirmationPage: React.FC = () => {
 
   const otpExpiry = booking.otpExpiresAt ? new Date(booking.otpExpiresAt) : null;
   const latestTransaction = transactions[0];
+  const displayOtp = otpParam || booking.otp || getMockOTP();
+  const mockOTPEnabled = getMockOTP() !== null;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -102,27 +125,61 @@ export const BookingConfirmationPage: React.FC = () => {
           <p className="text-gray-600">Your reservation has been successfully created and payment received</p>
         </div>
 
+        {booking.isGuestBooking && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg animate-fadeIn">
+            <p className="text-sm text-green-800">
+              <strong>Guest Booking:</strong> Your booking details have been saved. Use your Booking Number and OTP below to track or manage your booking.
+            </p>
+          </div>
+        )}
+
+        {mockOTPEnabled && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg animate-fadeIn">
+            <p className="text-sm text-yellow-800">
+              <strong>Development Mode:</strong> Mock OTP is active. Your OTP is: <code className="bg-yellow-100 px-2 py-1 rounded font-mono">123456</code>
+            </p>
+          </div>
+        )}
+
         <Card className="mb-6 animate-slideUp">
           <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
             <div className="flex items-center justify-between mb-4">
-              <div>
+              <div className="flex-1">
                 <p className="text-blue-100 text-sm mb-1">Booking Number</p>
                 <p className="text-2xl font-bold">{booking.bookingNumber}</p>
               </div>
-              <Badge variant="success" className="bg-green-500 text-white">Confirmed</Badge>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => copyToClipboard(booking.bookingNumber, 'booking')}
+                  className="p-2 hover:bg-blue-500 rounded-lg transition-colors"
+                  title="Copy booking number"
+                >
+                  {copiedBooking ? <Check size={20} /> : <Copy size={20} />}
+                </button>
+                <Badge variant="success" className="bg-green-500 text-white">Confirmed</Badge>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-blue-500">
               <div>
                 <p className="text-blue-100 text-xs mb-1">Check-in OTP</p>
-                <p className="text-3xl font-mono font-bold tracking-wider">{booking.otp}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-3xl font-mono font-bold tracking-wider">{displayOtp}</p>
+                  <button
+                    onClick={() => copyToClipboard(displayOtp!, 'otp')}
+                    className="p-2 hover:bg-blue-500 rounded-lg transition-colors"
+                    title="Copy OTP"
+                  >
+                    {copiedOtp ? <Check size={20} /> : <Copy size={20} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <p className="text-blue-100 text-xs mb-1">Valid Until</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Clock className="w-4 h-4" />
                   <p className="text-sm font-medium">
-                    {otpExpiry ? formatDate(otpExpiry.toISOString()) : 'N/A'}
+                    {mockOTPEnabled ? 'No Expiry (Dev Mode)' : otpExpiry ? formatDate(otpExpiry.toISOString()) : 'N/A'}
                   </p>
                 </div>
               </div>

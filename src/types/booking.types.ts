@@ -28,6 +28,7 @@ export interface BookingDTO {
   roomType?: RoomTypeDTO;
   user?: UserDTO;
   allocations?: BookingAllocationDTO[];
+  isGuestBooking?: boolean;
 }
 
 export interface CreateBookingDTO {
