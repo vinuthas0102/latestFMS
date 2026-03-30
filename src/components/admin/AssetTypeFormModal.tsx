@@ -40,6 +40,7 @@ export const AssetTypeFormModal: React.FC<AssetTypeFormModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string>('');
 
   useEffect(() => {
     if (assetType) {
@@ -62,6 +63,7 @@ export const AssetTypeFormModal: React.FC<AssetTypeFormModalProps> = ({
       });
     }
     setErrors({});
+    setSaveError('');
   }, [assetType, isOpen]);
 
   const validateForm = (): boolean => {
@@ -89,11 +91,28 @@ export const AssetTypeFormModal: React.FC<AssetTypeFormModalProps> = ({
     if (!validateForm()) return;
 
     setLoading(true);
+    setSaveError('');
     try {
       await onSave(formData);
       onClose();
     } catch (error) {
       console.error('Failed to save asset type:', error);
+
+      let errorMessage = 'Failed to save asset type. Please try again.';
+
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errMsg = (error as { message: string }).message;
+
+        if (errMsg.includes('row-level security') || errMsg.includes('42501')) {
+          errorMessage = 'You do not have permission to perform this action. Please contact an administrator.';
+        } else if (errMsg.includes('duplicate') || errMsg.includes('unique')) {
+          errorMessage = 'An asset type with this name already exists.';
+        } else {
+          errorMessage = errMsg;
+        }
+      }
+
+      setSaveError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -107,6 +126,12 @@ export const AssetTypeFormModal: React.FC<AssetTypeFormModalProps> = ({
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {saveError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800">{saveError}</p>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Asset Type Name <span className="text-red-500">*</span>
