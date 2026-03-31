@@ -176,14 +176,20 @@ export const SearchPage: React.FC = () => {
             </div>
 
             {viewMode === 'map' ? (
-              <MapSearchView properties={results} />
+              <MapSearchView properties={results} checkIn={checkIn} checkOut={checkOut} />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {results.map((property, index) => (
                 <Card
                   key={property.id}
                   hoverable
-                  onClick={() => navigate(`/properties/${property.id}`)}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    if (checkIn) params.set('checkIn', checkIn);
+                    if (checkOut) params.set('checkOut', checkOut);
+                    const queryString = params.toString();
+                    navigate(`/properties/${property.id}${queryString ? `?${queryString}` : ''}`);
+                  }}
                   className="overflow-hidden animate-slideUp"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >

@@ -36,20 +36,22 @@ export const PropertyDetailPage: React.FC = () => {
   const addToast = useUIStore((state) => state.addToast);
 
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
-  const initialTab = searchParams.get('tab') || 'overview';
+  const initialTab = searchParams.get('tab') || (searchParams.get('checkIn') ? 'booking' : 'overview');
   const [activeTab, setActiveTab] = useState(initialTab);
   const [blocks, setBlocks] = useState<BlockDTO[]>([]);
   const [floors, setFloors] = useState<FloorDTO[]>([]);
   const [rooms, setRooms] = useState<RoomDTO[]>([]);
   const [hierarchyLoading, setHierarchyLoading] = useState(true);
 
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
+  const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
+  const [checkOut, setCheckOut] = useState(searchParams.get('checkOut') || '');
   const [roomTypeId, setRoomTypeId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [adultCount, setAdultCount] = useState(1);
+  const [childCount, setChildCount] = useState(0);
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -93,6 +95,11 @@ export const PropertyDetailPage: React.FC = () => {
       return;
     }
 
+    if (adultCount < 1) {
+      addToast('At least one adult is required', 'error');
+      return;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(guestEmail)) {
       addToast('Please enter a valid email address', 'error');
@@ -121,7 +128,9 @@ export const PropertyDetailPage: React.FC = () => {
           fullName: guestName,
           email: guestEmail,
           phone: guestPhone,
-          numberOfGuests: quantity,
+          numberOfGuests: adultCount + childCount,
+          numberOfAdults: adultCount,
+          numberOfChildren: childCount,
         };
 
         const booking = await bookingService.createBooking(user.id, {
@@ -160,7 +169,9 @@ export const PropertyDetailPage: React.FC = () => {
           fullName: guestName,
           email: guestEmail,
           phone: guestPhone,
-          numberOfGuests: quantity,
+          numberOfGuests: adultCount + childCount,
+          numberOfAdults: adultCount,
+          numberOfChildren: childCount,
         };
 
         const result = await bookingService.createGuestBooking(
@@ -376,6 +387,14 @@ export const PropertyDetailPage: React.FC = () => {
               </div>
             )}
 
+            {searchParams.get('checkIn') && searchParams.get('checkOut') && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-green-800">
+                  <strong>Dates Prefilled:</strong> Your search dates have been automatically filled in below.
+                </p>
+              </div>
+            )}
+
             <Card>
               <CardBody>
                 <div className="space-y-4">
@@ -444,11 +463,34 @@ export const PropertyDetailPage: React.FC = () => {
                         placeholder="+91 XXXXX XXXXX"
                       />
                       <Input
+                        type="number"
+                        label="Number of Adults"
+                        value={adultCount}
+                        onChange={(e) => setAdultCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        icon={<Users size={20} />}
+                        min={1}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <Input
+                        type="number"
+                        label="Number of Children"
+                        value={childCount}
+                        onChange={(e) => setChildCount(Math.max(0, parseInt(e.target.value) || 0))}
+                        icon={<Users size={20} />}
+                        min={0}
+                      />
+                      <Input
                         label="Special Requirements (Optional)"
                         value={requirements}
                         onChange={(e) => setRequirements(e.target.value)}
                         placeholder="Any special needs or requests"
                       />
+                    </div>
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <strong>Total Guests:</strong> {adultCount + childCount} ({adultCount} {adultCount === 1 ? 'Adult' : 'Adults'}, {childCount} {childCount === 1 ? 'Child' : 'Children'})
+                      </p>
                     </div>
                   </div>
 

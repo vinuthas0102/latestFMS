@@ -8,11 +8,21 @@ import { Building2, MapPin } from 'lucide-react';
 
 interface MapSearchViewProps {
   properties: PropertyDTO[];
+  checkIn?: string;
+  checkOut?: string;
 }
 
-export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties }) => {
+export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkIn, checkOut }) => {
   const navigate = useNavigate();
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
+
+  const buildPropertyUrl = (propertyId: string) => {
+    const params = new URLSearchParams();
+    if (checkIn) params.set('checkIn', checkIn);
+    if (checkOut) params.set('checkOut', checkOut);
+    const queryString = params.toString();
+    return `/properties/${propertyId}${queryString ? `?${queryString}` : ''}`;
+  };
 
   const propertiesWithCoords = properties.filter(
     (p) => p.latitude && p.longitude
@@ -98,7 +108,10 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties }) => {
               </div>
               <Button
                 className="w-full"
-                onClick={() => navigate(`/properties/${selectedProperty.id}`)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(buildPropertyUrl(selectedProperty.id));
+                }}
               >
                 View Details
               </Button>

@@ -27,6 +27,8 @@ export interface GuestDetails {
   idProofNumber?: string;
   address?: string;
   numberOfGuests?: number;
+  numberOfAdults?: number;
+  numberOfChildren?: number;
 }
 
 export interface AuditoriumRequirements {

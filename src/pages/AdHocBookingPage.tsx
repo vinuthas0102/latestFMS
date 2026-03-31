@@ -37,7 +37,8 @@ export const AdHocBookingPage: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [guestCount, setGuestCount] = useState(1);
+  const [adultCount, setAdultCount] = useState(1);
+  const [childCount, setChildCount] = useState(0);
   const [requirements, setRequirements] = useState('');
 
   useEffect(() => {
@@ -88,6 +89,11 @@ export const AdHocBookingPage: React.FC = () => {
       return;
     }
 
+    if (adultCount < 1) {
+      addToast('At least one adult is required', 'error');
+      return;
+    }
+
     if (!link || !property) return;
 
     setSubmitting(true);
@@ -96,7 +102,9 @@ export const AdHocBookingPage: React.FC = () => {
         fullName: guestName,
         email: guestEmail,
         phone: guestPhone,
-        numberOfGuests: guestCount,
+        numberOfGuests: adultCount + childCount,
+        numberOfAdults: adultCount,
+        numberOfChildren: childCount,
       };
 
       const booking = await bookingService.createBooking(user.id, {
@@ -282,19 +290,34 @@ export const AdHocBookingPage: React.FC = () => {
                     />
                     <Input
                       type="number"
-                      label="Number of Guests *"
-                      value={guestCount}
-                      onChange={(e) => setGuestCount(parseInt(e.target.value) || 1)}
+                      label="Number of Adults *"
+                      value={adultCount}
+                      onChange={(e) => setAdultCount(Math.max(1, parseInt(e.target.value) || 1))}
                       icon={<Users size={20} />}
                       min={1}
                     />
                   </div>
-                  <Input
-                    label="Special Requirements (Optional)"
-                    value={requirements}
-                    onChange={(e) => setRequirements(e.target.value)}
-                    placeholder="Any special needs or requests"
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      type="number"
+                      label="Number of Children"
+                      value={childCount}
+                      onChange={(e) => setChildCount(Math.max(0, parseInt(e.target.value) || 0))}
+                      icon={<Users size={20} />}
+                      min={0}
+                    />
+                    <Input
+                      label="Special Requirements (Optional)"
+                      value={requirements}
+                      onChange={(e) => setRequirements(e.target.value)}
+                      placeholder="Any special needs or requests"
+                    />
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <strong>Total Guests:</strong> {adultCount + childCount} ({adultCount} {adultCount === 1 ? 'Adult' : 'Adults'}, {childCount} {childCount === 1 ? 'Child' : 'Children'})
+                    </p>
+                  </div>
                 </div>
               </CardBody>
             </Card>
