@@ -52,10 +52,17 @@ export const CheckInPage: React.FC = () => {
   const loadTodayBookings = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const allBookings = await bookingService.getBookings({
+      const provisionedBookings = await bookingService.getBookings({
+        fromDate: today,
+        status: 'PROVISIONED',
+      });
+      const allocatedBookings = await bookingService.getBookings({
         fromDate: today,
         status: 'ALLOCATED',
       });
+      const allBookings = [...provisionedBookings, ...allocatedBookings].filter(
+        (booking) => booking.checkInDate.split('T')[0] === today
+      );
       setBookings(allBookings);
       setFilteredBookings(allBookings);
     } catch (error) {
@@ -67,9 +74,19 @@ export const CheckInPage: React.FC = () => {
   };
 
   const handleCheckIn = (booking: BookingDTO) => {
+    if (booking.status === 'PROVISIONED') {
+      addToast('This booking is awaiting room allocation', 'error');
+      return;
+    }
     setSelectedBooking(booking);
     setShowOtpModal(true);
     setOtpInput('');
+  };
+
+  const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'error' | 'info' => {
+    if (status === 'ALLOCATED') return 'success';
+    if (status === 'PROVISIONED') return 'warning';
+    return 'info';
   };
 
   const handleVerifyOtp = async () => {
@@ -200,7 +217,15 @@ export const CheckInPage: React.FC = () => {
         ) : filteredBookings.length === 0 ? (
           <Card className="text-center py-12">
             <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No bookings found for today</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No bookings found for today</h3>
+            <p className="text-gray-600 mb-4">
+              {searchQuery ? 'Try adjusting your search criteria' : 'No bookings are scheduled for check-in today'}
+            </p>
+            {!searchQuery && (
+              <p className="text-sm text-gray-500">
+                Bookings must be approved and allocated before they appear here
+              </p>
+            )}
           </Card>
         ) : (
           <div className="grid gap-4">
@@ -211,11 +236,18 @@ export const CheckInPage: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{booking.bookingNumber}</h3>
-                        <Badge variant="info">{booking.status}</Badge>
+                        <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
                       </div>
                       <p className="text-sm text-gray-600">{booking.guestDetails.fullName}</p>
+                      {booking.status === 'PROVISIONED' && (
+                        <p className="text-xs text-amber-600 mt-1">⚠ Awaiting room allocation</p>
+                      )}
                     </div>
-                    <Button onClick={() => handleCheckIn(booking)} size="sm">
+                    <Button
+                      onClick={() => handleCheckIn(booking)}
+                      size="sm"
+                      disabled={booking.status === 'PROVISIONED'}
+                    >
                       <UserCheck className="w-4 h-4 mr-2" />
                       Check In
                     </Button>
