@@ -330,35 +330,123 @@
 
 @layer components {
   .pastel-blue-gradient {
-    background: linear-gradient(135deg, rgba(191, 219, 254, 0.5) 0%, rgba(147, 197, 253, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(147, 197, 253);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-blue-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(96, 165, 250);
+    box-shadow: 0 8px 24px rgba(96, 165, 250, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-green-gradient {
-    background: linear-gradient(135deg, rgba(209, 250, 229, 0.5) 0%, rgba(167, 243, 208, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(167, 243, 208);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-green-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(110, 231, 183);
+    box-shadow: 0 8px 24px rgba(110, 231, 183, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-coral-gradient {
-    background: linear-gradient(135deg, rgba(254, 215, 170, 0.5) 0%, rgba(253, 186, 140, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(253, 186, 116);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-coral-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(251, 146, 60);
+    box-shadow: 0 8px 24px rgba(251, 146, 60, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-lavender-gradient {
-    background: linear-gradient(135deg, rgba(237, 233, 254, 0.5) 0%, rgba(221, 214, 254, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(221, 214, 254);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-lavender-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(196, 181, 253);
+    box-shadow: 0 8px 24px rgba(196, 181, 253, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-yellow-gradient {
-    background: linear-gradient(135deg, rgba(254, 249, 195, 0.5) 0%, rgba(254, 240, 138, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(254, 240, 138);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-yellow-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(253, 224, 71);
+    box-shadow: 0 8px 24px rgba(253, 224, 71, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-pink-gradient {
-    background: linear-gradient(135deg, rgba(252, 231, 243, 0.5) 0%, rgba(251, 207, 232, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(251, 207, 232);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-pink-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(249, 168, 212);
+    box-shadow: 0 8px 24px rgba(249, 168, 212, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-cyan-gradient {
-    background: linear-gradient(135deg, rgba(207, 250, 254, 0.5) 0%, rgba(165, 243, 252, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(165, 243, 252);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-cyan-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(103, 232, 249);
+    box-shadow: 0 8px 24px rgba(103, 232, 249, 0.2);
+    transform: translateY(-2px);
   }
 
   .pastel-teal-gradient {
-    background: linear-gradient(135deg, rgba(204, 251, 241, 0.5) 0%, rgba(153, 246, 228, 0.5) 100%);
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgb(153, 246, 228);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .pastel-teal-gradient:hover {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgb(94, 234, 212);
+    box-shadow: 0 8px 24px rgba(94, 234, 212, 0.2);
+    transform: translateY(-2px);
   }
 
   .nav-item-dashboard {

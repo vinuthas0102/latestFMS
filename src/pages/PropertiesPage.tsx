@@ -123,7 +123,7 @@ export const PropertiesPage: React.FC = () => {
                   <FadeIn key={property.id} delay={index * 60}>
                     <div
                       onClick={() => handleCardClick(property)}
-                      className="rounded-xl overflow-hidden border border-white/60 hover:shadow-xl transition-all duration-300 card-interactive bg-white"
+                      className={`${getGradientClass()} rounded-xl overflow-hidden cursor-pointer`}
                     >
                       <div className="h-40 relative overflow-hidden">
                         {property.images.length > 0 ? (
@@ -162,7 +162,7 @@ export const PropertiesPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      <div className={`${getGradientClass()} p-4`}>
+                      <div className="p-4 bg-white">
                         <div className="flex flex-wrap gap-1.5 mb-2">
                           {property.module && (
                             <Badge variant="default" className="text-xs">

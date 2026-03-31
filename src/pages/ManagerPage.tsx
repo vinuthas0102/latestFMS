@@ -130,7 +130,7 @@ export const ManagerPage: React.FC = () => {
         <div className="grid gap-4">
           {bookings.length === 0 ? (
             <FadeIn delay={100}>
-              <div className="pastel-blue-gradient rounded-xl border border-white/60 p-12">
+              <div className="pastel-blue-gradient rounded-xl p-12">
                 <div className="text-center">
                   <Clock className="mx-auto text-gray-400 mb-4 animate-pulse-slow" size={48} />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No pending requests</h3>
@@ -144,7 +144,7 @@ export const ManagerPage: React.FC = () => {
 
               return (
                 <FadeIn key={booking.id} delay={index * 80}>
-                  <div className="pastel-cyan-gradient rounded-xl border border-white/60 p-4 hover:shadow-lg transition-all duration-300">
+                  <div className="pastel-cyan-gradient rounded-xl p-4">
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -212,7 +212,7 @@ export const ManagerPage: React.FC = () => {
                         </div>
 
                         {booking.specialRequirements && (
-                          <div className="pastel-yellow-gradient rounded-lg p-3 border border-yellow-200/50">
+                          <div className="pastel-yellow-gradient rounded-lg p-3">
                             <p className="text-sm text-gray-700">
                               <span className="font-semibold">Special Requirements:</span>{' '}
                               {booking.specialRequirements}

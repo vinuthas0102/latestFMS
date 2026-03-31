@@ -78,9 +78,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`${colorScheme.gradient} rounded-xl shadow-sm border border-white/60 p-4 transition-all duration-300 ${
-        onClick ? 'cursor-pointer card-interactive' : ''
-      } ${colorScheme.glow} hover:shadow-lg hover:border-white/80 overflow-hidden relative group`}
+      className={`${colorScheme.gradient} rounded-xl p-4 ${
+        onClick ? 'cursor-pointer' : ''
+      } overflow-hidden relative group`}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

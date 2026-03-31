@@ -153,7 +153,7 @@ export const AdminPage: React.FC = () => {
       <div className="grid gap-3">
         {modules.map((module, index) => (
           <FadeIn key={module.id} delay={index * 50}>
-            <div className="pastel-cyan-gradient p-4 rounded-xl border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-cyan-gradient p-4 rounded-xl card-interactive">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
@@ -190,7 +190,7 @@ export const AdminPage: React.FC = () => {
       <div className="grid gap-3">
         {propertyTypes.map((propertyType, index) => (
           <FadeIn key={propertyType.id} delay={index * 50}>
-            <div className="pastel-lavender-gradient p-4 rounded-xl border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-lavender-gradient p-4 rounded-xl card-interactive">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -219,13 +219,13 @@ export const AdminPage: React.FC = () => {
     </div>
   );
   const renderDateBlocks = () => (
-    <div className="pastel-yellow-gradient p-6 rounded-xl border border-white/60">
+    <div className="pastel-yellow-gradient p-6 rounded-xl">
       <DateBlocksManagement />
     </div>
   );
 
   const renderDesignations = () => (
-    <div className="pastel-pink-gradient p-6 rounded-xl border border-white/60">
+    <div className="pastel-pink-gradient p-6 rounded-xl">
       <DesignationManagement />
     </div>
   );
@@ -248,7 +248,7 @@ export const AdminPage: React.FC = () => {
       <div className="grid gap-3">
         {regions.map((region, index) => (
           <FadeIn key={region.id} delay={index * 50}>
-            <div className="pastel-blue-gradient p-4 rounded-xl border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-blue-gradient p-4 rounded-xl card-interactive">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
@@ -294,7 +294,7 @@ export const AdminPage: React.FC = () => {
       <div className="grid gap-3">
         {estates.map((estate, index) => (
           <FadeIn key={estate.id} delay={index * 50}>
-            <div className="pastel-green-gradient p-4 rounded-xl border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-green-gradient p-4 rounded-xl card-interactive">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
@@ -349,7 +349,7 @@ export const AdminPage: React.FC = () => {
       <div className="grid gap-3">
         {assetTypes.map((assetType, index) => (
           <FadeIn key={assetType.id} delay={index * 50}>
-            <div className="pastel-coral-gradient p-4 rounded-xl border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-coral-gradient p-4 rounded-xl card-interactive">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="font-bold text-gray-900 mb-1">{assetType.name}</p>

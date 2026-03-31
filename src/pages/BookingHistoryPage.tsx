@@ -118,7 +118,7 @@ export const BookingHistoryPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <FadeIn delay={100}>
-            <div className="pastel-blue-gradient rounded-xl p-4 border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-blue-gradient rounded-xl p-4 card-interactive">
               <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Total Bookings</p>
               <p className="text-3xl font-bold text-gray-900">
                 <CountUp end={stats.total} duration={1500} />
@@ -126,7 +126,7 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
           </FadeIn>
           <FadeIn delay={150}>
-            <div className="pastel-cyan-gradient rounded-xl p-4 border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-cyan-gradient rounded-xl p-4 card-interactive">
               <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Upcoming</p>
               <p className="text-3xl font-bold text-gray-900">
                 <CountUp end={stats.upcoming} duration={1500} />
@@ -134,7 +134,7 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
           </FadeIn>
           <FadeIn delay={200}>
-            <div className="pastel-green-gradient rounded-xl p-4 border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-green-gradient rounded-xl p-4 card-interactive">
               <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Completed</p>
               <p className="text-3xl font-bold text-gray-900">
                 <CountUp end={stats.completed} duration={1500} />
@@ -142,7 +142,7 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
           </FadeIn>
           <FadeIn delay={250}>
-            <div className="pastel-coral-gradient rounded-xl p-4 border border-white/60 hover:shadow-md transition-all duration-300 card-interactive">
+            <div className="pastel-coral-gradient rounded-xl p-4 card-interactive">
               <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Cancelled</p>
               <p className="text-3xl font-bold text-gray-900">
                 <CountUp end={stats.cancelled} duration={1500} />
@@ -175,7 +175,7 @@ export const BookingHistoryPage: React.FC = () => {
           </div>
         ) : filteredBookings.length === 0 ? (
           <FadeIn delay={400}>
-            <div className="pastel-lavender-gradient rounded-xl border border-white/60 p-12 text-center">
+            <div className="pastel-lavender-gradient rounded-xl p-12 text-center">
               <History className="w-16 h-16 text-gray-400 mx-auto mb-4 animate-pulse-slow" />
               <p className="text-gray-600 font-medium">No bookings found</p>
             </div>
@@ -193,7 +193,7 @@ export const BookingHistoryPage: React.FC = () => {
 
               return (
                 <FadeIn key={booking.id} delay={index * 50}>
-                  <div className={`${getGradientClass()} rounded-xl p-4 border border-white/60 hover:shadow-md transition-all duration-300`}>
+                  <div className={`${getGradientClass()} rounded-xl p-4`}>
                     <div
                       className="cursor-pointer"
                       onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}

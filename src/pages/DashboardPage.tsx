@@ -167,7 +167,7 @@ export const DashboardPage: React.FC = () => {
 
                       return (
                         <FadeIn key={booking.id} delay={index * 60}>
-                          <div className={`${getGradientClass()} rounded-xl p-3 border border-white/60 hover:shadow-lg transition-all duration-300 cursor-pointer`}>
+                          <div className={`${getGradientClass()} rounded-xl p-3 cursor-pointer`}>
                             <div
                               className="mb-3"
                               onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
@@ -344,7 +344,7 @@ export const DashboardPage: React.FC = () => {
         }
       >
         <div className="space-y-4">
-          <div className="pastel-blue-gradient rounded-xl p-4 border border-white/60">
+          <div className="pastel-blue-gradient rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-gray-600">Total Count</span>
               <span className="text-2xl font-bold text-gray-900">
@@ -365,7 +365,7 @@ export const DashboardPage: React.FC = () => {
             {filteredBookings.slice(0, 5).map((booking, index) => (
               <FadeIn key={booking.id} delay={index * 50}>
                 <div
-                  className="pastel-cyan-gradient rounded-lg p-3 border border-white/60 hover:shadow-md transition-all cursor-pointer"
+                  className="pastel-cyan-gradient rounded-lg p-3 cursor-pointer"
                   onClick={() => {
                     setSelectedMetric(null);
                     navigate(`/bookings/${booking.id}`);
