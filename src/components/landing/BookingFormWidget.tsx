@@ -21,6 +21,7 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
     if (checkIn) searchParams.set('checkIn', checkIn);
     if (checkOut) searchParams.set('checkOut', checkOut);
     if (guests) searchParams.set('guests', guests);
+    if (facilityType) searchParams.set('facilityType', facilityType);
 
     navigate(`${ROUTES.SEARCH}?${searchParams.toString()}`);
   };

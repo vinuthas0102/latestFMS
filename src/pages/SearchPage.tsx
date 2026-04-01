@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Calendar, Users, Filter, Building2, Map, List } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card, CardBody } from '../components/ui/Card';
@@ -14,6 +14,7 @@ import { MapSearchView } from '../components/search/MapSearchView';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { filters, results, loading, setFilters, search } = useSearchStore();
   const { modules, propertyTypes, roomTypes, amenities, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
 
@@ -24,6 +25,7 @@ export const SearchPage: React.FC = () => {
   const [propertyTypeId, setPropertyTypeId] = useState('');
   const [roomTypeId, setRoomTypeId] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [hasAutoSearched, setHasAutoSearched] = useState(false);
 
   useEffect(() => {
     fetchModules();
@@ -39,6 +41,31 @@ export const SearchPage: React.FC = () => {
       fetchPropertyTypes();
     }
   }, [moduleId]);
+
+  useEffect(() => {
+    const urlLocation = searchParams.get('location');
+    const urlCheckIn = searchParams.get('checkIn');
+    const urlCheckOut = searchParams.get('checkOut');
+    const urlFacilityType = searchParams.get('facilityType');
+
+    if ((urlLocation || urlCheckIn || urlCheckOut || urlFacilityType) && !hasAutoSearched) {
+      if (urlLocation) setLocation(urlLocation);
+      if (urlCheckIn) setCheckIn(urlCheckIn);
+      if (urlCheckOut) setCheckOut(urlCheckOut);
+
+      setFilters({
+        location: urlLocation || '',
+        checkInDate: urlCheckIn || '',
+        checkOutDate: urlCheckOut || '',
+        moduleId: '',
+        propertyTypeId: '',
+        roomTypeId: '',
+      });
+
+      search();
+      setHasAutoSearched(true);
+    }
+  }, [searchParams, hasAutoSearched]);
 
   const handleSearch = () => {
     setFilters({
