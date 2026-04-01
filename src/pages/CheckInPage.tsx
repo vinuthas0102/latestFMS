@@ -6,9 +6,11 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
-import { Search, UserCheck, Key, Calendar, Home, Ligature as FileSignature, CheckCircle } from 'lucide-react';
+import { Search, UserCheck, Key, Calendar, Home, Ligature as FileSignature, CheckCircle, DoorOpen } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
-import { BookingDTO } from '../types';
+import { allocationService } from '../services/allocationService';
+import { propertyService } from '../services/propertyService';
+import { BookingDTO, RoomDTO } from '../types';
 import { formatDate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/formatters';
 import { useAuthStore } from '../stores/authStore';
@@ -24,10 +26,13 @@ export const CheckInPage: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [signature, setSignature] = useState('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState<RoomDTO[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -74,13 +79,63 @@ export const CheckInPage: React.FC = () => {
   };
 
   const handleCheckIn = (booking: BookingDTO) => {
-    if (booking.status === 'PROVISIONED') {
-      addToast('This booking is awaiting room allocation', 'error');
-      return;
-    }
     setSelectedBooking(booking);
     setShowOtpModal(true);
     setOtpInput('');
+  };
+
+  const handleOpenAllocation = async (booking: BookingDTO) => {
+    setSelectedBooking(booking);
+    setProcessing(true);
+    try {
+      const rooms = await propertyService.getRooms();
+      const propertyRooms = rooms.filter(
+        (room) => room.roomTypeId === booking.roomTypeId && room.status === 'AVAILABLE'
+      );
+      setAvailableRooms(propertyRooms);
+      setSelectedRoomIds([]);
+      setShowAllocationModal(true);
+    } catch (error: any) {
+      addToast(error.message || 'Failed to load rooms', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const toggleRoomSelection = (roomId: string) => {
+    setSelectedRoomIds((prev) =>
+      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
+    );
+  };
+
+  const handleAllocateRooms = async () => {
+    if (!selectedBooking || selectedRoomIds.length !== selectedBooking.quantity) {
+      addToast(`Please select exactly ${selectedBooking?.quantity} room(s)`, 'error');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      for (const roomId of selectedRoomIds) {
+        await allocationService.createAllocation(
+          { bookingId: selectedBooking.id, roomId },
+          user!.id
+        );
+      }
+
+      await bookingService.updateBookingStatus(selectedBooking.id, 'ALLOCATED');
+
+      addToast('Rooms allocated successfully', 'success');
+      setShowAllocationModal(false);
+      await loadTodayBookings();
+
+      setShowOtpModal(true);
+      setOtpInput('');
+    } catch (error: any) {
+      addToast(error.message || 'Allocation failed', 'error');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'error' | 'info' => {
@@ -243,14 +298,24 @@ export const CheckInPage: React.FC = () => {
                         <p className="text-xs text-amber-600 mt-1">⚠ Awaiting room allocation</p>
                       )}
                     </div>
-                    <Button
-                      onClick={() => handleCheckIn(booking)}
-                      size="sm"
-                      disabled={booking.status === 'PROVISIONED'}
-                    >
-                      <UserCheck className="w-4 h-4 mr-2" />
-                      Check In
-                    </Button>
+                    {booking.status === 'PROVISIONED' ? (
+                      <Button
+                        onClick={() => handleOpenAllocation(booking)}
+                        size="sm"
+                        variant="secondary"
+                      >
+                        <DoorOpen className="w-4 h-4 mr-2" />
+                        Allocate Rooms
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleCheckIn(booking)}
+                        size="sm"
+                      >
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        Check In
+                      </Button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -366,6 +431,84 @@ export const CheckInPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={showAllocationModal}
+        onClose={() => setShowAllocationModal(false)}
+        title="Allocate Rooms"
+      >
+        {selectedBooking && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="mb-2">
+                <p className="text-sm font-medium text-gray-900">{selectedBooking.guestDetails.fullName}</p>
+                <p className="text-xs text-gray-600">{selectedBooking.bookingNumber}</p>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">
+                  <span className="font-medium">Required:</span> {selectedBooking.quantity}{' '}
+                  {selectedBooking.roomType?.name} room(s)
+                </span>
+                <span className="text-gray-700">
+                  <span className="font-medium">Selected:</span> {selectedRoomIds.length} room(s)
+                </span>
+              </div>
+            </div>
+
+            {availableRooms.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <DoorOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No available rooms found for this room type</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                {availableRooms.map((room) => (
+                  <button
+                    key={room.id}
+                    onClick={() => toggleRoomSelection(room.id)}
+                    disabled={
+                      !selectedRoomIds.includes(room.id) &&
+                      selectedRoomIds.length >= selectedBooking.quantity
+                    }
+                    className={`p-4 rounded-lg border-2 transition-all duration-150 ${
+                      selectedRoomIds.includes(room.id)
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } ${
+                      !selectedRoomIds.includes(room.id) &&
+                      selectedRoomIds.length >= selectedBooking.quantity
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
+                    }`}
+                  >
+                    <div className="font-semibold text-gray-900">{room.roomNumber}</div>
+                    <div className="text-sm text-gray-600">Capacity: {room.capacity}</div>
+                    <div className="text-sm text-gray-600">{formatCurrency(room.basePrice)}/night</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowAllocationModal(false)}
+                className="flex-1"
+                disabled={processing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAllocateRooms}
+                className="flex-1"
+                disabled={processing || selectedRoomIds.length !== selectedBooking.quantity}
+              >
+                {processing ? 'Allocating...' : 'Allocate & Continue'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
