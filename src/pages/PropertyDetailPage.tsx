@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Users, Wifi, Calendar, ArrowLeft, Building2, CreditCard as Edit, Info, Layers, Image, DollarSign, Map } from 'lucide-react';
+import { MapPin, Users, Wifi, Calendar, ArrowLeft, Building2, CreditCard as Edit, Info, Layers, Image, DollarSign, Map, BarChart3 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -25,6 +25,7 @@ import { RoomsDisplay } from '../components/property/RoomsDisplay';
 import { ImagesDisplay } from '../components/property/ImagesDisplay';
 import { PricingDisplay } from '../components/property/PricingDisplay';
 import { PropertyAvailabilityCalendar } from '../components/availability/PropertyAvailabilityCalendar';
+import { RoomAvailabilityInsights } from '../components/availability/RoomAvailabilityInsights';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
 
@@ -224,6 +225,7 @@ export const PropertyDetailPage: React.FC = () => {
     { id: 'images', label: 'Images', icon: <Image size={20} /> },
     { id: 'pricing', label: 'Pricing', icon: <DollarSign size={20} /> },
     { id: 'availability', label: 'Availability', icon: <Calendar size={20} /> },
+    { id: 'room-insights', label: 'Room Insights', icon: <BarChart3 size={20} /> },
     { id: 'location', label: 'Location & Map', icon: <Map size={20} /> },
     { id: 'booking', label: 'Book Now', icon: <Calendar size={20} /> },
   ];
@@ -319,6 +321,14 @@ export const PropertyDetailPage: React.FC = () => {
               selectedStartDate={checkIn}
               selectedEndDate={checkOut}
             />
+          </div>
+        );
+
+      case 'room-insights':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Room Availability Insights</h2>
+            <RoomAvailabilityInsights propertyId={id!} />
           </div>
         );
 
