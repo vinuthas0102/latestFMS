@@ -11,6 +11,22 @@ export interface DayAvailability {
 }
 
 class AvailabilityService {
+  private generateEmptyAvailability(month: number, year: number, lastDay: number): DayAvailability[] {
+    const availability: DayAvailability[] = [];
+    for (let day = 1; day <= lastDay; day++) {
+      const currentDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      availability.push({
+        date: currentDate,
+        totalRooms: 0,
+        bookedRooms: 0,
+        blockedRooms: 0,
+        availableRooms: 0,
+        status: 'full',
+      });
+    }
+    return availability;
+  }
+
   async getPropertyAvailability(
     propertyId: string,
     month: number,
@@ -20,9 +36,34 @@ class AvailabilityService {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
+    const { data: propertyBlocks } = await supabase
+      .from('blocks')
+      .select('id')
+      .eq('property_id', propertyId)
+      .eq('is_active', true);
+
+    const blockIds = (propertyBlocks || []).map((b) => b.id);
+
+    if (blockIds.length === 0) {
+      return this.generateEmptyAvailability(month, year, lastDay);
+    }
+
+    const { data: floors } = await supabase
+      .from('floors')
+      .select('id')
+      .in('block_id', blockIds)
+      .eq('is_active', true);
+
+    const floorIds = (floors || []).map((f) => f.id);
+
+    if (floorIds.length === 0) {
+      return this.generateEmptyAvailability(month, year, lastDay);
+    }
+
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
       .select('id, room_type_id, status, is_active')
+      .in('floor_id', floorIds)
       .in('status', ['AVAILABLE', 'OCCUPIED'])
       .eq('is_active', true);
 
