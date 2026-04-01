@@ -259,16 +259,19 @@ export const bookingService = {
   verifyOTP: async (bookingId: string, otp: string): Promise<boolean> => {
     const { data, error } = await supabase
       .from('bookings')
-      .select('otp, otp_expires_at')
+      .select('otp, otp_hash, otp_expires_at, is_guest_booking')
       .eq('id', bookingId)
       .maybeSingle();
 
     if (error || !data) return false;
 
-    const now = new Date();
-    const expiresAt = new Date(data.otp_expires_at);
-
-    return data.otp === otp && now <= expiresAt;
+    if (data.is_guest_booking) {
+      return verifyOTPService(otp, data.otp_hash, data.otp_expires_at);
+    } else {
+      const now = new Date();
+      const expiresAt = new Date(data.otp_expires_at);
+      return data.otp === otp && now <= expiresAt;
+    }
   },
 
   getBookingByBookingNumber: async (bookingNumber: string): Promise<BookingDTO | null> => {
