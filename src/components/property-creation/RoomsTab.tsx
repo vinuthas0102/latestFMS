@@ -83,7 +83,7 @@ export const RoomsTab: React.FC<RoomsTabProps> = ({ formData, updateFormData }) 
       tempId: `room_${Date.now()}`,
       roomNumber: '',
     };
-    updateFormData({ rooms: [...rooms, newRoom] });
+    updateFormData({ rooms: [newRoom, ...rooms] });
   };
 
   const removeRoom = (tempId: string) => {
