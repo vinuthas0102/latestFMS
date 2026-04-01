@@ -36,6 +36,8 @@ class AvailabilityService {
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
+    console.log('🔍 [Availability] Fetching for property:', propertyId, 'Month:', month, 'Year:', year);
+
     const { data: propertyBlocks } = await supabase
       .from('blocks')
       .select('id')
@@ -43,8 +45,10 @@ class AvailabilityService {
       .eq('is_active', true);
 
     const blockIds = (propertyBlocks || []).map((b) => b.id);
+    console.log('📦 [Availability] Found blocks:', blockIds.length, blockIds);
 
     if (blockIds.length === 0) {
+      console.warn('⚠️ [Availability] No blocks found - returning empty availability');
       return this.generateEmptyAvailability(month, year, lastDay);
     }
 
@@ -55,8 +59,10 @@ class AvailabilityService {
       .eq('is_active', true);
 
     const floorIds = (floors || []).map((f) => f.id);
+    console.log('🏢 [Availability] Found floors:', floorIds.length, floorIds);
 
     if (floorIds.length === 0) {
+      console.warn('⚠️ [Availability] No floors found - returning empty availability');
       return this.generateEmptyAvailability(month, year, lastDay);
     }
 
@@ -67,9 +73,15 @@ class AvailabilityService {
       .in('status', ['AVAILABLE', 'OCCUPIED'])
       .eq('is_active', true);
 
-    if (roomsError) throw roomsError;
+    if (roomsError) {
+      console.error('❌ [Availability] Rooms query error:', roomsError);
+      throw roomsError;
+    }
+
+    console.log('🚪 [Availability] Found rooms:', rooms?.length || 0, rooms);
 
     const totalRooms = (rooms || []).filter((r) => r.status === 'AVAILABLE').length;
+    console.log('✅ [Availability] Total available rooms:', totalRooms);
 
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
@@ -80,13 +92,20 @@ class AvailabilityService {
       .lte('check_in_date', endDate)
       .gte('check_out_date', startDate);
 
-    if (bookingsError) throw bookingsError;
+    if (bookingsError) {
+      console.error('❌ [Availability] Bookings query error:', bookingsError);
+      throw bookingsError;
+    }
+
+    console.log('📅 [Availability] Found bookings:', bookings?.length || 0, bookings);
 
     const { blocks } = await dateBlockService.getBlockingRulesForProperty(
       propertyId,
       startDate,
       endDate
     );
+
+    console.log('🚫 [Availability] Found date blocks:', blocks.length, blocks);
 
     const availability: DayAvailability[] = [];
 
@@ -116,6 +135,10 @@ class AvailabilityService {
         status = 'partial';
       }
 
+      if (day === 1) {
+        console.log(`📊 [Availability] Day ${day}: total=${totalRooms}, booked=${bookedOnDay}, blocked=${blockedRooms}, available=${availableRooms}, status=${status}`);
+      }
+
       availability.push({
         date: currentDate,
         totalRooms,
@@ -126,6 +149,7 @@ class AvailabilityService {
       });
     }
 
+    console.log('✨ [Availability] Generated availability for', availability.length, 'days');
     return availability;
   }
 
