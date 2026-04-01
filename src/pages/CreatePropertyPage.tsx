@@ -156,7 +156,7 @@ export const CreatePropertyPage: React.FC = () => {
       case 'basic':
         return !!(formData.name && formData.code && formData.moduleId && formData.propertyTypeId && formData.assetTypeId);
       case 'location':
-        return !!(formData.estateId && formData.address);
+        return !!formData.address;
       case 'blocks':
         return formData.blocks.length > 0;
       case 'rooms':

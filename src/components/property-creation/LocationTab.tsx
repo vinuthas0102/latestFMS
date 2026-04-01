@@ -92,7 +92,7 @@ export const LocationTab: React.FC<LocationTabProps> = ({ formData, updateFormDa
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Details</h3>
         <p className="text-sm text-gray-600 mb-6">
-          Specify where this property is located within the organizational hierarchy.
+          Specify the property's physical location. Optionally, you can associate it with an estate in the organizational hierarchy.
         </p>
       </div>
 
@@ -110,7 +110,7 @@ export const LocationTab: React.FC<LocationTabProps> = ({ formData, updateFormDa
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Region *
+          Region
         </label>
         <Select
           value={selectedRegion}
@@ -120,31 +120,37 @@ export const LocationTab: React.FC<LocationTabProps> = ({ formData, updateFormDa
           }}
           disabled={loading}
         >
-          <option value="">Select region...</option>
+          <option value="">No region (standalone property)</option>
           {regions.map((region) => (
             <option key={region.id} value={region.id}>
               {region.name} ({region.code})
             </option>
           ))}
         </Select>
+        <p className="text-xs text-gray-500 mt-1">
+          Select a region if this property belongs to an organizational estate structure
+        </p>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Estate *
+          Estate
         </label>
         <Select
           value={formData.estateId || ''}
           onChange={(e) => handleEstateChange(e.target.value)}
           disabled={!selectedRegion || estates.length === 0}
         >
-          <option value="">Select estate...</option>
+          <option value="">No estate (standalone property)</option>
           {estates.map((estate) => (
             <option key={estate.id} value={estate.id}>
               {estate.name} ({estate.code}) - {estate.city}
             </option>
           ))}
         </Select>
+        <p className="text-xs text-gray-500 mt-1">
+          Leave empty for independent properties not part of an estate
+        </p>
       </div>
 
       <div>

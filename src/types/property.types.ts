@@ -68,7 +68,7 @@ export interface AssetTypeDTO {
 
 export interface PropertyDTO {
   id: string;
-  estateId: string;
+  estateId: string | null;
   assetTypeId: string;
   moduleId?: string;
   propertyTypeId?: string;
