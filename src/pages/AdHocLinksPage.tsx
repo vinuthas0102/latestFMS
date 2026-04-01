@@ -34,7 +34,7 @@ export const AdHocLinksPage: React.FC = () => {
     try {
       const [linksData, propertiesData] = await Promise.all([
         adHocLinkService.getLinks(user!.id),
-        propertyService.getProperties({ status: 'ACTIVE' }),
+        propertyService.getProperties({ status: 'PUBLISHED' }),
       ]);
       setLinks(linksData);
       setProperties(propertiesData);
