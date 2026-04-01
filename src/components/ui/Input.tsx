@@ -31,7 +31,7 @@ export const Input: React.FC<InputProps> = ({
             error ? 'border-red-300' : 'border-gray-300'
           } px-4 py-2 ${
             icon ? 'pl-10' : ''
-          } focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ${className}`}
+          } text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ${className}`}
           {...props}
         />
       </div>
@@ -61,7 +61,7 @@ export const TextArea: React.FC<TextAreaProps> = ({
       <textarea
         className={`block w-full rounded-lg border ${
           error ? 'border-red-300' : 'border-gray-300'
-        } px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ${className}`}
+        } px-4 py-2 text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150 ${className}`}
         {...props}
       />
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
