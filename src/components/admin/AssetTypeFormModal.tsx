@@ -4,7 +4,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
-import { AssetTypeDTO, ModuleDTO } from '../../types';
+import { AssetTypeDTO, ModuleDTO, AssetCategory } from '../../types';
+import { ASSET_CATEGORIES, ASSET_CATEGORY_LABELS } from '../../constants/statuses';
 
 interface AssetTypeFormModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ interface AssetTypeFormModalProps {
 export interface AssetTypeFormData {
   name: string;
   subtype: string;
-  category: string;
+  category: AssetCategory | '';
   description?: string;
   moduleId?: string;
   isActive?: boolean;
@@ -161,12 +162,18 @@ export const AssetTypeFormModal: React.FC<AssetTypeFormModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category <span className="text-red-500">*</span>
             </label>
-            <Input
+            <Select
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              placeholder="Enter category"
+              onChange={(e) => setFormData({ ...formData, category: e.target.value as AssetCategory | '' })}
               error={errors.category}
-            />
+            >
+              <option value="">Select category</option>
+              {ASSET_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {ASSET_CATEGORY_LABELS[category]}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 

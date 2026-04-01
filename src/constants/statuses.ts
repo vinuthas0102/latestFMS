@@ -1,4 +1,4 @@
-import { BookingStatus, RoomStatus, PaymentStatus, PropertyStatus } from '../types';
+import { BookingStatus, RoomStatus, PaymentStatus, PropertyStatus, AssetCategory } from '../types';
 
 export const BOOKING_STATUSES: Record<string, BookingStatus> = {
   REQUESTED: 'REQUESTED',
@@ -68,4 +68,12 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 export const PROPERTY_STATUSES: Record<string, PropertyStatus> = {
   DRAFT: 'DRAFT',
   PUBLISHED: 'PUBLISHED',
+};
+
+export const ASSET_CATEGORIES: AssetCategory[] = ['A', 'B', 'C'];
+
+export const ASSET_CATEGORY_LABELS: Record<AssetCategory, string> = {
+  A: 'Category A',
+  B: 'Category B',
+  C: 'Category C',
 };
