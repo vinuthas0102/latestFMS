@@ -451,7 +451,7 @@ export const propertyService = {
     return mapRegionFromDb(data);
   },
 
-  createEstate: async (estate: { regionId: string; name: string; code: string; city: string; state: string; address?: string; pincode?: string; contactPerson?: string; contactEmail?: string; contactPhone?: string }): Promise<EstateDTO> => {
+  createEstate: async (estate: { regionId: string; name: string; code: string; city: string; state: string; address?: string; pincode?: string; latitude?: number; longitude?: number; images?: string[]; contactPerson?: string; contactEmail?: string; contactPhone?: string }): Promise<EstateDTO> => {
     const { data, error } = await supabase
       .from('estates')
       .insert([
@@ -463,6 +463,9 @@ export const propertyService = {
           state: estate.state,
           address: estate.address || '',
           pincode: estate.pincode || '',
+          latitude: estate.latitude,
+          longitude: estate.longitude,
+          images: estate.images || [],
           contact_person: estate.contactPerson || '',
           contact_email: estate.contactEmail || '',
           contact_phone: estate.contactPhone || '',
@@ -475,7 +478,7 @@ export const propertyService = {
     return mapEstateFromDb(data);
   },
 
-  updateEstate: async (id: string, updates: { regionId?: string; name?: string; code?: string; city?: string; state?: string; address?: string; pincode?: string; contactPerson?: string; contactEmail?: string; contactPhone?: string; isActive?: boolean }): Promise<EstateDTO> => {
+  updateEstate: async (id: string, updates: { regionId?: string; name?: string; code?: string; city?: string; state?: string; address?: string; pincode?: string; latitude?: number; longitude?: number; images?: string[]; contactPerson?: string; contactEmail?: string; contactPhone?: string; isActive?: boolean }): Promise<EstateDTO> => {
     const updateData: any = {};
     if (updates.regionId !== undefined) updateData.region_id = sanitizeUUID(updates.regionId);
     if (updates.name !== undefined) updateData.name = updates.name;
@@ -484,6 +487,9 @@ export const propertyService = {
     if (updates.state !== undefined) updateData.state = updates.state;
     if (updates.address !== undefined) updateData.address = updates.address;
     if (updates.pincode !== undefined) updateData.pincode = updates.pincode;
+    if (updates.latitude !== undefined) updateData.latitude = updates.latitude;
+    if (updates.longitude !== undefined) updateData.longitude = updates.longitude;
+    if (updates.images !== undefined) updateData.images = updates.images;
     if (updates.contactPerson !== undefined) updateData.contact_person = updates.contactPerson;
     if (updates.contactEmail !== undefined) updateData.contact_email = updates.contactEmail;
     if (updates.contactPhone !== undefined) updateData.contact_phone = updates.contactPhone;
@@ -562,6 +568,9 @@ function mapEstateFromDb(dbEstate: any): EstateDTO {
     city: dbEstate.city || '',
     state: dbEstate.state || '',
     pincode: dbEstate.pincode || '',
+    latitude: dbEstate.latitude,
+    longitude: dbEstate.longitude,
+    images: dbEstate.images || [],
     contactPerson: dbEstate.contact_person || '',
     contactEmail: dbEstate.contact_email || '',
     contactPhone: dbEstate.contact_phone || '',

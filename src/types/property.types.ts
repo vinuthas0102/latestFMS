@@ -19,6 +19,9 @@ export interface EstateDTO {
   city: string;
   state: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
+  images: string[];
   contactPerson: string;
   contactEmail: string;
   contactPhone: string;

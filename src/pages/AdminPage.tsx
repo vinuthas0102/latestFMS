@@ -295,8 +295,17 @@ export const AdminPage: React.FC = () => {
         {estates.map((estate, index) => (
           <FadeIn key={estate.id} delay={index * 50}>
             <div className="pastel-green-gradient p-4 rounded-xl card-interactive">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex-1">
+              <div className="flex items-start gap-4">
+                {estate.images && estate.images.length > 0 && (
+                  <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                    <img
+                      src={estate.images[0]}
+                      alt={estate.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <p className="font-bold text-gray-900">{estate.name}</p>
                     <span className="text-xs font-mono text-gray-500 bg-white/60 px-2 py-0.5 rounded">
@@ -313,9 +322,20 @@ export const AdminPage: React.FC = () => {
                         {estate.region.name}
                       </span>
                     )}
+                    {estate.latitude && estate.longitude && (
+                      <span className="flex items-center gap-1 text-xs bg-blue-100 px-2 py-0.5 rounded text-blue-700">
+                        <MapPin size={12} />
+                        Geo Located
+                      </span>
+                    )}
+                    {estate.images && estate.images.length > 0 && (
+                      <span className="text-xs bg-purple-100 px-2 py-0.5 rounded text-purple-700">
+                        {estate.images.length} {estate.images.length === 1 ? 'image' : 'images'}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge variant={estate.isActive ? 'success' : 'error'}>
                     {estate.isActive ? 'Active' : 'Inactive'}
                   </Badge>

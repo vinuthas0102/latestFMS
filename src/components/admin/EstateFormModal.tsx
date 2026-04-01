@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Select } from '../ui/Select';
-import { Toggle } from '../ui/Toggle';
+import { Tabs } from '../ui/Tabs';
 import { EstateDTO, RegionDTO } from '../../types';
+import { EstateBasicInfoTab } from '../estate-creation/EstateBasicInfoTab';
+import { EstateLocationTab } from '../estate-creation/EstateLocationTab';
+import { EstateImagesTab } from '../estate-creation/EstateImagesTab';
+import { Info, MapPin, Image } from 'lucide-react';
 
 interface EstateFormModalProps {
   isOpen: boolean;
@@ -22,6 +24,9 @@ export interface EstateFormData {
   state: string;
   address?: string;
   pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  images?: string[];
   contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
@@ -35,6 +40,7 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
   estate,
   regions,
 }) => {
+  const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState<EstateFormData>({
     regionId: '',
     name: '',
@@ -43,6 +49,9 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
     state: '',
     address: '',
     pincode: '',
+    latitude: undefined,
+    longitude: undefined,
+    images: [],
     contactPerson: '',
     contactEmail: '',
     contactPhone: '',
@@ -61,6 +70,9 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
         state: estate.state,
         address: estate.address || '',
         pincode: estate.pincode || '',
+        latitude: estate.latitude,
+        longitude: estate.longitude,
+        images: estate.images || [],
         contactPerson: estate.contactPerson || '',
         contactEmail: estate.contactEmail || '',
         contactPhone: estate.contactPhone || '',
@@ -75,6 +87,9 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
         state: '',
         address: '',
         pincode: '',
+        latitude: undefined,
+        longitude: undefined,
+        images: [],
         contactPerson: '',
         contactEmail: '',
         contactPhone: '',
@@ -82,7 +97,12 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
       });
     }
     setErrors({});
+    setActiveTab('basic');
   }, [estate, isOpen]);
+
+  const updateFormData = (updates: Partial<EstateFormData>) => {
+    setFormData((prev) => ({ ...prev, ...updates }));
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -131,157 +151,63 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
     }
   };
 
+  const tabs = [
+    { id: 'basic', label: 'Basic Info', icon: <Info className="w-4 h-4" /> },
+    { id: 'location', label: 'Location', icon: <MapPin className="w-4 h-4" /> },
+    { id: 'images', label: 'Images', icon: <Image className="w-4 h-4" /> },
+  ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'basic':
+        return (
+          <EstateBasicInfoTab
+            formData={formData}
+            updateFormData={updateFormData}
+            errors={errors}
+            isEditMode={!!estate}
+          />
+        );
+      case 'location':
+        return (
+          <EstateLocationTab
+            formData={formData}
+            updateFormData={updateFormData}
+            errors={errors}
+          />
+        );
+      case 'images':
+        return (
+          <EstateImagesTab
+            formData={formData}
+            updateFormData={updateFormData}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={estate ? 'Edit Estate' : 'Add Estate'}
-      size="lg"
+      title={estate ? 'Edit Estate' : 'Create Estate'}
+      size="2xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estate Name <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Enter estate name"
-              error={errors.name}
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estate Code <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              placeholder="Enter estate code"
-              error={errors.code}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Region <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={formData.regionId}
-              onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-              error={errors.regionId}
-            >
-              <option value="">Select region</option>
-              {regions.map((region) => (
-                <option key={region.id} value={region.id}>
-                  {region.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              City <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              placeholder="Enter city"
-              error={errors.city}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              State <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.state}
-              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              placeholder="Enter state"
-              error={errors.state}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pincode
-            </label>
-            <Input
-              value={formData.pincode}
-              onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-              placeholder="Enter pincode"
-            />
-          </div>
+        <div className="min-h-[400px]">
+          {renderTabContent()}
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Address
-          </label>
-          <Input
-            value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            placeholder="Enter address"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Person
-            </label>
-            <Input
-              value={formData.contactPerson}
-              onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-              placeholder="Enter contact person"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Email
-            </label>
-            <Input
-              type="email"
-              value={formData.contactEmail}
-              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-              placeholder="Enter contact email"
-              error={errors.contactEmail}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Phone
-            </label>
-            <Input
-              value={formData.contactPhone}
-              onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-              placeholder="Enter contact phone"
-            />
-          </div>
-        </div>
-
-        {estate && (
-          <div className="flex items-center gap-2">
-            <Toggle
-              checked={formData.isActive}
-              onChange={(checked) => setFormData({ ...formData, isActive: checked })}
-            />
-            <label className="text-sm font-medium text-gray-700">Active</label>
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : estate ? 'Update' : 'Create'}
+            {loading ? 'Saving...' : estate ? 'Update Estate' : 'Create Estate'}
           </Button>
         </div>
       </form>
