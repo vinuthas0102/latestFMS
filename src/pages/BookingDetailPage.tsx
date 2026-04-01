@@ -30,9 +30,12 @@ export const BookingDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const isManager = user?.role === 'manager' || user?.role === 'admin';
   const isOwner = booking?.userId === user?.id;
+  const canApprove = isManager && booking?.status === 'REQUESTED';
 
   useEffect(() => {
     if (id) {
@@ -81,6 +84,35 @@ export const BookingDetailPage: React.FC = () => {
       loadBookingDetails();
     } catch (error: any) {
       addToast(error.message || 'Failed to cancel booking', 'error');
+    }
+  };
+
+  const handleApproveBooking = async () => {
+    if (!booking) return;
+
+    try {
+      await bookingService.updateBookingStatus(booking.id, 'PROVISIONED');
+      addToast('Booking approved successfully', 'success');
+      loadBookingDetails();
+    } catch (error: any) {
+      addToast(error.message || 'Failed to approve booking', 'error');
+    }
+  };
+
+  const handleRejectBooking = async () => {
+    if (!booking || !rejectionReason) {
+      addToast('Please provide a rejection reason', 'error');
+      return;
+    }
+
+    try {
+      await bookingService.updateBookingStatus(booking.id, 'REJECTED', rejectionReason);
+      addToast('Booking rejected', 'success');
+      setRejectModalOpen(false);
+      setRejectionReason('');
+      loadBookingDetails();
+    } catch (error: any) {
+      addToast(error.message || 'Failed to reject booking', 'error');
     }
   };
 
@@ -362,6 +394,34 @@ export const BookingDetailPage: React.FC = () => {
               </CardBody>
             </Card>
 
+            {canApprove && (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-lg font-semibold text-gray-900">Booking Actions</h2>
+                </CardHeader>
+                <CardBody>
+                  <div className="space-y-3">
+                    <Button
+                      variant="primary"
+                      onClick={handleApproveBooking}
+                      className="w-full"
+                      icon={<CheckCircle size={18} />}
+                    >
+                      Approve Booking
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => setRejectModalOpen(true)}
+                      className="w-full"
+                      icon={<XCircle size={18} />}
+                    >
+                      Reject Booking
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <h2 className="text-lg font-semibold text-gray-900">OTP Details</h2>
@@ -483,6 +543,61 @@ export const BookingDetailPage: React.FC = () => {
               className="flex-1"
             >
               Confirm Cancellation
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={() => {
+          setRejectModalOpen(false);
+          setRejectionReason('');
+        }}
+        title="Reject Booking"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-900">
+              Are you sure you want to reject booking{' '}
+              <span className="font-semibold">{booking.bookingNumber}</span>?
+            </p>
+            <p className="text-xs text-red-800 mt-2">
+              This action will notify the guest that their booking request has been declined.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rejection Reason *
+            </label>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Please provide a reason for rejection..."
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectModalOpen(false);
+                setRejectionReason('');
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleRejectBooking}
+              disabled={!rejectionReason}
+              className="flex-1"
+            >
+              Confirm Rejection
             </Button>
           </div>
         </div>
