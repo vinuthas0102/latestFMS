@@ -5,6 +5,7 @@ import { Header } from '../components/layout/Header';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { MetricDetailDrawer } from '../components/dashboard/MetricDetailDrawer';
 import { ViewToggle } from '../components/dashboard/ViewToggle';
+import { AvailabilityOverview } from '../components/dashboard/AvailabilityOverview';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -116,6 +117,14 @@ export const DashboardPage: React.FC = () => {
             />
           </FadeIn>
         </div>
+
+        {(canManageProperties(user?.role || 'public') || canApproveBookings(user?.role || 'public')) && (
+          <FadeIn delay={300}>
+            <div className="mb-8">
+              <AvailabilityOverview />
+            </div>
+          </FadeIn>
+        )}
 
         <Card className="animate-slideUp">
           <CardHeader>

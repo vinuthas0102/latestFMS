@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Search, Calendar, CheckCircle, MapPin, Shield, Users, Star, TrendingUp, Award, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { BookingFormWidget } from '../components/landing/BookingFormWidget';
+import { AvailabilityWidget } from '../components/landing/AvailabilityWidget';
 import { ROUTES } from '../constants/routes';
 
 export const LandingPage: React.FC = () => {
@@ -134,6 +135,15 @@ export const LandingPage: React.FC = () => {
                 <Button
                   size="lg"
                   variant="outline"
+                  onClick={() => navigate(ROUTES.MAP_SEARCH)}
+                  className="border-2 hover:bg-gray-50 transform hover:scale-105 transition-all"
+                  icon={<MapPin size={20} />}
+                >
+                  Search on Map
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
                   onClick={() => navigate(ROUTES.BOOKING_TRACKING)}
                   className="border-2 hover:bg-gray-50 transform hover:scale-105 transition-all"
                 >
@@ -226,6 +236,12 @@ export const LandingPage: React.FC = () => {
       <section id="booking-form" className="relative -mt-20 px-4 sm:px-6 lg:px-8 pb-20" data-animate>
         <div className="max-w-4xl mx-auto">
           <BookingFormWidget className={`${visibleSections.has('booking-form') ? 'animate-slideUpBig' : 'opacity-0'}`} />
+        </div>
+      </section>
+
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-white to-gray-50" data-animate id="availability">
+        <div className="max-w-7xl mx-auto">
+          <AvailabilityWidget className={`${visibleSections.has('availability') ? 'animate-fadeIn' : 'opacity-0'}`} />
         </div>
       </section>
 

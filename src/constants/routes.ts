@@ -1,8 +1,10 @@
 export const ROUTES = {
   HOME: '/',
+  LANDING: '/',
   LOGIN: '/login',
   DASHBOARD: '/dashboard',
   SEARCH: '/search',
+  MAP_SEARCH: '/map-search',
   PROPERTIES: '/properties',
   PROPERTY_DETAIL: '/properties/:id',
   PROPERTY_CREATE: '/properties/create',

@@ -4,6 +4,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SearchPage } from './pages/SearchPage';
+import { MapSearchPage } from './pages/MapSearchPage';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import { PropertiesPage } from './pages/PropertiesPage';
 import { ManagerPage } from './pages/ManagerPage';
@@ -37,6 +38,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/map-search" element={<MapSearchPage />} />
         <Route path="/track-booking" element={<BookingTrackingPage />} />
         <Route path="/properties/:id" element={<PropertyDetailPage />} />
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '../../utils/googleMapsLoader';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { MapPin, AlertCircle, Search } from 'lucide-react';
+import { Input } from '../ui/Input';
 
 interface GoogleMapComponentProps {
   latitude: number;
@@ -14,8 +15,11 @@ interface GoogleMapComponentProps {
     title: string;
     icon?: string;
     color?: string;
+    propertyId?: string;
   }>;
   onMarkerClick?: (marker: any) => void;
+  enableLocationSearch?: boolean;
+  onLocationSearch?: (lat: number, lng: number, address: string) => void;
 }
 
 export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
@@ -26,12 +30,16 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
   height = '500px',
   markers = [],
   onMarkerClick,
+  enableLocationSearch = false,
+  onLocationSearch,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const [searchMarker, setSearchMarker] = useState<google.maps.Marker | null>(null);
 
   useEffect(() => {
     initializeMap();
@@ -90,6 +98,54 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
 
       setMap(mapInstance);
       setError(null);
+
+      if (enableLocationSearch && searchInputRef.current) {
+        const searchBox = new google.maps.places.SearchBox(searchInputRef.current);
+
+        mapInstance.addListener('bounds_changed', () => {
+          searchBox.setBounds(mapInstance.getBounds() as google.maps.LatLngBounds);
+        });
+
+        searchBox.addListener('places_changed', () => {
+          const places = searchBox.getPlaces();
+
+          if (!places || places.length === 0) return;
+
+          const place = places[0];
+
+          if (!place.geometry || !place.geometry.location) return;
+
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+
+          if (searchMarker) {
+            searchMarker.setMap(null);
+          }
+
+          const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: mapInstance,
+            title: place.formatted_address || 'Search Location',
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 12,
+              fillColor: '#ef4444',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 3,
+            },
+          });
+
+          setSearchMarker(marker);
+
+          mapInstance.setCenter({ lat, lng });
+          mapInstance.setZoom(13);
+
+          if (onLocationSearch) {
+            onLocationSearch(lat, lng, place.formatted_address || '');
+          }
+        });
+      }
     } catch (err: any) {
       console.error('Failed to load Google Maps:', err);
       setError(err.message || 'Failed to load map');
@@ -157,6 +213,23 @@ export const GoogleMapComponent: React.FC<GoogleMapComponentProps> = ({
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
         </div>
       )}
+
+      {enableLocationSearch && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 w-full max-w-md px-4">
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search for a location..."
+              className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+            />
+          </div>
+          <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-md px-3 py-2 text-xs text-gray-600">
+            Search for a location to find nearby properties
+          </div>
+        </div>
+      )}
+
       <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
     </div>
   );
