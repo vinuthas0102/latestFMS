@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
-import { Search, UserCheck, Key, Calendar, Home, Ligature as FileSignature, CheckCircle, DoorOpen } from 'lucide-react';
+import { Search, UserCheck, Key, Calendar, Home, DoorOpen } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { allocationService } from '../services/allocationService';
 import { propertyService } from '../services/propertyService';
@@ -25,16 +25,12 @@ export const CheckInPage: React.FC = () => {
   const [filteredBookings, setFilteredBookings] = useState<BookingDTO[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [otpInput, setOtpInput] = useState('');
-  const [signature, setSignature] = useState('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<RoomDTO[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     loadTodayBookings();
@@ -152,113 +148,16 @@ export const CheckInPage: React.FC = () => {
       const isValid = await bookingService.verifyOTP(selectedBooking.id, otpInput);
 
       if (isValid) {
+        await bookingService.updateBookingStatus(selectedBooking.id, 'CHECKED_IN');
+        addToast('Guest checked in successfully', 'success');
         setShowOtpModal(false);
-        setShowSignatureModal(true);
+        setSelectedBooking(null);
+        loadTodayBookings();
       } else {
         addToast('Invalid or expired OTP', 'error');
       }
     } catch (error) {
       addToast('OTP verification failed', 'error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setSignature('');
-  };
-
-  const saveSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dataUrl = canvas.toDataURL();
-    setSignature(dataUrl);
-  };
-
-  const isCanvasBlank = (): boolean => {
-    const canvas = canvasRef.current;
-    if (!canvas) return true;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return true;
-
-    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-    // Check if any pixel is not white (transparent or drawn)
-    for (let i = 0; i < pixelData.length; i += 4) {
-      if (pixelData[i + 3] !== 0) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleCompleteCheckIn = async () => {
-    if (!selectedBooking) {
-      addToast('Booking information missing', 'error');
-      return;
-    }
-
-    // Check if canvas has actual signature drawn
-    if (isCanvasBlank()) {
-      addToast('Please capture guest signature', 'error');
-      return;
-    }
-
-    // Save signature from canvas to state
-    saveSignature();
-    setProcessing(true);
-
-    try {
-      await bookingService.updateBookingStatus(selectedBooking.id, 'CHECKED_IN');
-      addToast('Guest checked in successfully', 'success');
-      setShowSignatureModal(false);
-      setSelectedBooking(null);
-      loadTodayBookings();
-    } catch (error) {
-      addToast('Check-in failed', 'error');
     } finally {
       setProcessing(false);
     }
@@ -399,59 +298,6 @@ export const CheckInPage: React.FC = () => {
               disabled={otpInput.length !== 6 || processing}
               className="flex-1"
             >
-              {processing ? 'Verifying...' : 'Verify OTP'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={showSignatureModal} onClose={() => setShowSignatureModal(false)} title="Guest Signature">
-        <div className="space-y-6">
-          <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-            <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-green-900">OTP Verified Successfully</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Guest Signature
-            </label>
-            <div className="border-2 border-gray-300 rounded-lg overflow-hidden">
-              <canvas
-                ref={canvasRef}
-                width={500}
-                height={200}
-                className="w-full bg-white cursor-crosshair"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-              />
-            </div>
-            <div className="flex justify-end mt-2">
-              <Button variant="ghost" size="sm" onClick={clearSignature}>
-                Clear
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSignatureModal(false);
-                setShowOtpModal(false);
-              }}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCompleteCheckIn}
-              disabled={processing}
-              className="flex-1"
-            >
-              <FileSignature className="w-4 h-4 mr-2" />
               {processing ? 'Processing...' : 'Complete Check-In'}
             </Button>
           </div>
