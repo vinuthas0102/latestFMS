@@ -217,12 +217,37 @@ export const CheckInPage: React.FC = () => {
     setSignature(dataUrl);
   };
 
+  const isCanvasBlank = (): boolean => {
+    const canvas = canvasRef.current;
+    if (!canvas) return true;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return true;
+
+    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    // Check if any pixel is not white (transparent or drawn)
+    for (let i = 0; i < pixelData.length; i += 4) {
+      if (pixelData[i + 3] !== 0) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleCompleteCheckIn = async () => {
-    if (!selectedBooking || !signature) {
+    if (!selectedBooking) {
+      addToast('Booking information missing', 'error');
+      return;
+    }
+
+    // Check if canvas has actual signature drawn
+    if (isCanvasBlank()) {
       addToast('Please capture guest signature', 'error');
       return;
     }
 
+    // Save signature from canvas to state
     saveSignature();
     setProcessing(true);
 
