@@ -8,13 +8,17 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { useSearchStore } from '../stores/searchStore';
 import { usePropertyStore } from '../stores/propertyStore';
+import { useAuthStore } from '../stores/authStore';
 import { formatPriceRange } from '../utils/formatters';
 import { SkeletonCard } from '../components/ui/Loading';
 import { MapSearchView } from '../components/search/MapSearchView';
+import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
+import { ROUTES } from '../constants/routes';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuthStore();
   const { filters, results, loading, setFilters, search } = useSearchStore();
   const { modules, propertyTypes, roomTypes, amenities, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
 
@@ -77,6 +81,24 @@ export const SearchPage: React.FC = () => {
       roomTypeId,
     });
     search();
+  };
+
+  const handleBookNow = (property: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const moduleCode = property.module?.code;
+    const needsLogin = requiresLoginForBooking(moduleCode);
+
+    const params = new URLSearchParams();
+    if (checkIn) params.set('checkIn', checkIn);
+    if (checkOut) params.set('checkOut', checkOut);
+    params.set('tab', 'booking');
+    const queryString = params.toString();
+
+    if (needsLogin && !user) {
+      navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?${queryString}`);
+      return;
+    }
+    navigate(`/properties/${property.id}?${queryString}`);
   };
 
   return (
@@ -245,9 +267,9 @@ export const SearchPage: React.FC = () => {
                           {property.propertyType.name}
                         </span>
                       )}
-                      {property.module?.code === 'OTHER_FAC' && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Instant Booking
+                      {getModuleBadgeText(property.module?.code) && (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(property.module?.code)}`}>
+                          {getModuleBadgeText(property.module?.code)}
                         </span>
                       )}
                     </div>
@@ -259,7 +281,7 @@ export const SearchPage: React.FC = () => {
                       <MapPin size={16} />
                       <span>{property.estate?.city || property.address}</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <span className="text-sm text-gray-600">
                         {property.minPrice !== property.maxPrice ? 'Price range' : 'Price'}
                       </span>
@@ -267,6 +289,13 @@ export const SearchPage: React.FC = () => {
                         {formatPriceRange(property.minPrice, property.maxPrice)}
                       </span>
                     </div>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={(e) => handleBookNow(property, e)}
+                    >
+                      {getBookingButtonText(property.module?.code, !!user)}
+                    </Button>
                   </div>
                 </Card>
               ))}

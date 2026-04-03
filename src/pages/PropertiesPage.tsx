@@ -15,6 +15,7 @@ import { PropertyQuickViewModal } from '../components/property/PropertyQuickView
 import { PropertyDTO } from '../types';
 import { ROUTES } from '../constants/routes';
 import { FadeIn } from '../components/animations/FadeIn';
+import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
 
 export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,7 +30,6 @@ export const PropertiesPage: React.FC = () => {
   }, []);
 
   const canManage = user && canManageProperties(user.role);
-  const canBook = user && ['govt_official', 'manager', 'dept_user', 'admin'].includes(user.role);
 
   const handleCardClick = (property: PropertyDTO) => {
     setSelectedProperty(property);
@@ -41,9 +41,16 @@ export const PropertiesPage: React.FC = () => {
     setSelectedProperty(null);
   };
 
-  const handleBookingClick = (e: React.MouseEvent, propertyId: string) => {
+  const handleBookingClick = (e: React.MouseEvent, property: PropertyDTO) => {
     e.stopPropagation();
-    navigate(`/properties/${propertyId}`);
+    const moduleCode = property.module?.code;
+    const needsLogin = requiresLoginForBooking(moduleCode);
+
+    if (needsLogin && !user) {
+      navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?tab=booking`);
+      return;
+    }
+    navigate(`/properties/${property.id}?tab=booking`);
   };
 
   const filterItems = [
@@ -152,15 +159,14 @@ export const PropertiesPage: React.FC = () => {
                             {property.status}
                           </Badge>
                         </div>
-                        {canBook && (
-                          <button
-                            onClick={(e) => handleBookingClick(e, property.id)}
-                            className="absolute bottom-2 right-2 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white p-2 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
-                            title="Book this property"
-                          >
-                            <Calendar className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => handleBookingClick(e, property)}
+                          className="absolute bottom-2 right-2 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-3 py-2 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 flex items-center gap-2 text-xs font-medium"
+                          title={getBookingButtonText(property.module?.code, !!user)}
+                        >
+                          <Calendar className="w-3 h-3" />
+                          <span>{requiresLoginForBooking(property.module?.code) && !user ? 'Login' : 'Book'}</span>
+                        </button>
                       </div>
                       <div className="p-4 bg-white">
                         <div className="flex flex-wrap gap-1.5 mb-2">
@@ -174,10 +180,10 @@ export const PropertiesPage: React.FC = () => {
                               {property.propertyType.name}
                             </Badge>
                           )}
-                          {property.module?.code === 'OTHER_FAC' && (
-                            <Badge variant="success" className="text-xs bg-green-100 text-green-800">
-                              Instant Booking
-                            </Badge>
+                          {getModuleBadgeText(property.module?.code) && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(property.module?.code)}`}>
+                              {getModuleBadgeText(property.module?.code)}
+                            </span>
                           )}
                         </div>
                         <h3 className="text-base font-bold text-gray-900 mb-2">{property.name}</h3>
@@ -200,7 +206,6 @@ export const PropertiesPage: React.FC = () => {
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 property={selectedProperty}
-                canBook={canBook}
               />
             )}
           </>

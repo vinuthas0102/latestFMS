@@ -8,26 +8,35 @@ import { PropertyDetailsCollapsible } from './PropertyDetailsCollapsible';
 import { PropertyDTO, BlockDTO, FloorDTO, RoomDTO } from '../../types';
 import { propertyService } from '../../services/propertyService';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
+import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../../utils/moduleHelpers';
+import { ROUTES } from '../../constants/routes';
 
 interface PropertyQuickViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   property: PropertyDTO;
-  canBook?: boolean;
 }
 
 export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
   isOpen,
   onClose,
   property,
-  canBook = false,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [blocks, setBlocks] = useState<BlockDTO[]>([]);
   const [floors, setFloors] = useState<FloorDTO[]>([]);
   const [rooms, setRooms] = useState<RoomDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const moduleCode = property.module?.code;
+  const isAuthenticated = !!user;
+  const needsLogin = requiresLoginForBooking(moduleCode);
+  const buttonText = getBookingButtonText(moduleCode, isAuthenticated);
+  const badgeText = getModuleBadgeText(moduleCode);
+  const badgeStyles = getModuleBadgeStyles(moduleCode);
 
   useEffect(() => {
     if (isOpen && property) {
@@ -57,6 +66,11 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
   };
 
   const handleBookNow = () => {
+    if (needsLogin && !isAuthenticated) {
+      navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?tab=booking`);
+      onClose();
+      return;
+    }
     navigate(`/properties/${property.id}?tab=booking`);
     onClose();
   };
@@ -82,6 +96,11 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                 <Badge variant="success">
                   {property.propertyType.name}
                 </Badge>
+              )}
+              {badgeText && (
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${badgeStyles}`}>
+                  {badgeText}
+                </span>
               )}
             </div>
             <p className="text-gray-600">{property.address}</p>
@@ -137,15 +156,13 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
           >
             View Full Details
           </Button>
-          {canBook && (
-            <Button
-              onClick={handleBookNow}
-              icon={<Calendar size={20} />}
-              className="flex-1"
-            >
-              Book Now
-            </Button>
-          )}
+          <Button
+            onClick={handleBookNow}
+            icon={<Calendar size={20} />}
+            className="flex-1"
+          >
+            {buttonText}
+          </Button>
         </div>
       </div>
     </Modal>

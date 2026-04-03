@@ -7,6 +7,9 @@ import { AvailabilityCalendarModal } from '../availability/AvailabilityCalendarM
 import { PropertyDTO } from '../../types';
 import { propertyService } from '../../services/propertyService';
 import { availabilityService } from '../../services/availabilityService';
+import { useAuthStore } from '../../stores/authStore';
+import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../../utils/moduleHelpers';
+import { ROUTES } from '../../constants/routes';
 
 interface PropertyAvailabilitySummary {
   property: PropertyDTO;
@@ -18,6 +21,7 @@ interface PropertyAvailabilitySummary {
 
 export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className = '' }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [availabilitySummaries, setAvailabilitySummaries] = useState<PropertyAvailabilitySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +104,17 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
     setShowCalendarModal(true);
   };
 
+  const handleBookNow = (property: PropertyDTO) => {
+    const moduleCode = property.module?.code;
+    const needsLogin = requiresLoginForBooking(moduleCode);
+
+    if (needsLogin && !user) {
+      navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?tab=booking`);
+      return;
+    }
+    navigate(`/properties/${property.id}?tab=booking`);
+  };
+
   if (loading) {
     return (
       <div className={`${className}`}>
@@ -145,9 +160,16 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
               </div>
 
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {summary.property.name}
-                </h3>
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-900 flex-1">
+                    {summary.property.name}
+                  </h3>
+                  {getModuleBadgeText(summary.property.module?.code) && (
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getModuleBadgeStyles(summary.property.module?.code)}`}>
+                      {getModuleBadgeText(summary.property.module?.code)}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                   <MapPin size={16} />
@@ -182,23 +204,33 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
                   <Button
-                    variant="outline"
-                    className="flex-1"
+                    className="w-full"
                     size="sm"
-                    icon={<Calendar size={16} />}
-                    onClick={() => handleViewCalendar(summary.property)}
+                    onClick={() => handleBookNow(summary.property)}
                   >
-                    Check Calendar
+                    {getBookingButtonText(summary.property.module?.code, !!user)}
                   </Button>
-                  <Button
-                    className="flex-1"
-                    size="sm"
-                    onClick={() => navigate(`/properties/${summary.property.id}`)}
-                  >
-                    View Property
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
+                      icon={<Calendar size={16} />}
+                      onClick={() => handleViewCalendar(summary.property)}
+                    >
+                      Calendar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
+                      onClick={() => navigate(`/properties/${summary.property.id}`)}
+                    >
+                      Details
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>

@@ -4,8 +4,11 @@ import { GoogleMapComponent } from '../maps/GoogleMapComponent';
 import { PropertyDTO } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, MapPin, Calendar } from 'lucide-react';
 import { formatPriceRange } from '../../utils/formatters';
+import { useAuthStore } from '../../stores/authStore';
+import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../../utils/moduleHelpers';
+import { ROUTES } from '../../constants/routes';
 
 interface MapSearchViewProps {
   properties: PropertyDTO[];
@@ -15,6 +18,7 @@ interface MapSearchViewProps {
 
 export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkIn, checkOut }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
 
   const buildPropertyUrl = (propertyId: string) => {
@@ -23,6 +27,23 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
     if (checkOut) params.set('checkOut', checkOut);
     const queryString = params.toString();
     return `/properties/${propertyId}${queryString ? `?${queryString}` : ''}`;
+  };
+
+  const handleBookNow = (property: PropertyDTO) => {
+    const moduleCode = property.module?.code;
+    const needsLogin = requiresLoginForBooking(moduleCode);
+
+    const params = new URLSearchParams();
+    if (checkIn) params.set('checkIn', checkIn);
+    if (checkOut) params.set('checkOut', checkOut);
+    params.set('tab', 'booking');
+    const queryString = params.toString();
+
+    if (needsLogin && !user) {
+      navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?${queryString}`);
+      return;
+    }
+    navigate(`/properties/${property.id}?${queryString}`);
   };
 
   const propertiesWithCoords = properties.filter(
@@ -97,9 +118,16 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
               )}
             </div>
             <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {selectedProperty.name}
-              </h3>
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-xl font-semibold text-gray-900 flex-1">
+                  {selectedProperty.name}
+                </h3>
+                {getModuleBadgeText(selectedProperty.module?.code) && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
+                    {getModuleBadgeText(selectedProperty.module?.code)}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                 {selectedProperty.description || 'No description available'}
               </p>
@@ -115,15 +143,28 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
                   {formatPriceRange(selectedProperty.minPrice, selectedProperty.maxPrice)}
                 </span>
               </div>
-              <Button
-                className="w-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(buildPropertyUrl(selectedProperty.id));
-                }}
-              >
-                View Details
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBookNow(selectedProperty);
+                  }}
+                  icon={<Calendar size={16} />}
+                >
+                  {getBookingButtonText(selectedProperty.module?.code, !!user)}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(buildPropertyUrl(selectedProperty.id));
+                  }}
+                >
+                  View Details
+                </Button>
+              </div>
             </div>
           </Card>
         ) : (
