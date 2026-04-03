@@ -91,6 +91,8 @@ export interface PropertyDTO {
   assetType?: AssetTypeDTO;
   module?: ModuleDTO;
   propertyType?: PropertyTypeDTO;
+  minPrice?: number | null;
+  maxPrice?: number | null;
 }
 
 export interface BlockDTO {

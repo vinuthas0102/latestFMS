@@ -1,6 +1,37 @@
 import { supabase } from '../lib/supabase';
 import { PropertyDTO, SearchFilters } from '../types';
 
+async function getPropertyPricing(propertyId: string): Promise<{ minPrice: number | null; maxPrice: number | null }> {
+  const { data: rooms } = await supabase
+    .from('rooms')
+    .select('base_price, floor:floors!inner(block:blocks!inner(property_id))')
+    .eq('status', 'AVAILABLE')
+    .eq('is_active', true);
+
+  if (!rooms || rooms.length === 0) {
+    return { minPrice: null, maxPrice: null };
+  }
+
+  const propertyRooms = rooms.filter(
+    (room: any) => room.floor?.block?.property_id === propertyId
+  );
+
+  if (propertyRooms.length === 0) {
+    return { minPrice: null, maxPrice: null };
+  }
+
+  const prices = propertyRooms.map((r: any) => parseFloat(r.base_price)).filter(p => p > 0);
+
+  if (prices.length === 0) {
+    return { minPrice: null, maxPrice: null };
+  }
+
+  return {
+    minPrice: Math.min(...prices),
+    maxPrice: Math.max(...prices),
+  };
+}
+
 export const searchService = {
   searchProperties: async (filters: SearchFilters): Promise<PropertyDTO[]> => {
     let query = supabase
@@ -32,6 +63,21 @@ export const searchService = {
     if (error) throw error;
 
     let properties = data.map(mapPropertyFromDb);
+
+    const propertiesWithPricing = await Promise.all(
+      properties.map(async (property) => {
+        const pricing = await getPropertyPricing(property.id);
+        return {
+          ...property,
+          minPrice: pricing.minPrice,
+          maxPrice: pricing.maxPrice,
+        };
+      })
+    );
+
+    properties = propertiesWithPricing.filter(
+      (property) => property.minPrice !== null && property.maxPrice !== null
+    );
 
     if (filters.latitude && filters.longitude && filters.radius) {
       properties = properties.filter((property) => {

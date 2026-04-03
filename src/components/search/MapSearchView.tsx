@@ -5,6 +5,7 @@ import { PropertyDTO } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Building2, MapPin } from 'lucide-react';
+import { formatPriceRange } from '../../utils/formatters';
 
 interface MapSearchViewProps {
   properties: PropertyDTO[];
@@ -105,6 +106,14 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                 <MapPin size={16} />
                 <span>{selectedProperty.estate?.city || selectedProperty.address}</span>
+              </div>
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                <span className="text-sm text-gray-600">
+                  {selectedProperty.minPrice !== selectedProperty.maxPrice ? 'Price range' : 'Price'}
+                </span>
+                <span className="text-lg font-bold text-blue-600">
+                  {formatPriceRange(selectedProperty.minPrice, selectedProperty.maxPrice)}
+                </span>
               </div>
               <Button
                 className="w-full"

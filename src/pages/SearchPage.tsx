@@ -8,7 +8,7 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { useSearchStore } from '../stores/searchStore';
 import { usePropertyStore } from '../stores/propertyStore';
-import { formatCurrency } from '../utils/formatters';
+import { formatPriceRange } from '../utils/formatters';
 import { SkeletonCard } from '../components/ui/Loading';
 import { MapSearchView } from '../components/search/MapSearchView';
 
@@ -260,9 +260,11 @@ export const SearchPage: React.FC = () => {
                       <span>{property.estate?.city || property.address}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Starting from</span>
+                      <span className="text-sm text-gray-600">
+                        {property.minPrice !== property.maxPrice ? 'Price range' : 'Price'}
+                      </span>
                       <span className="text-lg font-bold text-blue-600">
-                        {formatCurrency(1000)}/night
+                        {formatPriceRange(property.minPrice, property.maxPrice)}
                       </span>
                     </div>
                   </div>

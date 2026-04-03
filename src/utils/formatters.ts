@@ -30,3 +30,27 @@ export const capitalizeFirst = (text: string): string => {
 export const formatBookingNumber = (bookingNumber: string): string => {
   return bookingNumber.replace(/^BK/, 'BK-');
 };
+
+export const formatPriceRange = (minPrice: number | null | undefined, maxPrice: number | null | undefined): string => {
+  if (minPrice === null || minPrice === undefined || maxPrice === null || maxPrice === undefined) {
+    return 'Price on request';
+  }
+
+  const formattedMin = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(minPrice);
+
+  const formattedMax = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(maxPrice);
+
+  if (minPrice === maxPrice) {
+    return `${formattedMin}/night`;
+  }
+
+  return `${formattedMin} - ${formattedMax}/night`;
+};
