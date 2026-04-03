@@ -84,11 +84,22 @@ export const CheckInPage: React.FC = () => {
     setSelectedBooking(booking);
     setProcessing(true);
     try {
-      const rooms = await propertyService.getRooms();
-      const propertyRooms = rooms.filter(
-        (room) => room.roomTypeId === booking.roomTypeId && room.status === 'AVAILABLE'
+      if (!booking.propertyId) {
+        throw new Error('Booking does not have a property ID');
+      }
+
+      const rooms = await propertyService.getRoomsByProperty(
+        booking.propertyId,
+        { roomTypeId: booking.roomTypeId, status: 'AVAILABLE' }
       );
-      setAvailableRooms(propertyRooms);
+
+      if (rooms.length === 0) {
+        addToast('No available rooms found for this property and room type', 'error');
+        setProcessing(false);
+        return;
+      }
+
+      setAvailableRooms(rooms);
       setSelectedRoomIds([]);
       setShowAllocationModal(true);
     } catch (error: any) {

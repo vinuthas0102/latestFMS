@@ -16,6 +16,44 @@ export const allocationService = {
     allocation: CreateAllocationDTO,
     userId: string
   ): Promise<BookingAllocationDTO> => {
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('property_id, room_type_id')
+      .eq('id', allocation.bookingId)
+      .maybeSingle();
+
+    if (bookingError) throw bookingError;
+    if (!booking) throw new Error('Booking not found');
+
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, room_type_id, floor:floors!inner(block:blocks!inner(property_id))')
+      .eq('id', allocation.roomId)
+      .maybeSingle();
+
+    if (roomError) throw roomError;
+    if (!room) throw new Error('Room not found');
+
+    const roomPropertyId = (room as any).floor?.block?.property_id;
+
+    if (roomPropertyId !== booking.property_id) {
+      throw new Error('Room does not belong to the booking property');
+    }
+
+    if (room.room_type_id !== booking.room_type_id) {
+      throw new Error('Room type does not match booking room type');
+    }
+
+    const { data: existingAllocation } = await supabase
+      .from('booking_allocations')
+      .select('id')
+      .eq('room_id', allocation.roomId)
+      .maybeSingle();
+
+    if (existingAllocation) {
+      throw new Error('Room is already allocated to another booking');
+    }
+
     const { data, error } = await supabase
       .from('booking_allocations')
       .insert([

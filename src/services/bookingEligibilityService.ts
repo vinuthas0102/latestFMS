@@ -28,7 +28,7 @@ class BookingEligibilityService {
 
     const { data: rooms, error: roomsError } = await supabase
       .from('rooms')
-      .select('id, room_number, status')
+      .select('id, room_number, status, floor:floors!inner(block:blocks!inner(property_id))')
       .eq('room_type_id', roomTypeId)
       .eq('is_active', true)
       .eq('status', 'AVAILABLE')
@@ -36,12 +36,21 @@ class BookingEligibilityService {
 
     if (roomsError) throw roomsError;
 
-    const availableRooms = rooms || [];
+    const propertyRooms = (rooms || []).filter(
+      (room: any) => room.floor?.block?.property_id === propertyId
+    );
 
-    if (availableRooms.length < quantity) {
+    if (propertyRooms.length === 0) {
       return {
         canBook: false,
-        reason: `Only ${availableRooms.length} rooms available, but ${quantity} requested`,
+        reason: 'No rooms of this type exist for the selected property',
+      };
+    }
+
+    if (propertyRooms.length < quantity) {
+      return {
+        canBook: false,
+        reason: `Only ${propertyRooms.length} rooms available, but ${quantity} requested`,
       };
     }
 
@@ -63,7 +72,7 @@ class BookingEligibilityService {
       0
     );
 
-    const actuallyAvailable = availableRooms.length - bookedCount;
+    const actuallyAvailable = propertyRooms.length - bookedCount;
 
     if (actuallyAvailable < quantity) {
       return {

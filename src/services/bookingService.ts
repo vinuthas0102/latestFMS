@@ -14,6 +14,12 @@ const GUEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export const bookingService = {
   createBooking: async (userId: string, bookingData: CreateBookingDTO): Promise<BookingDTO> => {
+    await validateRoomsExistForProperty(
+      bookingData.propertyId,
+      bookingData.roomTypeId,
+      bookingData.quantity
+    );
+
     const bookingNumber = await generateBookingNumber();
     const otpResult = generateOTPService();
 
@@ -60,6 +66,12 @@ export const bookingService = {
     email: string;
     phone: string;
   }): Promise<{ booking: BookingDTO; otp: string }> => {
+    await validateRoomsExistForProperty(
+      bookingData.propertyId,
+      bookingData.roomTypeId,
+      bookingData.quantity
+    );
+
     const bookingNumber = await generateBookingNumber();
     const otpResult = generateOTPService();
 
@@ -367,6 +379,33 @@ async function generateBookingNumber(): Promise<string> {
   return data || `BK${Date.now()}`;
 }
 
+async function validateRoomsExistForProperty(
+  propertyId: string,
+  roomTypeId: string,
+  quantity: number
+): Promise<void> {
+  const { data: rooms, error } = await supabase
+    .from('rooms')
+    .select('id, floor:floors!inner(block:blocks!inner(property_id))')
+    .eq('room_type_id', roomTypeId)
+    .eq('floor.block.property_id', propertyId)
+    .eq('is_active', true);
+
+  if (error) throw error;
+
+  const propertyRooms = rooms.filter(
+    (room: any) => room.floor?.block?.property_id === propertyId
+  );
+
+  if (propertyRooms.length === 0) {
+    throw new Error('No rooms of this type exist for the selected property');
+  }
+
+  if (propertyRooms.length < quantity) {
+    throw new Error(`Only ${propertyRooms.length} room(s) of this type available. Requested: ${quantity}`);
+  }
+}
+
 async function calculateBookingAmount(
   propertyId: string,
   roomTypeId: string,
@@ -382,10 +421,15 @@ async function calculateBookingAmount(
     .from('rooms')
     .select('base_price, floor:floors!inner(block:blocks!inner(property_id))')
     .eq('room_type_id', roomTypeId)
+    .eq('floor.block.property_id', propertyId)
     .eq('is_active', true)
     .limit(1);
 
-  const basePrice = rooms && rooms.length > 0 ? parseFloat(rooms[0].base_price) : 1000;
+  const propertyRooms = rooms?.filter(
+    (room: any) => room.floor?.block?.property_id === propertyId
+  );
+
+  const basePrice = propertyRooms && propertyRooms.length > 0 ? parseFloat(propertyRooms[0].base_price) : 1000;
 
   return basePrice * nights * quantity;
 }

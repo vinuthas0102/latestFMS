@@ -221,6 +221,42 @@ export const propertyService = {
     return data.map(mapRoomFromDb);
   },
 
+  getRoomsByProperty: async (propertyId: string, filters?: { roomTypeId?: string; status?: string }): Promise<RoomDTO[]> => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select(`
+        *,
+        roomType:room_types(*),
+        floor:floors!inner(
+          *,
+          block:blocks!inner(
+            *
+          )
+        )
+      `)
+      .eq('floor.block.property_id', propertyId)
+      .eq('is_active', true)
+      .then((result) => {
+        if (result.error) return result;
+
+        let filteredData = result.data;
+
+        if (filters?.roomTypeId) {
+          filteredData = filteredData?.filter(room => room.room_type_id === filters.roomTypeId);
+        }
+
+        if (filters?.status) {
+          filteredData = filteredData?.filter(room => room.status === filters.status);
+        }
+
+        return { ...result, data: filteredData };
+      });
+
+    if (error) throw error;
+    if (!data) return [];
+    return data.map(mapRoomFromDb);
+  },
+
   createRoom: async (room: CreateRoomDTO): Promise<RoomDTO> => {
     const { data, error } = await supabase
       .from('rooms')
