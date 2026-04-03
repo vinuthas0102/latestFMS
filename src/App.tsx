@@ -91,14 +91,7 @@ function App() {
         />
 
         <Route path="/payment" element={<PaymentGatewayPage />} />
-        <Route
-          path="/booking-confirmation"
-          element={
-            <ProtectedRoute>
-              <BookingConfirmationPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
 
         <Route
           path="/maintenance"
