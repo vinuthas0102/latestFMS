@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Bell, LogOut, Home, Search, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Building2, Bell, LogOut, Search, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
@@ -72,12 +72,6 @@ export const Header: React.FC = () => {
   };
 
   const baseNavItems: NavItem[] = [
-    {
-      route: ROUTES.DASHBOARD,
-      label: 'Dashboard',
-      icon: <Home size={20} />,
-      accentColor: 'rgb(37, 99, 235)',
-    },
     {
       route: ROUTES.SEARCH,
       label: 'Search',

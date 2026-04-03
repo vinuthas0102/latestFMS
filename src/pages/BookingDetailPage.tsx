@@ -56,7 +56,7 @@ export const BookingDetailPage: React.FC = () => {
 
       if (!bookingData) {
         addToast('Booking not found', 'error');
-        navigate(ROUTES.DASHBOARD);
+        navigate(ROUTES.PROPERTIES);
         return;
       }
 
@@ -65,7 +65,7 @@ export const BookingDetailPage: React.FC = () => {
       setTransactions(transactionsData);
     } catch (error: any) {
       addToast(error.message || 'Failed to load booking details', 'error');
-      navigate(ROUTES.DASHBOARD);
+      navigate(ROUTES.PROPERTIES);
     } finally {
       setLoading(false);
     }
@@ -138,7 +138,7 @@ export const BookingDetailPage: React.FC = () => {
                 <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Booking Not Found</h3>
                 <p className="text-gray-600 mb-6">The booking you're looking for doesn't exist</p>
-                <Button onClick={() => navigate(ROUTES.DASHBOARD)}>Back to Dashboard</Button>
+                <Button onClick={() => navigate(ROUTES.PROPERTIES)}>Back to Properties</Button>
               </div>
             </CardBody>
           </Card>

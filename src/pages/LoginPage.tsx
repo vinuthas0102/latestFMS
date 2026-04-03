@@ -26,7 +26,7 @@ export const LoginPage: React.FC = () => {
     try {
       await login(email, password, selectedRole);
       addToast('Login successful', 'success');
-      navigate(ROUTES.DASHBOARD);
+      navigate(ROUTES.PROPERTIES);
     } catch (error: any) {
       addToast(error.message || 'Login failed', 'error');
     } finally {

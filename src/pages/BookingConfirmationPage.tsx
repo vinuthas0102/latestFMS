@@ -85,8 +85,8 @@ export const BookingConfirmationPage: React.FC = () => {
             Your payment could not be processed. Please try again or contact support.
           </p>
           <div className="space-y-3">
-            <Button onClick={() => navigate(ROUTES.DASHBOARD)} className="w-full">
-              Back to Dashboard
+            <Button onClick={() => navigate(ROUTES.LANDING)} className="w-full">
+              Back to Home
             </Button>
             <Button
               variant="outline"
@@ -288,10 +288,10 @@ export const BookingConfirmationPage: React.FC = () => {
 
         <div className="flex gap-3">
           <Button
-            onClick={() => navigate(ROUTES.DASHBOARD)}
+            onClick={() => navigate(booking.isGuestBooking ? ROUTES.LANDING : ROUTES.PROPERTIES)}
             className="flex-1"
           >
-            Go to Dashboard
+            {booking.isGuestBooking ? 'Back to Home' : 'Go to Properties'}
           </Button>
           <Button
             variant="outline"

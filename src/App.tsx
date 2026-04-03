@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { SearchPage } from './pages/SearchPage';
 import { MapSearchPage } from './pages/MapSearchPage';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
@@ -41,15 +40,6 @@ function App() {
         <Route path="/map-search" element={<MapSearchPage />} />
         <Route path="/track-booking" element={<BookingTrackingPage />} />
         <Route path="/properties/:id" element={<PropertyDetailPage />} />
-
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
 
         <Route
           path="/properties"

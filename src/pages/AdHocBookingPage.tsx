@@ -160,8 +160,8 @@ export const AdHocBookingPage: React.FC = () => {
                     Go to Home
                   </Button>
                   {user && (
-                    <Button onClick={() => navigate(ROUTES.DASHBOARD)}>
-                      Go to Dashboard
+                    <Button onClick={() => navigate(ROUTES.PROPERTIES)}>
+                      Go to Properties
                     </Button>
                   )}
                 </div>

@@ -14,11 +14,11 @@ export const PaymentGatewayPage: React.FC = () => {
 
   const bookingId = searchParams.get('bookingId');
   const amount = searchParams.get('amount');
-  const returnUrl = searchParams.get('returnUrl') || ROUTES.DASHBOARD;
+  const returnUrl = searchParams.get('returnUrl') || ROUTES.LANDING;
 
   useEffect(() => {
     if (!bookingId || !amount) {
-      navigate(ROUTES.DASHBOARD);
+      navigate(ROUTES.LANDING);
     }
   }, [bookingId, amount, navigate]);
 
