@@ -93,6 +93,7 @@ export interface PropertyDTO {
   propertyType?: PropertyTypeDTO;
   minPrice?: number | null;
   maxPrice?: number | null;
+  totalRooms?: number;
 }
 
 export interface BlockDTO {

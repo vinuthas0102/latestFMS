@@ -17,6 +17,44 @@ import {
 } from '../types';
 import { sanitizeUUID } from '../utils/uuidHelpers';
 
+async function getRoomCountsForProperties(propertyIds: string[]): Promise<Record<string, number>> {
+  if (propertyIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .select(`
+      id,
+      floor:floors!inner(
+        id,
+        block:blocks!inner(
+          id,
+          property_id
+        )
+      )
+    `)
+    .eq('is_active', true)
+    .in('floor.block.property_id', propertyIds);
+
+  if (error) {
+    console.error('Error fetching room counts:', error);
+    return {};
+  }
+
+  const counts: Record<string, number> = {};
+  propertyIds.forEach(id => counts[id] = 0);
+
+  if (data) {
+    data.forEach((room: any) => {
+      const propertyId = room.floor?.block?.property_id;
+      if (propertyId) {
+        counts[propertyId] = (counts[propertyId] || 0) + 1;
+      }
+    });
+  }
+
+  return counts;
+}
+
 export const propertyService = {
   getRegions: async (): Promise<RegionDTO[]> => {
     const { data, error } = await supabase
@@ -108,7 +146,19 @@ export const propertyService = {
 
     if (error) throw error;
     if (!data) return [];
-    return data.map(mapPropertyFromDb);
+
+    const properties = data.map(mapPropertyFromDb);
+
+    if (properties.length > 0) {
+      const propertyIds = properties.map(p => p.id);
+      const roomCounts = await getRoomCountsForProperties(propertyIds);
+
+      properties.forEach(property => {
+        property.totalRooms = roomCounts[property.id] || 0;
+      });
+    }
+
+    return properties;
   },
 
   getPropertyById: async (id: string): Promise<PropertyDTO | null> => {
@@ -121,7 +171,12 @@ export const propertyService = {
     if (error) throw error;
     if (!data) return null;
 
-    return mapPropertyFromDb(data);
+    const property = mapPropertyFromDb(data);
+
+    const roomCounts = await getRoomCountsForProperties([id]);
+    property.totalRooms = roomCounts[id] || 0;
+
+    return property;
   },
 
   checkPropertyCodeExists: async (code: string): Promise<boolean> => {
