@@ -261,16 +261,17 @@ export const BookingHistoryPage: React.FC = () => {
           <div className="grid gap-3">
             {filteredBookings.map((booking, index) => {
               const isExpanded = expandedBookingId === booking.id;
-              const getGradientClass = () => {
-                if (booking.status === 'REQUESTED') return 'pastel-yellow-gradient';
-                if (booking.status === 'CHECKED_OUT') return 'pastel-green-gradient';
-                if (booking.status === 'CANCELLED' || booking.status === 'REJECTED') return 'pastel-coral-gradient';
-                return 'pastel-cyan-gradient';
+              const getBorderClass = () => {
+                if (booking.status === 'REQUESTED') return 'border-2 border-yellow-400';
+                if (booking.status === 'CHECKED_OUT') return 'border-2 border-green-400';
+                if (booking.status === 'CANCELLED' || booking.status === 'REJECTED') return 'border-2 border-red-400';
+                if (booking.status === 'PROVISIONED') return 'border-2 border-blue-400';
+                return 'border-2 border-cyan-400';
               };
 
               return (
                 <FadeIn key={booking.id} delay={index * 50}>
-                  <div className={`${getGradientClass()} rounded-xl p-4`}>
+                  <div className={`${getBorderClass()} bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow`}>
                     <div
                       className="cursor-pointer"
                       onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
@@ -294,19 +295,19 @@ export const BookingHistoryPage: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <div className="bg-white/40 rounded-md p-2">
+                        <div className="border border-gray-200 rounded-md p-2">
                           <span className="text-xs text-gray-500">Check-in</span>
                           <p className="text-xs font-semibold text-gray-900">{formatDate(booking.checkInDate)}</p>
                         </div>
-                        <div className="bg-white/40 rounded-md p-2">
+                        <div className="border border-gray-200 rounded-md p-2">
                           <span className="text-xs text-gray-500">Check-out</span>
                           <p className="text-xs font-semibold text-gray-900">{formatDate(booking.checkOutDate)}</p>
                         </div>
-                        <div className="bg-white/40 rounded-md p-2">
+                        <div className="border border-gray-200 rounded-md p-2">
                           <span className="text-xs text-gray-500">Room Type</span>
                           <p className="text-xs font-semibold text-gray-900">{booking.roomType?.name}</p>
                         </div>
-                        <div className="bg-white/40 rounded-md p-2">
+                        <div className="border border-gray-200 rounded-md p-2">
                           <span className="text-xs text-gray-500">Total</span>
                           <p className="text-xs font-semibold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
                         </div>
@@ -314,7 +315,7 @@ export const BookingHistoryPage: React.FC = () => {
                     </div>
 
                     {isExpanded && (
-                      <div className="mt-3 space-y-2 animate-slideDown border-t border-white/60 pt-3">
+                      <div className="mt-3 space-y-2 animate-slideDown border-t border-gray-200 pt-3">
                         {booking.balanceAmount > 0 && booking.status !== 'CANCELLED' && booking.status !== 'REJECTED' && (
                           <div className="bg-yellow-100/50 rounded-md p-3 border border-yellow-300/50">
                             <p className="text-xs text-yellow-800">
