@@ -179,28 +179,28 @@ export const ManagerPage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                      <div className="bg-white/40 rounded-lg p-2">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                         <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                           <User size={14} />
                           <span>Guest</span>
                         </div>
                         <p className="font-semibold text-gray-900 text-sm">{booking.guestDetails.fullName}</p>
                       </div>
-                      <div className="bg-white/40 rounded-lg p-2">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                         <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                           <Home size={14} />
                           <span>Room Type</span>
                         </div>
                         <p className="font-semibold text-gray-900 text-sm">{booking.roomType?.name}</p>
                       </div>
-                      <div className="bg-white/40 rounded-lg p-2">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                         <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                           <Calendar size={14} />
                           <span>Rooms</span>
                         </div>
                         <p className="font-semibold text-gray-900 text-sm">{booking.quantity} room(s)</p>
                       </div>
-                      <div className="bg-white/40 rounded-lg p-2">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                         <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                           <DollarSign size={14} />
                           <span>Amount</span>
@@ -211,7 +211,7 @@ export const ManagerPage: React.FC = () => {
 
                     {isExpanded && (
                       <div className="mt-4 space-y-3 animate-slideDown">
-                        <div className="bg-white/50 rounded-lg p-3">
+                        <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-white/80">
                           <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                             <Calendar size={16} />
                             <span className="font-medium">Stay Duration</span>

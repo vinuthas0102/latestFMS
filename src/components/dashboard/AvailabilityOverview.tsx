@@ -150,35 +150,47 @@ export const AvailabilityOverview: React.FC = () => {
         </CardHeader>
         <CardBody>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 size={20} className="text-blue-600" />
-                <span className="text-sm font-semibold text-gray-700">Total Properties</span>
+            <div className="pastel-blue-gradient rounded-xl p-4 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <div className="p-2 bg-blue-100/80 backdrop-blur-sm rounded-lg border border-white/60">
+                  <Building2 size={18} className="text-blue-600" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Total Properties</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{totalProperties}</p>
+              <p className="text-3xl font-bold text-gray-900 relative z-10">{totalProperties}</p>
+              <div className="absolute bottom-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full blur-2xl" />
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp size={20} className="text-green-600" />
-                <span className="text-sm font-semibold text-gray-700">High Availability</span>
+            <div className="pastel-green-gradient rounded-xl p-4 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <div className="p-2 bg-green-100/80 backdrop-blur-sm rounded-lg border border-white/60">
+                  <TrendingUp size={18} className="text-green-600" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">High Availability</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{highAvailability}</p>
+              <p className="text-3xl font-bold text-gray-900 relative z-10">{highAvailability}</p>
+              <div className="absolute bottom-0 right-0 w-20 h-20 bg-green-400/10 rounded-full blur-2xl" />
             </div>
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar size={20} className="text-yellow-600" />
-                <span className="text-sm font-semibold text-gray-700">Moderate</span>
+            <div className="pastel-yellow-gradient rounded-xl p-4 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <div className="p-2 bg-yellow-100/80 backdrop-blur-sm rounded-lg border border-white/60">
+                  <Calendar size={18} className="text-yellow-600" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Moderate</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-gray-900 relative z-10">
                 {totalProperties - highAvailability - lowAvailability}
               </p>
+              <div className="absolute bottom-0 right-0 w-20 h-20 bg-yellow-400/10 rounded-full blur-2xl" />
             </div>
-            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 border border-red-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar size={20} className="text-red-600" />
-                <span className="text-sm font-semibold text-gray-700">Low Availability</span>
+            <div className="pastel-coral-gradient rounded-xl p-4 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <div className="p-2 bg-red-100/80 backdrop-blur-sm rounded-lg border border-white/60">
+                  <Calendar size={18} className="text-red-600" />
+                </div>
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Low Availability</span>
               </div>
-              <p className="text-3xl font-bold text-gray-900">{lowAvailability}</p>
+              <p className="text-3xl font-bold text-gray-900 relative z-10">{lowAvailability}</p>
+              <div className="absolute bottom-0 right-0 w-20 h-20 bg-red-400/10 rounded-full blur-2xl" />
             </div>
           </div>
 
@@ -186,7 +198,7 @@ export const AvailabilityOverview: React.FC = () => {
             {availabilitySummaries.map((summary) => (
               <div
                 key={summary.property.id}
-                className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all"
+                className="pastel-cyan-gradient rounded-xl p-4 hover:shadow-lg transition-all relative overflow-hidden"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -222,7 +234,7 @@ export const AvailabilityOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <div className={`text-center px-4 py-2 rounded-lg font-bold text-2xl ${getAvailabilityColor(summary.availabilityPercentage)} bg-white border-2`}>
+                    <div className={`text-center px-4 py-2 rounded-xl font-bold text-2xl ${getAvailabilityColor(summary.availabilityPercentage)} bg-white/80 backdrop-blur-sm border border-white/80 shadow-lg`}>
                       {summary.availabilityPercentage}%
                     </div>
                     <Button

@@ -195,11 +195,11 @@ export const DashboardPage: React.FC = () => {
                               </div>
 
                               <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="bg-white/40 rounded-md p-2">
+                                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                                   <span className="text-gray-500">Check-in</span>
                                   <p className="font-semibold text-gray-900">{formatDate(booking.checkInDate)}</p>
                                 </div>
-                                <div className="bg-white/40 rounded-md p-2">
+                                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
                                   <span className="text-gray-500">Check-out</span>
                                   <p className="font-semibold text-gray-900">{formatDate(booking.checkOutDate)}</p>
                                 </div>
@@ -208,11 +208,11 @@ export const DashboardPage: React.FC = () => {
 
                             {isExpanded && (
                               <div className="space-y-2 animate-slideDown border-t border-white/60 pt-3">
-                                <div className="bg-white/50 rounded-md p-2 text-xs">
+                                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 text-xs border border-white/80">
                                   <span className="text-gray-500">Guest: </span>
                                   <span className="font-semibold text-gray-900">{booking.guestDetails.fullName}</span>
                                 </div>
-                                <div className="bg-white/50 rounded-md p-2 text-xs">
+                                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 text-xs border border-white/80">
                                   <span className="text-gray-500">Room Type: </span>
                                   <span className="font-semibold text-gray-900">{booking.roomType?.name}</span>
                                 </div>

@@ -107,10 +107,12 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
           )}
         </div>
-        <div className={`p-2.5 rounded-lg ${colorScheme.icon} transition-transform duration-300 ${
-          isHovered ? 'scale-110 rotate-3' : ''
+        <div className={`p-3 rounded-xl backdrop-blur-sm border shadow-lg transition-all duration-300 ${
+          colorScheme.icon
+        } border-white/60 ${
+          isHovered ? 'scale-110 rotate-3 shadow-xl' : ''
         }`}>
-          <Icon size={20} className="animate-pulse-slow" />
+          <Icon size={20} />
         </div>
       </div>
 
@@ -122,9 +124,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         </div>
       )}
 
-      <div className={`absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0 transition-transform duration-700 ${
+      <div className={`absolute inset-0 bg-gradient-to-r from-white/0 via-white/50 to-white/0 transition-transform duration-700 ${
         isHovered ? 'translate-x-full' : '-translate-x-full'
       }`} style={{ pointerEvents: 'none' }} />
+
+      <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
     </div>
   );
 };
