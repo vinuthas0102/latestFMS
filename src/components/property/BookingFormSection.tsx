@@ -1,0 +1,221 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Users } from 'lucide-react';
+import { Card, CardBody } from '../ui/Card';
+import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { usePropertyBooking } from '../../hooks/usePropertyBooking';
+import { ROUTES } from '../../constants/routes';
+
+interface BookingFormSectionProps {
+  propertyId: string;
+  roomTypes: Array<{ id: string; name: string }>;
+  isOtherFacilities: boolean;
+  isGovtFacilities: boolean;
+  requiresLogin: boolean;
+  isLoggedIn: boolean;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
+  showDatesPrefilled?: boolean;
+}
+
+export const BookingFormSection: React.FC<BookingFormSectionProps> = ({
+  propertyId,
+  roomTypes,
+  isOtherFacilities,
+  isGovtFacilities,
+  requiresLogin,
+  isLoggedIn,
+  initialCheckIn = '',
+  initialCheckOut = '',
+  showDatesPrefilled = false,
+}) => {
+  const navigate = useNavigate();
+  const [checkIn, setCheckIn] = useState(initialCheckIn);
+  const [checkOut, setCheckOut] = useState(initialCheckOut);
+  const [roomTypeId, setRoomTypeId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [adultCount, setAdultCount] = useState(1);
+  const [childCount, setChildCount] = useState(0);
+  const [requirements, setRequirements] = useState('');
+
+  const { createBooking, loading } = usePropertyBooking(propertyId, requiresLogin);
+
+  const handleSubmit = () => {
+    createBooking({
+      checkIn,
+      checkOut,
+      roomTypeId,
+      quantity,
+      guestName,
+      guestEmail,
+      guestPhone,
+      adultCount,
+      childCount,
+      requirements,
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Book This Property</h2>
+        {isOtherFacilities && !isLoggedIn && (
+          <Badge variant="success">No Login Required</Badge>
+        )}
+        {isGovtFacilities && (
+          <Badge variant="warning">Login Required</Badge>
+        )}
+      </div>
+
+      {isOtherFacilities && !isLoggedIn && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-blue-800">
+            <strong>Instant Booking Available!</strong> No account needed. Your booking details and OTP will be sent to your email.
+            {' '}
+            <button
+              onClick={() => navigate(ROUTES.LOGIN)}
+              className="underline hover:text-blue-900"
+            >
+              Already have an account? Login here
+            </button>
+          </p>
+        </div>
+      )}
+
+      {import.meta.env.VITE_ENABLE_MOCK_OTP === 'true' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-yellow-800">
+            <strong>Development Mode Active:</strong> All bookings will use OTP: <code className="bg-yellow-100 px-2 py-1 rounded">123456</code>
+          </p>
+        </div>
+      )}
+
+      {showDatesPrefilled && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-green-800">
+            <strong>Dates Prefilled:</strong> Your search dates have been automatically filled in below.
+          </p>
+        </div>
+      )}
+
+      <Card>
+        <CardBody>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                type="date"
+                label="Check-in Date"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                icon={<Calendar size={20} />}
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <Input
+                type="date"
+                label="Check-out Date"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                icon={<Calendar size={20} />}
+                min={checkIn}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Room Type"
+                options={[
+                  { value: '', label: 'Select room type' },
+                  ...roomTypes.map((rt) => ({ value: rt.id, label: rt.name })),
+                ]}
+                value={roomTypeId}
+                onChange={(e) => setRoomTypeId(e.target.value)}
+              />
+              <Input
+                type="number"
+                label="Number of Rooms"
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value))}
+                icon={<Users size={20} />}
+                min={1}
+              />
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <h3 className="font-semibold text-gray-900 mb-4">Guest Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Enter guest name"
+                />
+                <Input
+                  type="email"
+                  label="Email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder="guest@example.com"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <Input
+                  type="tel"
+                  label="Phone Number"
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                  placeholder="+91 XXXXX XXXXX"
+                />
+                <Input
+                  type="number"
+                  label="Number of Adults"
+                  value={adultCount}
+                  onChange={(e) => setAdultCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  icon={<Users size={20} />}
+                  min={1}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <Input
+                  type="number"
+                  label="Number of Children"
+                  value={childCount}
+                  onChange={(e) => setChildCount(Math.max(0, parseInt(e.target.value) || 0))}
+                  icon={<Users size={20} />}
+                  min={0}
+                />
+                <Input
+                  label="Special Requirements (Optional)"
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="Any special needs or requests"
+                />
+              </div>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Total Guests:</strong> {adultCount + childCount} ({adultCount} {adultCount === 1 ? 'Adult' : 'Adults'}, {childCount} {childCount === 1 ? 'Child' : 'Children'})
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={handleSubmit}
+                size="lg"
+                loading={loading}
+                className="min-w-64"
+              >
+                Proceed to Payment
+              </Button>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+    </div>
+  );
+};
