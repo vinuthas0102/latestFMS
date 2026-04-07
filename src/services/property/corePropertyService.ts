@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase, validateSession, refreshSession } from '../../lib/supabase';
 import { PropertyDTO, CreatePropertyDTO, UpdatePropertyDTO, BlockDTO, FloorDTO, RoomDTO } from '../../types';
 import { sanitizeUUID } from '../../utils/uuidHelpers';
 import { mapPropertyFromDb } from './mappers';
@@ -74,6 +74,16 @@ export async function checkPropertyCodeExists(code: string): Promise<boolean> {
 }
 
 export async function createProperty(property: CreatePropertyDTO): Promise<PropertyDTO> {
+  const validation = await validateSession();
+  if (!validation.valid) {
+    console.log('Session invalid, attempting refresh before property creation...');
+    try {
+      await refreshSession();
+    } catch (refreshError) {
+      throw new Error('Session expired. Please log out and log back in to continue.');
+    }
+  }
+
   const { data, error } = await supabase
     .from('properties')
     .insert([
@@ -98,11 +108,26 @@ export async function createProperty(property: CreatePropertyDTO): Promise<Prope
     .select('*, estate:estates(*), assetType:asset_types(*), module:modules(*), propertyType:property_types(*, module:modules(*))')
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes('row-level security') || error.code === '42501') {
+      throw new Error('Permission denied. Please log out and log back in, then try again.');
+    }
+    throw error;
+  }
   return mapPropertyFromDb(data);
 }
 
 export async function updateProperty(id: string, updates: UpdatePropertyDTO): Promise<PropertyDTO> {
+  const validation = await validateSession();
+  if (!validation.valid) {
+    console.log('Session invalid, attempting refresh before property update...');
+    try {
+      await refreshSession();
+    } catch (refreshError) {
+      throw new Error('Session expired. Please log out and log back in to continue.');
+    }
+  }
+
   const updateData: any = { updated_at: new Date().toISOString() };
 
   if (updates.estateId !== undefined) updateData.estate_id = sanitizeUUID(updates.estateId);
@@ -129,7 +154,12 @@ export async function updateProperty(id: string, updates: UpdatePropertyDTO): Pr
     .select('*, estate:estates(*), assetType:asset_types(*), module:modules(*), propertyType:property_types(*, module:modules(*))')
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes('row-level security') || error.code === '42501') {
+      throw new Error('Permission denied. Please log out and log back in, then try again.');
+    }
+    throw error;
+  }
   return mapPropertyFromDb(data);
 }
 

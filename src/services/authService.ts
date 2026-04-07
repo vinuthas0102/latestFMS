@@ -26,17 +26,21 @@ export const authService = {
         .update({ role: credentials.role })
         .eq('id', userData.id);
       userData.role = credentials.role;
+    }
 
-      await refreshSession();
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const refreshedSession = await refreshSession();
+    if (!refreshedSession) {
+      throw new Error('Failed to establish session with role claims');
     }
 
     const validation = await validateSession();
     if (!validation.valid) {
-      console.warn('Session validation failed after login, attempting refresh...');
-      await refreshSession();
+      console.warn('Session validation failed after refresh. This may cause RLS policy errors.');
     }
 
-    const token = authData.session.access_token;
+    const token = refreshedSession.access_token;
 
     return {
       user: mapUserFromDb(userData),
@@ -71,7 +75,14 @@ export const authService = {
 
     if (userError) throw userError;
 
-    const token = authData.session?.access_token || '';
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const refreshedSession = await refreshSession();
+    if (!refreshedSession) {
+      console.warn('Failed to refresh session after registration');
+    }
+
+    const token = refreshedSession?.access_token || authData.session?.access_token || '';
     localStorage.setItem('auth_token', token);
 
     return {
@@ -152,7 +163,12 @@ export const authService = {
 
     if (error) throw error;
 
-    await refreshSession();
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const refreshedSession = await refreshSession();
+    if (!refreshedSession) {
+      throw new Error('Failed to refresh session after role change');
+    }
   },
 };
 
