@@ -26,7 +26,7 @@ export const BookingHistoryPage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string | string[]>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -56,7 +56,11 @@ export const BookingHistoryPage: React.FC = () => {
     let filtered = bookings;
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter((b) => b.status === statusFilter);
+      if (Array.isArray(statusFilter)) {
+        filtered = filtered.filter((b) => statusFilter.includes(b.status));
+      } else {
+        filtered = filtered.filter((b) => b.status === statusFilter);
+      }
     }
 
     if (searchQuery.trim()) {
@@ -95,7 +99,7 @@ export const BookingHistoryPage: React.FC = () => {
     cancelled: bookings.filter((b) => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
   };
 
-  const handleStatCardClick = (filter: string) => {
+  const handleStatCardClick = (filter: string | string[]) => {
     setStatusFilter(filter);
   };
 
@@ -104,7 +108,21 @@ export const BookingHistoryPage: React.FC = () => {
     setSearchQuery('');
   };
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
+  const activeFilterCount = (statusFilter !== 'all' && statusFilter.length > 0 ? 1 : 0) + (searchQuery ? 1 : 0);
+
+  const isFilterActive = (filterValue: string | string[]) => {
+    if (filterValue === 'all') {
+      return statusFilter === 'all';
+    }
+    if (Array.isArray(filterValue)) {
+      return (
+        Array.isArray(statusFilter) &&
+        filterValue.length === statusFilter.length &&
+        filterValue.every((status) => statusFilter.includes(status))
+      );
+    }
+    return statusFilter === filterValue;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50/20">
@@ -155,8 +173,8 @@ export const BookingHistoryPage: React.FC = () => {
             value={stats.upcoming}
             icon={Calendar}
             gradient="pastel-cyan-gradient"
-            onClick={() => handleStatCardClick('ALLOCATED')}
-            isActive={statusFilter === 'ALLOCATED'}
+            onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
+            isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
             delay={150}
           />
           <SummaryStatsCard
@@ -173,8 +191,8 @@ export const BookingHistoryPage: React.FC = () => {
             value={stats.cancelled}
             icon={XCircle}
             gradient="pastel-coral-gradient"
-            onClick={() => handleStatCardClick('CANCELLED')}
-            isActive={statusFilter === 'CANCELLED'}
+            onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
+            isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
             delay={250}
           />
         </div>
@@ -204,17 +222,17 @@ export const BookingHistoryPage: React.FC = () => {
               </label>
               <div className="space-y-2">
                 {[
-                  { value: 'all', label: 'All Bookings', icon: History },
-                  { value: 'REQUESTED', label: 'Requested', icon: Clock },
-                  { value: 'ALLOCATED', label: 'Upcoming', icon: Calendar },
-                  { value: 'CHECKED_OUT', label: 'Completed', icon: CheckCircle },
-                  { value: 'CANCELLED', label: 'Cancelled', icon: XCircle },
+                  { value: 'all' as const, label: 'All Bookings', icon: History },
+                  { value: 'REQUESTED' as const, label: 'Requested', icon: Clock },
+                  { value: ['ALLOCATED', 'PROVISIONED'] as const, label: 'Upcoming', icon: Calendar },
+                  { value: 'CHECKED_OUT' as const, label: 'Completed', icon: CheckCircle },
+                  { value: ['CANCELLED', 'REJECTED'] as const, label: 'Cancelled', icon: XCircle },
                 ].map(({ value, label, icon: Icon }) => (
                   <button
-                    key={value}
+                    key={Array.isArray(value) ? value.join('-') : value}
                     onClick={() => setStatusFilter(value)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
-                      statusFilter === value
+                      isFilterActive(value)
                         ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
                         : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                     }`}
