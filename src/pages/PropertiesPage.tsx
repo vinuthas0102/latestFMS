@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Building2, MapPin, Calendar, Camera, Filter, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Building2, MapPin, Calendar, Camera, Filter, CheckCircle, Clock, Layers } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { HorizontalSlider } from '../components/ui/HorizontalSlider';
+import { Input } from '../components/ui/Input';
+import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { ViewSwitcher, ViewMode } from '../components/ui/ViewSwitcher';
+import { DataTable, Column } from '../components/ui/DataTable';
+import { ListView, ListViewItem } from '../components/ui/ListView';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
 import { canManageProperties } from '../utils/permissions';
@@ -16,6 +20,7 @@ import { PropertyDTO } from '../types';
 import { ROUTES } from '../constants/routes';
 import { FadeIn } from '../components/animations/FadeIn';
 import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
+import { useViewPreference } from '../hooks/useViewPreference';
 
 export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +29,9 @@ export const PropertiesPage: React.FC = () => {
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useViewPreference('propertiesView', 'card');
 
   useEffect(() => {
     fetchProperties();
@@ -53,15 +61,28 @@ export const PropertiesPage: React.FC = () => {
     navigate(`/properties/${property.id}?tab=booking`);
   };
 
-  const filterItems = [
-    { id: 'all', label: 'All Properties', icon: <Building2 size={14} />, color: 'blue' },
-    { id: 'PUBLISHED', label: 'Published', icon: <CheckCircle size={14} />, color: 'green' },
-    { id: 'DRAFT', label: 'Draft', icon: <Clock size={14} />, color: 'yellow' },
-  ];
+  const filteredProperties = properties.filter((property) => {
+    const matchesStatus = filterStatus === 'all' || property.status === filterStatus;
+    const matchesSearch = !searchQuery ||
+      property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.estate?.city?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
-  const filteredProperties = filterStatus === 'all'
-    ? properties
-    : properties.filter(p => p.status === filterStatus);
+  const stats = {
+    total: properties.length,
+    published: properties.filter((p) => p.status === 'PUBLISHED').length,
+    draft: properties.filter((p) => p.status === 'DRAFT').length,
+    totalRooms: properties.reduce((sum, p) => sum + (p.totalRooms || 0), 0),
+  };
+
+  const handleClearFilters = () => {
+    setFilterStatus('all');
+    setSearchQuery('');
+  };
+
+  const activeFilterCount = (filterStatus !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50/20">
@@ -79,23 +100,112 @@ export const PropertiesPage: React.FC = () => {
               </h1>
               <p className="text-gray-600">Manage all facilities and assets</p>
             </div>
-            {canManage && (
-              <Button onClick={() => navigate(ROUTES.PROPERTY_CREATE)} icon={<Plus size={20} />}>
-                New Property
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className="relative flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all"
+              >
+                <Filter size={18} />
+                <span className="font-medium text-sm">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+              {canManage && (
+                <Button onClick={() => navigate(ROUTES.PROPERTY_CREATE)} icon={<Plus size={20} />}>
+                  New Property
+                </Button>
+              )}
+            </div>
           </div>
         </FadeIn>
 
-        <FadeIn delay={100}>
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/80 p-4 mb-6">
-            <HorizontalSlider
-              items={filterItems}
-              selectedId={filterStatus}
-              onSelect={setFilterStatus}
-            />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <SummaryStatsCard
+            label="Total Properties"
+            value={stats.total}
+            icon={Building2}
+            gradient="pastel-blue-gradient"
+            onClick={() => setFilterStatus('all')}
+            isActive={filterStatus === 'all'}
+            delay={100}
+          />
+          <SummaryStatsCard
+            label="Published"
+            value={stats.published}
+            icon={CheckCircle}
+            gradient="pastel-green-gradient"
+            onClick={() => setFilterStatus('PUBLISHED')}
+            isActive={filterStatus === 'PUBLISHED'}
+            delay={150}
+          />
+          <SummaryStatsCard
+            label="Draft"
+            value={stats.draft}
+            icon={Clock}
+            gradient="pastel-yellow-gradient"
+            onClick={() => setFilterStatus('DRAFT')}
+            isActive={filterStatus === 'DRAFT'}
+            delay={200}
+          />
+          <SummaryStatsCard
+            label="Total Rooms"
+            value={stats.totalRooms}
+            icon={Layers}
+            gradient="pastel-cyan-gradient"
+            delay={250}
+          />
+        </div>
+
+        <FilterDrawer
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          title="Property Filters"
+          onClearAll={handleClearFilters}
+          activeFilterCount={activeFilterCount}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search
+              </label>
+              <Input
+                type="text"
+                placeholder="Property name or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: 'all', label: 'All Properties', icon: Building2 },
+                  { value: 'PUBLISHED', label: 'Published', icon: CheckCircle },
+                  { value: 'DRAFT', label: 'Draft', icon: Clock },
+                ].map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setFilterStatus(value)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
+                      filterStatus === value
+                        ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-md'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    <span className="font-medium text-sm">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </FadeIn>
+        </FilterDrawer>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -103,20 +213,18 @@ export const PropertiesPage: React.FC = () => {
               <SkeletonCard key={i} />
             ))}
           </div>
-        ) : properties.length === 0 ? (
-          <Card>
-            <CardBody>
-              <div className="text-center py-12">
-                <Building2 className="mx-auto text-gray-400 mb-4" size={64} />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties yet</h3>
-                <p className="text-gray-600 mb-6">Create your first property to get started</p>
-                {canManage && (
-                  <Button onClick={() => navigate('/properties/create')}>Create Property</Button>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        ) : (
+        ) : filteredProperties.length === 0 ? (
+          <FadeIn delay={300}>
+            <div className="pastel-lavender-gradient rounded-xl p-12 text-center">
+              <Building2 className="mx-auto text-gray-400 mb-4 animate-pulse-slow" size={64} />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties found</h3>
+              <p className="text-gray-600 mb-6">{properties.length === 0 ? 'Create your first property to get started' : 'Try adjusting your filters'}</p>
+              {canManage && properties.length === 0 && (
+                <Button onClick={() => navigate('/properties/create')}>Create Property</Button>
+              )}
+            </div>
+          </FadeIn>
+        ) : viewMode === 'card' ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProperties.map((property, index) => {
@@ -209,6 +317,127 @@ export const PropertiesPage: React.FC = () => {
               />
             )}
           </>
+        ) : viewMode === 'table' ? (
+          <FadeIn delay={300}>
+            <DataTable
+              columns={[
+                {
+                  key: 'name',
+                  label: 'Property Name',
+                  sortable: true,
+                  width: '25%',
+                },
+                {
+                  key: 'module',
+                  label: 'Module',
+                  sortable: false,
+                  render: (property) => property.module?.name || 'N/A',
+                },
+                {
+                  key: 'propertyType',
+                  label: 'Type',
+                  sortable: false,
+                  render: (property) => property.propertyType?.name || 'N/A',
+                },
+                {
+                  key: 'location',
+                  label: 'Location',
+                  sortable: false,
+                  render: (property) => property.estate?.city || property.address || 'N/A',
+                },
+                {
+                  key: 'totalRooms',
+                  label: 'Rooms',
+                  sortable: true,
+                  render: (property) => property.totalRooms || 0,
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  sortable: true,
+                  render: (property) => (
+                    <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
+                      {property.status}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  label: 'Actions',
+                  sortable: false,
+                  width: '15%',
+                  render: (property) => (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/properties/${property.id}`);
+                        }}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleBookingClick(e as any, property)}
+                      >
+                        Book
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+              data={filteredProperties}
+              keyExtractor={(property) => property.id}
+              onRowClick={(property) => handleCardClick(property)}
+              emptyMessage="No properties found"
+            />
+          </FadeIn>
+        ) : (
+          <FadeIn delay={300}>
+            <ListView emptyMessage="No properties found">
+              {filteredProperties.map((property) => (
+                <ListViewItem
+                  key={property.id}
+                  icon={<Building2 size={18} />}
+                  title={property.name}
+                  subtitle={`${property.module?.name || 'N/A'} • ${property.estate?.city || property.address}`}
+                  badge={
+                    <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
+                      {property.status}
+                    </Badge>
+                  }
+                  rightContent={
+                    <div className="text-right flex items-center gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{property.totalRooms || 0} rooms</p>
+                        <p className="text-xs text-gray-500">{property.propertyType?.name}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBookingClick(e as any, property);
+                        }}
+                      >
+                        <Calendar size={14} />
+                      </Button>
+                    </div>
+                  }
+                  onClick={() => handleCardClick(property)}
+                />
+              ))}
+            </ListView>
+          </FadeIn>
+        )}
+
+        {selectedProperty && (
+          <PropertyQuickViewModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            property={selectedProperty}
+          />
         )}
       </div>
     </div>

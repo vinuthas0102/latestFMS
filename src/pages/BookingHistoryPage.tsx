@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
 import { Badge } from '../components/ui/Badge';
-import { HorizontalSlider } from '../components/ui/HorizontalSlider';
-import { Calendar, MapPin, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp } from 'lucide-react';
+import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { ViewSwitcher, ViewMode } from '../components/ui/ViewSwitcher';
+import { DataTable, Column } from '../components/ui/DataTable';
+import { ListView, ListViewItem } from '../components/ui/ListView';
+import { Calendar, MapPin, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp, Filter, RotateCcw } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { BookingDTO, BookingStatus } from '../types';
 import { formatDate } from '../utils/dateHelpers';
@@ -15,7 +17,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { FadeIn } from '../components/animations/FadeIn';
-import { CountUp } from '../components/animations/CountUp';
+import { useViewPreference } from '../hooks/useViewPreference';
 
 export const BookingHistoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,8 @@ export const BookingHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useViewPreference('bookingHistoryView', 'card');
 
   useEffect(() => {
     loadBookings();
@@ -91,13 +95,16 @@ export const BookingHistoryPage: React.FC = () => {
     cancelled: bookings.filter((b) => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
   };
 
-  const statusFilterItems = [
-    { id: 'all', label: 'All', icon: <History size={14} />, color: 'blue' },
-    { id: 'REQUESTED', label: 'Requested', icon: <Clock size={14} />, color: 'yellow' },
-    { id: 'ALLOCATED', label: 'Upcoming', icon: <Calendar size={14} />, color: 'cyan' },
-    { id: 'CHECKED_OUT', label: 'Completed', icon: <CheckCircle size={14} />, color: 'green' },
-    { id: 'CANCELLED', label: 'Cancelled', icon: <XCircle size={14} />, color: 'coral' },
-  ];
+  const handleStatCardClick = (filter: string) => {
+    setStatusFilter(filter);
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilter('all');
+    setSearchQuery('');
+  };
+
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50/20">
@@ -105,69 +112,121 @@ export const BookingHistoryPage: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <FadeIn delay={0}>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg">
-                <History className="w-7 h-7 text-white" />
-              </div>
-              Booking History
-            </h1>
-            <p className="text-gray-600">View and manage your past and upcoming bookings</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
+                  <History className="w-7 h-7 text-white" />
+                </div>
+                Booking History
+              </h1>
+              <p className="text-gray-600">View and manage your past and upcoming bookings</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className="relative flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all"
+              >
+                <Filter size={18} />
+                <span className="font-medium text-sm">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </FadeIn>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <FadeIn delay={100}>
-            <div className="pastel-blue-gradient rounded-xl p-4 card-interactive">
-              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Total Bookings</p>
-              <p className="text-3xl font-bold text-gray-900">
-                <CountUp end={stats.total} duration={1500} />
-              </p>
-            </div>
-          </FadeIn>
-          <FadeIn delay={150}>
-            <div className="pastel-cyan-gradient rounded-xl p-4 card-interactive">
-              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Upcoming</p>
-              <p className="text-3xl font-bold text-gray-900">
-                <CountUp end={stats.upcoming} duration={1500} />
-              </p>
-            </div>
-          </FadeIn>
-          <FadeIn delay={200}>
-            <div className="pastel-green-gradient rounded-xl p-4 card-interactive">
-              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Completed</p>
-              <p className="text-3xl font-bold text-gray-900">
-                <CountUp end={stats.completed} duration={1500} />
-              </p>
-            </div>
-          </FadeIn>
-          <FadeIn delay={250}>
-            <div className="pastel-coral-gradient rounded-xl p-4 card-interactive">
-              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Cancelled</p>
-              <p className="text-3xl font-bold text-gray-900">
-                <CountUp end={stats.cancelled} duration={1500} />
-              </p>
-            </div>
-          </FadeIn>
+          <SummaryStatsCard
+            label="Total Bookings"
+            value={stats.total}
+            icon={History}
+            gradient="pastel-blue-gradient"
+            onClick={() => handleStatCardClick('all')}
+            isActive={statusFilter === 'all'}
+            delay={100}
+          />
+          <SummaryStatsCard
+            label="Upcoming"
+            value={stats.upcoming}
+            icon={Calendar}
+            gradient="pastel-cyan-gradient"
+            onClick={() => handleStatCardClick('ALLOCATED')}
+            isActive={statusFilter === 'ALLOCATED'}
+            delay={150}
+          />
+          <SummaryStatsCard
+            label="Completed"
+            value={stats.completed}
+            icon={CheckCircle}
+            gradient="pastel-green-gradient"
+            onClick={() => handleStatCardClick('CHECKED_OUT')}
+            isActive={statusFilter === 'CHECKED_OUT'}
+            delay={200}
+          />
+          <SummaryStatsCard
+            label="Cancelled"
+            value={stats.cancelled}
+            icon={XCircle}
+            gradient="pastel-coral-gradient"
+            onClick={() => handleStatCardClick('CANCELLED')}
+            isActive={statusFilter === 'CANCELLED'}
+            delay={250}
+          />
         </div>
 
-        <FadeIn delay={300}>
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/80 p-4 mb-6">
-            <div className="mb-4">
+        <FilterDrawer
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          title="Booking Filters"
+          onClearAll={handleClearFilters}
+          activeFilterCount={activeFilterCount}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Search
+              </label>
               <Input
                 type="text"
-                placeholder="Search by booking number or property..."
+                placeholder="Booking number or property..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <HorizontalSlider
-              items={statusFilterItems}
-              selectedId={statusFilter}
-              onSelect={setStatusFilter}
-            />
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: 'all', label: 'All Bookings', icon: History },
+                  { value: 'REQUESTED', label: 'Requested', icon: Clock },
+                  { value: 'ALLOCATED', label: 'Upcoming', icon: Calendar },
+                  { value: 'CHECKED_OUT', label: 'Completed', icon: CheckCircle },
+                  { value: 'CANCELLED', label: 'Cancelled', icon: XCircle },
+                ].map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setStatusFilter(value)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
+                      statusFilter === value
+                        ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    <span className="font-medium text-sm">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </FadeIn>
+        </FilterDrawer>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -180,7 +239,7 @@ export const BookingHistoryPage: React.FC = () => {
               <p className="text-gray-600 font-medium">No bookings found</p>
             </div>
           </FadeIn>
-        ) : (
+        ) : viewMode === 'card' ? (
           <div className="grid gap-3">
             {filteredBookings.map((booking, index) => {
               const isExpanded = expandedBookingId === booking.id;
@@ -264,6 +323,106 @@ export const BookingHistoryPage: React.FC = () => {
               );
             })}
           </div>
+        ) : viewMode === 'table' ? (
+          <FadeIn delay={300}>
+            <DataTable
+              columns={[
+                {
+                  key: 'bookingNumber',
+                  label: 'Booking #',
+                  sortable: true,
+                  width: '15%',
+                },
+                {
+                  key: 'property',
+                  label: 'Property',
+                  sortable: false,
+                  render: (booking) => booking.property?.name || 'N/A',
+                },
+                {
+                  key: 'checkInDate',
+                  label: 'Check-in',
+                  sortable: true,
+                  render: (booking) => formatDate(booking.checkInDate),
+                },
+                {
+                  key: 'checkOutDate',
+                  label: 'Check-out',
+                  sortable: true,
+                  render: (booking) => formatDate(booking.checkOutDate),
+                },
+                {
+                  key: 'roomType',
+                  label: 'Room Type',
+                  sortable: false,
+                  render: (booking) => booking.roomType?.name || 'N/A',
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  sortable: true,
+                  render: (booking) => (
+                    <Badge variant={getStatusVariant(booking.status)} className="text-xs">
+                      {booking.status}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: 'totalAmount',
+                  label: 'Total',
+                  sortable: true,
+                  render: (booking) => formatCurrency(booking.totalAmount),
+                },
+                {
+                  key: 'actions',
+                  label: 'Actions',
+                  sortable: false,
+                  width: '10%',
+                  render: (booking) => (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/bookings/${booking.id}`);
+                      }}
+                    >
+                      <Eye size={14} />
+                    </Button>
+                  ),
+                },
+              ]}
+              data={filteredBookings}
+              keyExtractor={(booking) => booking.id}
+              onRowClick={(booking) => navigate(`/bookings/${booking.id}`)}
+              emptyMessage="No bookings found"
+            />
+          </FadeIn>
+        ) : (
+          <FadeIn delay={300}>
+            <ListView emptyMessage="No bookings found">
+              {filteredBookings.map((booking) => (
+                <ListViewItem
+                  key={booking.id}
+                  icon={<Calendar size={18} />}
+                  title={booking.bookingNumber}
+                  subtitle={`${booking.property?.name} • ${formatDate(booking.checkInDate)} to ${formatDate(booking.checkOutDate)}`}
+                  badge={
+                    <Badge variant={getStatusVariant(booking.status)} className="text-xs">
+                      {booking.status}
+                    </Badge>
+                  }
+                  rightContent={
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
+                      <p className="text-xs text-gray-500">{booking.roomType?.name}</p>
+                    </div>
+                  }
+                  onClick={() => navigate(`/bookings/${booking.id}`)}
+                />
+              ))}
+            </ListView>
+          </FadeIn>
         )}
       </div>
     </div>
