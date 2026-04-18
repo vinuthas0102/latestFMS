@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Bell, LogOut, Search, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Building2, Bell, LogOut, Search, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, MapPin, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
@@ -28,6 +28,7 @@ export const Header: React.FC = () => {
 
   const isManager = user?.role === 'manager' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
+  const isRegularUser = user && !isManager;
 
   const checkScroll = () => {
     const container = scrollContainerRef.current;
@@ -92,6 +93,33 @@ export const Header: React.FC = () => {
     },
   ];
 
+  const regularUserNavItems: NavItem[] = [
+    {
+      route: ROUTES.DASHBOARD,
+      label: 'My Dashboard',
+      icon: <LayoutDashboard size={20} />,
+      accentColor: 'rgb(14, 165, 233)',
+    },
+    {
+      route: ROUTES.BOOKINGS,
+      label: 'My Bookings',
+      icon: <Calendar size={20} />,
+      accentColor: 'rgb(245, 158, 11)',
+    },
+    {
+      route: ROUTES.SEARCH,
+      label: 'Search',
+      icon: <Search size={20} />,
+      accentColor: 'rgb(6, 182, 212)',
+    },
+    {
+      route: ROUTES.MAP_SEARCH,
+      label: 'Map',
+      icon: <MapPin size={20} />,
+      accentColor: 'rgb(16, 185, 129)',
+    },
+  ];
+
   const managerNavItems: NavItem[] = [
     {
       route: ROUTES.PROPERTIES,
@@ -134,11 +162,13 @@ export const Header: React.FC = () => {
     },
   ];
 
-  const navItems = [
-    ...baseNavItems,
-    ...(isManager ? managerNavItems : []),
-    ...(isAdmin ? adminNavItems : []),
-  ];
+  const navItems = isRegularUser
+    ? regularUserNavItems
+    : [
+        ...baseNavItems,
+        ...(isManager ? managerNavItems : []),
+        ...(isAdmin ? adminNavItems : []),
+      ];
 
   return (
     <header className="glass-header sticky top-0 z-40 border-b border-gray-200 shadow-sm">

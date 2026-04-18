@@ -26,7 +26,11 @@ export const LoginPage: React.FC = () => {
     try {
       await login(email, password, selectedRole);
       addToast('Login successful', 'success');
-      navigate(ROUTES.PROPERTIES);
+      if (selectedRole === 'admin' || selectedRole === 'manager') {
+        navigate(ROUTES.PROPERTIES);
+      } else {
+        navigate(ROUTES.DASHBOARD);
+      }
     } catch (error: any) {
       addToast(error.message || 'Login failed', 'error');
     } finally {

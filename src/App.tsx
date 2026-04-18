@@ -6,6 +6,7 @@ import { SearchPage } from './pages/SearchPage';
 import { MapSearchPage } from './pages/MapSearchPage';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
 import { PropertiesPage } from './pages/PropertiesPage';
+import { UserDashboardPage } from './pages/UserDashboardPage';
 import { ManagerPage } from './pages/ManagerPage';
 import { CreatePropertyPage } from './pages/CreatePropertyPage';
 import { PaymentGatewayPage } from './pages/PaymentGatewayPage';
@@ -86,6 +87,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'manager']}>
               <CheckInPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['public', 'dept_user', 'govt_official', 'admin', 'manager']}>
+              <UserDashboardPage />
             </ProtectedRoute>
           }
         />

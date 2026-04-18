@@ -1,10 +1,17 @@
 import { supabase, validateSession, refreshSession } from '../../lib/supabase';
 import { PropertyDTO, CreatePropertyDTO, UpdatePropertyDTO, BlockDTO, FloorDTO, RoomDTO } from '../../types';
+import { UserRole } from '../../types';
 import { sanitizeUUID } from '../../utils/uuidHelpers';
 import { mapPropertyFromDb } from './mappers';
 import { getRoomCountsForProperties } from './helpers';
 import { getBlocks, getFloors } from './blockService';
 import { getRooms } from './roomService';
+
+function getAllowedCategoriesForRole(userRole?: UserRole): string[] | null {
+  if (!userRole || userRole === 'admin' || userRole === 'manager') return null;
+  if (userRole === 'govt_official') return ['A', 'B'];
+  return ['B'];
+}
 
 export async function getProperties(filters?: {
   estateId?: string;
@@ -13,6 +20,7 @@ export async function getProperties(filters?: {
   propertyTypeId?: string;
   status?: string;
   isExempt?: boolean;
+  userRole?: UserRole;
 }): Promise<PropertyDTO[]> {
   let query = supabase
     .from('properties')
@@ -30,7 +38,14 @@ export async function getProperties(filters?: {
   if (error) throw error;
   if (!data) return [];
 
-  const properties = data.map(mapPropertyFromDb);
+  let properties = data.map(mapPropertyFromDb);
+
+  const allowedCategories = getAllowedCategoriesForRole(filters?.userRole);
+  if (allowedCategories) {
+    properties = properties.filter(
+      (p) => p.assetType && allowedCategories.includes(p.assetType.category)
+    );
+  }
 
   if (properties.length > 0) {
     const propertyIds = properties.map(p => p.id);
