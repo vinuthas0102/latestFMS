@@ -84,8 +84,21 @@ export const BookingDetailPage: React.FC = () => {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <BookingPropertyInfo booking={booking} />
-            <BookingGuestInfo booking={booking} />
+            <BookingPropertyInfo
+              propertyName={booking.property?.name || ''}
+              propertyAddress={booking.property?.address || ''}
+              roomTypeName={booking.roomType?.name || ''}
+              quantity={booking.quantity}
+              checkInDate={booking.checkInDate}
+              checkOutDate={booking.checkOutDate}
+              specialRequirements={booking.specialRequirements}
+            />
+            <BookingGuestInfo
+              fullName={booking.guestDetails.fullName}
+              email={booking.guestDetails.email}
+              phone={booking.guestDetails.phone}
+              guestCount={booking.guestDetails.numberOfGuests ?? 1}
+            />
             {allocations.length > 0 && <RoomAllocationsCard allocations={allocations} />}
             {transactions.length > 0 && <PaymentHistoryCard transactions={transactions} />}
             {booking.notes && (

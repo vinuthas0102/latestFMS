@@ -2,10 +2,11 @@ import React from 'react';
 import { XCircle } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../../constants/statuses';
+import { BookingStatus } from '../../types';
 
 interface BookingStatusHeaderProps {
   bookingNumber: string;
-  status: string;
+  status: BookingStatus;
   rejectionReason?: string;
 }
 

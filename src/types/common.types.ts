@@ -32,11 +32,13 @@ export interface GuestDetails {
 }
 
 export interface AuditoriumRequirements {
-  soundAndLight: boolean;
-  additionalSeating: boolean;
-  generatorBackup: boolean;
-  garbageClearance: boolean;
-  otherRequirements?: string;
+  expectedAttendees?: number;
+  seatingArrangement?: string;
+  needsSoundSystem?: boolean;
+  needsLighting?: boolean;
+  needsGenerator?: boolean;
+  needsGarbageManagement?: boolean;
+  additionalNotes?: string;
 }
 
 export interface SearchFilters {

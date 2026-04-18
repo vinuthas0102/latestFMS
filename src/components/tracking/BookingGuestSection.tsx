@@ -14,10 +14,10 @@ export const BookingGuestSection: React.FC<BookingGuestSectionProps> = ({ bookin
         Guest Information
       </h3>
       <div className="space-y-3">
-        {booking.guestDetails?.name && (
+        {booking.guestDetails?.fullName && (
           <div className="flex items-center gap-3">
             <User className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-900">{booking.guestDetails.name}</span>
+            <span className="text-gray-900">{booking.guestDetails.fullName}</span>
           </div>
         )}
         {booking.guestDetails?.email && (
