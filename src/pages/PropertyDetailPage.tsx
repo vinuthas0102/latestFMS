@@ -1,23 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Users, Wifi, Calendar, ArrowLeft, Building2, CreditCard as Edit, Info, Layers, Image, DollarSign, Map, BarChart3 } from 'lucide-react';
+import { MapPin, Wifi, Calendar, ArrowLeft, Building2, CreditCard as Edit, Info, Layers, Image, DollarSign, Map, BarChart3 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { Card, CardBody, CardHeader } from '../components/ui/Card';
+import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Badge } from '../components/ui/Badge';
 import { VerticalTabs } from '../components/ui/VerticalTabs';
-import { usePropertyStore } from '../stores/propertyStore';
-import { useAuthStore } from '../stores/authStore';
-import { useUIStore } from '../stores/uiStore';
-import { bookingService } from '../services/bookingService';
-import { propertyService } from '../services/propertyService';
-import { bookingEligibilityService } from '../services/bookingEligibilityService';
-import { formatCurrency } from '../utils/formatters';
-import { canManageProperties } from '../utils/permissions';
-import { GuestDetails, BlockDTO, FloorDTO, RoomDTO } from '../types';
-import { ROUTES } from '../constants/routes';
+import { PropertyHeroSection } from '../components/property/PropertyHeroSection';
+import { BookingFormSection } from '../components/property/BookingFormSection';
 import { BasicInfoDisplay } from '../components/property/BasicInfoDisplay';
 import { LocationDisplay } from '../components/property/LocationDisplay';
 import { BlocksFloorsDisplay } from '../components/property/BlocksFloorsDisplay';
@@ -28,185 +17,33 @@ import { PropertyAvailabilityCalendar } from '../components/availability/Propert
 import { RoomAvailabilityInsights } from '../components/availability/RoomAvailabilityInsights';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
+import { usePropertyStore } from '../stores/propertyStore';
+import { useAuthStore } from '../stores/authStore';
+import { usePropertyHierarchy } from '../hooks/usePropertyHierarchy';
+import { canManageProperties } from '../utils/permissions';
 
 export const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentProperty, fetchPropertyById, roomTypes, amenities } = usePropertyStore();
   const { user } = useAuthStore();
-  const addToast = useUIStore((state) => state.addToast);
 
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const initialTab = searchParams.get('tab') || (searchParams.get('checkIn') ? 'booking' : 'overview');
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [blocks, setBlocks] = useState<BlockDTO[]>([]);
-  const [floors, setFloors] = useState<FloorDTO[]>([]);
-  const [rooms, setRooms] = useState<RoomDTO[]>([]);
-  const [hierarchyLoading, setHierarchyLoading] = useState(true);
-
   const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
   const [checkOut, setCheckOut] = useState(searchParams.get('checkOut') || '');
-  const [roomTypeId, setRoomTypeId] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [guestName, setGuestName] = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [adultCount, setAdultCount] = useState(1);
-  const [childCount, setChildCount] = useState(0);
-  const [requirements, setRequirements] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchPropertyById(id);
-      loadPropertyHierarchy();
-    }
+  const { blocks, floors, rooms, loading: hierarchyLoading } = usePropertyHierarchy(id);
+
+  React.useEffect(() => {
+    if (id) fetchPropertyById(id);
   }, [id]);
-
-  const loadPropertyHierarchy = async () => {
-    if (!id) return;
-
-    setHierarchyLoading(true);
-    try {
-      const data = await propertyService.getPropertyHierarchy(id);
-      setBlocks(data.blocks);
-      setFloors(data.floors);
-      setRooms(data.rooms);
-    } catch (error) {
-      console.error('Failed to load property hierarchy:', error);
-    } finally {
-      setHierarchyLoading(false);
-    }
-  };
 
   const canManage = user && canManageProperties(user.role);
   const isOtherFacilities = currentProperty?.module?.code === 'OTHER_FAC';
   const isGovtFacilities = currentProperty?.module?.code === 'GOVT_FAC';
   const requiresLogin = isGovtFacilities;
-
-  const handleBooking = async () => {
-    if (requiresLogin && !user) {
-      addToast('Please login to make a booking for Government Facilities', 'error');
-      navigate(ROUTES.LOGIN);
-      return;
-    }
-
-    if (!checkIn || !checkOut || !roomTypeId || !guestName || !guestEmail || !guestPhone) {
-      addToast('Please fill all required fields', 'error');
-      return;
-    }
-
-    if (adultCount < 1) {
-      addToast('At least one adult is required', 'error');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(guestEmail)) {
-      addToast('Please enter a valid email address', 'error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (user) {
-        const eligibility = await bookingEligibilityService.checkAvailability(
-          user.id,
-          id!,
-          roomTypeId,
-          checkIn,
-          checkOut,
-          quantity
-        );
-
-        if (!eligibility.canBook) {
-          addToast(eligibility.reason || 'Cannot book for selected dates', 'error');
-          setLoading(false);
-          return;
-        }
-
-        const guestDetails: GuestDetails = {
-          fullName: guestName,
-          email: guestEmail,
-          phone: guestPhone,
-          numberOfGuests: adultCount + childCount,
-          numberOfAdults: adultCount,
-          numberOfChildren: childCount,
-        };
-
-        const booking = await bookingService.createBooking(user.id, {
-          propertyId: id!,
-          roomTypeId,
-          quantity,
-          checkInDate: checkIn,
-          checkOutDate: checkOut,
-          guestDetails,
-          specialRequirements: requirements,
-        });
-
-        const paymentParams = new URLSearchParams({
-          bookingId: booking.id,
-          amount: booking.totalAmount.toString(),
-          returnUrl: ROUTES.BOOKING_CONFIRMATION,
-        });
-
-        navigate(`${ROUTES.PAYMENT}?${paymentParams.toString()}`);
-      } else {
-        const availability = await bookingService.checkAvailability({
-          propertyId: id!,
-          roomTypeId,
-          checkInDate: checkIn,
-          checkOutDate: checkOut,
-          quantity,
-        });
-
-        if (!availability.available) {
-          addToast('Selected rooms are not available for these dates', 'error');
-          setLoading(false);
-          return;
-        }
-
-        const guestDetails: GuestDetails = {
-          fullName: guestName,
-          email: guestEmail,
-          phone: guestPhone,
-          numberOfGuests: adultCount + childCount,
-          numberOfAdults: adultCount,
-          numberOfChildren: childCount,
-        };
-
-        const result = await bookingService.createGuestBooking(
-          {
-            propertyId: id!,
-            roomTypeId,
-            quantity,
-            checkInDate: checkIn,
-            checkOutDate: checkOut,
-            guestDetails,
-            specialRequirements: requirements,
-          },
-          {
-            name: guestName,
-            email: guestEmail,
-            phone: guestPhone,
-          }
-        );
-
-        const paymentParams = new URLSearchParams({
-          bookingId: result.booking.id,
-          amount: result.booking.totalAmount.toString(),
-          returnUrl: ROUTES.BOOKING_CONFIRMATION,
-          otp: result.otp,
-        });
-
-        navigate(`${ROUTES.PAYMENT}?${paymentParams.toString()}`);
-      }
-    } catch (error: any) {
-      addToast(error.message || 'Booking failed', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!currentProperty) {
     return (
@@ -231,8 +68,6 @@ export const PropertyDetailPage: React.FC = () => {
   ];
 
   const renderTabContent = () => {
-    if (!currentProperty) return null;
-
     switch (activeTab) {
       case 'overview':
         return (
@@ -250,10 +85,7 @@ export const PropertyDetailPage: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Amenities</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {amenities.map((amenity) => (
-                    <div
-                      key={amenity.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                    >
+                    <div key={amenity.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                       <Wifi size={18} className="text-blue-600" />
                       <span className="text-gray-700">{amenity.name}</span>
                     </div>
@@ -267,7 +99,7 @@ export const PropertyDetailPage: React.FC = () => {
       case 'structure':
         return hierarchyLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
           </div>
         ) : (
           <div className="space-y-6">
@@ -293,7 +125,7 @@ export const PropertyDetailPage: React.FC = () => {
       case 'pricing':
         return hierarchyLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
           </div>
         ) : (
           <div>
@@ -363,161 +195,17 @@ export const PropertyDetailPage: React.FC = () => {
 
       case 'booking':
         return (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Book This Property</h2>
-              {isOtherFacilities && !user && (
-                <Badge variant="success">No Login Required</Badge>
-              )}
-              {isGovtFacilities && (
-                <Badge variant="warning">Login Required</Badge>
-              )}
-            </div>
-
-            {isOtherFacilities && !user && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-blue-800">
-                  <strong>Instant Booking Available!</strong> No account needed. Your booking details and OTP will be sent to your email.
-                  {' '}
-                  <button
-                    onClick={() => navigate(ROUTES.LOGIN)}
-                    className="underline hover:text-blue-900"
-                  >
-                    Already have an account? Login here
-                  </button>
-                </p>
-              </div>
-            )}
-
-            {import.meta.env.VITE_ENABLE_MOCK_OTP === 'true' && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-yellow-800">
-                  <strong>Development Mode Active:</strong> All bookings will use OTP: <code className="bg-yellow-100 px-2 py-1 rounded">123456</code>
-                </p>
-              </div>
-            )}
-
-            {searchParams.get('checkIn') && searchParams.get('checkOut') && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-green-800">
-                  <strong>Dates Prefilled:</strong> Your search dates have been automatically filled in below.
-                </p>
-              </div>
-            )}
-
-            <Card>
-              <CardBody>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      type="date"
-                      label="Check-in Date"
-                      value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
-                      icon={<Calendar size={20} />}
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                    <Input
-                      type="date"
-                      label="Check-out Date"
-                      value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
-                      icon={<Calendar size={20} />}
-                      min={checkIn}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                      label="Room Type"
-                      options={[
-                        { value: '', label: 'Select room type' },
-                        ...roomTypes.map((rt) => ({ value: rt.id, label: rt.name })),
-                      ]}
-                      value={roomTypeId}
-                      onChange={(e) => setRoomTypeId(e.target.value)}
-                    />
-                    <Input
-                      type="number"
-                      label="Number of Rooms"
-                      value={quantity}
-                      onChange={(e) => setQuantity(parseInt(e.target.value))}
-                      icon={<Users size={20} />}
-                      min={1}
-                    />
-                  </div>
-
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h3 className="font-semibold text-gray-900 mb-4">Guest Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Full Name"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Enter guest name"
-                      />
-                      <Input
-                        type="email"
-                        label="Email"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        placeholder="guest@example.com"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <Input
-                        type="tel"
-                        label="Phone Number"
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        placeholder="+91 XXXXX XXXXX"
-                      />
-                      <Input
-                        type="number"
-                        label="Number of Adults"
-                        value={adultCount}
-                        onChange={(e) => setAdultCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        icon={<Users size={20} />}
-                        min={1}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <Input
-                        type="number"
-                        label="Number of Children"
-                        value={childCount}
-                        onChange={(e) => setChildCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        icon={<Users size={20} />}
-                        min={0}
-                      />
-                      <Input
-                        label="Special Requirements (Optional)"
-                        value={requirements}
-                        onChange={(e) => setRequirements(e.target.value)}
-                        placeholder="Any special needs or requests"
-                      />
-                    </div>
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        <strong>Total Guests:</strong> {adultCount + childCount} ({adultCount} {adultCount === 1 ? 'Adult' : 'Adults'}, {childCount} {childCount === 1 ? 'Child' : 'Children'})
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      onClick={handleBooking}
-                      size="lg"
-                      loading={loading}
-                      className="min-w-64"
-                    >
-                      Proceed to Payment
-                    </Button>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          </div>
+          <BookingFormSection
+            propertyId={id!}
+            roomTypes={roomTypes}
+            isOtherFacilities={!!isOtherFacilities}
+            isGovtFacilities={!!isGovtFacilities}
+            requiresLogin={!!requiresLogin}
+            isLoggedIn={!!user}
+            initialCheckIn={checkIn}
+            initialCheckOut={checkOut}
+            showDatesPrefilled={!!(searchParams.get('checkIn') && searchParams.get('checkOut'))}
+          />
         );
 
       default:
@@ -531,84 +219,41 @@ export const PropertyDetailPage: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            icon={<ArrowLeft size={20} />}
-          >
+          <Button variant="ghost" onClick={() => navigate(-1)} icon={<ArrowLeft size={20} />}>
             Back
           </Button>
           {canManage && (
-            <Button
-              onClick={() => navigate(`/properties/${id}/edit`)}
-              icon={<Edit size={20} />}
-            >
+            <Button onClick={() => navigate(`/properties/${id}/edit`)} icon={<Edit size={20} />}>
               Edit Property
             </Button>
           )}
         </div>
 
-        {!currentProperty ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
+        <div className="mb-8">
+          <PropertyHeroSection
+            name={currentProperty.name}
+            address={currentProperty.address}
+            city={currentProperty.estate?.city}
+            status={currentProperty.status}
+            images={currentProperty.images}
+          />
+        </div>
+
+        <div className="grid lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <VerticalTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+            </div>
           </div>
-        ) : (
-          <div className="mb-8">
-            <Card className="overflow-hidden">
-              <div className="h-80 bg-gradient-to-br from-blue-400 to-teal-400 relative">
-                {currentProperty.images.length > 0 ? (
-                  <img
-                    src={currentProperty.images[0]}
-                    alt={currentProperty.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Building2 size={96} className="text-white opacity-50" />
-                  </div>
-                )}
-              </div>
-              <div className="p-6 bg-white">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                      {currentProperty.name}
-                    </h1>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin size={18} />
-                      <span>{currentProperty.estate?.city || currentProperty.address}</span>
-                    </div>
-                  </div>
-                  <Badge variant={currentProperty.status === 'PUBLISHED' ? 'success' : 'warning'}>
-                    {currentProperty.status}
-                  </Badge>
-                </div>
-              </div>
+
+          <div className="lg:col-span-3">
+            <Card className="animate-fadeIn">
+              <CardBody className="p-6">
+                {renderTabContent()}
+              </CardBody>
             </Card>
           </div>
-        )}
-
-        {currentProperty && (
-          <div className="grid lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-1">
-              <div className="sticky top-24">
-                <VerticalTabs
-                  tabs={tabs}
-                  activeTab={activeTab}
-                  onChange={setActiveTab}
-                />
-              </div>
-            </div>
-
-            <div className="lg:col-span-3">
-              <Card className="animate-fadeIn">
-                <CardBody className="p-6">
-                  {renderTabContent()}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
