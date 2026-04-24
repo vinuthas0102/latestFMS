@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -17,7 +16,6 @@ import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 
 export const CheckInPage: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
   const [searchQuery, setSearchQuery] = useState('');

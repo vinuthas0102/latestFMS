@@ -6,10 +6,10 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
-import { ViewSwitcher, ViewMode } from '../components/ui/ViewSwitcher';
-import { DataTable, Column } from '../components/ui/DataTable';
+import { ViewSwitcher } from '../components/ui/ViewSwitcher';
+import { DataTable } from '../components/ui/DataTable';
 import { ListView, ListViewItem } from '../components/ui/ListView';
-import { Calendar, MapPin, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp, Filter, RotateCcw } from 'lucide-react';
+import { Calendar, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { BookingDTO, BookingStatus } from '../types';
 import { formatDate } from '../utils/dateHelpers';
@@ -222,11 +222,11 @@ export const BookingHistoryPage: React.FC = () => {
               </label>
               <div className="space-y-2">
                 {[
-                  { value: 'all' as const, label: 'All Bookings', icon: History },
-                  { value: 'REQUESTED' as const, label: 'Requested', icon: Clock },
-                  { value: ['ALLOCATED', 'PROVISIONED'] as const, label: 'Upcoming', icon: Calendar },
-                  { value: 'CHECKED_OUT' as const, label: 'Completed', icon: CheckCircle },
-                  { value: ['CANCELLED', 'REJECTED'] as const, label: 'Cancelled', icon: XCircle },
+                  { value: 'all' as string | string[], label: 'All Bookings', icon: History },
+                  { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
+                  { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
+                  { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
+                  { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
                 ].map(({ value, label, icon: Icon }) => (
                   <button
                     key={Array.isArray(value) ? value.join('-') : value}

@@ -139,7 +139,8 @@ class RoomAvailabilityService {
         );
 
         for (const allocation of roomAllocations) {
-          const booking = allocation.bookings;
+          const rawBooking = allocation.bookings;
+          const booking = Array.isArray(rawBooking) ? rawBooking[0] : rawBooking;
 
           if (
             booking &&
@@ -169,12 +170,13 @@ class RoomAvailabilityService {
         }
       }
 
+      const roomTypeData = Array.isArray(room.room_types) ? room.room_types[0] : room.room_types;
       roomAvailabilityMap[room.id] = {
         id: room.id,
         roomNumber: room.room_number,
         roomType: {
           id: room.room_type_id,
-          name: room.room_types.name,
+          name: roomTypeData?.name ?? '',
         },
         floor: {
           id: floor?.id || '',

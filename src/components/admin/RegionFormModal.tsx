@@ -130,7 +130,7 @@ export const RegionFormModal: React.FC<RegionFormModalProps> = ({
         {region && (
           <div className="flex items-center gap-2">
             <Toggle
-              checked={formData.isActive}
+              checked={formData.isActive ?? true}
               onChange={(checked) => setFormData({ ...formData, isActive: checked })}
             />
             <label className="text-sm font-medium text-gray-700">Active</label>

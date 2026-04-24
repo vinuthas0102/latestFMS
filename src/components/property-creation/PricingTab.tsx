@@ -6,7 +6,7 @@ import { DollarSign } from 'lucide-react';
 interface PricingTabProps {
   formData: {
     amenities: string[];
-    rooms: Array<{ roomNumber: string; roomTypeId: string; basePrice: number }>;
+    rooms: Array<{ roomNumber: string; roomTypeId: string | null; basePrice: number }>;
   };
   updateFormData: (updates: any) => void;
 }

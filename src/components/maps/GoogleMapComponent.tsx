@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '../../utils/googleMapsLoader';
-import { MapPin, AlertCircle, Search } from 'lucide-react';
-import { Input } from '../ui/Input';
+import { AlertCircle } from 'lucide-react';
 
 interface GoogleMapComponentProps {
   latitude: number;

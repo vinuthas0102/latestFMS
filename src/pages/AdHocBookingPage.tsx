@@ -14,7 +14,6 @@ import { useAuthStore } from '../stores/authStore';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useUIStore } from '../stores/uiStore';
 import { AdHocLinkDTO, PropertyDTO, GuestDetails } from '../types';
-import { formatCurrency } from '../utils/formatters';
 import { ROUTES } from '../constants/routes';
 
 export const AdHocBookingPage: React.FC = () => {
@@ -241,7 +240,7 @@ export const AdHocBookingPage: React.FC = () => {
                       label="Room Type *"
                       options={[
                         { value: '', label: 'Select room type' },
-                        ...roomTypes.map((rt) => ({ value: rt.id, label: `${rt.name} - ${formatCurrency(rt.baseRate)}/night` })),
+                        ...roomTypes.map((rt) => ({ value: rt.id, label: rt.name })),
                       ]}
                       value={roomTypeId}
                       onChange={(e) => setRoomTypeId(e.target.value)}

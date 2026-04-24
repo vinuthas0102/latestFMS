@@ -21,7 +21,7 @@ export const AvailabilityCalendarModal: React.FC<AvailabilityCalendarModalProps>
   selectedEndDate,
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`${property.name} - Availability`} size="large">
+    <Modal isOpen={isOpen} onClose={onClose} title={`${property.name} - Availability`} size="lg">
       <div className="space-y-4">
         <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-lg p-4 border border-blue-100">
           <h4 className="font-semibold text-gray-900 mb-1">{property.name}</h4>

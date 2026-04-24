@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, CreditCard as Edit, Trash2, Calendar, Shield } from 'lucide-react';
+import { Plus, Trash2, Calendar, Shield } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { useUIStore } from '../../stores/uiStore';
 import { dateBlockService } from '../../services/dateBlockService';
+import { designationService } from '../../services/designationService';
 import { propertyService } from '../../services/propertyService';
 import { DateBlockDTO, DesignationDTO, AssetTypeDTO, RoomTypeDTO } from '../../types';
 
@@ -38,7 +39,7 @@ export const DateBlocksManagement: React.FC = () => {
     try {
       const [blocksData, designationsData, assetTypesData, roomTypesData] = await Promise.all([
         dateBlockService.getDateBlocks(),
-        dateBlockService.getDesignations(),
+        designationService.getDesignations(),
         propertyService.getAssetTypes(),
         propertyService.getRoomTypes(),
       ]);

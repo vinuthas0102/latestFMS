@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Wifi, Calendar, ArrowLeft, Building2, CreditCard as Edit, Info, Layers, Image, DollarSign, Map, BarChart3 } from 'lucide-react';
+import { MapPin, Wifi, Calendar, ArrowLeft, CreditCard as Edit, Info, Layers, Image, DollarSign, Map, BarChart3 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';

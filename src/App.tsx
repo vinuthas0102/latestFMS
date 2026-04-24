@@ -24,7 +24,6 @@ const BookingHistoryPage = lazy(() => import('./pages/BookingHistoryPage').then(
 const BookingDetailPage = lazy(() => import('./pages/BookingDetailPage').then(m => ({ default: m.BookingDetailPage })));
 const AdHocBookingPage = lazy(() => import('./pages/AdHocBookingPage').then(m => ({ default: m.AdHocBookingPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
-const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 
 function PageLoader() {
   return (

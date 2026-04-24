@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { CheckCircle, XCircle, Calendar, MapPin, Home, CreditCard, Key, Clock, Download, Copy, Check } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Home, CreditCard, Key, Clock, Download, Copy, Check } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { paymentService } from '../services/paymentService';
 import { BookingDTO, TransactionDTO } from '../types';
@@ -24,7 +24,6 @@ export const BookingConfirmationPage: React.FC = () => {
   const { sendBookingConfirmation } = useBookingEmailNotification();
 
   const success = searchParams.get('success') === 'true';
-  const transactionId = searchParams.get('transactionId');
   const bookingId = searchParams.get('bookingId');
   const otpParam = searchParams.get('otp');
 

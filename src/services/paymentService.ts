@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { TransactionDTO, CreateTransactionDTO } from '../types';
+import { TransactionDTO } from '../types';
 
 export const paymentService = {
   processPayment: async (

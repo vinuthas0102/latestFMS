@@ -5,7 +5,7 @@ import { Badge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { useUIStore } from '../../stores/uiStore';
-import { dateBlockService } from '../../services/dateBlockService';
+import { designationService as dateBlockService } from '../../services/designationService';
 import { DesignationDTO } from '../../types';
 
 export const DesignationManagement: React.FC = () => {

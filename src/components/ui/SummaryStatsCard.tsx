@@ -1,7 +1,9 @@
 import React from 'react';
-import { Video as LucideIcon } from 'lucide-react';
+import { type LucideProps } from 'lucide-react';
 import { CountUp } from '../animations/CountUp';
 import { FadeIn } from '../animations/FadeIn';
+
+type LucideIcon = React.FC<LucideProps>;
 
 interface SummaryStatsCardProps {
   label: string;

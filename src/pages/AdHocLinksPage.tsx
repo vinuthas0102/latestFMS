@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
-import { Plus, Link as LinkIcon, Copy, ExternalLink, Calendar, Check } from 'lucide-react';
+import { Plus, Link as LinkIcon, Copy, ExternalLink, Check } from 'lucide-react';
 import { adHocLinkService } from '../services/adHocLinkService';
 import { propertyService } from '../services/propertyService';
 import { AdHocLinkDTO, PropertyDTO } from '../types';
@@ -20,7 +20,7 @@ export const AdHocLinksPage: React.FC = () => {
   const [links, setLinks] = useState<AdHocLinkDTO[]>([]);
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const [selectedPropertyId, setSelectedPropertyId] = useState('');

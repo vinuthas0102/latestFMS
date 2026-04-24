@@ -38,7 +38,7 @@ export const EstateFormModal: React.FC<EstateFormModalProps> = ({
   onClose,
   onSave,
   estate,
-  regions,
+  regions: _regions,
 }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState<EstateFormData>({

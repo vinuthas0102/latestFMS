@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, XCircle, Users, ChevronDown, ChevronUp, Calendar, User, Home, DollarSign } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
-import { Select } from '../components/ui/Select';
 import { useBookingStore } from '../stores/bookingStore';
-import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { allocationService } from '../services/allocationService';
@@ -21,7 +17,6 @@ import { BookingDTO, RoomDTO } from '../types';
 import { FadeIn } from '../components/animations/FadeIn';
 
 export const ManagerPage: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { bookings, fetchBookings } = useBookingStore();
   const addToast = useUIStore((state) => state.addToast);

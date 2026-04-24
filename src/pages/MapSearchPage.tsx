@@ -15,7 +15,7 @@ import { AvailabilityCalendarModal } from '../components/availability/Availabili
 export const MapSearchPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [properties, setProperties] = useState<PropertyDTO[]>([]);
+  const [_properties, setProperties] = useState<PropertyDTO[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<PropertyDTO[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
   const [loading, setLoading] = useState(true);

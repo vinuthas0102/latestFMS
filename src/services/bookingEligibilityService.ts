@@ -125,7 +125,7 @@ class BookingEligibilityService {
     startDate: string,
     endDate: string
   ): Promise<string[]> {
-    const { blocks, affectedRoomTypeIds } = await dateBlockService.getBlockingRulesForProperty(
+    const { affectedRoomTypeIds } = await dateBlockService.getBlockingRulesForProperty(
       propertyId,
       startDate,
       endDate

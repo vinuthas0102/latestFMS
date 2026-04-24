@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from '../components/layout/Header';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
 import { HorizontalSlider } from '../components/ui/HorizontalSlider';
-import { Plus, CreditCard as Edit, Trash2, Settings, Box, MapPin, Building2, Calendar, Award, Layers } from 'lucide-react';
+import { Plus, CreditCard as Edit, Settings, Box, MapPin, Building2, Calendar, Award, Layers } from 'lucide-react';
 import { propertyService } from '../services/propertyService';
 import { RegionDTO, EstateDTO, AssetTypeDTO, ModuleDTO, PropertyTypeDTO } from '../types';
 import { useUIStore } from '../stores/uiStore';

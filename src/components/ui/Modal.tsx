@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   noPadding?: boolean;
 }
 
@@ -36,6 +36,7 @@ export const Modal: React.FC<ModalProps> = ({
     md: 'max-w-2xl',
     lg: 'max-w-4xl',
     xl: 'max-w-6xl',
+    '2xl': 'max-w-screen-xl',
   };
 
   return (
@@ -45,7 +46,7 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={onClose}
       />
       <div
-        className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} animate-slideUp max-h-[90vh] overflow-y-auto`}
+        className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.md} animate-slideUp max-h-[90vh] overflow-y-auto`}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">

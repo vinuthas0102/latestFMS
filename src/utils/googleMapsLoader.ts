@@ -32,9 +32,9 @@ export const loadGoogleMaps = async (): Promise<typeof google> => {
 
   isLoading = true;
   try {
-    const google = await loaderInstance.load();
+    await (loaderInstance as unknown as { load: () => Promise<void> }).load();
     isLoaded = true;
-    return google;
+    return window.google;
   } finally {
     isLoading = false;
   }

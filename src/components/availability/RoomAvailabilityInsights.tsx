@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Search, Filter, TrendingUp, Bed, Users, Wrench, Sparkles, Ban, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Calendar, Search, TrendingUp, Bed, Users, Wrench, Sparkles, Ban, ChevronRight, ChevronLeft } from 'lucide-react';
 import { roomAvailabilityService, RoomAvailabilityData, AvailabilityStats } from '../../services/roomAvailabilityService';
-import { Card, CardBody, CardHeader } from '../ui/Card';
+import { Card, CardBody } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Loading';
 import { formatCurrency } from '../../utils/formatters';
@@ -113,23 +112,6 @@ export const RoomAvailabilityInsights: React.FC<RoomAvailabilityInsightsProps> =
         return 'bg-slate-200 hover:bg-slate-300 border-slate-400';
       default:
         return 'bg-white hover:bg-gray-50 border-gray-200';
-    }
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'success';
-      case 'occupied':
-        return 'error';
-      case 'maintenance':
-        return 'default';
-      case 'cleaning':
-        return 'warning';
-      case 'blocked':
-        return 'default';
-      default:
-        return 'default';
     }
   };
 

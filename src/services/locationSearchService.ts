@@ -79,6 +79,7 @@ export const locationSearchService = {
         city: dbProperty.estate.city || '',
         state: dbProperty.estate.state || '',
         pincode: dbProperty.estate.pincode || '',
+        images: dbProperty.estate.images || [],
         contactPerson: dbProperty.estate.contact_person || '',
         contactEmail: dbProperty.estate.contact_email || '',
         contactPhone: dbProperty.estate.contact_phone || '',
@@ -122,11 +123,11 @@ export const locationSearchService = {
       const distance = calculateDistance(
         latitude,
         longitude,
-        parseFloat(property.latitude as any),
-        parseFloat(property.longitude as any)
+        parseFloat(String(property.latitude ?? 0)),
+        parseFloat(String(property.longitude ?? 0))
       );
-      return { ...property, distance };
-    }).sort((a: any, b: any) => a.distance - b.distance);
+      return { ...property, distance } as PropertyDTO & { distance: number };
+    }).sort((a, b) => (a as { distance: number }).distance - (b as { distance: number }).distance) as PropertyDTO[];
   },
 };
 

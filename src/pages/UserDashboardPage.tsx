@@ -12,13 +12,11 @@ import {
   Shield,
   Users,
   Home,
-  Filter,
   RotateCcw,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
 import { SkeletonCard } from '../components/ui/Loading';
 import { FadeIn } from '../components/animations/FadeIn';

@@ -22,7 +22,7 @@ interface PropertyAvailabilitySummary {
 export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className = '' }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [properties, setProperties] = useState<PropertyDTO[]>([]);
+  const [_properties, setProperties] = useState<PropertyDTO[]>([]);
   const [availabilitySummaries, setAvailabilitySummaries] = useState<PropertyAvailabilitySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
@@ -137,7 +137,7 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {availabilitySummaries.map((summary, index) => (
+          {availabilitySummaries.map((summary) => (
             <Card
               key={summary.property.id}
               className="hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"

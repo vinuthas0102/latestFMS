@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Video as LucideIcon, ChevronRight } from 'lucide-react';
+import { ChevronRight, type LucideProps } from 'lucide-react';
 import { CountUp } from '../animations/CountUp';
+
+type LucideIcon = React.FC<LucideProps>;
 
 interface MetricCardProps {
   title: string;

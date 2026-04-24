@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle, Clock, DollarSign, Plus, Search, ChevronDown, ChevronUp, User, Home, TrendingUp } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, DollarSign, Plus, Search, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { MetricDetailDrawer } from '../components/dashboard/MetricDetailDrawer';

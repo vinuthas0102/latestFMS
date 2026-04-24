@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Calendar, Users, Filter, Building2, Map, List } from 'lucide-react';
+import { Search, MapPin, Calendar, Building2, Map, List } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -19,8 +19,8 @@ export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { filters, results, loading, setFilters, search } = useSearchStore();
-  const { modules, propertyTypes, roomTypes, amenities, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
+  const { results, loading, setFilters, search } = useSearchStore();
+  const { modules, propertyTypes, roomTypes, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
 
   const [location, setLocation] = useState('');
   const [checkIn, setCheckIn] = useState('');

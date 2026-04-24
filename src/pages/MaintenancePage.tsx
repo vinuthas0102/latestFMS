@@ -5,9 +5,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Modal } from '../components/ui/Modal';
-import { Badge } from '../components/ui/Badge';
 import { Tabs } from '../components/ui/Tabs';
-import { Search, ArrowUpCircle, Clock, LogOut, Sparkles } from 'lucide-react';
+import { Search, ArrowUpCircle, Clock, LogOut } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { propertyService } from '../services/propertyService';
 import { BookingDTO, RoomTypeDTO } from '../types';
@@ -17,7 +16,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 
 export const MaintenancePage: React.FC = () => {
-  const { user } = useAuthStore();
+  useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
   const [activeTab, setActiveTab] = useState('upgrades');
   const [bookings, setBookings] = useState<BookingDTO[]>([]);

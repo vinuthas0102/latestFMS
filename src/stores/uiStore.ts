@@ -7,11 +7,6 @@ interface Toast {
   duration?: number;
 }
 
-interface Modal {
-  id: string;
-  isOpen: boolean;
-}
-
 interface UIStore {
   toasts: Toast[];
   modals: Record<string, boolean>;

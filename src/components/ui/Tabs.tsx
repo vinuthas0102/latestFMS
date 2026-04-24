@@ -4,21 +4,24 @@ import { CheckCircle } from 'lucide-react';
 interface Tab {
   id: string;
   label: string;
-  content: React.ReactNode;
+  content?: React.ReactNode;
   isComplete?: boolean;
+  icon?: React.ReactNode;
 }
 
 interface TabsProps {
   tabs: Tab[];
   defaultTab?: string;
+  activeTab?: string;
   onChange?: (tabId: string) => void;
 }
 
-export const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, onChange }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id);
+export const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, activeTab: controlledActiveTab, onChange }) => {
+  const [internalActiveTab, setInternalActiveTab] = useState(defaultTab || tabs[0]?.id);
+  const activeTab = controlledActiveTab ?? internalActiveTab;
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
+    setInternalActiveTab(tabId);
     onChange?.(tabId);
   };
 
@@ -32,12 +35,13 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, defaultTab, onChange }) => {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-150 flex items-center gap-2 ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-150 flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
+              {tab.icon && <span>{tab.icon}</span>}
               {tab.label}
               {tab.isComplete && (
                 <CheckCircle className="w-4 h-4 text-green-600" />

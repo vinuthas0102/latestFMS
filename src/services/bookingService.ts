@@ -326,7 +326,7 @@ export const bookingService = {
     return mapBookingFromDb(data);
   },
 
-  cancelBooking: async (bookingId: string, userId?: string): Promise<BookingDTO> => {
+  cancelBooking: async (bookingId: string, _userId?: string): Promise<BookingDTO> => {
     const updateData: any = {
       status: 'CANCELLED',
       updated_at: new Date().toISOString(),

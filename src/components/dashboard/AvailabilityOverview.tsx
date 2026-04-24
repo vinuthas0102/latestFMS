@@ -17,7 +17,7 @@ interface PropertyAvailabilitySummary {
 }
 
 export const AvailabilityOverview: React.FC = () => {
-  const [properties, setProperties] = useState<PropertyDTO[]>([]);
+  const [_properties, setProperties] = useState<PropertyDTO[]>([]);
   const [availabilitySummaries, setAvailabilitySummaries] = useState<PropertyAvailabilitySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);

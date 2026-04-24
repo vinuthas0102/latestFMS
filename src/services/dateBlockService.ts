@@ -1,114 +1,55 @@
 import { supabase } from '../lib/supabase';
 import {
   DateBlockDTO,
-  DateBlockRangeDTO,
-  DateBlockRuleDTO,
   PropertyDateOverrideDTO,
   CreateDateBlockRequest,
   CreatePropertyOverrideRequest,
-  DesignationDTO,
 } from '../types';
 
+function mapRanges(ranges: any[]) {
+  return ranges.map((r) => ({
+    id: r.id,
+    blockId: r.block_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    createdAt: r.created_at,
+  }));
+}
+
+function mapRules(rules: any[]) {
+  return rules.map((r) => ({
+    id: r.id,
+    blockId: r.block_id,
+    assetTypeId: r.asset_type_id,
+    roomTypeIds: r.room_type_ids || [],
+    allowedDesignations: r.allowed_designations || [],
+    createdAt: r.created_at,
+    assetType: r.asset_types
+      ? { id: r.asset_types.id, name: r.asset_types.name, category: r.asset_types.category }
+      : undefined,
+  }));
+}
+
+function mapOverrides(overrides: any[]) {
+  return overrides.map((o) => ({
+    id: o.id,
+    blockId: o.block_id,
+    propertyId: o.property_id,
+    overrideType: o.override_type,
+    allowedDesignations: o.allowed_designations || [],
+    roomTypeIds: o.room_type_ids || [],
+    createdAt: o.created_at,
+    property: o.properties
+      ? { id: o.properties.id, name: o.properties.name, code: o.properties.code }
+      : undefined,
+  }));
+}
+
 class DateBlockService {
-  async getDesignations(): Promise<DesignationDTO[]> {
-    const { data, error } = await supabase
-      .from('designation_master')
-      .select('*')
-      .eq('is_active', true)
-      .order('level', { ascending: true });
-
-    if (error) throw error;
-
-    return (data || []).map((d) => ({
-      id: d.id,
-      designationName: d.designation_name,
-      designationCode: d.designation_code,
-      level: d.level,
-      description: d.description || '',
-      isActive: d.is_active,
-      createdAt: d.created_at,
-      updatedAt: d.updated_at,
-    }));
-  }
-
-  async createDesignation(
-    name: string,
-    code: string,
-    level: number,
-    description: string
-  ): Promise<DesignationDTO> {
-    const { data, error } = await supabase
-      .from('designation_master')
-      .insert({
-        designation_name: name,
-        designation_code: code,
-        level,
-        description,
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      designationName: data.designation_name,
-      designationCode: data.designation_code,
-      level: data.level,
-      description: data.description || '',
-      isActive: data.is_active,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-  }
-
-  async updateDesignation(
-    id: string,
-    updates: Partial<{
-      name: string;
-      code: string;
-      level: number;
-      description: string;
-      isActive: boolean;
-    }>
-  ): Promise<DesignationDTO> {
-    const dbUpdates: any = { updated_at: new Date().toISOString() };
-    if (updates.name) dbUpdates.designation_name = updates.name;
-    if (updates.code) dbUpdates.designation_code = updates.code;
-    if (updates.level !== undefined) dbUpdates.level = updates.level;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
-
-    const { data, error } = await supabase
-      .from('designation_master')
-      .update(dbUpdates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      designationName: data.designation_name,
-      designationCode: data.designation_code,
-      level: data.level,
-      description: data.description || '',
-      isActive: data.is_active,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-  }
-
   async getDateBlocks(): Promise<DateBlockDTO[]> {
     const { data, error } = await supabase
       .from('date_blocks')
-      .select(`
-        *,
-        date_block_ranges(*),
-        date_block_rules(*, asset_types(*))
-      `)
+      .select(`*, date_block_ranges(*), date_block_rules(*, asset_types(*))`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -121,39 +62,15 @@ class DateBlockService {
       isActive: block.is_active,
       createdAt: block.created_at,
       updatedAt: block.updated_at,
-      ranges: (block.date_block_ranges || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        startDate: r.start_date,
-        endDate: r.end_date,
-        createdAt: r.created_at,
-      })),
-      rules: (block.date_block_rules || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        assetTypeId: r.asset_type_id,
-        roomTypeIds: r.room_type_ids || [],
-        allowedDesignations: r.allowed_designations || [],
-        createdAt: r.created_at,
-        assetType: r.asset_types
-          ? {
-              id: r.asset_types.id,
-              name: r.asset_types.name,
-              category: r.asset_types.category,
-            }
-          : undefined,
-      })),
+      ranges: mapRanges(block.date_block_ranges || []),
+      rules: mapRules(block.date_block_rules || []),
     }));
   }
 
   async createDateBlock(request: CreateDateBlockRequest): Promise<DateBlockDTO> {
     const { data: blockData, error: blockError } = await supabase
       .from('date_blocks')
-      .insert({
-        block_name: request.blockName,
-        description: request.description,
-        is_active: true,
-      })
+      .insert({ block_name: request.blockName, description: request.description, is_active: true })
       .select()
       .single();
 
@@ -165,10 +82,7 @@ class DateBlockService {
       end_date: r.endDate,
     }));
 
-    const { error: rangeError } = await supabase
-      .from('date_block_ranges')
-      .insert(ranges);
-
+    const { error: rangeError } = await supabase.from('date_block_ranges').insert(ranges);
     if (rangeError) throw rangeError;
 
     const rules = request.rules.map((r) => ({
@@ -178,10 +92,7 @@ class DateBlockService {
       allowed_designations: r.allowedDesignations,
     }));
 
-    const { error: ruleError } = await supabase
-      .from('date_block_rules')
-      .insert(rules);
-
+    const { error: ruleError } = await supabase.from('date_block_rules').insert(rules);
     if (ruleError) throw ruleError;
 
     return this.getDateBlockById(blockData.id);
@@ -210,44 +121,9 @@ class DateBlockService {
       isActive: data.is_active,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      ranges: (data.date_block_ranges || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        startDate: r.start_date,
-        endDate: r.end_date,
-        createdAt: r.created_at,
-      })),
-      rules: (data.date_block_rules || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        assetTypeId: r.asset_type_id,
-        roomTypeIds: r.room_type_ids || [],
-        allowedDesignations: r.allowed_designations || [],
-        createdAt: r.created_at,
-        assetType: r.asset_types
-          ? {
-              id: r.asset_types.id,
-              name: r.asset_types.name,
-              category: r.asset_types.category,
-            }
-          : undefined,
-      })),
-      overrides: (data.property_date_overrides || []).map((o: any) => ({
-        id: o.id,
-        blockId: o.block_id,
-        propertyId: o.property_id,
-        overrideType: o.override_type,
-        allowedDesignations: o.allowed_designations || [],
-        roomTypeIds: o.room_type_ids || [],
-        createdAt: o.created_at,
-        property: o.properties
-          ? {
-              id: o.properties.id,
-              name: o.properties.name,
-              code: o.properties.code,
-            }
-          : undefined,
-      })),
+      ranges: mapRanges(data.date_block_ranges || []),
+      rules: mapRules(data.date_block_rules || []),
+      overrides: mapOverrides(data.property_date_overrides || []),
     };
   }
 
@@ -255,16 +131,12 @@ class DateBlockService {
     id: string,
     updates: Partial<{ blockName: string; description: string; isActive: boolean }>
   ): Promise<DateBlockDTO> {
-    const dbUpdates: any = { updated_at: new Date().toISOString() };
+    const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (updates.blockName) dbUpdates.block_name = updates.blockName;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
 
-    const { error } = await supabase
-      .from('date_blocks')
-      .update(dbUpdates)
-      .eq('id', id);
-
+    const { error } = await supabase.from('date_blocks').update(dbUpdates).eq('id', id);
     if (error) throw error;
 
     return this.getDateBlockById(id);
@@ -272,7 +144,6 @@ class DateBlockService {
 
   async deleteDateBlock(id: string): Promise<void> {
     const { error } = await supabase.from('date_blocks').delete().eq('id', id);
-
     if (error) throw error;
   }
 
@@ -300,21 +171,13 @@ class DateBlockService {
       roomTypeIds: data.room_type_ids || [],
       createdAt: data.created_at,
       property: data.properties
-        ? {
-            id: data.properties.id,
-            name: data.properties.name,
-            code: data.properties.code,
-          }
+        ? { id: data.properties.id, name: data.properties.name, code: data.properties.code }
         : undefined,
     };
   }
 
   async deletePropertyOverride(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('property_date_overrides')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('property_date_overrides').delete().eq('id', id);
     if (error) throw error;
   }
 
@@ -342,44 +205,9 @@ class DateBlockService {
       isActive: block.is_active,
       createdAt: block.created_at,
       updatedAt: block.updated_at,
-      ranges: (block.date_block_ranges || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        startDate: r.start_date,
-        endDate: r.end_date,
-        createdAt: r.created_at,
-      })),
-      rules: (block.date_block_rules || []).map((r: any) => ({
-        id: r.id,
-        blockId: r.block_id,
-        assetTypeId: r.asset_type_id,
-        roomTypeIds: r.room_type_ids || [],
-        allowedDesignations: r.allowed_designations || [],
-        createdAt: r.created_at,
-        assetType: r.asset_types
-          ? {
-              id: r.asset_types.id,
-              name: r.asset_types.name,
-              category: r.asset_types.category,
-            }
-          : undefined,
-      })),
-      overrides: (block.property_date_overrides || []).map((o: any) => ({
-        id: o.id,
-        blockId: o.block_id,
-        propertyId: o.property_id,
-        overrideType: o.override_type,
-        allowedDesignations: o.allowed_designations || [],
-        roomTypeIds: o.room_type_ids || [],
-        createdAt: o.created_at,
-        property: o.properties
-          ? {
-              id: o.properties.id,
-              name: o.properties.name,
-              code: o.properties.code,
-            }
-          : undefined,
-      })),
+      ranges: mapRanges(block.date_block_ranges || []),
+      rules: mapRules(block.date_block_rules || []),
+      overrides: mapOverrides(block.property_date_overrides || []),
     }));
   }
 
@@ -387,11 +215,7 @@ class DateBlockService {
     propertyId: string,
     startDate: string,
     endDate: string
-  ): Promise<{
-    blocks: DateBlockDTO[];
-    affectedRoomTypeIds: string[];
-    hasOverride: boolean;
-  }> {
+  ): Promise<{ blocks: DateBlockDTO[]; affectedRoomTypeIds: string[]; hasOverride: boolean }> {
     const { data: property, error: propertyError } = await supabase
       .from('properties')
       .select('asset_type_id')
@@ -445,7 +269,7 @@ class DateBlockService {
   ): Promise<{ canBook: boolean; reason?: string }> {
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('designation_id, designation_master(level)')
+      .select('designation_id, designation_master:designation_master(level)')
       .eq('id', userId)
       .maybeSingle();
 
@@ -458,22 +282,12 @@ class DateBlockService {
       endDate
     );
 
-    if (blocks.length === 0) {
-      return { canBook: true };
-    }
-
-    if (!affectedRoomTypeIds.includes(roomTypeId)) {
-      return { canBook: true };
-    }
+    if (blocks.length === 0) return { canBook: true };
+    if (!affectedRoomTypeIds.includes(roomTypeId)) return { canBook: true };
 
     if (!user.designation_id) {
-      return {
-        canBook: false,
-        reason: 'You need a designation assigned to book during special dates',
-      };
+      return { canBook: false, reason: 'You need a designation assigned to book during special dates' };
     }
-
-    const userLevel = user.designation_master?.level || 999;
 
     for (const block of blocks) {
       const override = block.overrides?.find((o) => o.propertyId === propertyId);
@@ -488,26 +302,19 @@ class DateBlockService {
             override.roomTypeIds.includes(roomTypeId) &&
             !override.allowedDesignations.includes(user.designation_id)
           ) {
-            return {
-              canBook: false,
-              reason: `This room type is reserved during ${block.blockName}`,
-            };
+            return { canBook: false, reason: `This room type is reserved during ${block.blockName}` };
           }
         }
       } else {
         const matchingRule = block.rules?.find(
-          (rule) =>
-            rule.roomTypeIds.includes(roomTypeId) &&
-            rule.allowedDesignations.length > 0
+          (rule) => rule.roomTypeIds.includes(roomTypeId) && rule.allowedDesignations.length > 0
         );
 
-        if (matchingRule) {
-          if (!matchingRule.allowedDesignations.includes(user.designation_id)) {
-            return {
-              canBook: false,
-              reason: `This room type is reserved for senior officials during ${block.blockName}`,
-            };
-          }
+        if (matchingRule && !matchingRule.allowedDesignations.includes(user.designation_id)) {
+          return {
+            canBook: false,
+            reason: `This room type is reserved for senior officials during ${block.blockName}`,
+          };
         }
       }
     }

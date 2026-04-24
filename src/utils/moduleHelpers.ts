@@ -1,8 +1,3 @@
-interface PropertyModule {
-  code: string;
-  name?: string;
-}
-
 export const requiresLoginForBooking = (moduleCode?: string): boolean => {
   return moduleCode === 'GOVT_FAC';
 };

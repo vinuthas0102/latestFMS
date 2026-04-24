@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UserDTO } from '../types';
+import { UserDTO, UserRole } from '../types';
 import { authService } from '../services/authService';
 
 interface AuthStore {
@@ -9,10 +9,10 @@ interface AuthStore {
   isLoading: boolean;
   setUser: (user: UserDTO | null) => void;
   setToken: (token: string | null) => void;
-  login: (email: string, password: string, role?: string) => Promise<void>;
+  login: (email: string, password: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
-  switchRole: (newRole: string) => Promise<void>;
+  switchRole: (newRole: UserRole) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -57,6 +57,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (!user) return;
 
     await authService.switchRole(user.id, newRole);
-    set({ user: { ...user, role: newRole as any } });
+    set({ user: { ...user, role: newRole as UserRole } });
   },
 }));
