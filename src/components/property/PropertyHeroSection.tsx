@@ -20,7 +20,7 @@ export const PropertyHeroSection: React.FC<PropertyHeroSectionProps> = ({
 }) => {
   return (
     <Card className="overflow-hidden">
-      <div className="h-80 bg-gradient-to-br from-blue-400 to-teal-400 relative">
+      <div className="h-48 bg-gradient-to-br from-blue-400 to-teal-400 relative">
         {images.length > 0 ? (
           <img
             src={images[0]}
@@ -33,10 +33,10 @@ export const PropertyHeroSection: React.FC<PropertyHeroSectionProps> = ({
           </div>
         )}
       </div>
-      <div className="p-6 bg-white">
+      <div className="p-4 bg-white">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
               {name}
             </h1>
             <div className="flex items-center gap-2 text-gray-600">

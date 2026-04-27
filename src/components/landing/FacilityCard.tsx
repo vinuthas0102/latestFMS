@@ -24,16 +24,16 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 group hover:-translate-y-2 border border-gray-100 ${
+      className={`bg-white rounded-2xl p-4 shadow-lg hover:shadow-2xl transition-all duration-500 group hover:-translate-y-2 border border-gray-100 ${
         isVisible ? 'animate-slideUp' : 'opacity-0'
       }`}
       style={{ animationDelay: delay }}
     >
-      <div className={`inline-flex p-4 rounded-xl bg-gradient-to-br ${gradient} text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
+      <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${gradient} text-white mb-4 group-hover:scale-110 transition-transform duration-300`}>
         {icon}
       </div>
-      <h3 className="text-xl font-bold text-gray-900 mb-4">{title}</h3>
-      <ul className="space-y-2 mb-6">
+      <h3 className="text-lg font-bold text-gray-900 mb-3">{title}</h3>
+      <ul className="space-y-2 mb-4">
         {features.map((feature, idx) => (
           <li key={idx} className="flex items-start gap-2 text-gray-600">
             <CheckCircle size={18} className="text-green-500 mt-0.5 flex-shrink-0" />

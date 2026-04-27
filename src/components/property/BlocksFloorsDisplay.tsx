@@ -18,11 +18,11 @@ export const BlocksFloorsDisplay: React.FC<BlocksFloorsDisplayProps> = ({ blocks
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {blocks.map((block) => (
           <div
             key={block.id}
-            className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            className="p-3 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">

@@ -35,7 +35,7 @@ export const RoomsDisplay: React.FC<RoomsDisplayProps> = ({ rooms, blocks, floor
   }, {} as Record<string, RoomDTO[]>);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {Object.entries(groupedRooms).map(([roomTypeName, roomsOfType]) => (
         <div key={roomTypeName}>
           <h4 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -44,13 +44,13 @@ export const RoomsDisplay: React.FC<RoomsDisplayProps> = ({ rooms, blocks, floor
             <Badge variant="default">{roomsOfType.length} rooms</Badge>
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {roomsOfType.map((room) => {
               const { block, floor } = getRoomLocation(room);
               return (
                 <div
                   key={room.id}
-                  className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
+                  className="p-3 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>

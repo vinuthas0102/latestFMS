@@ -129,20 +129,20 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
   return (
     <>
       <div className={`${className}`}>
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">Check Property Availability</h2>
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Check Property Availability</h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             View real-time availability for our featured facilities
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {availabilitySummaries.map((summary) => (
             <Card
               key={summary.property.id}
               className="hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
             >
-              <div className="h-48 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
+              <div className="h-36 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
                 {summary.property.images && summary.property.images.length > 0 ? (
                   <img
                     src={summary.property.images[0]}
@@ -159,7 +159,7 @@ export const AvailabilityWidget: React.FC<{ className?: string }> = ({ className
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-xl font-bold text-gray-900 flex-1">
                     {summary.property.name}

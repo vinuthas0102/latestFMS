@@ -39,14 +39,14 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({ rooms }) => {
   }, {} as Record<string, { count: number; minPrice: number; maxPrice: number; totalCapacity: number }>);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown className="w-5 h-5 text-green-600" />
             <p className="text-sm font-medium text-green-900">Lowest Price</p>
           </div>
-          <p className="text-3xl font-bold text-green-700">₹{minPrice}</p>
+          <p className="text-2xl font-bold text-green-700">₹{minPrice}</p>
           <p className="text-xs text-green-600 mt-1">Per night</p>
         </div>
 
@@ -55,7 +55,7 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({ rooms }) => {
             <IndianRupee className="w-5 h-5 text-blue-600" />
             <p className="text-sm font-medium text-blue-900">Average Price</p>
           </div>
-          <p className="text-3xl font-bold text-blue-700">₹{avgPrice}</p>
+          <p className="text-2xl font-bold text-blue-700">₹{avgPrice}</p>
           <p className="text-xs text-blue-600 mt-1">Per night</p>
         </div>
 
@@ -64,7 +64,7 @@ export const PricingDisplay: React.FC<PricingDisplayProps> = ({ rooms }) => {
             <TrendingUp className="w-5 h-5 text-orange-600" />
             <p className="text-sm font-medium text-orange-900">Highest Price</p>
           </div>
-          <p className="text-3xl font-bold text-orange-700">₹{maxPrice}</p>
+          <p className="text-2xl font-bold text-orange-700">₹{maxPrice}</p>
           <p className="text-xs text-orange-600 mt-1">Per night</p>
         </div>
       </div>

@@ -105,10 +105,10 @@ export const SearchPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <div className="bg-gradient-to-br from-blue-600 to-teal-600 text-white py-16 px-4">
+      <div className="bg-gradient-to-br from-blue-600 to-teal-600 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-4 animate-fadeIn">Find Your Perfect Facility</h1>
-          <p className="text-xl text-blue-100 mb-8 animate-slideUp">
+          <h1 className="text-3xl font-bold mb-2 animate-fadeIn">Find Your Perfect Facility</h1>
+          <p className="text-base text-blue-100 mb-5 animate-slideUp">
             Search from thousands of available properties across the region
           </p>
 
@@ -185,7 +185,7 @@ export const SearchPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -193,15 +193,15 @@ export const SearchPage: React.FC = () => {
             ))}
           </div>
         ) : results.length === 0 ? (
-          <div className="text-center py-16">
-            <Building2 className="mx-auto text-gray-400 mb-4" size={64} />
+          <div className="text-center py-10">
+            <Building2 className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-2xl font-semibold text-gray-900 mb-2">No properties found</h3>
             <p className="text-gray-600">Try adjusting your search criteria</p>
           </div>
         ) : (
           <div>
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
                 {results.length} {results.length === 1 ? 'Property' : 'Properties'} Found
               </h2>
               <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export const SearchPage: React.FC = () => {
             {viewMode === 'map' ? (
               <MapSearchView properties={results} checkIn={checkIn} checkOut={checkOut} />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {results.map((property, index) => (
                 <Card
                   key={property.id}
@@ -242,7 +242,7 @@ export const SearchPage: React.FC = () => {
                   className="overflow-hidden animate-slideUp"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div className="h-48 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
+                  <div className="h-36 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
                     {property.images.length > 0 ? (
                       <img
                         src={property.images[0]}
@@ -255,7 +255,7 @@ export const SearchPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="p-6">
+                  <div className="p-4">
                     <div className="flex flex-wrap gap-2 mb-2">
                       {property.module && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

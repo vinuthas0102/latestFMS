@@ -71,18 +71,18 @@ export const PropertyDetailPage: React.FC = () => {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Property Overview</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">Property Overview</h2>
               <BasicInfoDisplay property={currentProperty} />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Location</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Location</h3>
               <LocationDisplay property={currentProperty} />
             </div>
             {amenities.length > 0 && (
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Amenities</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Amenities</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {amenities.map((amenity) => (
                     <div key={amenity.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -102,13 +102,13 @@ export const PropertyDetailPage: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Property Structure</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">Property Structure</h2>
               <BlocksFloorsDisplay blocks={blocks} />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Rooms</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Rooms</h3>
               <RoomsDisplay rooms={rooms} blocks={blocks} floors={floors} />
             </div>
           </div>
@@ -217,8 +217,8 @@ export const PropertyDetailPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" onClick={() => navigate(-1)} icon={<ArrowLeft size={20} />}>
             Back
           </Button>
@@ -229,7 +229,7 @@ export const PropertyDetailPage: React.FC = () => {
           )}
         </div>
 
-        <div className="mb-8">
+        <div className="mb-4">
           <PropertyHeroSection
             name={currentProperty.name}
             address={currentProperty.address}
@@ -239,16 +239,16 @@ export const PropertyDetailPage: React.FC = () => {
           />
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-8">
+        <div className="grid lg:grid-cols-4 gap-5">
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-16">
               <VerticalTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
             </div>
           </div>
 
           <div className="lg:col-span-3">
             <Card className="animate-fadeIn">
-              <CardBody className="p-6">
+              <CardBody className="p-4">
                 {renderTabContent()}
               </CardBody>
             </Card>

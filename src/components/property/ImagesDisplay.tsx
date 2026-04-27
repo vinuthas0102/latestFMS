@@ -23,7 +23,7 @@ export const ImagesDisplay: React.FC<ImagesDisplayProps> = ({ images, propertyNa
         <ImageCarousel
           images={images}
           alt={propertyName}
-          className="h-96"
+          className="h-64"
           showFullscreen={true}
         />
       </div>

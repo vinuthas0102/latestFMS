@@ -9,9 +9,9 @@ interface BasicInfoDisplayProps {
 
 export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) => {
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Building2 className="w-4 h-4" />
             <span>Property Name</span>
@@ -19,7 +19,7 @@ export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) 
           <p className="text-lg font-semibold text-gray-900">{property.name}</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Hash className="w-4 h-4" />
             <span>Property Code</span>
@@ -29,7 +29,7 @@ export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Building2 className="w-4 h-4" />
             <span>Module</span>
@@ -43,7 +43,7 @@ export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) 
           )}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Building2 className="w-4 h-4" />
             <span>Property Type</span>
@@ -78,7 +78,7 @@ export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) 
       </div>
 
       {property.description && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <FileText className="w-4 h-4" />
             <span>Description</span>
@@ -88,7 +88,7 @@ export const BasicInfoDisplay: React.FC<BasicInfoDisplayProps> = ({ property }) 
       )}
 
       {property.amenities && property.amenities.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="text-sm font-medium text-gray-500 mb-2">Amenities</div>
           <div className="flex flex-wrap gap-2">
             {property.amenities.map((amenity, index) => (

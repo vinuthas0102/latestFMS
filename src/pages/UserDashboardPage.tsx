@@ -140,9 +140,9 @@ export const UserDashboardPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <FadeIn delay={0}>
-          <div className="relative bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-8 mb-8 overflow-hidden shadow-xl">
+          <div className="relative bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-4 mb-4 overflow-hidden shadow-xl">
             <div className="absolute inset-0 opacity-10">
               <div className="absolute -top-8 -right-8 w-64 h-64 bg-white rounded-full" />
               <div className="absolute -bottom-12 -left-12 w-96 h-96 bg-white rounded-full" />
@@ -264,7 +264,7 @@ export const UserDashboardPage: React.FC = () => {
           </div>
         ) : filteredProperties.length === 0 ? (
           <FadeIn delay={200}>
-            <div className="bg-gray-50 rounded-xl p-16 text-center border border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
               <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
               <p className="text-sm text-gray-500">
@@ -281,7 +281,7 @@ export const UserDashboardPage: React.FC = () => {
             </div>
           </FadeIn>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProperties.map((property, index) => {
               const category = property.assetType?.category;
               const categoryInfo = category ? CATEGORY_LABELS[category] : null;
@@ -294,13 +294,13 @@ export const UserDashboardPage: React.FC = () => {
                     className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
                     onClick={() => navigate(`/properties/${property.id}`)}
                   >
-                    <div className="h-48 relative overflow-hidden bg-gray-100">
+                    <div className="h-36 relative overflow-hidden bg-gray-100">
                       {property.images.length > 0 ? (
                         <>
                           <ImageCarousel
                             images={property.images}
                             alt={property.name}
-                            className="h-48"
+                            className="h-36"
                             autoPlay={true}
                             autoPlayInterval={4000}
                           />
@@ -387,7 +387,7 @@ export const UserDashboardPage: React.FC = () => {
 
         {!loading && properties.length > 0 && (
           <FadeIn delay={300}>
-            <div className="mt-10 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="mt-6 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-100 rounded-lg">
                   <History size={20} className="text-blue-600" />

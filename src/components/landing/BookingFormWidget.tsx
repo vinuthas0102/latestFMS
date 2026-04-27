@@ -29,19 +29,19 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className={`bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/20 ${className}`}>
-      <h3 className="text-2xl font-bold text-gray-900 mb-6">Start Your Booking</h3>
+    <div className={`bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-4 border border-white/20 ${className}`}>
+      <h3 className="text-xl font-bold text-gray-900 mb-4">Start Your Booking</h3>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Select Facility Type
           </label>
           <div className="relative">
             <select
               value={facilityType}
               onChange={(e) => setFacilityType(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer text-sm"
             >
               <option value="">Guest House</option>
               <option value="guest-house">Guest House</option>
@@ -58,7 +58,7 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Select Location
           </label>
           <div className="relative">
@@ -68,7 +68,7 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="State, City, Venue"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
             />
             <button className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700 transition-colors">
               <Search size={20} />
@@ -78,7 +78,7 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Check-in Date
             </label>
             <div className="relative">
@@ -88,13 +88,13 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
                 min={today}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Check-out
             </label>
             <div className="relative">
@@ -104,14 +104,14 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
                 min={checkIn || today}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
               />
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Guests
           </label>
           <div className="relative">
@@ -121,14 +121,14 @@ export const BookingFormWidget: React.FC<BookingFormWidgetProps> = ({ className 
               value={guests}
               onChange={(e) => setGuests(e.target.value)}
               min="1"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
             />
           </div>
         </div>
 
         <button
           onClick={handleSearch}
-          className="w-full bg-gradient-to-r from-blue-600 to-teal-600 text-white py-4 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
+          className="w-full bg-gradient-to-r from-blue-600 to-teal-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
         >
           <Search size={20} />
           Search Facilities

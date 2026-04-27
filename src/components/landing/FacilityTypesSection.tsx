@@ -9,28 +9,28 @@ interface FacilityTypesSectionProps {
 export const FacilityTypesSection: React.FC<FacilityTypesSectionProps> = ({ visibleSections }) => {
   const facilities = [
     {
-      icon: <Building2 size={48} />,
+      icon: <Building2 size={36} />,
       title: 'Guest Houses',
       features: ['Premium guest houses', 'Complete amenities'],
       gradient: 'from-blue-500 to-blue-600',
       delay: '0s',
     },
     {
-      icon: <Users size={48} />,
+      icon: <Users size={36} />,
       title: 'Conference Halls',
       features: ['Podiums halls', 'Meeting Room'],
       gradient: 'from-teal-500 to-teal-600',
       delay: '0.1s',
     },
     {
-      icon: <Award size={48} />,
+      icon: <Award size={36} />,
       title: 'Convention Centers',
       features: ['Exhibition hall', 'Exhibition and stage'],
       gradient: 'from-blue-600 to-teal-600',
       delay: '0.2s',
     },
     {
-      icon: <MapPin size={48} />,
+      icon: <MapPin size={36} />,
       title: 'Parks & Recreation',
       features: ['Trees & public ravation', 'Park & Recreation'],
       gradient: 'from-green-500 to-green-600',
@@ -39,16 +39,16 @@ export const FacilityTypesSection: React.FC<FacilityTypesSectionProps> = ({ visi
   ];
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white" data-animate id="features">
+    <section className="py-10 px-4 sm:px-6 lg:px-8 bg-white" data-animate id="features">
       <div className="max-w-7xl mx-auto">
-        <div className={`text-center mb-16 ${visibleSections.has('features') ? 'animate-fadeIn' : 'opacity-0'}`}>
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Explore Our Facilities</h2>
+        <div className={`text-center mb-8 ${visibleSections.has('features') ? 'animate-fadeIn' : 'opacity-0'}`}>
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Explore Our Facilities</h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Choose from a wide range of facilities across the country
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {facilities.map((facility, index) => (
             <FacilityCard
               key={index}

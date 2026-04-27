@@ -173,12 +173,12 @@ export const Header: React.FC = () => {
   return (
     <header className="glass-header sticky top-0 z-40 border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-6">
-          <Link to={ROUTES.HOME} className="flex items-center gap-3 group transition-all duration-200 flex-shrink-0">
-            <div className="p-2 rounded-lg bg-blue-600 transition-all duration-200 group-hover:bg-blue-700">
-              <Building2 className="text-white" size={28} />
+        <div className="flex items-center justify-between h-14 gap-6">
+          <Link to={ROUTES.HOME} className="flex items-center gap-2 group transition-all duration-200 flex-shrink-0">
+            <div className="p-1.5 rounded-lg bg-blue-600 transition-all duration-200 group-hover:bg-blue-700">
+              <Building2 className="text-white" size={22} />
             </div>
-            <span className="text-xl font-bold text-gray-900">FMS</span>
+            <span className="text-lg font-bold text-gray-900">FMS</span>
           </Link>
 
           {isAuthenticated && user ? (

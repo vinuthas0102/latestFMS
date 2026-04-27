@@ -8,9 +8,9 @@ interface LocationDisplayProps {
 
 export const LocationDisplay: React.FC<LocationDisplayProps> = ({ property }) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {property.estate && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Building className="w-4 h-4" />
             <span>Estate</span>
@@ -31,7 +31,7 @@ export const LocationDisplay: React.FC<LocationDisplayProps> = ({ property }) =>
       </div>
 
       {property.latitude && property.longitude && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
             <Navigation className="w-4 h-4" />
             <span>Coordinates</span>
