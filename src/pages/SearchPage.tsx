@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Calendar, Building2, Map, List } from 'lucide-react';
+import { Search, MapPin, Calendar, Building2, Map, Eye } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { ViewSwitcher } from '../components/ui/ViewSwitcher';
 import { useSearchStore } from '../stores/searchStore';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
+import { useViewPreference } from '../hooks/useViewPreference';
 import { formatPriceRange } from '../utils/formatters';
 import { SkeletonCard } from '../components/ui/Loading';
 import { MapSearchView } from '../components/search/MapSearchView';
@@ -28,8 +30,9 @@ export const SearchPage: React.FC = () => {
   const [moduleId, setModuleId] = useState('');
   const [propertyTypeId, setPropertyTypeId] = useState('');
   const [roomTypeId, setRoomTypeId] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [showMap, setShowMap] = useState(false);
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const [viewMode, setViewMode] = useViewPreference('viewMode_search', 'card');
 
   useEffect(() => {
     fetchModules();
@@ -99,6 +102,15 @@ export const SearchPage: React.FC = () => {
       return;
     }
     navigate(`/properties/${property.id}?${queryString}`);
+  };
+
+  const handleViewProperty = (property: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const params = new URLSearchParams();
+    if (checkIn) params.set('checkIn', checkIn);
+    if (checkOut) params.set('checkOut', checkOut);
+    const queryString = params.toString();
+    navigate(`/properties/${property.id}${queryString ? `?${queryString}` : ''}`);
   };
 
   return (
@@ -205,97 +217,236 @@ export const SearchPage: React.FC = () => {
                 {results.length} {results.length === 1 ? 'Property' : 'Properties'} Found
               </h2>
               <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'list' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  icon={<List size={18} />}
+                <ViewSwitcher
+                  currentView={showMap ? 'card' : viewMode}
+                  onViewChange={(mode) => { setViewMode(mode); setShowMap(false); }}
+                />
+                <button
+                  onClick={() => setShowMap((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all border ${
+                    showMap
+                      ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                  title="Map view"
                 >
-                  List
-                </Button>
-                <Button
-                  variant={viewMode === 'map' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('map')}
-                  icon={<Map size={18} />}
-                >
-                  Map
-                </Button>
+                  <Map size={16} />
+                  <span className="hidden sm:inline">Map</span>
+                </button>
               </div>
             </div>
 
-            {viewMode === 'map' ? (
+            {showMap ? (
               <MapSearchView properties={results} checkIn={checkIn} checkOut={checkOut} />
-            ) : (
+            ) : viewMode === 'card' ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {results.map((property, index) => (
-                <div
-                  key={property.id}
-                  className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group animate-slideUp"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    if (checkIn) params.set('checkIn', checkIn);
-                    if (checkOut) params.set('checkOut', checkOut);
-                    const queryString = params.toString();
-                    navigate(`/properties/${property.id}${queryString ? `?${queryString}` : ''}`);
-                  }}
-                >
-                  <div className="h-28 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
-                    {property.images.length > 0 ? (
-                      <img
-                        src={property.images[0]}
-                        alt={property.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <Building2 size={32} className="text-white opacity-50" />
+                {results.map((property, index) => (
+                  <div
+                    key={property.id}
+                    className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group animate-slideUp"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                    onClick={(e) => handleViewProperty(property, e)}
+                  >
+                    <div className="h-28 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
+                      {property.images.length > 0 ? (
+                        <img src={property.images[0]} alt={property.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Building2 size={32} className="text-white opacity-50" />
+                        </div>
+                      )}
+                      {getModuleBadgeText(property.module?.code) && (
+                        <div className="absolute top-2 right-2">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${getModuleBadgeStyles(property.module?.code)}`}>
+                            {getModuleBadgeText(property.module?.code)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {property.module && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {property.module.name}
+                          </span>
+                        )}
+                        {property.propertyType && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">
+                            {property.propertyType.name}
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {getModuleBadgeText(property.module?.code) && (
-                      <div className="absolute top-2 right-2">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${getModuleBadgeStyles(property.module?.code)}`}>
-                          {getModuleBadgeText(property.module?.code)}
+                      <h3 className="text-xs font-semibold text-gray-900 mb-0.5 group-hover:text-blue-600 transition-colors line-clamp-1">{property.name}</h3>
+                      <p className="text-xs text-gray-500 mb-1.5 line-clamp-1">
+                        {property.description || 'No description available'}
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                        <MapPin size={11} />
+                        <span className="truncate">{property.estate?.city || property.address}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-600">
+                          {formatPriceRange(property.minPrice, property.maxPrice)}
                         </span>
+                        <button
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded font-semibold transition-colors"
+                          onClick={(e) => handleBookNow(property, e)}
+                        >
+                          {getBookingButtonText(property.module?.code, !!user)}
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
-                  <div className="p-2.5">
-                    <div className="flex flex-wrap gap-1 mb-1">
-                      {property.module && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {property.module.name}
-                        </span>
-                      )}
-                      {property.propertyType && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">
-                          {property.propertyType.name}
-                        </span>
+                ))}
+              </div>
+            ) : viewMode === 'list' ? (
+              <div className="flex flex-col gap-2">
+                {results.map((property, index) => (
+                  <div
+                    key={property.id}
+                    className="bg-white rounded-lg border border-gray-200 flex items-center gap-3 p-2.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group"
+                    style={{ animationDelay: `${index * 0.04}s` }}
+                    onClick={(e) => handleViewProperty(property, e)}
+                  >
+                    <div className="w-16 h-16 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
+                      {property.images.length > 0 ? (
+                        <img src={property.images[0]} alt={property.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Building2 size={20} className="text-gray-300" />
+                        </div>
                       )}
                     </div>
-                    <h3 className="text-xs font-semibold text-gray-900 mb-0.5 group-hover:text-blue-600 transition-colors line-clamp-1">{property.name}</h3>
-                    <p className="text-xs text-gray-500 mb-1.5 line-clamp-1">
-                      {property.description || 'No description available'}
-                    </p>
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                      <MapPin size={11} />
-                      <span className="truncate">{property.estate?.city || property.address}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        {property.module && (
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                            {property.module.name}
+                          </span>
+                        )}
+                        {property.propertyType && (
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100">
+                            {property.propertyType.name}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{property.name}</h3>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                        <span className="truncate">{property.estate?.city || property.address}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-blue-600">
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-xs font-bold text-blue-600 mb-1.5">
                         {formatPriceRange(property.minPrice, property.maxPrice)}
-                      </span>
-                      <button
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded font-semibold transition-colors"
-                        onClick={(e) => handleBookNow(property, e)}
-                      >
-                        {getBookingButtonText(property.module?.code, !!user)}
-                      </button>
+                      </p>
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => handleViewProperty(property, e)}
+                          className="p-1.5 rounded border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                          title="View details"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => handleBookNow(property, e)}
+                          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded text-xs font-semibold transition-colors"
+                        >
+                          <Calendar size={11} />
+                          {getBookingButtonText(property.module?.code, !!user)}
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-3 py-2.5 w-10"></th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide">Name</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden sm:table-cell">Module</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Type</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden lg:table-cell">Location</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Price</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {results.map((property, index) => (
+                        <tr
+                          key={property.id}
+                          className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                          onClick={(e) => handleViewProperty(property, e)}
+                          style={{ animationDelay: `${index * 30}ms` }}
+                        >
+                          <td className="px-3 py-2.5 w-10">
+                            <div className="w-9 h-9 rounded-md overflow-hidden bg-gray-100">
+                              {property.images.length > 0 ? (
+                                <img src={property.images[0]} alt={property.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Building2 size={16} className="text-gray-300" />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {property.name}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 hidden sm:table-cell">
+                            {property.module && (
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                {property.module.name}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            {property.propertyType && (
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100">
+                                {property.propertyType.name}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 hidden lg:table-cell">
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                              <span className="truncate max-w-[140px]">{property.estate?.city || property.address}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            <span className="text-xs font-bold text-blue-600">
+                              {formatPriceRange(property.minPrice, property.maxPrice)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                onClick={(e) => handleViewProperty(property, e)}
+                                className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                                title="View details"
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                onClick={(e) => handleBookNow(property, e)}
+                                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-semibold transition-colors"
+                              >
+                                <Calendar size={11} />
+                                <span className="hidden sm:inline">{getBookingButtonText(property.module?.code, !!user)}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
               </div>
             )}
           </div>
