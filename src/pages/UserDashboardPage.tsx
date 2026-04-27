@@ -47,21 +47,33 @@ const CATEGORY_LABELS: Record<string, { label: string; color: string; descriptio
   },
 };
 
-const ROLE_WELCOME: Record<string, { title: string; subtitle: string; icon: React.ReactNode }> = {
+const ROLE_WELCOME: Record<string, {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  gradient: string;
+  iconBg: string;
+}> = {
   govt_official: {
     title: 'Government Official Portal',
     subtitle: 'Access Category A and B facilities for official use',
     icon: <Shield className="w-7 h-7 text-white" />,
+    gradient: 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-blue-700 to-cyan-600',
   },
   dept_user: {
     title: 'Department User Portal',
     subtitle: 'Browse and book Category B facilities',
     icon: <Users className="w-7 h-7 text-white" />,
+    gradient: 'bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500',
+    iconBg: 'bg-gradient-to-br from-teal-700 to-emerald-600',
   },
   public: {
     title: 'Community Facilities',
     subtitle: 'Discover and book available community venues',
     icon: <Home className="w-7 h-7 text-white" />,
+    gradient: 'bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-sky-600 to-blue-600',
   },
 };
 
@@ -137,57 +149,63 @@ export const UserDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <FadeIn delay={0}>
-          <div className="relative bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-4 mb-4 overflow-hidden shadow-xl">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute -top-8 -right-8 w-64 h-64 bg-white rounded-full" />
-              <div className="absolute -bottom-12 -left-12 w-96 h-96 bg-white rounded-full" />
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+
+          {/* Hero banner */}
+          <div className={`relative ${welcomeInfo.gradient} rounded-2xl px-5 py-4 mb-3 overflow-hidden shadow-lg`}>
+            {/* Decorative circles */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <div className="absolute -top-8 -right-8 w-56 h-56 bg-white rounded-full" />
+              <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-white rounded-full" />
             </div>
-            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+
+            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl flex-shrink-0">
+                <div className={`p-3 ${welcomeInfo.iconBg} rounded-xl shadow-lg flex-shrink-0`}>
                   {welcomeInfo.icon}
                 </div>
                 <div>
-                  <p className="text-white/70 text-sm font-medium mb-1">
+                  <p className="text-white/80 text-sm font-medium mb-1 flex items-center gap-2 flex-wrap">
                     {user ? `Welcome back, ${user.fullName || user.email}` : 'Welcome'}
                     {user && (
-                      <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                      <span className="px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded-full text-xs font-semibold border border-white/30">
                         {ROLE_LABELS[user.role]}
                       </span>
                     )}
                   </p>
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">{welcomeInfo.title}</h1>
-                  <p className="text-white/70 text-sm mt-1">{welcomeInfo.subtitle}</p>
+                  <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">{welcomeInfo.title}</h1>
+                  <p className="text-white/75 text-sm mt-1">{welcomeInfo.subtitle}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <Button
-                  variant="outline"
-                  className="border-white/30 text-white hover:bg-white/10 flex items-center gap-2"
+
+              <div className="flex-shrink-0">
+                <button
                   onClick={() => navigate(ROUTES.BOOKINGS)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <History size={18} />
+                  <History size={17} />
                   <span>My Bookings</span>
-                  <ChevronRight size={16} />
-                </Button>
+                  <ChevronRight size={15} />
+                </button>
               </div>
             </div>
 
-            {user?.role === 'govt_official' && (
-              <div className="relative mt-4 flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
-                  <Star size={13} className="text-amber-300" />
+            {/* Availability chips — shown for govt_official and dept_user */}
+            {(user?.role === 'govt_official' || user?.role === 'dept_user') && (
+              <div className="relative mt-3 flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-1.5 transition-colors cursor-default">
+                  <Star size={13} className="text-amber-300 flex-shrink-0" />
                   <span className="text-white text-xs font-medium">
                     <span className="font-bold">{categoryStats.A}</span> Cat-A Available
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
-                  <Building2 size={13} className="text-sky-300" />
+                <div className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 rounded-lg px-3 py-1.5 transition-colors cursor-default">
+                  <Building2 size={13} className="text-cyan-200 flex-shrink-0" />
                   <span className="text-white text-xs font-medium">
                     <span className="font-bold">{categoryStats.B}</span> Cat-B Available
                   </span>
@@ -195,27 +213,26 @@ export const UserDashboardPage: React.FC = () => {
               </div>
             )}
           </div>
-        </FadeIn>
 
-        <FadeIn delay={100}>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          {/* Search + filter bar */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div className="flex-1 relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search properties by name or location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 focus:bg-white transition-all"
               />
             </div>
             {availableModules.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setModuleFilter('all')}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                     moduleFilter === 'all'
-                      ? 'bg-slate-800 text-white shadow-sm'
+                      ? 'bg-gray-800 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -225,9 +242,9 @@ export const UserDashboardPage: React.FC = () => {
                   <button
                     key={mod.id}
                     onClick={() => setModuleFilter(mod.id)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                       moduleFilter === mod.id
-                        ? 'bg-slate-800 text-white shadow-sm'
+                        ? 'bg-gray-800 text-white shadow-sm'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -239,176 +256,180 @@ export const UserDashboardPage: React.FC = () => {
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors px-2 py-2"
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors px-2 py-2 rounded-lg hover:bg-gray-100"
               >
                 <RotateCcw size={14} />
                 <span>Clear</span>
               </button>
             )}
           </div>
-        </FadeIn>
+        </div>
+      </div>
 
-        <FadeIn delay={150}>
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-gray-500">
               {loading ? 'Loading...' : `${filteredProperties.length} ${filteredProperties.length === 1 ? 'property' : 'properties'} available`}
             </p>
           </div>
-        </FadeIn>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        ) : filteredProperties.length === 0 ? (
-          <FadeIn delay={200}>
-            <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
-              <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
-              <p className="text-sm text-gray-500">
-                {hasActiveFilters ? 'Try adjusting your search or filters' : 'No properties are available for your access level'}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  onClick={handleClearFilters}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Clear filters
-                </button>
-              )}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-          </FadeIn>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProperties.map((property, index) => {
-              const category = property.assetType?.category;
-              const categoryInfo = category ? CATEGORY_LABELS[category] : null;
-              const moduleBadgeText = getModuleBadgeText(property.module?.code);
-              const moduleBadgeStyles = getModuleBadgeStyles(property.module?.code);
-
-              return (
-                <FadeIn key={property.id} delay={index * 50}>
-                  <div
-                    className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                    onClick={() => navigate(`/properties/${property.id}`)}
+          ) : filteredProperties.length === 0 ? (
+            <FadeIn delay={200}>
+              <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
+                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
+                <p className="text-sm text-gray-500">
+                  {hasActiveFilters ? 'Try adjusting your search or filters' : 'No properties are available for your access level'}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
-                    <div className="h-36 relative overflow-hidden bg-gray-100">
-                      {property.images.length > 0 ? (
-                        <>
-                          <ImageCarousel
-                            images={property.images}
-                            alt={property.name}
-                            className="h-36"
-                            autoPlay={true}
-                            autoPlayInterval={4000}
-                          />
-                          {property.images.length > 1 && (
-                            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                              <Camera className="w-3 h-3 text-white" />
-                              <span className="text-white text-xs font-medium">{property.images.length}</span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                          <Building2 size={48} className="text-gray-300" />
-                        </div>
-                      )}
-                      {categoryInfo && (
-                        <div className="absolute top-3 right-3">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${categoryInfo.color}`}>
-                            {categoryInfo.label}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-4">
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {property.module && (
-                          <Badge variant="default" className="text-xs">
-                            {property.module.name}
-                          </Badge>
-                        )}
-                        {property.propertyType && (
-                          <Badge variant="success" className="text-xs">
-                            {property.propertyType.name}
-                          </Badge>
-                        )}
-                        {moduleBadgeText && (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${moduleBadgeStyles}`}>
-                            {moduleBadgeText}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
-                        {property.name}
-                      </h3>
-
-                      <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-                        {property.description || 'No description available'}
-                      </p>
-
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
-                        <MapPin size={13} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{property.estate?.city || property.address}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          {property.minPrice != null && (
-                            <p className="text-sm font-semibold text-gray-900">
-                              From {formatCurrency(property.minPrice)}
-                              <span className="text-xs font-normal text-gray-500"> / night</span>
-                            </p>
-                          )}
-                          {property.totalRooms != null && property.totalRooms > 0 && (
-                            <p className="text-xs text-gray-500">{property.totalRooms} rooms available</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => handleBookClick(e, property)}
-                          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:shadow-md"
-                        >
-                          <Calendar size={14} />
-                          Book Now
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </FadeIn>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && properties.length > 0 && (
-          <FadeIn delay={300}>
-            <div className="mt-6 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-100 rounded-lg">
-                  <History size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-sm">View Your Bookings</h3>
-                  <p className="text-xs text-gray-500">Track your upcoming and past reservations</p>
-                </div>
+                    Clear filters
+                  </button>
+                )}
               </div>
-              <Button
-                variant="outline"
-                onClick={() => navigate(ROUTES.BOOKINGS)}
-                className="flex items-center gap-2 flex-shrink-0"
-              >
-                <History size={16} />
-                My Booking History
-                <ChevronRight size={16} />
-              </Button>
+            </FadeIn>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredProperties.map((property, index) => {
+                const category = property.assetType?.category;
+                const categoryInfo = category ? CATEGORY_LABELS[category] : null;
+                const moduleBadgeText = getModuleBadgeText(property.module?.code);
+                const moduleBadgeStyles = getModuleBadgeStyles(property.module?.code);
+
+                return (
+                  <FadeIn key={property.id} delay={index * 50}>
+                    <div
+                      className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                      onClick={() => navigate(`/properties/${property.id}`)}
+                    >
+                      <div className="h-36 relative overflow-hidden bg-gray-100">
+                        {property.images.length > 0 ? (
+                          <>
+                            <ImageCarousel
+                              images={property.images}
+                              alt={property.name}
+                              className="h-36"
+                              autoPlay={true}
+                              autoPlayInterval={4000}
+                            />
+                            {property.images.length > 1 && (
+                              <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                                <Camera className="w-3 h-3 text-white" />
+                                <span className="text-white text-xs font-medium">{property.images.length}</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                            <Building2 size={48} className="text-gray-300" />
+                          </div>
+                        )}
+                        {categoryInfo && (
+                          <div className="absolute top-3 right-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${categoryInfo.color}`}>
+                              {categoryInfo.label}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4">
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {property.module && (
+                            <Badge variant="default" className="text-xs">
+                              {property.module.name}
+                            </Badge>
+                          )}
+                          {property.propertyType && (
+                            <Badge variant="success" className="text-xs">
+                              {property.propertyType.name}
+                            </Badge>
+                          )}
+                          {moduleBadgeText && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${moduleBadgeStyles}`}>
+                              {moduleBadgeText}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
+                          {property.name}
+                        </h3>
+
+                        <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                          {property.description || 'No description available'}
+                        </p>
+
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
+                          <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{property.estate?.city || property.address}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            {property.minPrice != null && (
+                              <p className="text-sm font-semibold text-gray-900">
+                                From {formatCurrency(property.minPrice)}
+                                <span className="text-xs font-normal text-gray-500"> / night</span>
+                              </p>
+                            )}
+                            {property.totalRooms != null && property.totalRooms > 0 && (
+                              <p className="text-xs text-gray-500">{property.totalRooms} rooms available</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => handleBookClick(e, property)}
+                            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:shadow-md"
+                          >
+                            <Calendar size={14} />
+                            Book Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeIn>
+                );
+              })}
             </div>
-          </FadeIn>
-        )}
+          )}
+
+          {!loading && properties.length > 0 && (
+            <FadeIn delay={300}>
+              <div className="mt-6 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-100 rounded-lg">
+                    <History size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">View Your Bookings</h3>
+                    <p className="text-xs text-gray-500">Track your upcoming and past reservations</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(ROUTES.BOOKINGS)}
+                  className="flex items-center gap-2 flex-shrink-0"
+                >
+                  <History size={16} />
+                  My Booking History
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
+            </FadeIn>
+          )}
+        </div>
       </div>
     </div>
   );
