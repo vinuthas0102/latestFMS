@@ -19,7 +19,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
   label,
   value,
   icon: Icon,
-  gradient = 'pastel-blue-gradient',
+  gradient = 'bg-gradient-to-r from-blue-500 to-teal-500',
   onClick,
   delay = 0,
   isActive = false,
@@ -29,7 +29,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
     ? 'cursor-pointer hover:shadow-md hover:scale-105 active:scale-95'
     : '';
   const activeClasses = isActive
-    ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+    ? 'ring-2 ring-white/60 ring-offset-1 shadow-md'
     : '';
 
   return (
@@ -43,19 +43,19 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
         <div className="flex items-center justify-between gap-2 relative z-10">
           <div className="flex items-center gap-2 min-w-0">
             {Icon && (
-              <div className="p-1 bg-white/60 backdrop-blur-sm rounded-md shadow-sm border border-white/80 flex-shrink-0">
-                <Icon size={13} className="text-gray-700" />
+              <div className="p-1 bg-white/20 backdrop-blur-sm rounded-md border border-white/30 flex-shrink-0">
+                <Icon size={13} className="text-white" />
               </div>
             )}
-            <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide truncate">
+            <p className="text-[11px] font-semibold text-white/90 uppercase tracking-wide truncate">
               {label}
             </p>
           </div>
-          <p className="text-base font-bold text-gray-900 flex-shrink-0">
+          <p className="text-base font-bold text-white flex-shrink-0">
             <CountUp end={value} duration={1500} />
           </p>
         </div>
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-white/20 rounded-full blur-xl -mb-6 -mr-6" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 pointer-events-none" />
       </div>
     </FadeIn>
   );

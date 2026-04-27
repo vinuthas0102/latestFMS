@@ -163,7 +163,7 @@ export const BookingHistoryPage: React.FC = () => {
             label="Total Bookings"
             value={stats.total}
             icon={History}
-            gradient="pastel-blue-gradient"
+            gradient="bg-gradient-to-r from-blue-500 to-teal-500"
             onClick={() => handleStatCardClick('all')}
             isActive={statusFilter === 'all'}
             delay={100}
@@ -172,7 +172,7 @@ export const BookingHistoryPage: React.FC = () => {
             label="Upcoming"
             value={stats.upcoming}
             icon={Calendar}
-            gradient="pastel-cyan-gradient"
+            gradient="bg-gradient-to-r from-sky-500 to-blue-600"
             onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
             isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
             delay={150}
@@ -181,7 +181,7 @@ export const BookingHistoryPage: React.FC = () => {
             label="Completed"
             value={stats.completed}
             icon={CheckCircle}
-            gradient="pastel-green-gradient"
+            gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
             onClick={() => handleStatCardClick('CHECKED_OUT')}
             isActive={statusFilter === 'CHECKED_OUT'}
             delay={200}
@@ -190,7 +190,7 @@ export const BookingHistoryPage: React.FC = () => {
             label="Cancelled"
             value={stats.cancelled}
             icon={XCircle}
-            gradient="pastel-coral-gradient"
+            gradient="bg-gradient-to-r from-rose-500 to-pink-500"
             onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
             isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
             delay={250}

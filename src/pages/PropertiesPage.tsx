@@ -128,7 +128,7 @@ export const PropertiesPage: React.FC = () => {
             label="Total Properties"
             value={stats.total}
             icon={Building2}
-            gradient="pastel-blue-gradient"
+            gradient="bg-gradient-to-r from-blue-500 to-teal-500"
             onClick={() => setFilterStatus('all')}
             isActive={filterStatus === 'all'}
             delay={100}
@@ -137,7 +137,7 @@ export const PropertiesPage: React.FC = () => {
             label="Published"
             value={stats.published}
             icon={CheckCircle}
-            gradient="pastel-green-gradient"
+            gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
             onClick={() => setFilterStatus('PUBLISHED')}
             isActive={filterStatus === 'PUBLISHED'}
             delay={150}
@@ -146,7 +146,7 @@ export const PropertiesPage: React.FC = () => {
             label="Draft"
             value={stats.draft}
             icon={Clock}
-            gradient="pastel-yellow-gradient"
+            gradient="bg-gradient-to-r from-amber-500 to-orange-500"
             onClick={() => setFilterStatus('DRAFT')}
             isActive={filterStatus === 'DRAFT'}
             delay={200}
@@ -155,7 +155,7 @@ export const PropertiesPage: React.FC = () => {
             label="Total Rooms"
             value={stats.totalRooms}
             icon={Layers}
-            gradient="pastel-cyan-gradient"
+            gradient="bg-gradient-to-r from-sky-500 to-blue-600"
             delay={250}
           />
         </div>
