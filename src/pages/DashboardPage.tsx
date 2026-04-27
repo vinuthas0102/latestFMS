@@ -58,21 +58,20 @@ export const DashboardPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-teal-50/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-teal-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FadeIn delay={0}>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          <div className="mb-3">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">
               Welcome back, {user?.fullName || 'User'}
             </h1>
             <p className="text-gray-600">Here's what's happening with your bookings today</p>
           </div>
-        </FadeIn>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <FadeIn delay={100}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               title="Total Bookings"
               value={metrics.totalBookings}
@@ -83,8 +82,6 @@ export const DashboardPage: React.FC = () => {
               subtitle="This month"
               onClick={() => setSelectedMetric('total')}
             />
-          </FadeIn>
-          <FadeIn delay={150}>
             <MetricCard
               title="Pending Approvals"
               value={metrics.pending}
@@ -93,8 +90,6 @@ export const DashboardPage: React.FC = () => {
               subtitle="Requires action"
               onClick={() => setSelectedMetric('pending')}
             />
-          </FadeIn>
-          <FadeIn delay={200}>
             <MetricCard
               title="Active Reservations"
               value={metrics.active}
@@ -103,8 +98,6 @@ export const DashboardPage: React.FC = () => {
               subtitle="Currently booked"
               onClick={() => setSelectedMetric('active')}
             />
-          </FadeIn>
-          <FadeIn delay={250}>
             <MetricCard
               title="Total Revenue"
               value={formatCurrency(metrics.revenue)}
@@ -115,16 +108,20 @@ export const DashboardPage: React.FC = () => {
               subtitle="This month"
               onClick={() => setSelectedMetric('revenue')}
             />
-          </FadeIn>
+          </div>
         </div>
+      </div>
 
-        {(canManageProperties(user?.role || 'public') || canApproveBookings(user?.role || 'public')) && (
-          <FadeIn delay={300}>
-            <div className="mb-8">
-              <AvailabilityOverview />
-            </div>
-          </FadeIn>
-        )}
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {(canManageProperties(user?.role || 'public') || canApproveBookings(user?.role || 'public')) && (
+            <FadeIn delay={100}>
+              <div className="mb-6">
+                <AvailabilityOverview />
+              </div>
+            </FadeIn>
+          )}
 
         <Card className="animate-slideUp">
           <CardHeader>
@@ -334,6 +331,7 @@ export const DashboardPage: React.FC = () => {
             )}
           </CardBody>
         </Card>
+        </div>
       </div>
 
       <MetricDetailDrawer

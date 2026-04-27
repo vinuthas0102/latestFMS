@@ -125,14 +125,15 @@ export const BookingHistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FadeIn delay={0}>
-          <div className="mb-8 flex items-center justify-between">
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
                   <History className="w-7 h-7 text-white" />
                 </div>
@@ -156,96 +157,100 @@ export const BookingHistoryPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </FadeIn>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <SummaryStatsCard
-            label="Total Bookings"
-            value={stats.total}
-            icon={History}
-            gradient="bg-gradient-to-r from-blue-500 to-teal-500"
-            onClick={() => handleStatCardClick('all')}
-            isActive={statusFilter === 'all'}
-            delay={100}
-          />
-          <SummaryStatsCard
-            label="Upcoming"
-            value={stats.upcoming}
-            icon={Calendar}
-            gradient="bg-gradient-to-r from-sky-500 to-blue-600"
-            onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
-            isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
-            delay={150}
-          />
-          <SummaryStatsCard
-            label="Completed"
-            value={stats.completed}
-            icon={CheckCircle}
-            gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
-            onClick={() => handleStatCardClick('CHECKED_OUT')}
-            isActive={statusFilter === 'CHECKED_OUT'}
-            delay={200}
-          />
-          <SummaryStatsCard
-            label="Cancelled"
-            value={stats.cancelled}
-            icon={XCircle}
-            gradient="bg-gradient-to-r from-rose-500 to-pink-500"
-            onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
-            isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
-            delay={250}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <SummaryStatsCard
+              label="Total Bookings"
+              value={stats.total}
+              icon={History}
+              gradient="bg-gradient-to-r from-blue-500 to-teal-500"
+              onClick={() => handleStatCardClick('all')}
+              isActive={statusFilter === 'all'}
+              delay={100}
+            />
+            <SummaryStatsCard
+              label="Upcoming"
+              value={stats.upcoming}
+              icon={Calendar}
+              gradient="bg-gradient-to-r from-sky-500 to-blue-600"
+              onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
+              isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
+              delay={150}
+            />
+            <SummaryStatsCard
+              label="Completed"
+              value={stats.completed}
+              icon={CheckCircle}
+              gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
+              onClick={() => handleStatCardClick('CHECKED_OUT')}
+              isActive={statusFilter === 'CHECKED_OUT'}
+              delay={200}
+            />
+            <SummaryStatsCard
+              label="Cancelled"
+              value={stats.cancelled}
+              icon={XCircle}
+              gradient="bg-gradient-to-r from-rose-500 to-pink-500"
+              onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
+              isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
+              delay={250}
+            />
+          </div>
         </div>
+      </div>
 
-        <FilterDrawer
-          isOpen={isFilterOpen}
-          onClose={() => setIsFilterOpen(false)}
-          title="Booking Filters"
-          onClearAll={handleClearFilters}
-          activeFilterCount={activeFilterCount}
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Search
-              </label>
-              <Input
-                type="text"
-                placeholder="Booking number or property..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Status
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'all' as string | string[], label: 'All Bookings', icon: History },
-                  { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
-                  { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
-                  { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
-                  { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
-                ].map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={Array.isArray(value) ? value.join('-') : value}
-                    onClick={() => setStatusFilter(value)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
-                      isFilterActive(value)
-                        ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon size={18} />
-                    <span className="font-medium text-sm">{label}</span>
-                  </button>
-                ))}
-              </div>
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Booking Filters"
+        onClearAll={handleClearFilters}
+        activeFilterCount={activeFilterCount}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Search
+            </label>
+            <Input
+              type="text"
+              placeholder="Booking number or property..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Status
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'all' as string | string[], label: 'All Bookings', icon: History },
+                { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
+                { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
+                { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
+                { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={Array.isArray(value) ? value.join('-') : value}
+                  onClick={() => setStatusFilter(value)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
+                    isFilterActive(value)
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="font-medium text-sm">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
-        </FilterDrawer>
+        </div>
+      </FilterDrawer>
 
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
@@ -443,6 +448,7 @@ export const BookingHistoryPage: React.FC = () => {
             </ListView>
           </FadeIn>
         )}
+        </div>
       </div>
     </div>
   );

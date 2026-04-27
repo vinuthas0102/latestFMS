@@ -85,14 +85,15 @@ export const PropertiesPage: React.FC = () => {
   const activeFilterCount = (filterStatus !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-green-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <FadeIn delay={0}>
-          <div className="flex items-center justify-between mb-4">
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg">
                   <Building2 className="w-7 h-7 text-white" />
                 </div>
@@ -121,92 +122,96 @@ export const PropertiesPage: React.FC = () => {
               )}
             </div>
           </div>
-        </FadeIn>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-          <SummaryStatsCard
-            label="Total Properties"
-            value={stats.total}
-            icon={Building2}
-            gradient="bg-gradient-to-r from-blue-500 to-teal-500"
-            onClick={() => setFilterStatus('all')}
-            isActive={filterStatus === 'all'}
-            delay={100}
-          />
-          <SummaryStatsCard
-            label="Published"
-            value={stats.published}
-            icon={CheckCircle}
-            gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
-            onClick={() => setFilterStatus('PUBLISHED')}
-            isActive={filterStatus === 'PUBLISHED'}
-            delay={150}
-          />
-          <SummaryStatsCard
-            label="Draft"
-            value={stats.draft}
-            icon={Clock}
-            gradient="bg-gradient-to-r from-amber-500 to-orange-500"
-            onClick={() => setFilterStatus('DRAFT')}
-            isActive={filterStatus === 'DRAFT'}
-            delay={200}
-          />
-          <SummaryStatsCard
-            label="Total Rooms"
-            value={stats.totalRooms}
-            icon={Layers}
-            gradient="bg-gradient-to-r from-sky-500 to-blue-600"
-            delay={250}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <SummaryStatsCard
+              label="Total Properties"
+              value={stats.total}
+              icon={Building2}
+              gradient="bg-gradient-to-r from-blue-500 to-teal-500"
+              onClick={() => setFilterStatus('all')}
+              isActive={filterStatus === 'all'}
+              delay={100}
+            />
+            <SummaryStatsCard
+              label="Published"
+              value={stats.published}
+              icon={CheckCircle}
+              gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
+              onClick={() => setFilterStatus('PUBLISHED')}
+              isActive={filterStatus === 'PUBLISHED'}
+              delay={150}
+            />
+            <SummaryStatsCard
+              label="Draft"
+              value={stats.draft}
+              icon={Clock}
+              gradient="bg-gradient-to-r from-amber-500 to-orange-500"
+              onClick={() => setFilterStatus('DRAFT')}
+              isActive={filterStatus === 'DRAFT'}
+              delay={200}
+            />
+            <SummaryStatsCard
+              label="Total Rooms"
+              value={stats.totalRooms}
+              icon={Layers}
+              gradient="bg-gradient-to-r from-sky-500 to-blue-600"
+              delay={250}
+            />
+          </div>
         </div>
+      </div>
 
-        <FilterDrawer
-          isOpen={isFilterOpen}
-          onClose={() => setIsFilterOpen(false)}
-          title="Property Filters"
-          onClearAll={handleClearFilters}
-          activeFilterCount={activeFilterCount}
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Search
-              </label>
-              <Input
-                type="text"
-                placeholder="Property name or location..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Status
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'all', label: 'All Properties', icon: Building2 },
-                  { value: 'PUBLISHED', label: 'Published', icon: CheckCircle },
-                  { value: 'DRAFT', label: 'Draft', icon: Clock },
-                ].map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    onClick={() => setFilterStatus(value)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
-                      filterStatus === value
-                        ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-md'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon size={18} />
-                    <span className="font-medium text-sm">{label}</span>
-                  </button>
-                ))}
-              </div>
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Property Filters"
+        onClearAll={handleClearFilters}
+        activeFilterCount={activeFilterCount}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Search
+            </label>
+            <Input
+              type="text"
+              placeholder="Property name or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Status
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'all', label: 'All Properties', icon: Building2 },
+                { value: 'PUBLISHED', label: 'Published', icon: CheckCircle },
+                { value: 'DRAFT', label: 'Draft', icon: Clock },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setFilterStatus(value)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
+                    filterStatus === value
+                      ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="font-medium text-sm">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
-        </FilterDrawer>
+        </div>
+      </FilterDrawer>
 
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -439,6 +444,7 @@ export const PropertiesPage: React.FC = () => {
             property={selectedProperty}
           />
         )}
+        </div>
       </div>
     </div>
   );

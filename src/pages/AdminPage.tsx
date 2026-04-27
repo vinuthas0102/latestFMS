@@ -419,13 +419,14 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FadeIn delay={0}>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          <div className="mb-3">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
                 <Settings className="w-7 h-7 text-white" />
               </div>
@@ -433,31 +434,32 @@ export const AdminPage: React.FC = () => {
             </h1>
             <p className="text-gray-600">Manage modules, property types, regions, estates, and asset types</p>
           </div>
-        </FadeIn>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <FadeIn delay={100}>
-              <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/80 p-4">
-                <HorizontalSlider
-                  items={sliderItems}
-                  selectedId={activeTab}
-                  onSelect={setActiveTab}
-                />
-              </div>
-            </FadeIn>
+          {!loading && (
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-white/80 p-3">
+              <HorizontalSlider
+                items={sliderItems}
+                selectedId={activeTab}
+                onSelect={setActiveTab}
+              />
+            </div>
+          )}
+        </div>
+      </div>
 
-            <FadeIn delay={200}>
-              <div className="animate-fadeIn">
-                {renderActiveContent()}
-              </div>
-            </FadeIn>
-          </div>
-        )}
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
+            </div>
+          ) : (
+            <div className="animate-fadeIn">
+              {renderActiveContent()}
+            </div>
+          )}
+        </div>
       </div>
 
       <RegionFormModal

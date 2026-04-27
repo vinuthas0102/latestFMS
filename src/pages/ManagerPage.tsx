@@ -116,22 +116,25 @@ export const ManagerPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-cyan-50/20">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-cyan-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FadeIn delay={0}>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl shadow-lg">
-                <Users className="w-7 h-7 text-white" />
-              </div>
-              Manager Dashboard
-            </h1>
-            <p className="text-gray-600">Review and allocate pending booking requests</p>
-          </div>
-        </FadeIn>
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl shadow-lg">
+              <Users className="w-7 h-7 text-white" />
+            </div>
+            Manager Dashboard
+          </h1>
+          <p className="text-gray-600">Review and allocate pending booking requests</p>
+        </div>
+      </div>
 
+      {/* Scrollable data area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid gap-4">
           {bookings.length === 0 ? (
             <FadeIn delay={100}>
@@ -245,6 +248,7 @@ export const ManagerPage: React.FC = () => {
               );
             })
           )}
+        </div>
         </div>
       </div>
 
