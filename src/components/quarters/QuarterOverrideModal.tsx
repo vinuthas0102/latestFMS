@@ -13,7 +13,14 @@ const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80',
 ];
 function getImage(q: Quarter, idx: number) {
-  return q.images?.[0] || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
+  let images = q.images;
+  if (typeof images === 'string') {
+    try { images = JSON.parse(images); } catch {
+      images = (images as unknown as string).replace(/^\{/, '').replace(/\}$/, '').split(',').map((s: string) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+    }
+  }
+  const first = Array.isArray(images) && images.length > 0 ? images[0] : null;
+  return first || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
 }
 function fmtINR(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);

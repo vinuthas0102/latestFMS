@@ -173,35 +173,19 @@ export const ManagerPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                          <User size={14} />
-                          <span>Guest</span>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {[
+                        { icon: <User size={12} />, label: 'Guest', value: booking.guestDetails.fullName },
+                        { icon: <Home size={12} />, label: 'Room Type', value: booking.roomType?.name },
+                        { icon: <Calendar size={12} />, label: 'Rooms', value: `${booking.quantity} room(s)` },
+                        { icon: <DollarSign size={12} />, label: 'Amount', value: formatCurrency(booking.totalAmount) },
+                      ].map(item => (
+                        <div key={item.label} className="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white/80 flex items-center gap-2">
+                          <span className="text-gray-400">{item.icon}</span>
+                          <span className="text-xs text-gray-500">{item.label}:</span>
+                          <span className="text-xs font-semibold text-gray-900">{item.value}</span>
                         </div>
-                        <p className="font-semibold text-gray-900 text-sm">{booking.guestDetails.fullName}</p>
-                      </div>
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                          <Home size={14} />
-                          <span>Room Type</span>
-                        </div>
-                        <p className="font-semibold text-gray-900 text-sm">{booking.roomType?.name}</p>
-                      </div>
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                          <Calendar size={14} />
-                          <span>Rooms</span>
-                        </div>
-                        <p className="font-semibold text-gray-900 text-sm">{booking.quantity} room(s)</p>
-                      </div>
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/80">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                          <DollarSign size={14} />
-                          <span>Amount</span>
-                        </div>
-                        <p className="font-semibold text-gray-900 text-sm">{formatCurrency(booking.totalAmount)}</p>
-                      </div>
+                      ))}
                     </div>
 
                     {isExpanded && (

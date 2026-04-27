@@ -80,17 +80,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`${colorScheme.gradient} rounded-xl p-4 ${
+      className={`${colorScheme.gradient} rounded-xl px-4 py-3 ${
         onClick ? 'cursor-pointer' : ''
       } overflow-hidden relative group`}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-start justify-between relative z-10">
+      <div className="flex items-center justify-between relative z-10 gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">{title}</p>
-          <div className="text-2xl font-bold text-gray-900 mb-1">
+          <p className="text-[10px] font-semibold text-gray-500 mb-0.5 uppercase tracking-wide leading-none">{title}</p>
+          <div className="text-xl font-bold text-gray-900 leading-tight">
             {isNumeric ? (
               <CountUp end={value as number} duration={1500} />
             ) : (
@@ -98,23 +98,23 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             )}
           </div>
           {trend && (
-            <div className="flex items-center gap-1">
-              <span className={`text-xs font-semibold ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className={`text-[10px] font-semibold ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
                 {trendUp ? '↑' : '↓'} {trend}
               </span>
-              {subtitle && <span className="text-xs text-gray-500">• {subtitle}</span>}
+              {subtitle && <span className="text-[10px] text-gray-500">· {subtitle}</span>}
             </div>
           )}
           {!trend && subtitle && (
-            <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5 leading-none">{subtitle}</p>
           )}
         </div>
-        <div className={`p-3 rounded-xl backdrop-blur-sm border shadow-lg transition-all duration-300 ${
+        <div className={`p-2 rounded-lg backdrop-blur-sm border shadow-sm transition-all duration-300 shrink-0 ${
           colorScheme.icon
         } border-white/60 ${
-          isHovered ? 'scale-110 rotate-3 shadow-xl' : ''
+          isHovered ? 'scale-110 rotate-3 shadow-md' : ''
         }`}>
-          <Icon size={20} />
+          <Icon size={16} />
         </div>
       </div>
 

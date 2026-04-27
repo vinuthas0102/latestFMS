@@ -179,17 +179,17 @@ export const UserDashboardPage: React.FC = () => {
             </div>
 
             {user?.role === 'govt_official' && (
-              <div className="relative mt-6 flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Star size={16} className="text-amber-300" />
-                  <span className="text-white text-sm font-medium">
-                    {categoryStats.A} Category A {categoryStats.A === 1 ? 'Property' : 'Properties'} Available
+              <div className="relative mt-4 flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                  <Star size={13} className="text-amber-300" />
+                  <span className="text-white text-xs font-medium">
+                    <span className="font-bold">{categoryStats.A}</span> Cat-A Available
                   </span>
                 </div>
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Building2 size={16} className="text-sky-300" />
-                  <span className="text-white text-sm font-medium">
-                    {categoryStats.B} Category B {categoryStats.B === 1 ? 'Property' : 'Properties'} Available
+                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                  <Building2 size={13} className="text-sky-300" />
+                  <span className="text-white text-xs font-medium">
+                    <span className="font-bold">{categoryStats.B}</span> Cat-B Available
                   </span>
                 </div>
               </div>

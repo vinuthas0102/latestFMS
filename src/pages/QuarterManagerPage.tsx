@@ -23,7 +23,14 @@ const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80',
 ];
 function getImage(q: Quarter, idx: number) {
-  return q.images?.[0] || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
+  let images = q.images;
+  if (typeof images === 'string') {
+    try { images = JSON.parse(images); } catch {
+      images = (images as unknown as string).replace(/^\{/, '').replace(/\}$/, '').split(',').map((s: string) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+    }
+  }
+  const first = Array.isArray(images) && images.length > 0 ? images[0] : null;
+  return first || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
 }
 function fmtINR(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -151,44 +158,42 @@ export const QuarterManagerPage: React.FC = () => {
           )}
         </div>
 
-        {/* Cycle Selector + Stats */}
+        {/* Cycle Selector + Compact Stats Strip */}
         {selectedCycle && cycleStats && (
-          <div className="bg-white rounded-xl border-l-4 border-amber-400 border border-gray-200 p-4 mb-6">
-            <div className="flex flex-wrap items-center gap-4 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Active View:</span>
-                <select
-                  value={selectedCycle.id}
-                  onChange={e => setSelectedCycle(cycles.find(c => c.id === e.target.value) ?? null)}
-                  className="text-sm font-semibold text-gray-900 border-0 bg-transparent focus:outline-none cursor-pointer pr-6"
-                >
-                  {cycles.map(c => (
-                    <option key={c.id} value={c.id}>{c.cycle_name}</option>
-                  ))}
-                </select>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cycleStatusBadge(selectedCycle.status)}`}>
-                  {selectedCycle.status}
-                </span>
-              </div>
+          <div className="bg-white rounded-xl border-l-4 border-amber-400 border border-gray-200 px-4 py-3 mb-5 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs text-gray-500 uppercase tracking-wide">Cycle:</span>
+              <select
+                value={selectedCycle.id}
+                onChange={e => setSelectedCycle(cycles.find(c => c.id === e.target.value) ?? null)}
+                className="text-sm font-semibold text-gray-900 border-0 bg-transparent focus:outline-none cursor-pointer"
+              >
+                {cycles.map(c => (
+                  <option key={c.id} value={c.id}>{c.cycle_name}</option>
+                ))}
+              </select>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cycleStatusBadge(selectedCycle.status)}`}>
+                {selectedCycle.status}
+              </span>
+              {selectedCycle.end_date && (
+                <span className="text-xs text-gray-400">· closes {new Date(selectedCycle.end_date).toLocaleDateString('en-IN')}</span>
+              )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Requests', value: cycleStats.total, color: 'text-gray-900' },
-                { label: 'Allotted', value: cycleStats.allotted, color: 'text-emerald-700' },
-                { label: 'Pending Review', value: cycleStats.pending, color: 'text-amber-700' },
-                { label: 'Overridden', value: cycleStats.overridden, color: 'text-blue-700' },
-              ].map(s => (
-                <div key={s.label}>
-                  <div className="text-xs text-gray-500 mb-0.5">{s.label}</div>
-                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="w-px h-5 bg-gray-200 hidden sm:block" />
+            {[
+              { label: 'Requests', value: cycleStats.total, color: 'text-gray-900' },
+              { label: 'Allotted', value: cycleStats.allotted, color: 'text-emerald-700' },
+              { label: 'Pending', value: cycleStats.pending, color: 'text-amber-700' },
+              { label: 'Overridden', value: cycleStats.overridden, color: 'text-blue-700' },
+            ].map((s, i) => (
+              <React.Fragment key={s.label}>
+                {i > 0 && <div className="w-px h-5 bg-gray-200" />}
+                <div className="flex items-baseline gap-1.5">
+                  <span className={`text-lg font-bold ${s.color}`}>{s.value}</span>
+                  <span className="text-xs text-gray-500">{s.label}</span>
                 </div>
-              ))}
-            </div>
-            {selectedCycle.end_date && (
-              <div className="mt-3 text-xs text-gray-500">
-                Cycle closes: <span className="font-semibold text-gray-700">{new Date(selectedCycle.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-              </div>
-            )}
+              </React.Fragment>
+            ))}
           </div>
         )}
 
