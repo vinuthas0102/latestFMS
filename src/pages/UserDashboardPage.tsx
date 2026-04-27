@@ -142,78 +142,60 @@ export const UserDashboardPage: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <FadeIn delay={0}>
-          <div className="relative bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-4 mb-4 overflow-hidden shadow-xl">
+          <div className="relative bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl px-4 py-2.5 mb-3 overflow-hidden shadow-md">
             <div className="absolute inset-0 opacity-10">
               <div className="absolute -top-8 -right-8 w-64 h-64 bg-white rounded-full" />
-              <div className="absolute -bottom-12 -left-12 w-96 h-96 bg-white rounded-full" />
             </div>
-            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl flex-shrink-0">
+            <div className="relative flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg flex-shrink-0">
                   {welcomeInfo.icon}
                 </div>
-                <div>
-                  <p className="text-white/70 text-sm font-medium mb-1">
-                    {user ? `Welcome back, ${user.fullName || user.email}` : 'Welcome'}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-base font-bold text-white truncate">{welcomeInfo.title}</h1>
                     {user && (
-                      <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                      <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs text-white/80 whitespace-nowrap">
                         {ROLE_LABELS[user.role]}
                       </span>
                     )}
-                  </p>
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">{welcomeInfo.title}</h1>
-                  <p className="text-white/70 text-sm mt-1">{welcomeInfo.subtitle}</p>
+                  </div>
+                  <p className="text-white/60 text-xs truncate">{welcomeInfo.subtitle}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <Button
-                  variant="outline"
-                  className="border-white/30 text-white hover:bg-white/10 flex items-center gap-2"
-                  onClick={() => navigate(ROUTES.BOOKINGS)}
-                >
-                  <History size={18} />
-                  <span>My Bookings</span>
-                  <ChevronRight size={16} />
-                </Button>
-              </div>
+              {user?.role === 'govt_official' && (
+                <div className="hidden md:flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-3 py-1.5">
+                    <Star size={13} className="text-amber-300" />
+                    <span className="text-white text-xs font-medium">{categoryStats.A} Cat A</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-3 py-1.5">
+                    <Building2 size={13} className="text-sky-300" />
+                    <span className="text-white text-xs font-medium">{categoryStats.B} Cat B</span>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {user?.role === 'govt_official' && (
-              <div className="relative mt-6 flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Star size={16} className="text-amber-300" />
-                  <span className="text-white text-sm font-medium">
-                    {categoryStats.A} Category A {categoryStats.A === 1 ? 'Property' : 'Properties'} Available
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Building2 size={16} className="text-sky-300" />
-                  <span className="text-white text-sm font-medium">
-                    {categoryStats.B} Category B {categoryStats.B === 1 ? 'Property' : 'Properties'} Available
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </FadeIn>
 
         <FadeIn delay={100}>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="flex-1 relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-3 py-2 mb-4 flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search properties by name or location..."
+                placeholder="Search by name or location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
               />
             </div>
             {availableModules.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   onClick={() => setModuleFilter('all')}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     moduleFilter === 'all'
                       ? 'bg-slate-800 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -225,7 +207,7 @@ export const UserDashboardPage: React.FC = () => {
                   <button
                     key={mod.id}
                     onClick={() => setModuleFilter(mod.id)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       moduleFilter === mod.id
                         ? 'bg-slate-800 text-white shadow-sm'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -239,9 +221,9 @@ export const UserDashboardPage: React.FC = () => {
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors px-2 py-2"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors px-1.5 py-1.5"
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={12} />
                 <span>Clear</span>
               </button>
             )}

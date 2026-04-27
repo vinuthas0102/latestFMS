@@ -101,12 +101,6 @@ export const Header: React.FC = () => {
       accentColor: 'rgb(14, 165, 233)',
     },
     {
-      route: ROUTES.BOOKINGS,
-      label: 'My Bookings',
-      icon: <Calendar size={20} />,
-      accentColor: 'rgb(245, 158, 11)',
-    },
-    {
       route: ROUTES.SEARCH,
       label: 'Search',
       icon: <Search size={20} />,
