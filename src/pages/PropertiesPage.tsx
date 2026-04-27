@@ -88,9 +88,9 @@ export const PropertiesPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50/20">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <FadeIn delay={0}>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg">
@@ -123,7 +123,7 @@ export const PropertiesPage: React.FC = () => {
           </div>
         </FadeIn>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           <SummaryStatsCard
             label="Total Properties"
             value={stats.total}

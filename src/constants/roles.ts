@@ -18,7 +18,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   public: 'Access to Community Halls and Category B Guest Houses',
-  govt_official: 'Access to Category A and B facilities',
+  govt_official: 'Access to Category A & B facilities + Quarters allotment',
   manager: 'Manage bookings and allocations for assigned estates',
   dept_user: 'View-only access with booking privileges',
   admin: 'Full system access and configuration',
