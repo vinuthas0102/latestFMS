@@ -22,4 +22,7 @@ export const ROUTES = {
   MAINTENANCE: '/maintenance',
   ADMIN: '/admin',
   PROFILE: '/profile',
+  QUARTERS_FREEVIEW: '/quarters',
+  QUARTERS_REQUESTS: '/quarters/requests',
+  QUARTERS_MANAGER: '/quarters/manager',
 } as const;

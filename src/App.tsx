@@ -24,6 +24,9 @@ const BookingHistoryPage = lazy(() => import('./pages/BookingHistoryPage').then(
 const BookingDetailPage = lazy(() => import('./pages/BookingDetailPage').then(m => ({ default: m.BookingDetailPage })));
 const AdHocBookingPage = lazy(() => import('./pages/AdHocBookingPage').then(m => ({ default: m.AdHocBookingPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const QuarterFreeviewPage = lazy(() => import('./pages/QuarterFreeviewPage').then(m => ({ default: m.QuarterFreeviewPage })));
+const QuarterRequestsPage = lazy(() => import('./pages/QuarterRequestsPage').then(m => ({ default: m.QuarterRequestsPage })));
+const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(m => ({ default: m.QuarterManagerPage })));
 
 function PageLoader() {
   return (
@@ -161,6 +164,33 @@ function App() {
           />
 
           <Route path="/book/:token" element={<AdHocBookingPage />} />
+
+          <Route
+            path="/quarters"
+            element={
+              <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
+                <QuarterFreeviewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/quarters/requests"
+            element={
+              <ProtectedRoute allowedRoles={['govt_official']}>
+                <QuarterRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/quarters/manager"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                <QuarterManagerPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
