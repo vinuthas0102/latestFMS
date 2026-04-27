@@ -61,8 +61,6 @@ export const LoginPage: React.FC = () => {
       addToast('Login successful', 'success');
       if (selectedRole === 'admin' || selectedRole === 'manager') {
         navigate(ROUTES.PROPERTIES);
-      } else if (selectedRole === 'govt_official') {
-        navigate(ROUTES.QUARTERS_FREEVIEW);
       } else {
         navigate(ROUTES.DASHBOARD);
       }
