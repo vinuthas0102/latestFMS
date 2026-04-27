@@ -281,7 +281,7 @@ export const UserDashboardPage: React.FC = () => {
             </div>
           </FadeIn>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredProperties.map((property, index) => {
               const category = property.assetType?.category;
               const categoryInfo = category ? CATEGORY_LABELS[category] : null;
@@ -291,90 +291,81 @@ export const UserDashboardPage: React.FC = () => {
               return (
                 <FadeIn key={property.id} delay={index * 50}>
                   <div
-                    className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                    className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
                     onClick={() => navigate(`/properties/${property.id}`)}
                   >
-                    <div className="h-36 relative overflow-hidden bg-gray-100">
+                    <div className="h-28 relative overflow-hidden bg-gray-100">
                       {property.images.length > 0 ? (
                         <>
                           <ImageCarousel
                             images={property.images}
                             alt={property.name}
-                            className="h-36"
+                            className="h-28"
                             autoPlay={true}
                             autoPlayInterval={4000}
                           />
                           {property.images.length > 1 && (
-                            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                              <Camera className="w-3 h-3 text-white" />
+                            <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                              <Camera className="w-2.5 h-2.5 text-white" />
                               <span className="text-white text-xs font-medium">{property.images.length}</span>
                             </div>
                           )}
                         </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                          <Building2 size={48} className="text-gray-300" />
+                          <Building2 size={32} className="text-gray-300" />
                         </div>
                       )}
                       {categoryInfo && (
-                        <div className="absolute top-3 right-3">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${categoryInfo.color}`}>
+                        <div className="absolute top-2 right-2">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${categoryInfo.color}`}>
                             {categoryInfo.label}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="p-4">
-                      <div className="flex flex-wrap gap-1.5 mb-3">
+                    <div className="p-2.5">
+                      <div className="flex flex-wrap gap-1 mb-1">
                         {property.module && (
                           <Badge variant="default" className="text-xs">
                             {property.module.name}
                           </Badge>
                         )}
-                        {property.propertyType && (
-                          <Badge variant="success" className="text-xs">
-                            {property.propertyType.name}
-                          </Badge>
-                        )}
                         {moduleBadgeText && (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${moduleBadgeStyles}`}>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${moduleBadgeStyles}`}>
                             {moduleBadgeText}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
+                      <h3 className="text-xs font-bold text-gray-900 mb-0.5 group-hover:text-blue-600 transition-colors line-clamp-1">
                         {property.name}
                       </h3>
 
-                      <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-gray-500 mb-1.5 line-clamp-1 leading-snug">
                         {property.description || 'No description available'}
                       </p>
 
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
-                        <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                        <MapPin size={11} className="text-gray-400 flex-shrink-0" />
                         <span className="truncate">{property.estate?.city || property.address}</span>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div>
                           {property.minPrice != null && (
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-xs font-semibold text-gray-900">
                               From {formatCurrency(property.minPrice)}
-                              <span className="text-xs font-normal text-gray-500"> / night</span>
                             </p>
-                          )}
-                          {property.totalRooms != null && property.totalRooms > 0 && (
-                            <p className="text-xs text-gray-500">{property.totalRooms} rooms available</p>
                           )}
                         </div>
                         <button
                           onClick={(e) => handleBookClick(e, property)}
-                          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:shadow-md"
+                          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-semibold transition-all duration-200"
                         >
-                          <Calendar size={14} />
-                          Book Now
+                          <Calendar size={11} />
+                          Book
                         </button>
                       </div>
                     </div>
