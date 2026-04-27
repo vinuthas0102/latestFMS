@@ -318,6 +318,13 @@
     -webkit-backdrop-filter: blur(8px);
   }
 
+  /* ── New header bar ── */
+  .header-bar {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+
   .hover-lift {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
@@ -584,37 +591,73 @@
     @apply cursor-pointer hover-lift;
   }
 
-  .nav-card {
-    @apply relative flex flex-col items-center gap-2 px-4 py-3 rounded-lg
-           transition-all duration-200 flex-shrink-0 border border-gray-200
-           hover:border-gray-300;
-    background: white;
-    min-width: 100px;
-    animation: scaleIn 0.4s ease-out;
+  /* ── Nav tab strip ── */
+  .nav-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    gap: 7px;
+    padding: 0 14px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 13.5px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    text-decoration: none;
   }
 
-  .nav-card:hover {
-    background: rgba(249, 250, 251, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
+  .nav-tab-idle {
+    color: #4b5563;
   }
 
-  .nav-card-active {
-    background: white;
-    border-width: 2px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  .nav-tab-idle:hover {
+    color: #111827;
+    background: #f9fafb;
+    border-bottom-color: #d1d5db;
   }
 
-  .nav-card-icon {
-    @apply transition-colors duration-200;
+  .nav-tab-active {
+    color: #059669;
+    border-bottom-color: #059669;
+    background: rgba(5, 150, 105, 0.04);
   }
 
-  .nav-scroll-button {
-    @apply bg-white rounded-full p-2 shadow-md
-           transition-all duration-200 hover:shadow-lg
-           border border-gray-200 text-gray-600 hover:text-gray-900;
+  .nav-tab-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
+  .nav-tab-label {
+    line-height: 1;
+  }
+
+  /* ── Scroll arrow buttons ── */
+  .nav-arrow-btn {
+    @apply flex items-center justify-center w-6 h-6 rounded-full
+           bg-white border border-gray-200 text-gray-400
+           hover:text-gray-700 hover:border-gray-300 hover:shadow-sm
+           transition-all duration-150 flex-shrink-0 self-center mx-1;
+  }
+
+  /* ── Header icon buttons ── */
+  .header-icon-btn {
+    @apply flex items-center justify-center w-9 h-9 rounded-xl
+           text-gray-500 hover:text-gray-900 hover:bg-gray-100
+           transition-colors duration-150;
+  }
+
+  /* ── Logout button ── */
+  .header-logout-btn {
+    @apply flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-medium
+           text-gray-600 border border-gray-200 bg-white
+           hover:bg-red-50 hover:border-red-200 hover:text-red-700
+           transition-all duration-150;
+  }
+
+  /* Legacy glass utilities kept for non-header usage */
   .glass-button {
     background: white;
     border: 1px solid rgb(229, 231, 235);
