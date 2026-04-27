@@ -149,48 +149,56 @@ export const AvailabilityOverview: React.FC = () => {
           </div>
         </CardHeader>
         <CardBody>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="pastel-blue-gradient rounded-xl p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-2 relative z-10">
-                <div className="p-2 bg-blue-100/80 backdrop-blur-sm rounded-lg border border-white/60">
-                  <Building2 size={18} className="text-blue-600" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="pastel-blue-gradient rounded-lg px-3 py-2 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-2 relative z-10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1 bg-blue-100/80 backdrop-blur-sm rounded-md border border-white/60 flex-shrink-0">
+                    <Building2 size={13} className="text-blue-600" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide truncate">Total Properties</span>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Total Properties</span>
+                <p className="text-base font-bold text-gray-900 flex-shrink-0">{totalProperties}</p>
               </div>
-              <p className="text-3xl font-bold text-gray-900 relative z-10">{totalProperties}</p>
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-blue-400/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 right-0 w-12 h-12 bg-blue-400/10 rounded-full blur-xl -mb-6 -mr-6" />
             </div>
-            <div className="pastel-green-gradient rounded-xl p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-2 relative z-10">
-                <div className="p-2 bg-green-100/80 backdrop-blur-sm rounded-lg border border-white/60">
-                  <TrendingUp size={18} className="text-green-600" />
+            <div className="pastel-green-gradient rounded-lg px-3 py-2 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-2 relative z-10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1 bg-green-100/80 backdrop-blur-sm rounded-md border border-white/60 flex-shrink-0">
+                    <TrendingUp size={13} className="text-green-600" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide truncate">High Availability</span>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">High Availability</span>
+                <p className="text-base font-bold text-gray-900 flex-shrink-0">{highAvailability}</p>
               </div>
-              <p className="text-3xl font-bold text-gray-900 relative z-10">{highAvailability}</p>
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-green-400/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 right-0 w-12 h-12 bg-green-400/10 rounded-full blur-xl -mb-6 -mr-6" />
             </div>
-            <div className="pastel-yellow-gradient rounded-xl p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-2 relative z-10">
-                <div className="p-2 bg-yellow-100/80 backdrop-blur-sm rounded-lg border border-white/60">
-                  <Calendar size={18} className="text-yellow-600" />
+            <div className="pastel-yellow-gradient rounded-lg px-3 py-2 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-2 relative z-10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1 bg-yellow-100/80 backdrop-blur-sm rounded-md border border-white/60 flex-shrink-0">
+                    <Calendar size={13} className="text-yellow-600" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide truncate">Moderate</span>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Moderate</span>
+                <p className="text-base font-bold text-gray-900 flex-shrink-0">
+                  {totalProperties - highAvailability - lowAvailability}
+                </p>
               </div>
-              <p className="text-3xl font-bold text-gray-900 relative z-10">
-                {totalProperties - highAvailability - lowAvailability}
-              </p>
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-yellow-400/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 right-0 w-12 h-12 bg-yellow-400/10 rounded-full blur-xl -mb-6 -mr-6" />
             </div>
-            <div className="pastel-coral-gradient rounded-xl p-4 relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-2 relative z-10">
-                <div className="p-2 bg-red-100/80 backdrop-blur-sm rounded-lg border border-white/60">
-                  <Calendar size={18} className="text-red-600" />
+            <div className="pastel-coral-gradient rounded-lg px-3 py-2 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-2 relative z-10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1 bg-red-100/80 backdrop-blur-sm rounded-md border border-white/60 flex-shrink-0">
+                    <Calendar size={13} className="text-red-600" />
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-700 uppercase tracking-wide truncate">Low Availability</span>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Low Availability</span>
+                <p className="text-base font-bold text-gray-900 flex-shrink-0">{lowAvailability}</p>
               </div>
-              <p className="text-3xl font-bold text-gray-900 relative z-10">{lowAvailability}</p>
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-red-400/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 right-0 w-12 h-12 bg-red-400/10 rounded-full blur-xl -mb-6 -mr-6" />
             </div>
           </div>
 

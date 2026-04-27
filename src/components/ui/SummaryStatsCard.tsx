@@ -24,12 +24,12 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
   delay = 0,
   isActive = false,
 }) => {
-  const baseClasses = `${gradient} rounded-xl p-3 transition-all duration-300`;
+  const baseClasses = `${gradient} rounded-lg px-3 py-2 transition-all duration-300`;
   const interactiveClasses = onClick
-    ? 'cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95'
+    ? 'cursor-pointer hover:shadow-md hover:scale-105 active:scale-95'
     : '';
   const activeClasses = isActive
-    ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg'
+    ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
     : '';
 
   return (
@@ -40,20 +40,22 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        <div className="flex items-center justify-between mb-1 relative z-10">
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-            {label}
+        <div className="flex items-center justify-between gap-2 relative z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            {Icon && (
+              <div className="p-1 bg-white/60 backdrop-blur-sm rounded-md shadow-sm border border-white/80 flex-shrink-0">
+                <Icon size={13} className="text-gray-700" />
+              </div>
+            )}
+            <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide truncate">
+              {label}
+            </p>
+          </div>
+          <p className="text-base font-bold text-gray-900 flex-shrink-0">
+            <CountUp end={value} duration={1500} />
           </p>
-          {Icon && (
-            <div className="p-1.5 bg-white/60 backdrop-blur-sm rounded-lg shadow-sm border border-white/80">
-              <Icon size={14} className="text-gray-700" />
-            </div>
-          )}
         </div>
-        <p className="text-2xl font-bold text-gray-900 relative z-10">
-          <CountUp end={value} duration={1500} />
-        </p>
-        <div className="absolute bottom-0 right-0 w-20 h-20 bg-white/20 rounded-full blur-2xl -mb-10 -mr-10" />
+        <div className="absolute bottom-0 right-0 w-12 h-12 bg-white/20 rounded-full blur-xl -mb-6 -mr-6" />
       </div>
     </FadeIn>
   );

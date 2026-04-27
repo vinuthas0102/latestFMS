@@ -80,57 +80,43 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`${colorScheme.gradient} rounded-xl px-4 py-3 ${
+      className={`${colorScheme.gradient} rounded-lg px-3 py-2 ${
         onClick ? 'cursor-pointer' : ''
       } overflow-hidden relative group`}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-between relative z-10 gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-gray-500 mb-0.5 uppercase tracking-wide leading-none">{title}</p>
-          <div className="text-xl font-bold text-gray-900 leading-tight">
-            {isNumeric ? (
-              <CountUp end={value as number} duration={1500} />
-            ) : (
-              value
+      <div className="flex items-center justify-between relative z-10 gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className={`p-1 rounded-md backdrop-blur-sm border shadow-sm transition-all duration-300 shrink-0 ${
+            colorScheme.icon
+          } border-white/60 ${isHovered ? 'scale-110' : ''}`}>
+            <Icon size={13} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide leading-none truncate">{title}</p>
+            {(trend || subtitle) && (
+              <p className="text-[10px] text-gray-400 leading-none mt-0.5 truncate">
+                {trend ? `${trendUp ? '↑' : '↓'} ${trend}` : subtitle}
+              </p>
             )}
           </div>
-          {trend && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <span className={`text-[10px] font-semibold ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
-                {trendUp ? '↑' : '↓'} {trend}
-              </span>
-              {subtitle && <span className="text-[10px] text-gray-500">· {subtitle}</span>}
-            </div>
-          )}
-          {!trend && subtitle && (
-            <p className="text-[10px] text-gray-500 mt-0.5 leading-none">{subtitle}</p>
-          )}
         </div>
-        <div className={`p-2 rounded-lg backdrop-blur-sm border shadow-sm transition-all duration-300 shrink-0 ${
-          colorScheme.icon
-        } border-white/60 ${
-          isHovered ? 'scale-110 rotate-3 shadow-md' : ''
-        }`}>
-          <Icon size={16} />
+        <div className="text-base font-bold text-gray-900 leading-none flex-shrink-0">
+          {isNumeric ? (
+            <CountUp end={value as number} duration={1500} />
+          ) : (
+            value
+          )}
         </div>
       </div>
-
-      {onClick && (
-        <div className={`absolute bottom-2 right-2 transition-all duration-300 ${
-          isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-        }`}>
-          <ChevronRight size={16} className="text-gray-400" />
-        </div>
-      )}
 
       <div className={`absolute inset-0 bg-gradient-to-r from-white/0 via-white/50 to-white/0 transition-transform duration-700 ${
         isHovered ? 'translate-x-full' : '-translate-x-full'
       }`} style={{ pointerEvents: 'none' }} />
 
-      <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
     </div>
   );
 };
