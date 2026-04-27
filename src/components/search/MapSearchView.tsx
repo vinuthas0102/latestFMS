@@ -103,8 +103,8 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
 
       <div className="lg:col-span-1">
         {selectedProperty ? (
-          <Card className="sticky top-16 overflow-hidden">
-            <div className="h-28 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
+          <Card className="sticky top-24">
+            <div className="h-40 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
               {selectedProperty.images.length > 0 ? (
                 <img
                   src={selectedProperty.images[0]}
@@ -113,65 +113,64 @@ export const MapSearchView: React.FC<MapSearchViewProps> = ({ properties, checkI
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <Building2 size={32} className="text-white opacity-50" />
-                </div>
-              )}
-              {getModuleBadgeText(selectedProperty.module?.code) && (
-                <div className="absolute top-2 right-2">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-semibold border whitespace-nowrap ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
-                    {getModuleBadgeText(selectedProperty.module?.code)}
-                  </span>
+                  <Building2 size={48} className="text-white opacity-50" />
                 </div>
               )}
             </div>
-            <div className="p-3">
-              <h3 className="text-sm font-semibold text-gray-900 mb-0.5 line-clamp-1">
-                {selectedProperty.name}
-              </h3>
-              <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-xl font-semibold text-gray-900 flex-1">
+                  {selectedProperty.name}
+                </h3>
+                {getModuleBadgeText(selectedProperty.module?.code) && (
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
+                    {getModuleBadgeText(selectedProperty.module?.code)}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                 {selectedProperty.description || 'No description available'}
               </p>
-              <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                <MapPin size={12} />
-                <span className="truncate">{selectedProperty.estate?.city || selectedProperty.address}</span>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                <MapPin size={16} />
+                <span>{selectedProperty.estate?.city || selectedProperty.address}</span>
               </div>
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
-                <span className="text-xs text-gray-500">
-                  {selectedProperty.minPrice !== selectedProperty.maxPrice ? 'Range' : 'Price'}
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                <span className="text-sm text-gray-600">
+                  {selectedProperty.minPrice !== selectedProperty.maxPrice ? 'Price range' : 'Price'}
                 </span>
-                <span className="text-sm font-bold text-blue-600">
+                <span className="text-lg font-bold text-blue-600">
                   {formatPriceRange(selectedProperty.minPrice, selectedProperty.maxPrice)}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <Button
-                  className="flex-1"
-                  size="sm"
+                  className="w-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleBookNow(selectedProperty);
                   }}
-                  icon={<Calendar size={14} />}
+                  icon={<Calendar size={16} />}
                 >
                   {getBookingButtonText(selectedProperty.module?.code, !!user)}
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  className="w-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(buildPropertyUrl(selectedProperty.id));
                   }}
                 >
-                  Details
+                  View Details
                 </Button>
               </div>
             </div>
           </Card>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center sticky top-16">
-            <MapPin size={36} className="mx-auto text-gray-400 mb-3" />
-            <p className="text-sm text-gray-600">Click a marker to view property details</p>
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center sticky top-24">
+            <MapPin size={48} className="mx-auto text-gray-400 mb-3" />
+            <p className="text-gray-600">Click a marker to view property details</p>
           </div>
         )}
       </div>
