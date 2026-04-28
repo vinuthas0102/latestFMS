@@ -10,6 +10,7 @@ import {
   Shield,
   Users,
   Home,
+  SlidersHorizontal,
   RotateCcw,
   X,
   Search,
@@ -143,6 +144,7 @@ export const UserDashboardPage: React.FC = () => {
 
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dashboardView', 'card') as [ViewMode, (v: ViewMode) => void];
 
@@ -164,6 +166,23 @@ export const UserDashboardPage: React.FC = () => {
   useEffect(() => {
     loadProperties();
   }, [user]);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsFilterOpen(false); };
+    if (isFilterOpen) {
+      document.addEventListener('mousedown', handleOutside);
+      document.addEventListener('keydown', handleEsc);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isFilterOpen]);
 
   const loadProperties = async () => {
     setLoading(true);
@@ -370,16 +389,16 @@ export const UserDashboardPage: React.FC = () => {
 
       {/* ── Sticky header ────────────────────────────────────── */}
       <div className="flex-none z-20" ref={filterPanelRef}>
+        {/* Banner */}
         <div className={`relative ${welcomeInfo.gradient} overflow-hidden shadow-md`}>
-          {/* Decorative blobs */}
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
             <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
           </div>
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Row 1: Title + controls */}
             <div className="flex items-center justify-between gap-3 py-2.5">
+              {/* Left: identity */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`p-1.5 ${welcomeInfo.iconBg} rounded-lg shadow-md flex-shrink-0`}>
                   {welcomeInfo.icon}
@@ -406,20 +425,35 @@ export const UserDashboardPage: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Right: controls */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Clear filters */}
-                {(hasSidebar
-                  ? (filters.searchQuery || filters.moduleFilter !== 'all' || filters.categoryFilter !== 'all' || filters.cityFilter !== 'all')
-                  : legacyActiveCount > 0
-                ) && (
-                  <button
-                    onClick={hasSidebar ? () => setFilters(defaultFilters(priceRange.min, priceRange.max)) : clearLegacy}
-                    className="flex items-center gap-1 px-2 py-1 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg text-white text-xs font-medium transition-all"
-                  >
-                    <RotateCcw size={11} />
-                    <span className="hidden sm:inline">Clear</span>
-                  </button>
-                )}
+                {/* Filter toggle button */}
+                {(() => {
+                  const activeCount = hasSidebar
+                    ? [filters.searchQuery, filters.moduleFilter !== 'all', filters.categoryFilter !== 'all', filters.cityFilter !== 'all'].filter(Boolean).length
+                    : legacyActiveCount;
+                  return (
+                    <button
+                      onClick={() => setIsFilterOpen((v) => !v)}
+                      title="Search & Filter"
+                      className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                        isFilterOpen || activeCount > 0
+                          ? 'bg-white text-gray-800 border-white shadow-sm'
+                          : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
+                      }`}
+                    >
+                      <SlidersHorizontal size={13} />
+                      <span className="hidden sm:inline">Filters</span>
+                      {activeCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-gray-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
+                          {activeCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
+
                 {/* View toggle */}
                 <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-0.5 gap-0.5">
                   {VIEW_OPTIONS.map(({ mode, icon, label }) => (
@@ -438,6 +472,7 @@ export const UserDashboardPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
+
                 <button
                   onClick={() => navigate(ROUTES.BOOKINGS)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-lg font-medium text-xs transition-all duration-200 whitespace-nowrap"
@@ -448,113 +483,130 @@ export const UserDashboardPage: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Row 2: Inline quick-filter bar */}
-            <div className="flex items-center gap-2 pb-2.5 flex-wrap">
-              {/* Search input */}
-              <div className="relative flex-1 min-w-[160px] max-w-xs">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search properties..."
-                  value={hasSidebar ? filters.searchQuery : legacySearch}
-                  onChange={(e) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-                    : setLegacySearch(e.target.value)
-                  }
-                  className="w-full pl-7 pr-7 py-1.5 text-xs bg-white/15 hover:bg-white/20 focus:bg-white/25 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-white/40 transition-all"
-                />
-                {(hasSidebar ? filters.searchQuery : legacySearch) && (
-                  <button
-                    onClick={() => hasSidebar
-                      ? setFilters((prev) => ({ ...prev, searchQuery: '' }))
-                      : setLegacySearch('')
+        {/* Filter dropdown panel */}
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isFilterOpen ? 'max-h-[260px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="bg-white/95 backdrop-blur-md border-b border-gray-200/70 shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, location..."
+                    value={hasSidebar ? filters.searchQuery : legacySearch}
+                    onChange={(e) => hasSidebar
+                      ? setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+                      : setLegacySearch(e.target.value)
                     }
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+                    className="w-full pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+                  />
+                  {(hasSidebar ? filters.searchQuery : legacySearch) && (
+                    <button
+                      onClick={() => hasSidebar
+                        ? setFilters((prev) => ({ ...prev, searchQuery: '' }))
+                        : setLegacySearch('')
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Facility Type */}
+                {availableModules.length > 0 && (
+                  <select
+                    value={hasSidebar ? filters.moduleFilter : legacyModule}
+                    onChange={(e) => hasSidebar
+                      ? setFilters((prev) => ({ ...prev, moduleFilter: e.target.value }))
+                      : setLegacyModule(e.target.value)
+                    }
+                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
                   >
-                    <X size={11} />
+                    <option value="all">All Types</option>
+                    {availableModules.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Category chips */}
+                <div className="flex items-center gap-1">
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: 'A', label: 'Cat A' },
+                    { value: 'B', label: 'Cat B' },
+                    { value: 'C', label: 'Cat C' },
+                  ].map(({ value, label }) => {
+                    const active = (hasSidebar ? filters.categoryFilter : legacyCategory) === value;
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => hasSidebar
+                          ? setFilters((prev) => ({ ...prev, categoryFilter: value }))
+                          : setLegacyCategory(value)
+                        }
+                        className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${
+                          active
+                            ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Location */}
+                {availableCities.length > 0 && (
+                  <select
+                    value={hasSidebar ? filters.cityFilter : legacyCity}
+                    onChange={(e) => hasSidebar
+                      ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
+                      : setLegacyCity(e.target.value)
+                    }
+                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
+                  >
+                    <option value="all">All Locations</option>
+                    {availableCities.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Sort */}
+                {hasSidebar && (
+                  <select
+                    value={filters.sortOrder}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, sortOrder: e.target.value as SortOrder }))}
+                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
+                  >
+                    <option value="top_picks">Top Picks</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="name_asc">Name A–Z</option>
+                  </select>
+                )}
+
+                {/* Clear */}
+                {(hasSidebar
+                  ? (filters.searchQuery || filters.moduleFilter !== 'all' || filters.categoryFilter !== 'all' || filters.cityFilter !== 'all')
+                  : legacyActiveCount > 0
+                ) && (
+                  <button
+                    onClick={hasSidebar ? () => setFilters(defaultFilters(priceRange.min, priceRange.max)) : clearLegacy}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all"
+                  >
+                    <RotateCcw size={11} />
+                    Clear
                   </button>
                 )}
               </div>
-
-              {/* Facility Type dropdown */}
-              {availableModules.length > 0 && (
-                <select
-                  value={hasSidebar ? filters.moduleFilter : legacyModule}
-                  onChange={(e) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, moduleFilter: e.target.value }))
-                    : setLegacyModule(e.target.value)
-                  }
-                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
-                  style={{ backgroundImage: 'none' }}
-                >
-                  <option value="all" className="text-gray-800 bg-white">All Types</option>
-                  {availableModules.map((m) => (
-                    <option key={m.id} value={m.id} className="text-gray-800 bg-white">{m.name}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Category chips */}
-              <div className="flex items-center gap-1">
-                {[
-                  { value: 'all', label: 'All' },
-                  { value: 'A', label: 'Cat A' },
-                  { value: 'B', label: 'Cat B' },
-                  { value: 'C', label: 'Cat C' },
-                ].map(({ value, label }) => {
-                  const active = (hasSidebar ? filters.categoryFilter : legacyCategory) === value;
-                  return (
-                    <button
-                      key={value}
-                      onClick={() => hasSidebar
-                        ? setFilters((prev) => ({ ...prev, categoryFilter: value }))
-                        : setLegacyCategory(value)
-                      }
-                      className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${
-                        active
-                          ? 'bg-white text-gray-800 border-white shadow-sm'
-                          : 'bg-white/15 hover:bg-white/25 border-white/30 text-white/90'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* City/Location dropdown */}
-              {availableCities.length > 0 && (
-                <select
-                  value={hasSidebar ? filters.cityFilter : legacyCity}
-                  onChange={(e) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
-                    : setLegacyCity(e.target.value)
-                  }
-                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
-                  style={{ backgroundImage: 'none' }}
-                >
-                  <option value="all" className="text-gray-800 bg-white">All Locations</option>
-                  {availableCities.map((c) => (
-                    <option key={c} value={c} className="text-gray-800 bg-white">{c}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Sort (sidebar roles only) */}
-              {hasSidebar && (
-                <select
-                  value={filters.sortOrder}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, sortOrder: e.target.value as SortOrder }))}
-                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
-                  style={{ backgroundImage: 'none' }}
-                >
-                  <option value="top_picks" className="text-gray-800 bg-white">Top Picks</option>
-                  <option value="price_asc" className="text-gray-800 bg-white">Price: Low to High</option>
-                  <option value="price_desc" className="text-gray-800 bg-white">Price: High to Low</option>
-                  <option value="name_asc" className="text-gray-800 bg-white">Name A–Z</option>
-                </select>
-              )}
             </div>
           </div>
         </div>
