@@ -630,7 +630,7 @@ export const UserDashboardPage: React.FC = () => {
               }`}
             >
               <div
-                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-hidden flex flex-col"
                 style={{ maxHeight: 'calc(100vh - 160px)' }}
               >
                 <FilterSidebar

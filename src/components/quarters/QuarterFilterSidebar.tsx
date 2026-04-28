@@ -148,7 +148,7 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
   }
 
   return (
-    <div className="flex-shrink-0 w-72 flex flex-col h-full overflow-hidden">
+    <div className="flex-shrink-0 w-72 flex flex-col h-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -181,7 +181,7 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
       </div>
 
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 space-y-5">
 
         {/* Mini Map */}
         {mapCenter ? (

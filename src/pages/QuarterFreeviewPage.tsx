@@ -554,7 +554,7 @@ export const QuarterFreeviewPage: React.FC = () => {
           {/* Left sidebar (list view only) */}
           {isListView && (
             <div className={`flex-shrink-0 self-start sticky top-4 transition-all duration-300 ${sidebarCollapsed ? 'w-11' : 'w-72'}`}>
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-hidden flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
                 <QuarterFilterSidebar
                   collapsed={sidebarCollapsed}
                   onCollapse={setSidebarCollapsed}
