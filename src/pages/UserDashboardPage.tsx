@@ -10,7 +10,6 @@ import {
   Shield,
   Users,
   Home,
-  SlidersHorizontal,
   RotateCcw,
   X,
   Search,
@@ -144,7 +143,6 @@ export const UserDashboardPage: React.FC = () => {
 
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dashboardView', 'card') as [ViewMode, (v: ViewMode) => void];
 
@@ -166,16 +164,6 @@ export const UserDashboardPage: React.FC = () => {
   useEffect(() => {
     loadProperties();
   }, [user]);
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    if (isFilterOpen) document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [isFilterOpen]);
 
   const loadProperties = async () => {
     setLoading(true);
@@ -381,22 +369,23 @@ export const UserDashboardPage: React.FC = () => {
       <Header />
 
       {/* ── Sticky header ────────────────────────────────────── */}
-      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20" ref={filterPanelRef}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-3">
+      <div className="flex-none z-20" ref={filterPanelRef}>
+        <div className={`relative ${welcomeInfo.gradient} overflow-hidden shadow-md`}>
+          {/* Decorative blobs */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
+            <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
+          </div>
 
-          {/* Welcome banner */}
-          <div className={`relative ${welcomeInfo.gradient} rounded-2xl px-4 py-3 mb-3 overflow-hidden shadow-lg`}>
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
-              <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
-            </div>
-            <div className="relative flex items-center justify-between gap-3">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Row 1: Title + controls */}
+            <div className="flex items-center justify-between gap-3 py-2.5">
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`p-2 ${welcomeInfo.iconBg} rounded-lg shadow-md flex-shrink-0`}>
+                <div className={`p-1.5 ${welcomeInfo.iconBg} rounded-lg shadow-md flex-shrink-0`}>
                   {welcomeInfo.icon}
                 </div>
-                <div className="flex items-center gap-2.5 flex-wrap min-w-0">
-                  <h1 className="text-base md:text-lg font-bold text-white leading-none whitespace-nowrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h1 className="text-sm font-bold text-white leading-none whitespace-nowrap">
                     {welcomeInfo.title}
                   </h1>
                   {user && (
@@ -409,16 +398,36 @@ export const UserDashboardPage: React.FC = () => {
                       {user.fullName || user.email}
                     </span>
                   )}
+                  {!loading && (
+                    <span className="hidden sm:inline text-white/60 text-xs whitespace-nowrap">
+                      — {displayProperties.length} {displayProperties.length === 1 ? 'property' : 'properties'}
+                      {displayProperties.length < properties.length ? ` of ${properties.length}` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-1 gap-0.5">
+                {/* Clear filters */}
+                {(hasSidebar
+                  ? (filters.searchQuery || filters.moduleFilter !== 'all' || filters.categoryFilter !== 'all' || filters.cityFilter !== 'all')
+                  : legacyActiveCount > 0
+                ) && (
+                  <button
+                    onClick={hasSidebar ? () => setFilters(defaultFilters(priceRange.min, priceRange.max)) : clearLegacy}
+                    className="flex items-center gap-1 px-2 py-1 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg text-white text-xs font-medium transition-all"
+                  >
+                    <RotateCcw size={11} />
+                    <span className="hidden sm:inline">Clear</span>
+                  </button>
+                )}
+                {/* View toggle */}
+                <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-0.5 gap-0.5">
                   {VIEW_OPTIONS.map(({ mode, icon, label }) => (
                     <button
                       key={mode}
                       onClick={() => setViewMode(mode)}
                       title={label}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
                         viewMode === mode
                           ? 'bg-white text-gray-800 shadow-sm'
                           : 'text-white/80 hover:text-white hover:bg-white/15'
@@ -431,190 +440,123 @@ export const UserDashboardPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => navigate(ROUTES.BOOKINGS)}
-                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-xs md:text-sm transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-lg font-medium text-xs transition-all duration-200 whitespace-nowrap"
                 >
-                  <History size={15} />
+                  <History size={13} />
                   <span className="hidden sm:inline">My Bookings</span>
-                  <ChevronRight size={13} />
+                  <ChevronRight size={11} />
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Toolbar */}
-          {hasSidebar ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-gray-500">
-                {loading ? 'Loading...' : (
-                  <>
-                    <span className="font-semibold text-gray-800">{displayProperties.length}</span>
-                    {' '}{displayProperties.length === 1 ? 'property' : 'properties'} found
-                    {displayProperties.length < properties.length && (
-                      <span className="ml-1.5 text-xs text-gray-400">(filtered from {properties.length})</span>
-                    )}
-                  </>
-                )}
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <SlidersHorizontal size={13} />
-                <span>Use sidebar to filter</span>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-gray-500">
-                  {loading ? 'Loading...' : (
-                    <>
-                      <span className="font-semibold text-gray-800">{displayProperties.length}</span>
-                      {' '}{displayProperties.length === 1 ? 'property' : 'properties'} available
-                      {legacyActiveCount > 0 && (
-                        <span className="ml-1.5 text-xs text-gray-400">(filtered from {properties.length})</span>
-                      )}
-                    </>
-                  )}
-                </p>
-                <div className="flex items-center gap-2">
-                  {legacyActiveCount > 0 && (
-                    <button
-                      onClick={clearLegacy}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-2.5 py-2 rounded-lg hover:bg-gray-100"
-                    >
-                      <RotateCcw size={13} />
-                      Clear
-                    </button>
-                  )}
+            {/* Row 2: Inline quick-filter bar */}
+            <div className="flex items-center gap-2 pb-2.5 flex-wrap">
+              {/* Search input */}
+              <div className="relative flex-1 min-w-[160px] max-w-xs">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search properties..."
+                  value={hasSidebar ? filters.searchQuery : legacySearch}
+                  onChange={(e) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
+                    : setLegacySearch(e.target.value)
+                  }
+                  className="w-full pl-7 pr-7 py-1.5 text-xs bg-white/15 hover:bg-white/20 focus:bg-white/25 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-white/40 transition-all"
+                />
+                {(hasSidebar ? filters.searchQuery : legacySearch) && (
                   <button
-                    onClick={() => setIsFilterOpen((v) => !v)}
-                    className={`relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all border shadow-sm hover:shadow-md ${
-                      isFilterOpen || legacyActiveCount > 0
-                        ? 'bg-gray-800 text-white border-gray-800'
-                        : 'bg-white/60 backdrop-blur-sm text-gray-700 border-gray-200 hover:bg-white'
-                    }`}
+                    onClick={() => hasSidebar
+                      ? setFilters((prev) => ({ ...prev, searchQuery: '' }))
+                      : setLegacySearch('')
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
                   >
-                    <SlidersHorizontal size={16} />
-                    Search & Filter
-                    {legacyActiveCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
-                        {legacyActiveCount}
-                      </span>
-                    )}
+                    <X size={11} />
                   </button>
-                </div>
+                )}
               </div>
 
-              {/* Legacy expandable filter panel */}
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isFilterOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'
-              }`}>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                      <SlidersHorizontal size={15} className="text-gray-500" />
-                      Search & Filter
-                    </h3>
-                    <button onClick={() => setIsFilterOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                      <X size={15} className="text-gray-500" />
+              {/* Facility Type dropdown */}
+              {availableModules.length > 0 && (
+                <select
+                  value={hasSidebar ? filters.moduleFilter : legacyModule}
+                  onChange={(e) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, moduleFilter: e.target.value }))
+                    : setLegacyModule(e.target.value)
+                  }
+                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'none' }}
+                >
+                  <option value="all" className="text-gray-800 bg-white">All Types</option>
+                  {availableModules.map((m) => (
+                    <option key={m.id} value={m.id} className="text-gray-800 bg-white">{m.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Category chips */}
+              <div className="flex items-center gap-1">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'A', label: 'Cat A' },
+                  { value: 'B', label: 'Cat B' },
+                  { value: 'C', label: 'Cat C' },
+                ].map(({ value, label }) => {
+                  const active = (hasSidebar ? filters.categoryFilter : legacyCategory) === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => hasSidebar
+                        ? setFilters((prev) => ({ ...prev, categoryFilter: value }))
+                        : setLegacyCategory(value)
+                      }
+                      className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${
+                        active
+                          ? 'bg-white text-gray-800 border-white shadow-sm'
+                          : 'bg-white/15 hover:bg-white/25 border-white/30 text-white/90'
+                      }`}
+                    >
+                      {label}
                     </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Search</label>
-                      <div className="relative">
-                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        <input
-                          type="text"
-                          placeholder="Property name, location, or address..."
-                          value={legacySearch}
-                          onChange={(e) => setLegacySearch(e.target.value)}
-                          className="w-full pl-9 pr-9 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 focus:bg-white transition-all"
-                        />
-                        {legacySearch && (
-                          <button onClick={() => setLegacySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {availableModules.length > 0 && (
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Facility Type</label>
-                        <div className="flex flex-wrap gap-2">
-                          {[{ id: 'all', name: 'All Types' }, ...availableModules].map((mod) => (
-                            <button
-                              key={mod.id}
-                              onClick={() => setLegacyModule(mod.id)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                                legacyModule === mod.id
-                                  ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                              }`}
-                            >
-                              {mod.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Category</label>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { value: 'all', label: 'All', cls: 'bg-gray-800 text-white border-gray-800', def: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
-                          { value: 'A', label: 'Category A', cls: 'bg-amber-600 text-white border-amber-600', def: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
-                          { value: 'B', label: 'Category B', cls: 'bg-blue-600 text-white border-blue-600', def: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-                          { value: 'C', label: 'Category C', cls: 'bg-gray-600 text-white border-gray-600', def: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' },
-                        ].map(({ value, label, cls, def }) => (
-                          <button
-                            key={value}
-                            onClick={() => setLegacyCategory(value)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shadow-sm ${legacyCategory === value ? cls : def}`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {availableCities.length > 0 && (
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Location</label>
-                        <div className="flex flex-wrap gap-2">
-                          {[{ city: 'all', label: 'All Locations' }, ...availableCities.map((c) => ({ city: c, label: c }))].map(({ city, label }) => (
-                            <button
-                              key={city}
-                              onClick={() => setLegacyCity(city)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                                legacyCity === city
-                                  ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                              }`}
-                            >
-                              {city !== 'all' && <MapPin size={11} />}
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {legacyActiveCount > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                      <p className="text-xs text-gray-500">
-                        {legacyActiveCount} filter{legacyActiveCount > 1 ? 's' : ''} active — showing {displayProperties.length} of {properties.length}
-                      </p>
-                      <button
-                        onClick={clearLegacy}
-                        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold transition-colors"
-                      >
-                        <RotateCcw size={12} />
-                        Clear All
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            </>
-          )}
+
+              {/* City/Location dropdown */}
+              {availableCities.length > 0 && (
+                <select
+                  value={hasSidebar ? filters.cityFilter : legacyCity}
+                  onChange={(e) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
+                    : setLegacyCity(e.target.value)
+                  }
+                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'none' }}
+                >
+                  <option value="all" className="text-gray-800 bg-white">All Locations</option>
+                  {availableCities.map((c) => (
+                    <option key={c} value={c} className="text-gray-800 bg-white">{c}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Sort (sidebar roles only) */}
+              {hasSidebar && (
+                <select
+                  value={filters.sortOrder}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, sortOrder: e.target.value as SortOrder }))}
+                  className="px-2.5 py-1.5 text-xs bg-white/15 hover:bg-white/20 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-white/40 transition-all cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'none' }}
+                >
+                  <option value="top_picks" className="text-gray-800 bg-white">Top Picks</option>
+                  <option value="price_asc" className="text-gray-800 bg-white">Price: Low to High</option>
+                  <option value="price_desc" className="text-gray-800 bg-white">Price: High to Low</option>
+                  <option value="name_asc" className="text-gray-800 bg-white">Name A–Z</option>
+                </select>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
