@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, Search, Filter, Home, Bed, Ruler, X,
   CheckCircle, MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
-  Layers, ChevronDown, RotateCcw,
+  Layers, ChevronDown, RotateCcw, Shield, Users, History,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { ViewSwitcher, ViewMode } from '../components/ui/ViewSwitcher';
+import { ViewMode } from '../components/ui/ViewSwitcher';
 import { Modal } from '../components/ui/Modal';
-import { Button } from '../components/ui/Button';
 import { QuarterListCard } from '../components/quarters/QuarterListCard';
 import {
   QuarterFilterSidebar,
@@ -19,6 +18,70 @@ import { quartersService, Quarter, QuarterFilters } from '../services/quartersSe
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
+import { ROLE_LABELS } from '../constants/roles';
+
+// ── Role-aware welcome banner config ────────────────────────────
+
+const QUARTERS_WELCOME: Record<string, {
+  title: string;
+  icon: React.ReactNode;
+  gradient: string;
+  iconBg: string;
+}> = {
+  govt_official: {
+    title: 'Quarters Allotment Portal',
+    icon: <Shield className="w-5 h-5 text-white" />,
+    gradient: 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-blue-700 to-cyan-600',
+  },
+  dept_user: {
+    title: 'Browse Government Quarters',
+    icon: <Home className="w-5 h-5 text-white" />,
+    gradient: 'bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500',
+    iconBg: 'bg-gradient-to-br from-teal-700 to-emerald-600',
+  },
+  public: {
+    title: 'Government Quarters Directory',
+    icon: <Building2 className="w-5 h-5 text-white" />,
+    gradient: 'bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-sky-600 to-blue-600',
+  },
+};
+
+const QUARTERS_WELCOME_DEFAULT = {
+  title: 'Browse Quarters',
+  icon: <Home className="w-5 h-5 text-white" />,
+  gradient: 'bg-gradient-to-r from-slate-600 via-slate-500 to-gray-500',
+  iconBg: 'bg-gradient-to-br from-slate-700 to-gray-600',
+};
+
+// ── View switcher icons (inline, matching dashboard style) ───────
+
+const CardIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+  </svg>
+);
+const ListIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+  </svg>
+);
+const TableIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
+    <line x1="9" y1="9" x2="9" y2="21"/>
+  </svg>
+);
+
+const VIEW_OPTIONS: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
+  { mode: 'card',  icon: <CardIcon />,  label: 'Cards' },
+  { mode: 'list',  icon: <ListIcon />,  label: 'List'  },
+  { mode: 'table', icon: <TableIcon />, label: 'Table' },
+];
 
 const QUARTER_TYPES = ['Type-I', 'Type-II', 'Type-III', 'Type-IV', 'Type-V', 'Type-VI'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK'];
@@ -246,6 +309,7 @@ const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({ quarter, isOpen
 
 export const QuarterFreeviewPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
 
   const [quarters, setQuarters] = useState<Quarter[]>([]);
@@ -382,34 +446,80 @@ export const QuarterFreeviewPage: React.FC = () => {
     return n;
   }, [sidebarFilters, rentRange]);
 
+  const welcomeInfo = (user?.role && QUARTERS_WELCOME[user.role]) ?? QUARTERS_WELCOME_DEFAULT;
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
       <Header />
 
       {/* ── Sticky header ─────────────────────────────────────── */}
-      <div className="flex-none bg-white/90 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-3">
 
-          {/* Title row */}
-          <div className="flex items-start justify-between mb-3 flex-wrap gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                <Home size={13} />
-                <ChevronRight size={12} />
-                <span>Property Inquiry</span>
-                <ChevronRight size={12} />
-                <span className="text-gray-800 font-medium">Browse Quarters</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Browse Quarters</h1>
-              <p className="text-sm text-gray-500">Browse all available quarters. Add properties to your allotment request.</p>
+          {/* ── Gradient welcome banner ── */}
+          <div className={`relative ${welcomeInfo.gradient} rounded-2xl px-4 py-3 mb-3 overflow-hidden shadow-lg`}>
+            {/* Decorative circles */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
+              <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
             </div>
-            <Button onClick={() => navigate(ROUTES.QUARTERS_REQUESTS)}>
-              <Plus size={16} className="mr-1" /> My Requests
-            </Button>
+
+            <div className="relative flex items-center justify-between gap-3">
+              {/* Left: icon + title + role badge */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`p-2 ${welcomeInfo.iconBg} rounded-lg shadow-md flex-shrink-0`}>
+                  {welcomeInfo.icon}
+                </div>
+                <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                  <h1 className="text-base md:text-lg font-bold text-white leading-none whitespace-nowrap">
+                    {welcomeInfo.title}
+                  </h1>
+                  {user && (
+                    <span className="px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded-full text-xs font-semibold border border-white/30 text-white whitespace-nowrap">
+                      {ROLE_LABELS[user.role] ?? user.role}
+                    </span>
+                  )}
+                  {user && (
+                    <span className="hidden lg:inline text-white/70 text-xs truncate">
+                      {user.fullName || user.email}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: view switcher + My Requests */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-1 gap-0.5">
+                  {VIEW_OPTIONS.map(({ mode, icon, label }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setView(mode)}
+                      title={label}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        view === mode
+                          ? 'bg-white text-gray-800 shadow-sm'
+                          : 'text-white/80 hover:text-white hover:bg-white/15'
+                      }`}
+                    >
+                      {icon}
+                      <span className="hidden md:inline">{label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => navigate(ROUTES.QUARTERS_REQUESTS)}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-xs md:text-sm transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                >
+                  <History size={15} />
+                  <span className="hidden sm:inline">My Requests</span>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Stats strip */}
-          <div className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-2.5 mb-3 flex items-center gap-6 flex-wrap">
+          <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/80 px-4 py-2.5 mb-3 flex items-center gap-6 flex-wrap shadow-sm">
             {[
               { label: 'Total', value: quarters.length, color: 'text-gray-900' },
               { label: 'Available', value: available, color: 'text-emerald-700' },
@@ -442,26 +552,24 @@ export const QuarterFreeviewPage: React.FC = () => {
                 <>
                   <button
                     onClick={() => setFilterPanelOpen(o => !o)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all shadow-sm hover:shadow-md ${
                       filterPanelOpen || activeFilterCount > 0
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                        : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+                        ? 'bg-gray-800 text-white border-gray-800'
+                        : 'bg-white/60 backdrop-blur-sm text-gray-700 border-gray-200 hover:bg-white'
                     }`}
                   >
-                    <Filter size={15} />
+                    <SlidersHorizontal size={15} />
                     Search &amp; Filter
                     {activeFilterCount > 0 && (
-                      <span className={`text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold ${
-                        filterPanelOpen ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'
-                      }`}>
+                      <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
                         {activeFilterCount}
                       </span>
                     )}
-                    <ChevronDown size={14} className={`transition-transform ${filterPanelOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`transition-transform ml-1 ${filterPanelOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {activeFilterCount > 0 && (
-                    <button onClick={clearAllFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
-                      <X size={12} /> Clear all
+                    <button onClick={clearAllFilters} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-2.5 py-2 rounded-lg hover:bg-gray-100">
+                      <RotateCcw size={13} /> Clear
                     </button>
                   )}
                 </>
@@ -475,19 +583,15 @@ export const QuarterFreeviewPage: React.FC = () => {
                   )}
                   <div className="flex items-center gap-1.5 text-xs text-gray-400 ml-2">
                     <SlidersHorizontal size={13} />
-                    <span>Filters in sidebar</span>
+                    <span>Use sidebar to filter</span>
                   </div>
                   {sidebarActiveCount > 0 && (
-                    <button onClick={clearSidebarFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 ml-1">
+                    <button onClick={clearSidebarFilters} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-2.5 py-2 rounded-lg hover:bg-gray-100 ml-1">
                       <RotateCcw size={12} /> Clear
                     </button>
                   )}
                 </div>
               )}
-
-              <div className={isListView ? '' : 'ml-auto'}>
-                <ViewSwitcher currentView={view} onViewChange={setView} />
-              </div>
             </div>
 
             {/* Expandable panel (card + table only) */}
