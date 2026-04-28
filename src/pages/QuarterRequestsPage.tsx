@@ -5,10 +5,12 @@ import {
   ArrowUp, ArrowDown, Trash2, Search, Star, Filter, X, Eye, Send,
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
+  MapPin, Layers,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
+import { ImageCarousel } from '../components/ui/ImageCarousel';
 import {
   quartersService,
   Quarter,
@@ -41,6 +43,112 @@ function getImage(q: Quarter, idx: number) {
   const first = Array.isArray(images) && images.length > 0 ? images[0] : null;
   return first || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
 }
+
+function resolveAllImages(q: Quarter): string[] {
+  let images: unknown = q.images;
+  if (typeof images === 'string') {
+    try { images = JSON.parse(images as string); } catch {
+      images = (images as string).replace(/^\{/, '').replace(/\}$/, '').split(',').map((s: string) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+    }
+  }
+  if (Array.isArray(images) && (images as string[]).length > 0) return images as string[];
+  return PLACEHOLDER_IMAGES;
+}
+
+function getOccupancyBadge(status: string) {
+  if (status === 'AVAILABLE') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (status === 'OCCUPIED')  return 'bg-red-50 text-red-700 border-red-200';
+  return 'bg-amber-50 text-amber-700 border-amber-200';
+}
+
+interface QuarterDetailCardProps {
+  quarter: Quarter;
+  compact?: boolean;
+}
+
+const QuarterDetailCard: React.FC<QuarterDetailCardProps> = ({ quarter, compact }) => {
+  const images = resolveAllImages(quarter);
+  return (
+    <div className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+      {/* Image carousel — click to open fullscreen lightbox */}
+      <div className={compact ? 'h-44' : 'h-56'}>
+        <ImageCarousel
+          images={images}
+          alt={quarter.quarter_number}
+          className="h-full"
+          showFullscreen
+          autoPlay={false}
+        />
+      </div>
+
+      {/* Details */}
+      <div className="p-4 space-y-3">
+        {/* Title + status */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-gray-900 text-base leading-tight">{quarter.quarter_number}</h3>
+            {quarter.address && (
+              <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                <MapPin size={11} className="flex-shrink-0" />
+                <span className="truncate">{quarter.address}</span>
+              </div>
+            )}
+          </div>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${getOccupancyBadge(quarter.occupancy_status)}`}>
+            {quarter.occupancy_status === 'AVAILABLE' ? 'Available' : quarter.occupancy_status === 'OCCUPIED' ? 'Occupied' : quarter.occupancy_status}
+          </span>
+        </div>
+
+        {/* Spec chips */}
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { icon: <Bed size={13} />,       label: 'Config',    value: quarter.bhk_config },
+            { icon: <Ruler size={13} />,     label: 'Area',      value: `${quarter.area_sqft} sq.ft` },
+            { icon: <Building2 size={13} />, label: 'Block/Fl',  value: `${quarter.block_name || '—'} / ${quarter.floor_number}` },
+            { icon: <Layers size={13} />,    label: 'Furnish',   value: quarter.furnishing_status },
+          ].map(item => (
+            <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+              <div className="flex items-center gap-1 text-gray-400 mb-0.5">
+                {item.icon}
+                <span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span>
+              </div>
+              <div className="text-xs font-semibold text-gray-800 truncate">{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Rent */}
+        <div className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+          <span className="text-xs text-blue-600 font-medium">Monthly Rent</span>
+          <span className="text-base font-bold text-blue-800">{fmtINR(quarter.monthly_rent)}<span className="text-xs font-normal text-blue-500">/mo</span></span>
+        </div>
+
+        {/* Amenities */}
+        {quarter.amenities?.length > 0 && (
+          <div>
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Amenities</div>
+            <div className="flex flex-wrap gap-1.5">
+              {quarter.amenities.slice(0, 6).map(a => (
+                <span key={a} className="text-xs bg-sky-50 text-sky-700 border border-sky-100 px-2 py-0.5 rounded-full">{a}</span>
+              ))}
+              {quarter.amenities.length > 6 && (
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{quarter.amenities.length - 6}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Quarter type badge */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <span className="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-full font-medium">{quarter.quarter_type}</span>
+          {quarter.block_name && (
+            <span className="text-xs text-gray-500">Block {quarter.block_name}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function fmtINR(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
@@ -467,59 +575,20 @@ export const QuarterRequestsPage: React.FC = () => {
         {/* Allotted quarter detail card */}
         <div className="p-5 border-b border-gray-100">
           {q ? (
-            <div className="rounded-xl overflow-hidden border border-emerald-100">
-              <div className="relative">
-                <img
-                  src={getImage(q, 0)}
-                  alt={q.quarter_number}
-                  className="w-full h-40 object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
-                  <div className="font-bold text-white text-lg leading-tight">{q.quarter_number}</div>
-                  <div className="text-xs text-white/80 mt-0.5">{q.address || `${q.block_name} Block`}</div>
-                </div>
-              </div>
-              <div className="bg-emerald-50 px-4 py-3 flex flex-wrap gap-4">
-                <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                  <Bed size={14} className="text-emerald-600" />
-                  <span className="font-medium">{q.bhk_config}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                  <Ruler size={14} className="text-emerald-600" />
-                  <span>{q.area_sqft} sq.ft</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 ml-auto">
-                  {fmtINR(q.monthly_rent)}<span className="font-normal text-gray-500 text-xs">/mo</span>
-                </div>
-              </div>
-              <div className="bg-white px-4 py-3 border-t border-gray-100 grid grid-cols-2 gap-3 text-xs">
-                {q.floor_number !== undefined && (
-                  <div>
-                    <div className="text-gray-400 mb-0.5">Floor</div>
-                    <div className="font-medium text-gray-800">{q.floor_number}</div>
-                  </div>
-                )}
-                {q.quarter_type && (
-                  <div>
-                    <div className="text-gray-400 mb-0.5">Type</div>
-                    <div className="font-medium text-gray-800">{q.quarter_type}</div>
-                  </div>
-                )}
-                {q.furnishing_status && (
-                  <div>
-                    <div className="text-gray-400 mb-0.5">Furnishing</div>
-                    <div className="font-medium text-gray-800">{q.furnishing_status}</div>
-                  </div>
-                )}
-                <div>
+            <>
+              <QuarterDetailCard quarter={q} />
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
                   <div className="text-gray-400 mb-0.5">Allotted On</div>
                   <div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div>
                 </div>
+                <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                  <div className="text-gray-400 mb-0.5">Status</div>
+                  <div className="font-medium text-gray-800">{allotment.approval_status}</div>
+                </div>
               </div>
-            </div>
+            </>
           ) : (
-            /* Fallback when quarter join is not available */
             <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Building2 size={16} className="text-emerald-600" />
@@ -723,18 +792,10 @@ export const QuarterRequestsPage: React.FC = () => {
       <>
         {q && (
           <div className="p-5 border-b border-gray-100">
-            <div className="flex gap-4 bg-teal-50 rounded-xl p-4 border border-teal-100">
-              <img src={getImage(q, 0)} alt={q.quarter_number} className="w-20 h-20 rounded-lg object-cover shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900 text-base">{q.quarter_number}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{q.address || `${q.block_name} Block`}</div>
-                <div className="flex items-center gap-3 text-xs text-gray-700 mt-2">
-                  <span className="flex items-center gap-1"><Bed size={11} />{q.bhk_config}</span>
-                  <span className="flex items-center gap-1"><Ruler size={11} />{q.area_sqft} sq.ft</span>
-                  <span className="font-semibold text-teal-700">{fmtINR(q.monthly_rent)}/mo</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">Occupied since: {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}</div>
-              </div>
+            <QuarterDetailCard quarter={q} />
+            <div className="mt-3 bg-teal-50 rounded-lg border border-teal-100 px-3 py-2 text-xs text-teal-800">
+              <span className="font-medium">Occupied since: </span>
+              {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
             </div>
           </div>
         )}
@@ -858,16 +919,7 @@ export const QuarterRequestsPage: React.FC = () => {
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${sc.cls}`}>{sc.label}</span>
             </div>
           </div>
-          {q && (
-            <div className="flex gap-3 bg-gray-50 rounded-lg p-3 border border-gray-100">
-              <img src={getImage(q, 0)} alt={q.quarter_number} className="w-14 h-14 rounded-lg object-cover shrink-0" />
-              <div>
-                <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
-                <div className="text-xs text-gray-500">{q.address || `${q.block_name} Block`}</div>
-                <div className="text-xs text-gray-600 mt-1">{q.bhk_config} · {fmtINR(q.monthly_rent)}/mo</div>
-              </div>
-            </div>
-          )}
+          {q && <QuarterDetailCard quarter={q} compact />}
         </div>
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -924,7 +976,12 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelPreferences = () => (
+  const RightPanelPreferences = () => {
+    const topPrefQuarter = selectedPrefs.length > 0
+      ? (selectedPrefs[0].quarter as Quarter | undefined)
+      : undefined;
+
+    return (
     <>
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div>
@@ -945,6 +1002,14 @@ export const QuarterRequestsPage: React.FC = () => {
           </span>
         )}
       </div>
+
+      {/* Top-preference quarter detail card */}
+      {topPrefQuarter && (
+        <div className="px-5 pt-4 pb-1 border-b border-gray-100">
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Top Preference Quarter</div>
+          <QuarterDetailCard quarter={topPrefQuarter} compact />
+        </div>
+      )}
 
       <div className="p-5">
         {selectedRequest?.request_status === 'DRAFT' && (
@@ -1015,6 +1080,7 @@ export const QuarterRequestsPage: React.FC = () => {
       </div>
     </>
   );
+  };
 
   // ─── render ──────────────────────────────────────────────────────────────────
 
@@ -1318,7 +1384,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
             {/* ── Right: detail panel ───────────────────────────────────── */}
             <div className="lg:col-span-3">
-              <div className="bg-white rounded-xl border border-gray-200 min-h-[400px]">
+              <div className="bg-white rounded-xl border border-gray-200 min-h-[400px] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                 {isTenantView ? (
                   <RightPanelTenantServices />
                 ) : selectedRequest ? (() => {
