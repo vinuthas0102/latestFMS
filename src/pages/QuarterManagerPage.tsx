@@ -131,6 +131,9 @@ export const QuarterManagerPage: React.FC = () => {
   const [dpFilter, setDpFilter] = useState<DPFilter>('all');
   const [quartersSummary, setQuartersSummary] = useState<{ total: number; available: number; occupied: number } | null>(null);
 
+  // Allocation panel
+  const [showAllocationPanel, setShowAllocationPanel] = useState(false);
+
   // Override mini-menu for Allocated DP rows
   const [miniMenuTarget, setMiniMenuTarget] = useState<{ req: QuarterRequest; allotment: QuarterAllotment } | null>(null);
   const miniMenuRef = useRef<HTMLDivElement>(null);
@@ -379,15 +382,22 @@ export const QuarterManagerPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Quarters Management</h1>
             <p className="text-sm text-gray-500 mt-1">Manage allotment cycles, review requests, and process tenant services.</p>
           </div>
+          <button
+            onClick={() => setShowAllocationPanel(v => !v)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              showAllocationPanel
+                ? 'bg-slate-800 text-white shadow-sm'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+            }`}
+          >
+            <BarChart3 size={15} />
+            Allocation
+          </button>
         </div>
 
         {/* DP Summary Cards */}
         <div className="mb-5">
-          <div className={`grid gap-3 ${[
-            dpCounts.occupied > 0, dpCounts.allotted > 0, dpCounts.allocated > 0,
-            dpCounts.submitted > 0, dpCounts.draft > 0,
-            !!quartersSummary,
-          ].filter(Boolean).length <= 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quartersSummary && (
               <SummaryStatsCard
                 label="Total Quarters"
@@ -397,15 +407,24 @@ export const QuarterManagerPage: React.FC = () => {
                 delay={0}
               />
             )}
+            {quartersSummary && quartersSummary.available > 0 && (
+              <SummaryStatsCard
+                label="Available"
+                value={quartersSummary.available}
+                icon={CheckCircle}
+                gradient="bg-gradient-to-r from-emerald-400 to-teal-400"
+                delay={25}
+              />
+            )}
             {dpCounts.occupied > 0 && (
               <SummaryStatsCard
                 label="Occupied"
                 value={dpCounts.occupied}
                 icon={ThumbsUp}
-                gradient="bg-gradient-to-r from-teal-500 to-emerald-500"
+                gradient="bg-gradient-to-r from-teal-500 to-emerald-600"
                 onClick={() => setDpFilter(dpFilter === 'occupied' ? 'all' : 'occupied')}
                 isActive={dpFilter === 'occupied'}
-                delay={50}
+                delay={75}
               />
             )}
             {dpCounts.allotted > 0 && (
@@ -413,10 +432,10 @@ export const QuarterManagerPage: React.FC = () => {
                 label="Allotted"
                 value={dpCounts.allotted}
                 icon={CheckCircle}
-                gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
+                gradient="bg-gradient-to-r from-cyan-500 to-blue-500"
                 onClick={() => setDpFilter(dpFilter === 'allotted' ? 'all' : 'allotted')}
                 isActive={dpFilter === 'allotted'}
-                delay={100}
+                delay={125}
               />
             )}
             {dpCounts.allocated > 0 && (
@@ -427,7 +446,7 @@ export const QuarterManagerPage: React.FC = () => {
                 gradient="bg-gradient-to-r from-amber-500 to-orange-400"
                 onClick={() => setDpFilter(dpFilter === 'allocated' ? 'all' : 'allocated')}
                 isActive={dpFilter === 'allocated'}
-                delay={150}
+                delay={175}
               />
             )}
             {dpCounts.submitted > 0 && (
@@ -435,10 +454,10 @@ export const QuarterManagerPage: React.FC = () => {
                 label="Submitted"
                 value={dpCounts.submitted}
                 icon={Send}
-                gradient="bg-gradient-to-r from-blue-500 to-sky-500"
+                gradient="bg-gradient-to-r from-blue-600 to-sky-500"
                 onClick={() => setDpFilter(dpFilter === 'submitted' ? 'all' : 'submitted')}
                 isActive={dpFilter === 'submitted'}
-                delay={200}
+                delay={225}
               />
             )}
             {dpCounts.draft > 0 && (
@@ -449,11 +468,126 @@ export const QuarterManagerPage: React.FC = () => {
                 gradient="bg-gradient-to-r from-slate-400 to-gray-500"
                 onClick={() => setDpFilter(dpFilter === 'draft' ? 'all' : 'draft')}
                 isActive={dpFilter === 'draft'}
-                delay={250}
+                delay={275}
               />
             )}
           </div>
         </div>
+
+        {/* Allocation Panel */}
+        {showAllocationPanel && (
+          <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={15} className="text-slate-600" />
+                  <span className="text-sm font-semibold text-gray-900">Allocation Overview</span>
+                  {selectedCycle && (
+                    <span className="text-xs text-gray-500">— {selectedCycle.cycle_name}</span>
+                  )}
+                </div>
+                {cycleAllotments.length > 0 && (
+                  <div className="flex items-center gap-3 ml-2">
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">
+                      {cycleAllotments.length} Total
+                    </span>
+                    <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                      {cycleAllotments.filter(a => a.approval_status === 'PENDING').length} Pending
+                    </span>
+                    <span className="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full font-medium">
+                      {cycleAllotments.filter(a => a.approval_status === 'ACKNOWLEDGED').length} Acknowledged
+                    </span>
+                    <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
+                      {cycleAllotments.filter(a => a.approval_status === 'APPROVED').length} Approved
+                    </span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowAllocationPanel(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XCircle size={15} />
+              </button>
+            </div>
+            {loadingCycleData ? (
+              <div className="py-10 text-center text-sm text-gray-400">Loading…</div>
+            ) : cycleAllotments.length === 0 ? (
+              <div className="py-12 text-center">
+                <Building2 size={32} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-sm text-gray-500">No allotments for the selected cycle.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      {['Sl. No.', 'Quarter', 'Request No.', 'BHK / Rent', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
+                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {cycleAllotments.map((allot, i) => {
+                      const q = allot.quarter as Quarter | undefined;
+                      const req = allot.request as QuarterRequest | undefined;
+                      const prefUsed = req?.preferences?.find(p => p.quarter_id === q?.id)?.preference_rank;
+                      return (
+                        <tr key={allot.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-xs text-gray-500 font-medium">{i + 1}</td>
+                          <td className="px-4 py-3">
+                            {q ? (
+                              <div className="flex items-center gap-2.5">
+                                <img src={getImage(q, i)} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                                <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
+                              </div>
+                            ) : <span className="text-xs text-gray-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700">{req?.request_number ?? '—'}</td>
+                          <td className="px-4 py-3 text-xs text-gray-500">
+                            {q ? <>{q.bhk_config} · {fmtINR(q.monthly_rent)}</> : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {prefUsed !== undefined ? (
+                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">P-{prefUsed}</span>
+                            ) : <span className="text-xs text-gray-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            {fmtDate(allot.allotment_date)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {allot.is_overridden ? (
+                              <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">Yes</span>
+                            ) : <span className="text-xs text-gray-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                              allot.approval_status === 'APPROVED'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : allot.approval_status === 'ACKNOWLEDGED'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {allot.approval_status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => setOverrideTarget(allot)}
+                              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
+                            >
+                              <Settings size={12} /> Override
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* DP filtered list */}
         {dpFilter !== 'all' && (
@@ -754,27 +888,34 @@ export const QuarterManagerPage: React.FC = () => {
             )}
 
             {/* ── Cycle Requests Tab ─────────────────────────────────── */}
-            {activeTab === 'requests' && (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                {loadingCycleData ? (
-                  <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          {['Request No.', 'Reason', 'BHK Required', 'Preferred Location', 'Preferences', 'Move-in', 'Status', ''].map(h => (
-                            <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {cycleRequests.length === 0 ? (
-                          <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">No requests for this cycle</td></tr>
-                        ) : cycleRequests.map(req => {
-                          const sc = reqStatusConfig(req.request_status);
-                          return (
+            {activeTab === 'requests' && (() => {
+              const submittedRequests = cycleRequests.filter(r => r.request_status === 'SUBMITTED');
+              return (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-900">Submitted Requests</span>
+                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium">
+                      {submittedRequests.length}
+                    </span>
+                  </div>
+                  {loadingCycleData ? (
+                    <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            {['Sl. No.', 'Request No.', 'Reason', 'BHK Required', 'Preferred Location', 'Preferences', 'Move-in', ''].map(h => (
+                              <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {submittedRequests.length === 0 ? (
+                            <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">No submitted requests for this cycle</td></tr>
+                          ) : submittedRequests.map((req, idx) => (
                             <tr key={req.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-xs text-gray-500 font-medium">{idx + 1}</td>
                               <td className="px-4 py-3 font-mono text-xs text-gray-700">{req.request_number}</td>
                               <td className="px-4 py-3 text-gray-600 max-w-[150px] truncate">{req.request_reason || '—'}</td>
                               <td className="px-4 py-3 text-gray-600">{req.required_bhk_config || '—'}</td>
@@ -785,12 +926,7 @@ export const QuarterManagerPage: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                {req.move_in_date ? new Date(req.move_in_date).toLocaleDateString('en-IN') : '—'}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit ${sc.cls}`}>
-                                  {sc.icon}{sc.label}
-                                </span>
+                                {req.move_in_date ? fmtDate(req.move_in_date) : '—'}
                               </td>
                               <td className="px-4 py-3">
                                 <button
@@ -801,14 +937,14 @@ export const QuarterManagerPage: React.FC = () => {
                                 </button>
                               </td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Allotments Tab ─────────────────────────────────────── */}
             {activeTab === 'allotments' && (
@@ -836,7 +972,7 @@ export const QuarterManagerPage: React.FC = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
-                          {['Allotted Quarter', 'Request No.', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
+                          {['Sl. No.', 'Allotted Quarter', 'Request No.', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
                             <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -848,6 +984,7 @@ export const QuarterManagerPage: React.FC = () => {
                           const prefUsed = req?.preferences?.find(p => p.quarter_id === q?.id)?.preference_rank;
                           return (
                             <tr key={allot.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-xs text-gray-500 font-medium">{i + 1}</td>
                               <td className="px-4 py-3">
                                 {q ? (
                                   <div className="flex items-center gap-3">
