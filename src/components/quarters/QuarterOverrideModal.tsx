@@ -256,7 +256,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
         </div>
 
         {/* Request A Banner */}
-        <div className="px-6 pt-4 pb-3">
+        <div className="px-6 pt-3 pb-2">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-4">
             {reqAAllottedQ && (
               <img src={getImage(reqAAllottedQ, 0)} alt="" className="w-20 h-16 rounded-lg object-cover shrink-0" />
@@ -331,7 +331,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
           </div>
 
           {/* Right Panel: Request A preferences */}
-          <div className="flex flex-col min-h-0">
+          <div className="flex flex-col min-h-0 overflow-hidden">
             <div className="px-4 pt-3 pb-2 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
