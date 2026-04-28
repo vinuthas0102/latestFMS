@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2, Search, Filter, Home, Bed, Ruler, X,
+  Building2, Search, Home, Bed, Ruler,
   CheckCircle, MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
-  Layers, ChevronDown, RotateCcw, Shield, Users, History,
+  Layers, ChevronDown, RotateCcw, Shield, History,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { ViewMode } from '../components/ui/ViewSwitcher';
-import { Modal } from '../components/ui/Modal';
 import { QuarterListCard } from '../components/quarters/QuarterListCard';
 import {
   QuarterFilterSidebar,
@@ -208,104 +207,6 @@ const QuarterCard: React.FC<QuarterCardProps> = ({ quarter, idx, onView, onAddTo
   </article>
 );
 
-interface QuarterDetailModalProps {
-  quarter: Quarter | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onAddToRequest: (q: Quarter) => void;
-}
-
-const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({ quarter, isOpen, onClose, onAddToRequest }) => {
-  if (!quarter) return null;
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg" noPadding>
-      <div className="flex flex-col">
-        <div className="relative">
-          <img
-            src={resolveImage(quarter, 0)}
-            alt={quarter.quarter_number}
-            className="w-full h-64 object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGES[0]; }}
-          />
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/90 rounded-full shadow-md hover:bg-white transition-colors">
-            <X size={18} className="text-gray-700" />
-          </button>
-          <div className="absolute bottom-4 left-4 flex gap-2">
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getOccupancyBadge(quarter.occupancy_status)}`}>
-              {quarter.occupancy_status === 'AVAILABLE' ? 'Available' : 'Occupied'}
-            </span>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-800/80 text-white">
-              {quarter.quarter_type}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{quarter.quarter_number}</h2>
-              {quarter.address && (
-                <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-                  <MapPin size={14} />{quarter.address}
-                </div>
-              )}
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{fmtINR(quarter.monthly_rent)}</div>
-              <div className="text-xs text-gray-500">per month</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-            {[
-              { icon: <Bed size={16} />, label: 'Configuration', value: quarter.bhk_config },
-              { icon: <Ruler size={16} />, label: 'Area', value: `${quarter.area_sqft} sq.ft` },
-              { icon: <Building2 size={16} />, label: 'Block / Floor', value: `${quarter.block_name || '—'} / ${quarter.floor_number}` },
-              { icon: <Layers size={16} />, label: 'Furnishing', value: quarter.furnishing_status },
-            ].map(item => (
-              <div key={item.label} className="bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5 text-gray-500 mb-1">{item.icon}<span className="text-xs">{item.label}</span></div>
-                <div className="text-sm font-semibold text-gray-900">{item.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {quarter.description && (
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
-            </div>
-          )}
-
-          {quarter.amenities?.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Amenities</h3>
-              <div className="flex flex-wrap gap-2">
-                {quarter.amenities.map(a => (
-                  <span key={a} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1 rounded-full">{a}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {quarter.occupancy_status === 'AVAILABLE' && (
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                Close
-              </button>
-              <button
-                onClick={() => { onAddToRequest(quarter); onClose(); }}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={15} /> Add to Request
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </Modal>
-  );
-};
 
 export const QuarterFreeviewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -315,7 +216,6 @@ export const QuarterFreeviewPage: React.FC = () => {
   const [quarters, setQuarters] = useState<Quarter[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('card');
-  const [detailQuarter, setDetailQuarter] = useState<Quarter | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Legacy top-panel filter (card + table views)
@@ -365,7 +265,6 @@ export const QuarterFreeviewPage: React.FC = () => {
   }, [filters, search, load]);
 
   const isListView = view === 'list';
-  const available = quarters.filter(q => q.occupancy_status === 'AVAILABLE').length;
 
   // Sidebar filtering + sorting (list view only)
   const displayQuarters = useMemo(() => {
@@ -399,6 +298,10 @@ export const QuarterFreeviewPage: React.FC = () => {
     if (!first) return null;
     return { lat: Number(first.metadata.latitude), lng: Number(first.metadata.longitude) };
   }, [quarters]);
+
+  const handleViewQuarter = (q: Quarter) => {
+    navigate(`/quarters/${q.id}`);
+  };
 
   const handleAddToRequest = (q: Quarter) => {
     navigate(ROUTES.QUARTERS_REQUESTS, { state: { prefill: q } });
@@ -722,13 +625,13 @@ export const QuarterFreeviewPage: React.FC = () => {
             ) : isListView ? (
               <div className="space-y-4">
                 {displayQuarters.map((q, i) => (
-                  <QuarterListCard key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
+                  <QuarterListCard key={q.id} quarter={q} idx={i} onView={handleViewQuarter} onAddToRequest={handleAddToRequest} />
                 ))}
               </div>
             ) : view === 'card' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {displayQuarters.map((q, i) => (
-                  <QuarterCard key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
+                  <QuarterCard key={q.id} quarter={q} idx={i} onView={handleViewQuarter} onAddToRequest={handleAddToRequest} />
                 ))}
               </div>
             ) : (
@@ -759,7 +662,7 @@ export const QuarterFreeviewPage: React.FC = () => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <button onClick={() => setDetailQuarter(q)} className="p-1.5 rounded border border-gray-200 text-gray-500 hover:text-blue-600 transition-colors"><Eye size={13} /></button>
+                              <button onClick={() => handleViewQuarter(q)} className="p-1.5 rounded border border-gray-200 text-gray-500 hover:text-blue-600 transition-colors"><Eye size={13} /></button>
                               {q.occupancy_status === 'AVAILABLE' && (
                                 <button onClick={() => handleAddToRequest(q)} className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">
                                   <Plus size={11} /> Add
@@ -778,12 +681,6 @@ export const QuarterFreeviewPage: React.FC = () => {
         </div>
       </div>
 
-      <QuarterDetailModal
-        quarter={detailQuarter}
-        isOpen={!!detailQuarter}
-        onClose={() => setDetailQuarter(null)}
-        onAddToRequest={handleAddToRequest}
-      />
     </div>
   );
 };

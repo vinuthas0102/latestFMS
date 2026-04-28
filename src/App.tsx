@@ -25,6 +25,7 @@ const BookingDetailPage = lazy(() => import('./pages/BookingDetailPage').then(m 
 const AdHocBookingPage = lazy(() => import('./pages/AdHocBookingPage').then(m => ({ default: m.AdHocBookingPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 const QuarterFreeviewPage = lazy(() => import('./pages/QuarterFreeviewPage').then(m => ({ default: m.QuarterFreeviewPage })));
+const QuarterDetailPage = lazy(() => import('./pages/QuarterDetailPage').then(m => ({ default: m.QuarterDetailPage })));
 const QuarterRequestsPage = lazy(() => import('./pages/QuarterRequestsPage').then(m => ({ default: m.QuarterRequestsPage })));
 const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(m => ({ default: m.QuarterManagerPage })));
 
@@ -170,6 +171,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
                 <QuarterFreeviewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/quarters/:id"
+            element={
+              <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
+                <QuarterDetailPage />
               </ProtectedRoute>
             }
           />

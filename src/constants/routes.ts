@@ -23,6 +23,7 @@ export const ROUTES = {
   ADMIN: '/admin',
   PROFILE: '/profile',
   QUARTERS_FREEVIEW: '/quarters',
+  QUARTERS_DETAIL: '/quarters/:id',
   QUARTERS_REQUESTS: '/quarters/requests',
   QUARTERS_MANAGER: '/quarters/manager',
 } as const;
