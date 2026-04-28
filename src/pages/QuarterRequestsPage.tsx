@@ -139,6 +139,8 @@ export const QuarterRequestsPage: React.FC = () => {
   // My Requests list filters
   const [reqSearch, setReqSearch] = useState('');
   const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
+  const [reqStatusFilter, setReqStatusFilter] = useState<string>('ALL');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // Right-panel action state
   type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'upgrade' | 'vacate';
@@ -403,6 +405,10 @@ export const QuarterRequestsPage: React.FC = () => {
     else if (dpFilter === 'tenantServices') result = result.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
     else if (dpFilter === 'vacated')   result = result.filter(r => r.request_status === 'VACATED');
 
+    if (reqStatusFilter !== 'ALL') {
+      result = result.filter(r => r.request_status === reqStatusFilter);
+    }
+
     if (reqSearch.trim()) {
       const q = reqSearch.toLowerCase();
       result = result.filter(r =>
@@ -417,7 +423,7 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort]);
+  }, [requests, dpFilter, reqSearch, reqSort, reqStatusFilter]);
 
   const filteredTenantRequests = React.useMemo(() => {
     return [...tenantRequests].sort((a, b) =>
@@ -1036,16 +1042,34 @@ export const QuarterRequestsPage: React.FC = () => {
                   <FileText size={15} />
                   {isTenantView ? 'Tenant Service Requests' : 'My Requests'}
                 </h2>
-                <span className="text-xs text-gray-500">
-                  {isTenantView
-                    ? `${filteredTenantRequests.length} total`
-                    : `${filteredRequests.length}${filteredRequests.length < requests.length ? ` of ${requests.length}` : ''} total`}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">
+                    {isTenantView
+                      ? `${filteredTenantRequests.length} total`
+                      : `${filteredRequests.length}${filteredRequests.length < requests.length ? ` of ${requests.length}` : ''} total`}
+                  </span>
+                  {!isTenantView && (
+                    <button
+                      onClick={() => setShowFilterPanel(v => !v)}
+                      className={`relative flex items-center justify-center w-7 h-7 rounded-lg border transition-colors ${
+                        showFilterPanel || reqSearch || reqStatusFilter !== 'ALL'
+                          ? 'bg-blue-50 border-blue-300 text-blue-600'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                      title="Filter requests"
+                    >
+                      <Filter size={13} />
+                      {(reqSearch || reqStatusFilter !== 'ALL') && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Search + sort (not shown for tenant view for brevity) */}
-              {!isTenantView && (
-                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2 shadow-sm">
+              {/* Collapsible filter panel */}
+              {!isTenantView && showFilterPanel && (
+                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2.5 shadow-sm">
                   <div className="relative">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
@@ -1053,7 +1077,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       placeholder="Search by number, BHK, location…"
                       value={reqSearch}
                       onChange={e => setReqSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full pl-8 pr-8 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                     />
                     {reqSearch && (
                       <button onClick={() => setReqSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -1061,7 +1085,33 @@ export const QuarterRequestsPage: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center justify-end">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Status</label>
+                    <select
+                      value={reqStatusFilter}
+                      onChange={e => setReqStatusFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    >
+                      <option value="ALL">All statuses</option>
+                      <option value="DRAFT">Draft</option>
+                      <option value="SUBMITTED">Submitted</option>
+                      <option value="ALLOTTED">Allotted</option>
+                      <option value="ACKNOWLEDGED">Acknowledged (Occupied)</option>
+                      <option value="UPGRADE_REQUESTED">Upgrade Requested</option>
+                      <option value="EXTEND_REQUESTED">Extension Requested</option>
+                      <option value="VACATE_REQUESTED">Vacate Requested</option>
+                      <option value="VACATED">Vacated</option>
+                      <option value="REJECTED">Rejected</option>
+                      <option value="WITHDRAWN">Withdrawn</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between pt-0.5">
+                    <button
+                      onClick={() => { setReqSearch(''); setReqStatusFilter('ALL'); }}
+                      className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Clear filters
+                    </button>
                     <button
                       onClick={() => setReqSort(o => o === 'newest' ? 'oldest' : 'newest')}
                       className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"

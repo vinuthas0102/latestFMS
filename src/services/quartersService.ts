@@ -479,4 +479,68 @@ export const quartersService = {
       .eq('id', tenantRequestId);
     if (error) throw error;
   },
+
+  async getAllRequests(): Promise<QuarterRequest[]> {
+    const { data, error } = await supabase
+      .from('quarter_requests')
+      .select(`
+        *,
+        preferences:quarter_request_preferences(*, quarter:quarters(*)),
+        allotment:quarter_allotments(*, quarter:quarters(*))
+      `)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as unknown as QuarterRequest[];
+  },
+
+  async getAllTenantRequests(): Promise<QuarterTenantRequest[]> {
+    const { data, error } = await supabase
+      .from('quarter_tenant_requests')
+      .select(`*, allotment:quarter_allotments(*, quarter:quarters(*))`)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as unknown as QuarterTenantRequest[];
+  },
+
+  async approveTenantRequest(tenantRequestId: string, requestId: string, serviceType: string, eoNotes: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: tErr } = await supabase
+      .from('quarter_tenant_requests')
+      .update({ request_status: 'APPROVED', eo_notes: eoNotes, updated_at: now })
+      .eq('id', tenantRequestId);
+    if (tErr) throw tErr;
+
+    const nextStatus: Record<string, string> = {
+      VACATE: 'VACATED',
+      EXTEND: 'ACKNOWLEDGED',
+      UPGRADE: 'ALLOTTED',
+    };
+    if (nextStatus[serviceType]) {
+      await supabase
+        .from('quarter_requests')
+        .update({ request_status: nextStatus[serviceType], updated_at: now })
+        .eq('id', requestId);
+    }
+  },
+
+  async rejectTenantRequest(tenantRequestId: string, requestId: string, serviceType: string, eoNotes: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: tErr } = await supabase
+      .from('quarter_tenant_requests')
+      .update({ request_status: 'REJECTED', eo_notes: eoNotes, updated_at: now })
+      .eq('id', tenantRequestId);
+    if (tErr) throw tErr;
+
+    const revertStatus: Record<string, string> = {
+      VACATE: 'ACKNOWLEDGED',
+      EXTEND: 'ACKNOWLEDGED',
+      UPGRADE: 'ALLOTTED',
+    };
+    if (revertStatus[serviceType]) {
+      await supabase
+        .from('quarter_requests')
+        .update({ request_status: revertStatus[serviceType], updated_at: now })
+        .eq('id', requestId);
+    }
+  },
 };
