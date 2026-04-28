@@ -207,7 +207,12 @@ export const quartersService = {
       .eq('employee_id', employeeAuthId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []) as unknown as QuarterRequest[];
+    // Supabase returns one-to-many joins as arrays; normalise allotment to a single object
+    const normalised = (data ?? []).map((r: Record<string, unknown>) => ({
+      ...r,
+      allotment: Array.isArray(r.allotment) ? (r.allotment[0] ?? null) : r.allotment,
+    }));
+    return normalised as unknown as QuarterRequest[];
   },
 
   async getActiveCycle(): Promise<QuarterAllotmentCycle | null> {

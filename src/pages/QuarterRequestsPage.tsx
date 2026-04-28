@@ -250,6 +250,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [reqStatusFilter, setReqStatusFilter] = useState<string>('ALL');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
+  // Selected preference quarter for detail view
+  const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
+
   // Right-panel action state
   type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'upgrade' | 'vacate';
   const [rightAction, setRightAction] = useState<RightAction>(null);
@@ -290,6 +293,14 @@ export const QuarterRequestsPage: React.FC = () => {
   }, [user, addToast]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Auto-select top preference quarter when selected request changes
+  useEffect(() => {
+    if (!selectedRequest) { setSelectedPrefQuarter(null); return; }
+    const prefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
+    const topQ = prefs[0]?.quarter as Quarter | undefined;
+    setSelectedPrefQuarter(topQ ?? null);
+  }, [selectedRequest?.id]);
 
   // Prefill from freeview "Add to Request"
   useEffect(() => {
@@ -976,13 +987,9 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelPreferences = () => {
-    const topPrefQuarter = selectedPrefs.length > 0
-      ? (selectedPrefs[0].quarter as Quarter | undefined)
-      : undefined;
-
-    return (
+  const RightPanelPreferences = () => (
     <>
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div>
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
@@ -1003,19 +1010,30 @@ export const QuarterRequestsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Top-preference quarter detail card */}
-      {topPrefQuarter && (
-        <div className="px-5 pt-4 pb-1 border-b border-gray-100">
-          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Top Preference Quarter</div>
-          <QuarterDetailCard quarter={topPrefQuarter} compact />
+      {/* Selected quarter detail card */}
+      {selectedPrefQuarter && (
+        <div className="px-5 pt-4 pb-3 border-b border-gray-100 bg-gray-50/60">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+              Viewing Preference #{selectedPrefs.findIndex(p => (p.quarter as Quarter | undefined)?.id === selectedPrefQuarter.id) + 1}
+            </div>
+            <button
+              onClick={() => setSelectedPrefQuarter(null)}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <QuarterDetailCard quarter={selectedPrefQuarter} compact />
         </div>
       )}
 
+      {/* Preference list */}
       <div className="p-5">
         {selectedRequest?.request_status === 'DRAFT' && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800 flex items-start gap-2">
             <AlertCircle size={15} className="shrink-0 mt-0.5" />
-            Drag or use arrows to reorder. Submit when ready.
+            Click <Eye size={12} className="inline mx-1" /> to view quarter details. Reorder with arrows.
           </div>
         )}
 
@@ -1030,15 +1048,24 @@ export const QuarterRequestsPage: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {selectedPrefs.map((pref, i) => {
               const q = pref.quarter as Quarter | undefined;
               if (!q) return null;
+              const isViewing = selectedPrefQuarter?.id === q.id;
               return (
-                <div key={pref.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <div
+                  key={pref.id}
+                  className={`flex items-center gap-3 rounded-xl p-3 border transition-all cursor-pointer hover:shadow-sm ${
+                    isViewing
+                      ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200 shadow-sm'
+                      : 'bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200'
+                  }`}
+                  onClick={() => setSelectedPrefQuarter(isViewing ? null : q)}
+                >
                   <div className="relative shrink-0">
                     <img src={getImage(q, i)} alt={q.quarter_number} className="w-16 h-16 rounded-lg object-cover" />
-                    <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">
+                    <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center ${isViewing ? 'bg-blue-600' : 'bg-slate-800'}`}>
                       {pref.preference_rank}
                     </div>
                   </div>
@@ -1051,6 +1078,17 @@ export const QuarterRequestsPage: React.FC = () => {
                       <span className="font-medium text-gray-800">{fmtINR(q.monthly_rent)}</span>
                     </div>
                   </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); setSelectedPrefQuarter(isViewing ? null : q); }}
+                    className={`p-2 rounded-lg shrink-0 transition-colors ${
+                      isViewing
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300'
+                    }`}
+                    title={isViewing ? 'Hide details' : 'View details'}
+                  >
+                    <Eye size={14} />
+                  </button>
                 </div>
               );
             })}
@@ -1080,7 +1118,6 @@ export const QuarterRequestsPage: React.FC = () => {
       </div>
     </>
   );
-  };
 
   // ─── render ──────────────────────────────────────────────────────────────────
 
