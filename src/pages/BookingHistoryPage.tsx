@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { ViewSwitcher } from '../components/ui/ViewSwitcher';
 import { DataTable } from '../components/ui/DataTable';
 import { ListView, ListViewItem } from '../components/ui/ListView';
-import { Calendar, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp, SlidersHorizontal, Search, X, RotateCcw } from 'lucide-react';
+import { Calendar, Eye, History, CheckCircle, Clock, XCircle, Home, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { BookingDTO, BookingStatus } from '../types';
 import { formatDate } from '../utils/dateHelpers';
@@ -21,7 +23,6 @@ export const BookingHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
-  const headerRef = useRef<HTMLDivElement>(null);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,23 +39,6 @@ export const BookingHistoryPage: React.FC = () => {
   useEffect(() => {
     filterBookings();
   }, [bookings, statusFilter, searchQuery]);
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsFilterOpen(false); };
-    if (isFilterOpen) {
-      document.addEventListener('mousedown', handleOutside);
-      document.addEventListener('keydown', handleEsc);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('keydown', handleEsc);
-    };
-  }, [isFilterOpen]);
 
   const loadBookings = async () => {
     try {
@@ -144,168 +128,125 @@ export const BookingHistoryPage: React.FC = () => {
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
       <Header />
 
-      {/* Frozen banner + filter panel */}
-      <div className="flex-none z-20" ref={headerRef}>
-        {/* Banner */}
-        <div className="relative bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 overflow-hidden shadow-md">
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
-            <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
-          </div>
-
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Title row */}
-            <div className="flex items-center justify-between gap-3 py-2.5">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-1.5 bg-white/20 rounded-lg shadow-md flex-shrink-0">
-                  <History className="w-4 h-4 text-white" />
+      {/* Frozen hero header */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
+                  <History className="w-7 h-7 text-white" />
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <h1 className="text-sm font-bold text-white leading-none whitespace-nowrap">
-                    Booking History
-                  </h1>
-                  {!loading && (
-                    <span className="hidden sm:inline text-white/60 text-xs whitespace-nowrap">
-                      — {filteredBookings.length} {filteredBookings.length === 1 ? 'booking' : 'bookings'}
-                      {filteredBookings.length < bookings.length ? ` of ${bookings.length}` : ''}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Filter toggle */}
-                <button
-                  onClick={() => setIsFilterOpen((v) => !v)}
-                  title="Search & Filter"
-                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                    isFilterOpen || activeFilterCount > 0
-                      ? 'bg-white text-gray-800 border-white shadow-sm'
-                      : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
-                  }`}
-                >
-                  <SlidersHorizontal size={13} />
-                  <span className="hidden sm:inline">Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-gray-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
-
-                <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
-              </div>
+                Booking History
+              </h1>
+              <p className="text-gray-600">View and manage your past and upcoming bookings</p>
             </div>
-
-            {/* Stats row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pb-2.5">
-              <SummaryStatsCard
-                label="Total Bookings"
-                value={stats.total}
-                icon={History}
-                gradient="bg-gradient-to-r from-blue-500 to-teal-500"
-                onClick={() => handleStatCardClick('all')}
-                isActive={statusFilter === 'all'}
-                delay={100}
-              />
-              <SummaryStatsCard
-                label="Upcoming"
-                value={stats.upcoming}
-                icon={Calendar}
-                gradient="bg-gradient-to-r from-sky-500 to-blue-600"
-                onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
-                isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
-                delay={150}
-              />
-              <SummaryStatsCard
-                label="Completed"
-                value={stats.completed}
-                icon={CheckCircle}
-                gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
-                onClick={() => handleStatCardClick('CHECKED_OUT')}
-                isActive={statusFilter === 'CHECKED_OUT'}
-                delay={200}
-              />
-              <SummaryStatsCard
-                label="Cancelled"
-                value={stats.cancelled}
-                icon={XCircle}
-                gradient="bg-gradient-to-r from-rose-500 to-pink-500"
-                onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
-                isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
-                delay={250}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Collapsible filter panel */}
-        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isFilterOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="bg-white/95 backdrop-blur-md border-b border-gray-200/70 shadow-lg">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Search */}
-                <div className="relative flex-1 min-w-[180px] max-w-sm">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Booking number or property..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Status chips */}
-                <div className="flex items-center gap-1 flex-wrap">
-                  {[
-                    { value: 'all' as string | string[], label: 'All', icon: History },
-                    { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
-                    { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
-                    { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
-                    { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
-                  ].map(({ value, label, icon: Icon }) => {
-                    const active = isFilterActive(value);
-                    return (
-                      <button
-                        key={Array.isArray(value) ? value.join('-') : value}
-                        onClick={() => setStatusFilter(value)}
-                        className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${
-                          active
-                            ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Icon size={11} />
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Clear */}
+            <div className="flex items-center gap-3">
+              <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className="relative flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all"
+              >
+                <Filter size={18} />
+                <span className="font-medium text-sm">Filters</span>
                 {activeFilterCount > 0 && (
-                  <button
-                    onClick={handleClearFilters}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all"
-                  >
-                    <RotateCcw size={11} />
-                    Clear
-                  </button>
+                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
                 )}
-              </div>
+              </button>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <SummaryStatsCard
+              label="Total Bookings"
+              value={stats.total}
+              icon={History}
+              gradient="bg-gradient-to-r from-blue-500 to-teal-500"
+              onClick={() => handleStatCardClick('all')}
+              isActive={statusFilter === 'all'}
+              delay={100}
+            />
+            <SummaryStatsCard
+              label="Upcoming"
+              value={stats.upcoming}
+              icon={Calendar}
+              gradient="bg-gradient-to-r from-sky-500 to-blue-600"
+              onClick={() => handleStatCardClick(['ALLOCATED', 'PROVISIONED'])}
+              isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
+              delay={150}
+            />
+            <SummaryStatsCard
+              label="Completed"
+              value={stats.completed}
+              icon={CheckCircle}
+              gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
+              onClick={() => handleStatCardClick('CHECKED_OUT')}
+              isActive={statusFilter === 'CHECKED_OUT'}
+              delay={200}
+            />
+            <SummaryStatsCard
+              label="Cancelled"
+              value={stats.cancelled}
+              icon={XCircle}
+              gradient="bg-gradient-to-r from-rose-500 to-pink-500"
+              onClick={() => handleStatCardClick(['CANCELLED', 'REJECTED'])}
+              isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
+              delay={250}
+            />
           </div>
         </div>
       </div>
+
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Booking Filters"
+        onClearAll={handleClearFilters}
+        activeFilterCount={activeFilterCount}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Search
+            </label>
+            <Input
+              type="text"
+              placeholder="Booking number or property..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Status
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'all' as string | string[], label: 'All Bookings', icon: History },
+                { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
+                { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
+                { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
+                { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={Array.isArray(value) ? value.join('-') : value}
+                  onClick={() => setStatusFilter(value)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
+                    isFilterActive(value)
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span className="font-medium text-sm">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </FilterDrawer>
 
       {/* Scrollable data area */}
       <div className="flex-1 overflow-y-auto">
