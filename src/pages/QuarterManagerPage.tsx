@@ -131,8 +131,9 @@ export const QuarterManagerPage: React.FC = () => {
   const [dpFilter, setDpFilter] = useState<DPFilter>('all');
   const [quartersSummary, setQuartersSummary] = useState<{ total: number; available: number; occupied: number } | null>(null);
 
-  // Allocation panel
-  const [showAllocationPanel, setShowAllocationPanel] = useState(false);
+  // View mode: dp cards + filtered list vs allocation table
+  type ViewMode = 'dp' | 'allocation';
+  const [viewMode, setViewMode] = useState<ViewMode>('dp');
 
   // Override mini-menu for Allocated DP rows
   const [miniMenuTarget, setMiniMenuTarget] = useState<{ req: QuarterRequest; allotment: QuarterAllotment } | null>(null);
@@ -383,9 +384,9 @@ export const QuarterManagerPage: React.FC = () => {
             <p className="text-sm text-gray-500 mt-1">Manage allotment cycles, review requests, and process tenant services.</p>
           </div>
           <button
-            onClick={() => setShowAllocationPanel(v => !v)}
+            onClick={() => setViewMode(v => v === 'allocation' ? 'dp' : 'allocation')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              showAllocationPanel
+              viewMode === 'allocation'
                 ? 'bg-slate-800 text-white shadow-sm'
                 : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
             }`}
@@ -395,8 +396,8 @@ export const QuarterManagerPage: React.FC = () => {
           </button>
         </div>
 
-        {/* DP Summary Cards */}
-        <div className="mb-5">
+        {/* DP Summary Cards — only in dp mode */}
+        {viewMode === 'dp' && <div className="mb-5">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quartersSummary && (
               <SummaryStatsCard
@@ -472,10 +473,10 @@ export const QuarterManagerPage: React.FC = () => {
               />
             )}
           </div>
-        </div>
+        </div>}
 
-        {/* Allocation Panel */}
-        {showAllocationPanel && (
+        {/* Allocation Panel — only in allocation mode */}
+        {viewMode === 'allocation' && (
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -504,7 +505,7 @@ export const QuarterManagerPage: React.FC = () => {
                 )}
               </div>
               <button
-                onClick={() => setShowAllocationPanel(false)}
+                onClick={() => setViewMode('dp')}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <XCircle size={15} />
@@ -589,8 +590,8 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         )}
 
-        {/* DP filtered list */}
-        {dpFilter !== 'all' && (
+        {/* DP filtered list — only in dp mode */}
+        {viewMode === 'dp' && dpFilter !== 'all' && (
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
