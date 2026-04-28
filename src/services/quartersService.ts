@@ -77,10 +77,41 @@ export interface QuarterAllotment {
   approval_status: string;
   allotment_conditions: string;
   vacate_date: string | null;
+  acknowledgement_remarks: string;
+  rejection_reason: string;
+  rejection_doc_url: string;
+  acknowledged_at: string | null;
+  rejected_at: string | null;
   created_at: string;
   updated_at: string;
   quarter?: Quarter;
   request?: QuarterRequest;
+}
+
+export interface QuarterTenantRequest {
+  id: string;
+  allotment_id: string;
+  employee_id: string;
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE';
+  request_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+  remarks: string;
+  reason: string;
+  document_url: string;
+  requested_date: string | null;
+  required_bhk_config: string;
+  eo_notes: string;
+  created_at: string;
+  updated_at: string;
+  allotment?: QuarterAllotment;
+}
+
+export interface CreateTenantRequestInput {
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE';
+  remarks: string;
+  reason: string;
+  document_url?: string;
+  requested_date?: string | null;
+  required_bhk_config?: string;
 }
 
 export interface QuarterFilters {
@@ -359,5 +390,82 @@ export const quartersService = {
       .from('quarter_allotment_cycles')
       .update({ status: 'CLOSED', updated_at: new Date().toISOString() })
       .eq('id', cycleId);
+  },
+
+  async acknowledgeAllotment(allotmentId: string, requestId: string, remarks: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: aErr } = await supabase
+      .from('quarter_allotments')
+      .update({ approval_status: 'ACKNOWLEDGED', acknowledgement_remarks: remarks, acknowledged_at: now, updated_at: now })
+      .eq('id', allotmentId);
+    if (aErr) throw aErr;
+    const { error: rErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'ACKNOWLEDGED', updated_at: now })
+      .eq('id', requestId);
+    if (rErr) throw rErr;
+  },
+
+  async rejectAllotment(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: aErr } = await supabase
+      .from('quarter_allotments')
+      .update({ approval_status: 'REJECTED', rejection_reason: reason, rejection_doc_url: docUrl ?? '', rejected_at: now, updated_at: now })
+      .eq('id', allotmentId);
+    if (aErr) throw aErr;
+    const { error: rErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'REJECTED', updated_at: now })
+      .eq('id', requestId);
+    if (rErr) throw rErr;
+  },
+
+  async createTenantRequest(employeeId: string, allotmentId: string, input: CreateTenantRequestInput): Promise<QuarterTenantRequest> {
+    const { data, error } = await supabase
+      .from('quarter_tenant_requests')
+      .insert({
+        allotment_id: allotmentId,
+        employee_id: employeeId,
+        service_type: input.service_type,
+        remarks: input.remarks,
+        reason: input.reason,
+        document_url: input.document_url ?? '',
+        requested_date: input.requested_date ?? null,
+        required_bhk_config: input.required_bhk_config ?? '',
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    // update request status to reflect pending tenant service
+    const statusMap: Record<string, string> = {
+      EXTEND: 'EXTEND_REQUESTED',
+      UPGRADE: 'UPGRADE_REQUESTED',
+      VACATE: 'VACATE_REQUESTED',
+    };
+    await supabase
+      .from('quarter_requests')
+      .update({ request_status: statusMap[input.service_type], updated_at: new Date().toISOString() })
+      .eq('id', (await supabase.from('quarter_allotments').select('request_id').eq('id', allotmentId).single()).data?.request_id);
+
+    return data as QuarterTenantRequest;
+  },
+
+  async getMyTenantRequests(employeeId: string): Promise<QuarterTenantRequest[]> {
+    const { data, error } = await supabase
+      .from('quarter_tenant_requests')
+      .select(`*, allotment:quarter_allotments(*, quarter:quarters(*))`)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as unknown as QuarterTenantRequest[];
+  },
+
+  async withdrawTenantRequest(tenantRequestId: string): Promise<void> {
+    const { error } = await supabase
+      .from('quarter_tenant_requests')
+      .update({ request_status: 'WITHDRAWN', updated_at: new Date().toISOString() })
+      .eq('id', tenantRequestId);
+    if (error) throw error;
   },
 };
