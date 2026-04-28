@@ -4,9 +4,10 @@ import {
   Eye, Settings, RotateCcw, Calendar, Users, Hash, ChevronDown,
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
-  Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle, ChevronUp,
+  Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
   MoreVertical,
 } from 'lucide-react';
+import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { Header } from '../components/layout/Header';
 import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import {
@@ -156,7 +157,7 @@ export const QuarterManagerPage: React.FC = () => {
     try {
       const data = await quartersService.getAllotmentCycles();
       setCycles(data);
-      if (data.length > 0 && !selectedCycle) setSelectedCycle(data[0]);
+      if (data.length > 0) setSelectedCycle(prev => prev ?? data[0]);
     } catch {
       addToast('Failed to load cycles', 'error');
     } finally {
@@ -216,13 +217,11 @@ export const QuarterManagerPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    loadCycles();
     loadAllRequests();
+    loadAllTenantRequests();
     loadQuartersSummary();
-  }, [loadAllRequests, loadQuartersSummary]);
-
-  useEffect(() => {
-    if (activeTab === 'tenant_requests') loadAllTenantRequests();
-  }, [activeTab, loadAllTenantRequests]);
+  }, [loadCycles, loadAllRequests, loadAllTenantRequests, loadQuartersSummary]);
 
   // Close mini-menu on outside click
   useEffect(() => {
@@ -384,125 +383,76 @@ export const QuarterManagerPage: React.FC = () => {
 
         {/* DP Summary Cards */}
         <div className="mb-5">
-          {/* Housing stock bar */}
-          {quartersSummary && (
-            <div className="flex items-center gap-4 px-4 py-2.5 bg-white rounded-xl border border-gray-200 mb-3 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Building2 size={13} className="text-gray-400" />
-                <span className="text-xs text-gray-500">Housing Stock:</span>
-              </div>
-              <div className="flex items-center gap-4 flex-wrap">
-                {[
-                  { label: 'Total', value: quartersSummary.total, color: 'text-gray-700' },
-                  { label: 'Available', value: quartersSummary.available, color: 'text-emerald-700' },
-                  { label: 'Occupied', value: quartersSummary.occupied, color: 'text-blue-700' },
-                ].map((s, i) => (
-                  <React.Fragment key={s.label}>
-                    {i > 0 && <div className="w-px h-4 bg-gray-200" />}
-                    <div className="flex items-baseline gap-1">
-                      <span className={`text-sm font-bold ${s.color}`}>{s.value}</span>
-                      <span className="text-xs text-gray-400">{s.label}</span>
-                    </div>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* DP Cards row */}
-          {loadingAll ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="h-24 bg-white rounded-xl border border-gray-200 animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {([
-                {
-                  key: 'occupied' as const,
-                  label: 'Occupied',
-                  sublabel: 'Currently residing',
-                  count: dpCounts.occupied,
-                  borderColor: 'border-l-teal-500',
-                  iconBg: 'bg-teal-50',
-                  iconColor: 'text-teal-600',
-                  numColor: 'text-teal-700',
-                  icon: <ThumbsUp size={15} />,
-                  activeBg: 'bg-teal-50 ring-2 ring-teal-300',
-                },
-                {
-                  key: 'allotted' as const,
-                  label: 'Allotted',
-                  sublabel: 'Acknowledged',
-                  count: dpCounts.allotted,
-                  borderColor: 'border-l-emerald-500',
-                  iconBg: 'bg-emerald-50',
-                  iconColor: 'text-emerald-600',
-                  numColor: 'text-emerald-700',
-                  icon: <CheckCircle size={15} />,
-                  activeBg: 'bg-emerald-50 ring-2 ring-emerald-300',
-                },
-                {
-                  key: 'allocated' as const,
-                  label: 'Allocated',
-                  sublabel: 'Pending acceptance',
-                  count: dpCounts.allocated,
-                  borderColor: 'border-l-amber-500',
-                  iconBg: 'bg-amber-50',
-                  iconColor: 'text-amber-600',
-                  numColor: 'text-amber-700',
-                  icon: <Clock size={15} />,
-                  activeBg: 'bg-amber-50 ring-2 ring-amber-300',
-                },
-                {
-                  key: 'submitted' as const,
-                  label: 'Submitted',
-                  sublabel: 'Awaiting allotment',
-                  count: dpCounts.submitted,
-                  borderColor: 'border-l-blue-500',
-                  iconBg: 'bg-blue-50',
-                  iconColor: 'text-blue-600',
-                  numColor: 'text-blue-700',
-                  icon: <Send size={15} />,
-                  activeBg: 'bg-blue-50 ring-2 ring-blue-300',
-                },
-                {
-                  key: 'draft' as const,
-                  label: 'Draft',
-                  sublabel: 'Not yet submitted',
-                  count: dpCounts.draft,
-                  borderColor: 'border-l-gray-400',
-                  iconBg: 'bg-gray-100',
-                  iconColor: 'text-gray-500',
-                  numColor: 'text-gray-700',
-                  icon: <Hash size={15} />,
-                  activeBg: 'bg-gray-100 ring-2 ring-gray-300',
-                },
-              ] as const).filter(c => c.count > 0).map(card => {
-                const isActive = dpFilter === card.key;
-                return (
-                  <button
-                    key={card.key}
-                    onClick={() => setDpFilter(isActive ? 'all' : card.key)}
-                    className={`relative text-left rounded-xl border border-gray-200 border-l-4 ${card.borderColor} px-4 py-3 bg-white hover:shadow-md transition-all ${isActive ? card.activeBg : 'hover:bg-gray-50'}`}
-                  >
-                    <div className={`inline-flex items-center justify-center w-7 h-7 rounded-lg ${card.iconBg} ${card.iconColor} mb-2`}>
-                      {card.icon}
-                    </div>
-                    <div className={`text-3xl font-bold ${card.numColor} leading-none mb-1`}>{card.count}</div>
-                    <div className="text-xs font-semibold text-gray-700">{card.label}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{card.sublabel}</div>
-                    {isActive && (
-                      <div className="absolute top-2 right-2">
-                        <ChevronUp size={12} className="text-gray-400" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <div className={`grid gap-3 ${[
+            dpCounts.occupied > 0, dpCounts.allotted > 0, dpCounts.allocated > 0,
+            dpCounts.submitted > 0, dpCounts.draft > 0,
+            !!quartersSummary,
+          ].filter(Boolean).length <= 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
+            {quartersSummary && (
+              <SummaryStatsCard
+                label="Total Quarters"
+                value={quartersSummary.total}
+                icon={Building2}
+                gradient="bg-gradient-to-r from-slate-600 to-slate-500"
+                delay={0}
+              />
+            )}
+            {dpCounts.occupied > 0 && (
+              <SummaryStatsCard
+                label="Occupied"
+                value={dpCounts.occupied}
+                icon={ThumbsUp}
+                gradient="bg-gradient-to-r from-teal-500 to-emerald-500"
+                onClick={() => setDpFilter(dpFilter === 'occupied' ? 'all' : 'occupied')}
+                isActive={dpFilter === 'occupied'}
+                delay={50}
+              />
+            )}
+            {dpCounts.allotted > 0 && (
+              <SummaryStatsCard
+                label="Allotted"
+                value={dpCounts.allotted}
+                icon={CheckCircle}
+                gradient="bg-gradient-to-r from-emerald-500 to-cyan-500"
+                onClick={() => setDpFilter(dpFilter === 'allotted' ? 'all' : 'allotted')}
+                isActive={dpFilter === 'allotted'}
+                delay={100}
+              />
+            )}
+            {dpCounts.allocated > 0 && (
+              <SummaryStatsCard
+                label="Allocated"
+                value={dpCounts.allocated}
+                icon={Clock}
+                gradient="bg-gradient-to-r from-amber-500 to-orange-400"
+                onClick={() => setDpFilter(dpFilter === 'allocated' ? 'all' : 'allocated')}
+                isActive={dpFilter === 'allocated'}
+                delay={150}
+              />
+            )}
+            {dpCounts.submitted > 0 && (
+              <SummaryStatsCard
+                label="Submitted"
+                value={dpCounts.submitted}
+                icon={Send}
+                gradient="bg-gradient-to-r from-blue-500 to-sky-500"
+                onClick={() => setDpFilter(dpFilter === 'submitted' ? 'all' : 'submitted')}
+                isActive={dpFilter === 'submitted'}
+                delay={200}
+              />
+            )}
+            {dpCounts.draft > 0 && (
+              <SummaryStatsCard
+                label="Draft"
+                value={dpCounts.draft}
+                icon={Hash}
+                gradient="bg-gradient-to-r from-slate-400 to-gray-500"
+                onClick={() => setDpFilter(dpFilter === 'draft' ? 'all' : 'draft')}
+                isActive={dpFilter === 'draft'}
+                delay={250}
+              />
+            )}
+          </div>
         </div>
 
         {/* DP filtered list */}
