@@ -142,6 +142,7 @@ export interface OverrideInput {
   action_type: string;
   justification: string;
   new_quarter_id?: string;
+  b_new_quarter_id?: string;
 }
 
 export const quartersService = {
@@ -547,5 +548,38 @@ export const quartersService = {
         .update({ request_status: revertStatus[serviceType], updated_at: now })
         .eq('id', requestId);
     }
+  },
+
+  async deallocateRequest(allotmentId: string, requestId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: delErr } = await supabase.from('quarter_allotments').delete().eq('id', allotmentId);
+    if (delErr) throw delErr;
+    const { error: updErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'SUBMITTED', updated_at: now })
+      .eq('id', requestId);
+    if (updErr) throw updErr;
+  },
+
+  async cancelAllocatedRequest(allotmentId: string, requestId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: delErr } = await supabase.from('quarter_allotments').delete().eq('id', allotmentId);
+    if (delErr) throw delErr;
+    const { error: updErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'WITHDRAWN', updated_at: now })
+      .eq('id', requestId);
+    if (updErr) throw updErr;
+  },
+
+  async getQuartersSummary(): Promise<{ total: number; available: number; occupied: number }> {
+    const { data, error } = await supabase.from('quarters').select('occupancy_status').eq('is_active', true);
+    if (error) throw error;
+    const rows = (data ?? []) as { occupancy_status: string }[];
+    return {
+      total: rows.length,
+      available: rows.filter(r => r.occupancy_status === 'AVAILABLE').length,
+      occupied: rows.filter(r => r.occupancy_status === 'OCCUPIED').length,
+    };
   },
 };

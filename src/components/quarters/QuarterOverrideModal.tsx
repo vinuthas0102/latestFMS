@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, Search, Plus, AlertCircle, CheckCircle, ArrowLeftRight,
-  Shuffle, PauseCircle, Star, Bed, Ruler, MapPin
+  Shuffle, PauseCircle, Star, MapPin, Home
 } from 'lucide-react';
 import { quartersService, QuarterAllotment, QuarterRequest, Quarter } from '../../services/quartersService';
 import { useUIStore } from '../../stores/uiStore';
@@ -26,7 +26,7 @@ function fmtINR(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 }
 
-type ActionType = 'pref' | 'new' | 'swap' | 'swapPref' | 'hold';
+type ActionType = 'pref' | 'new' | 'swap' | 'swapPref' | 'swapNew' | 'hold';
 
 const ACTION_TABS: { key: ActionType; label: string; icon: React.ReactNode; desc: string }[] = [
   {
@@ -54,6 +54,12 @@ const ACTION_TABS: { key: ActionType; label: string; icon: React.ReactNode; desc
     desc: "Take B's allotted quarter for A, then assign B one of B's other preferences. Select B from the left, then pick B's new preference from the right.",
   },
   {
+    key: 'swapNew',
+    label: "Swap B's property + assign B an available property",
+    icon: <Home size={14} />,
+    desc: "Take B's allotted quarter for A, then assign B any available quarter. Select B from the left, then select B's new quarter from the right.",
+  },
+  {
     key: 'hold',
     label: 'Mark on Hold',
     icon: <PauseCircle size={14} />,
@@ -68,10 +74,11 @@ interface Props {
   allCycleAllotments: QuarterAllotment[];
   eoAuthId: string;
   onOverrideSaved: () => void;
+  initialAction?: string;
 }
 
 export const QuarterOverrideModal: React.FC<Props> = ({
-  isOpen, onClose, allotment, allCycleAllotments, eoAuthId, onOverrideSaved,
+  isOpen, onClose, allotment, allCycleAllotments, eoAuthId, onOverrideSaved, initialAction,
 }) => {
   const addToast = useUIStore(s => s.addToast);
   const [action, setAction] = useState<ActionType>('pref');
@@ -80,6 +87,8 @@ export const QuarterOverrideModal: React.FC<Props> = ({
   const [selectedPrefRank, setSelectedPrefRank] = useState<number | null>(null);
   const [leftSearch, setLeftSearch] = useState('');
   const [availableQuarters, setAvailableQuarters] = useState<Quarter[]>([]);
+  const [swapNewQuarters, setSwapNewQuarters] = useState<Quarter[]>([]);
+  const [selectedSwapNewId, setSelectedSwapNewId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reqA = allotment?.request as QuarterRequest | undefined;
@@ -88,12 +97,14 @@ export const QuarterOverrideModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    setAction('pref');
+    const validActions = ACTION_TABS.map(t => t.key);
+    setAction((initialAction && validActions.includes(initialAction as ActionType)) ? (initialAction as ActionType) : 'pref');
     setJustification('');
     setSelectedLeftId(null);
     setSelectedPrefRank(null);
+    setSelectedSwapNewId(null);
     setLeftSearch('');
-  }, [isOpen, allotment?.id]);
+  }, [isOpen, allotment?.id, initialAction]);
 
   const loadAvailable = useCallback(async () => {
     try {
@@ -111,6 +122,19 @@ export const QuarterOverrideModal: React.FC<Props> = ({
       return () => clearTimeout(t);
     }
   }, [isOpen, action, loadAvailable]);
+
+  const loadSwapNewQuarters = useCallback(async () => {
+    try {
+      const data = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });
+      setSwapNewQuarters(data);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && action === 'swapNew' && selectedLeftId) {
+      loadSwapNewQuarters();
+    }
+  }, [isOpen, action, selectedLeftId, loadSwapNewQuarters]);
 
   if (!isOpen || !allotment) return null;
 
@@ -200,6 +224,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
     if (action === 'pref') return selectedPrefRank !== null;
     if (action === 'new') return !!selectedLeftId;
     if (action === 'swap' || action === 'swapPref') return !!selectedLeftId;
+    if (action === 'swapNew') return !!selectedLeftId && !!selectedSwapNewId;
     if (action === 'hold') return true;
     return false;
   })();
@@ -217,15 +242,18 @@ export const QuarterOverrideModal: React.FC<Props> = ({
         newQuarterId = pref?.quarter_id;
       }
 
+      const bAllotment = (action === 'swap' || action === 'swapPref' || action === 'swapNew')
+        ? allCycleAllotments.find(a => a.id === selectedLeftId)
+        : undefined;
+
       await quartersService.saveOverride(eoAuthId, {
         allotment_id: allotment.id,
         request_a_id: reqA!.id,
-        request_b_id: (action === 'swap' || action === 'swapPref')
-          ? (allCycleAllotments.find(a => a.id === selectedLeftId)?.request as QuarterRequest | undefined)?.id
-          : undefined,
+        request_b_id: bAllotment ? (bAllotment.request as QuarterRequest | undefined)?.id : undefined,
         action_type: action.toUpperCase(),
         justification,
         new_quarter_id: newQuarterId,
+        b_new_quarter_id: action === 'swapNew' ? (selectedSwapNewId ?? undefined) : undefined,
       });
 
       addToast('Override applied successfully', 'success');
@@ -290,7 +318,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
             {ACTION_TABS.map(tab => (
               <button
                 key={tab.key}
-                onClick={() => { setAction(tab.key); setSelectedLeftId(null); setSelectedPrefRank(null); }}
+                onClick={() => { setAction(tab.key); setSelectedLeftId(null); setSelectedPrefRank(null); setSelectedSwapNewId(null); }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   action === tab.key
                     ? 'bg-slate-800 text-white shadow-sm'
@@ -322,7 +350,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
                 />
               </div>
               <div className="text-xs text-gray-500 mt-1.5">
-                {action === 'new' ? 'Click to select an available quarter' : action === 'swap' || action === 'swapPref' ? 'Select Request B to interchange' : 'Other allotments in this cycle'}
+                {action === 'new' ? 'Click to select an available quarter' : (action === 'swap' || action === 'swapPref' || action === 'swapNew') ? 'Select Request B to interchange' : 'Other allotments in this cycle'}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -336,17 +364,60 @@ export const QuarterOverrideModal: React.FC<Props> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
                   <Star size={13} className="text-amber-500" />
-                  {action === 'swap' || action === 'swapPref' ? 'Request B — Preferences' : 'Request A — Preferences'}
+                  {action === 'swapNew' ? 'Assign B — Available Quarters' : action === 'swap' || action === 'swapPref' ? 'Request B — Preferences' : 'Request A — Preferences'}
                 </h3>
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{reqAPrefs.length} prefs</span>
+                {action !== 'swapNew' && (
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{reqAPrefs.length} prefs</span>
+                )}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Currently allotted = <strong>P-{reqAPrefs.find(p => p.quarter_id === allottedQuarterId)?.preference_rank ?? '?'}</strong>.
-                {action === 'pref' && ' Select a different rank and click Apply.'}
-              </div>
+              {action !== 'swapNew' && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Currently allotted = <strong>P-{reqAPrefs.find(p => p.quarter_id === allottedQuarterId)?.preference_rank ?? '?'}</strong>.
+                  {action === 'pref' && ' Select a different rank and click Apply.'}
+                </div>
+              )}
+              {action === 'swapNew' && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {selectedLeftId ? 'Select an available quarter to assign to Request B.' : 'First select Request B from the left panel.'}
+                </div>
+              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* swapNew: show available quarters to assign to B */}
+            {action === 'swapNew' && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {!selectedLeftId ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                    <Home size={28} className="text-gray-300 mb-2" />
+                    <p className="text-xs text-gray-400">Select Request B first</p>
+                  </div>
+                ) : swapNewQuarters.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-gray-400">No available quarters found</div>
+                ) : swapNewQuarters.map((q, i) => (
+                  <div
+                    key={q.id}
+                    onClick={() => setSelectedSwapNewId(q.id)}
+                    className={`flex items-center gap-3 rounded-xl p-3 cursor-pointer border transition-all ${
+                      selectedSwapNewId === q.id ? 'border-emerald-400 bg-emerald-50 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200'
+                    }`}
+                  >
+                    <img src={getImage(q, i)} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-gray-900">{q.quarter_number}</div>
+                      <div className="text-xs text-gray-500 truncate">{q.address || q.block_name}</div>
+                      <div className="flex gap-3 text-xs text-gray-600 mt-1">
+                        <span>{q.bhk_config}</span>
+                        <span>{q.area_sqft} sq.ft</span>
+                        <span className="font-medium text-gray-800">{fmtINR(q.monthly_rent)}</span>
+                      </div>
+                    </div>
+                    {selectedSwapNewId === q.id && <CheckCircle size={16} className="text-emerald-600 shrink-0" />}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {action !== 'swapNew' && <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {reqAPrefs.map((pref, i) => {
                 const q = pref.quarter as Quarter | undefined;
                 const isCurrent = pref.quarter_id === allottedQuarterId;
@@ -391,7 +462,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
                   </div>
                 );
               })}
-            </div>
+            </div>}
 
             {/* Justification + Apply */}
             <div className="p-4 border-t border-gray-200 space-y-3">
