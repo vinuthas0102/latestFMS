@@ -29,6 +29,8 @@ export interface QuarterSidebarFilters {
 interface QuarterFilterSidebarProps {
   collapsed: boolean;
   onCollapse: (v: boolean) => void;
+  /** When provided, renders a close (X) button instead of the collapse arrow */
+  onClose?: () => void;
   filters: QuarterSidebarFilters;
   onChange: (patch: Partial<QuarterSidebarFilters>) => void;
   onClear: () => void;
@@ -96,6 +98,7 @@ function CheckboxRow({
 export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
   collapsed,
   onCollapse,
+  onClose,
   filters,
   onChange,
   onClear,
@@ -170,13 +173,23 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
               <RotateCcw size={14} />
             </button>
           )}
-          <button
-            onClick={() => onCollapse(true)}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Collapse"
-          >
-            <ChevronLeft size={16} className="text-gray-600" />
-          </button>
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Close"
+            >
+              <X size={16} className="text-gray-600" />
+            </button>
+          ) : (
+            <button
+              onClick={() => onCollapse(true)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Collapse"
+            >
+              <ChevronLeft size={16} className="text-gray-600" />
+            </button>
+          )}
         </div>
       </div>
 
