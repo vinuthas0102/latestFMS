@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -21,9 +21,9 @@ import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
 import { SkeletonCard } from '../components/ui/Loading';
 import { FadeIn } from '../components/animations/FadeIn';
-import { ViewMode } from '../components/ui/ViewSwitcher';
-import { ListViewItem, ListView } from '../components/ui/ListView';
 import { DataTable, Column } from '../components/ui/DataTable';
+import { PropertyListCard } from '../components/property/PropertyListCard';
+import { FilterSidebar, FilterSidebarState, SortOrder } from '../components/property/FilterSidebar';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { propertyService } from '../services/propertyService';
 import { useAuthStore } from '../stores/authStore';
@@ -33,6 +33,12 @@ import { ROUTES } from '../constants/routes';
 import { ROLE_LABELS } from '../constants/roles';
 import { requiresLoginForBooking, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
 import { formatCurrency } from '../utils/formatters';
+
+// ── Types ────────────────────────────────────────────────────────
+
+type ViewMode = 'card' | 'list' | 'table';
+
+// ── Constants ────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   A: { label: 'Category A', color: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -66,7 +72,6 @@ const ROLE_WELCOME: Record<string, {
   },
 };
 
-// Inline SVG icons for view modes to avoid import overhead
 const CardIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -88,10 +93,48 @@ const TableIcon = () => (
 );
 
 const VIEW_OPTIONS: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
-  { mode: 'card', icon: <CardIcon />, label: 'Cards' },
-  { mode: 'list', icon: <ListIcon />, label: 'List' },
+  { mode: 'card',  icon: <CardIcon />,  label: 'Cards' },
+  { mode: 'list',  icon: <ListIcon />,  label: 'List' },
   { mode: 'table', icon: <TableIcon />, label: 'Table' },
 ];
+
+// Roles that get the sidebar filter panel
+const SIDEBAR_ROLES = new Set(['public', 'govt_official']);
+
+// ── Default filter state ─────────────────────────────────────────
+
+function defaultFilters(priceMin = 0, priceMax = 99999): FilterSidebarState {
+  return {
+    searchQuery: '',
+    moduleFilter: 'all',
+    categoryFilter: 'all',
+    cityFilter: 'all',
+    amenityFilters: [],
+    minPriceFilter: priceMin,
+    maxPriceFilter: priceMax,
+    sortOrder: 'top_picks' as SortOrder,
+  };
+}
+
+// ── Amenity keyword matching ─────────────────────────────────────
+
+const AMENITY_KEY_MAP: Record<string, string[]> = {
+  ac:        ['ac', 'air condition', 'cooling', 'hvac'],
+  wifi:      ['wifi', 'wi-fi', 'internet', 'wireless'],
+  parking:   ['parking', 'car park', 'garage'],
+  breakfast: ['breakfast', 'dining', 'restaurant'],
+  pool:      ['pool', 'swimming'],
+};
+
+function propertyHasAmenity(property: PropertyDTO, key: string): boolean {
+  const keywords = AMENITY_KEY_MAP[key];
+  if (!keywords) return false;
+  return (property.amenities || []).some((a) =>
+    keywords.some((kw) => a.toLowerCase().includes(kw))
+  );
+}
+
+// ── Page component ────────────────────────────────────────────────
 
 export const UserDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -102,28 +145,36 @@ export const UserDashboardPage: React.FC = () => {
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('dashboardView', 'card');
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [moduleFilter, setModuleFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useViewPreference('dashboardView', 'card') as [ViewMode, (v: ViewMode) => void];
 
   const [availableModules, setAvailableModules] = useState<{ id: string; name: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 99999 });
+  const [filters, setFilters] = useState<FilterSidebarState>(() => defaultFilters(0, 99999));
+
+  // Legacy filter state for non-sidebar roles
+  const [legacySearch, setLegacySearch] = useState('');
+  const [legacyModule, setLegacyModule] = useState('all');
+  const [legacyCategory, setLegacyCategory] = useState('all');
+  const [legacyCity, setLegacyCity] = useState('all');
+
+  const roleKey = user?.role || 'public';
+  const welcomeInfo = ROLE_WELCOME[roleKey] || ROLE_WELCOME.public;
+  const hasSidebar = SIDEBAR_ROLES.has(roleKey);
 
   useEffect(() => {
     loadProperties();
   }, [user]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent) => {
       if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
         setIsFilterOpen(false);
       }
     };
-    if (isFilterOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (isFilterOpen) document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
   }, [isFilterOpen]);
 
   const loadProperties = async () => {
@@ -138,12 +189,24 @@ export const UserDashboardPage: React.FC = () => {
 
       const modulesMap = new Map<string, { id: string; name: string }>();
       const citiesSet = new Set<string>();
+      let minP = Infinity;
+      let maxP = 0;
+
       data.forEach((p) => {
         if (p.module) modulesMap.set(p.module.id, { id: p.module.id, name: p.module.name });
         if (p.estate?.city) citiesSet.add(p.estate.city);
+        if (p.minPrice != null && p.minPrice < minP) minP = p.minPrice;
+        if (p.maxPrice != null && p.maxPrice > maxP) maxP = p.maxPrice;
+        if (p.minPrice != null && p.minPrice > maxP) maxP = p.minPrice;
       });
+
+      const pMin = minP === Infinity ? 0 : minP;
+      const pMax = maxP === 0 ? 99999 : maxP;
+
       setAvailableModules(Array.from(modulesMap.values()));
       setAvailableCities(Array.from(citiesSet).sort());
+      setPriceRange({ min: pMin, max: pMax });
+      setFilters(defaultFilters(pMin, pMax));
     } catch {
       addToast('Failed to load properties', 'error');
     } finally {
@@ -151,17 +214,70 @@ export const UserDashboardPage: React.FC = () => {
     }
   };
 
-  const filteredProperties = properties.filter((p) => {
-    const matchesSearch =
-      !searchQuery ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.estate?.city?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesModule = moduleFilter === 'all' || p.module?.id === moduleFilter;
-    const matchesCategory = categoryFilter === 'all' || p.assetType?.category === categoryFilter;
-    const matchesCity = cityFilter === 'all' || p.estate?.city === cityFilter;
-    return matchesSearch && matchesModule && matchesCategory && matchesCity;
-  });
+  // ── Filtering ────────────────────────────────────────────────
+
+  const filteredProperties = useMemo(() => {
+    if (hasSidebar) {
+      return properties.filter((p) => {
+        if (filters.searchQuery) {
+          const q = filters.searchQuery.toLowerCase();
+          const match =
+            p.name.toLowerCase().includes(q) ||
+            p.address?.toLowerCase().includes(q) ||
+            p.estate?.city?.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        if (filters.moduleFilter !== 'all' && p.module?.id !== filters.moduleFilter) return false;
+        if (filters.categoryFilter !== 'all' && p.assetType?.category !== filters.categoryFilter) return false;
+        if (filters.cityFilter !== 'all' && p.estate?.city !== filters.cityFilter) return false;
+        if (filters.amenityFilters.length > 0) {
+          if (!filters.amenityFilters.every((k) => propertyHasAmenity(p, k))) return false;
+        }
+        if (priceRange.max > priceRange.min) {
+          const price = p.minPrice ?? p.maxPrice;
+          if (price != null && (price < filters.minPriceFilter || price > filters.maxPriceFilter)) return false;
+        }
+        return true;
+      });
+    }
+    return properties.filter((p) => {
+      const q = legacySearch.toLowerCase();
+      const matchSearch =
+        !legacySearch ||
+        p.name.toLowerCase().includes(q) ||
+        p.address?.toLowerCase().includes(q) ||
+        p.estate?.city?.toLowerCase().includes(q);
+      return (
+        matchSearch &&
+        (legacyModule === 'all' || p.module?.id === legacyModule) &&
+        (legacyCategory === 'all' || p.assetType?.category === legacyCategory) &&
+        (legacyCity === 'all' || p.estate?.city === legacyCity)
+      );
+    });
+  }, [properties, hasSidebar, filters, priceRange, legacySearch, legacyModule, legacyCategory, legacyCity]);
+
+  // ── Sorting (sidebar roles) ──────────────────────────────────
+
+  const displayProperties = useMemo(() => {
+    if (!hasSidebar) return filteredProperties;
+    const arr = [...filteredProperties];
+    switch (filters.sortOrder) {
+      case 'price_asc':  return arr.sort((a, b) => (a.minPrice ?? Infinity) - (b.minPrice ?? Infinity));
+      case 'price_desc': return arr.sort((a, b) => (b.minPrice ?? -1) - (a.minPrice ?? -1));
+      case 'name_asc':   return arr.sort((a, b) => a.name.localeCompare(b.name));
+      default:           return arr;
+    }
+  }, [filteredProperties, hasSidebar, filters.sortOrder]);
+
+  // ── Map centre from first geo-tagged property ────────────────
+
+  const mapCenter = useMemo(() => {
+    const first = properties.find((p) => p.latitude && p.longitude);
+    if (!first) return null;
+    return { lat: Number(first.latitude), lng: Number(first.longitude) };
+  }, [properties]);
+
+  // ── Actions ──────────────────────────────────────────────────
 
   const handleBookClick = (e: React.MouseEvent, property: PropertyDTO) => {
     e.stopPropagation();
@@ -173,23 +289,20 @@ export const UserDashboardPage: React.FC = () => {
     navigate(`/properties/${property.id}?tab=booking`);
   };
 
-  const handleClearFilters = () => {
-    setSearchQuery('');
-    setModuleFilter('all');
-    setCategoryFilter('all');
-    setCityFilter('all');
+  const clearLegacy = () => {
+    setLegacySearch('');
+    setLegacyModule('all');
+    setLegacyCategory('all');
+    setLegacyCity('all');
   };
 
-  const roleKey = user?.role || 'public';
-  const welcomeInfo = ROLE_WELCOME[roleKey] || ROLE_WELCOME.public;
+  const legacyActiveCount =
+    (legacySearch ? 1 : 0) +
+    (legacyModule !== 'all' ? 1 : 0) +
+    (legacyCategory !== 'all' ? 1 : 0) +
+    (legacyCity !== 'all' ? 1 : 0);
 
-  const activeFilterCount =
-    (searchQuery ? 1 : 0) +
-    (moduleFilter !== 'all' ? 1 : 0) +
-    (categoryFilter !== 'all' ? 1 : 0) +
-    (cityFilter !== 'all' ? 1 : 0);
-
-  const hasActiveFilters = activeFilterCount > 0;
+  // ── Table columns ─────────────────────────────────────────────
 
   const tableColumns: Column<PropertyDTO>[] = [
     {
@@ -261,23 +374,23 @@ export const UserDashboardPage: React.FC = () => {
     },
   ];
 
+  // ── Render ────────────────────────────────────────────────────
+
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
       <Header />
 
-      {/* Frozen header zone */}
+      {/* ── Sticky header ────────────────────────────────────── */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20" ref={filterPanelRef}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-3">
 
-          {/* === Single-line hero banner === */}
+          {/* Welcome banner */}
           <div className={`relative ${welcomeInfo.gradient} rounded-2xl px-4 py-3 mb-3 overflow-hidden shadow-lg`}>
             <div className="absolute inset-0 opacity-10 pointer-events-none">
               <div className="absolute -top-6 -right-6 w-40 h-40 bg-white rounded-full" />
               <div className="absolute -bottom-8 -left-8 w-60 h-60 bg-white rounded-full" />
             </div>
-
             <div className="relative flex items-center justify-between gap-3">
-              {/* Left: icon + title + role badge + username */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`p-2 ${welcomeInfo.iconBg} rounded-lg shadow-md flex-shrink-0`}>
                   {welcomeInfo.icon}
@@ -298,8 +411,6 @@ export const UserDashboardPage: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {/* Right: view mode switcher + bookings button */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-1 gap-0.5">
                   {VIEW_OPTIONS.map(({ mode, icon, label }) => (
@@ -318,7 +429,6 @@ export const UserDashboardPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
-
                 <button
                   onClick={() => navigate(ROUTES.BOOKINGS)}
                   className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-xs md:text-sm transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
@@ -331,410 +441,383 @@ export const UserDashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* === Toolbar: count + filter button === */}
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-gray-500">
-              {loading ? 'Loading...' : (
-                <>
-                  <span className="font-semibold text-gray-800">{filteredProperties.length}</span>
-                  {' '}{filteredProperties.length === 1 ? 'property' : 'properties'} available
-                  {hasActiveFilters && (
-                    <span className="ml-1.5 text-xs text-gray-400">
-                      (filtered from {properties.length})
-                    </span>
-                  )}
-                </>
-              )}
-            </p>
-
-            <div className="flex items-center gap-2">
-              {hasActiveFilters && (
-                <button
-                  onClick={handleClearFilters}
-                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-2.5 py-2 rounded-lg hover:bg-gray-100"
-                >
-                  <RotateCcw size={13} />
-                  <span>Clear</span>
-                </button>
-              )}
-              <button
-                onClick={() => setIsFilterOpen((v) => !v)}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all border shadow-sm hover:shadow-md ${
-                  isFilterOpen || hasActiveFilters
-                    ? 'bg-gray-800 text-white border-gray-800'
-                    : 'bg-white/60 backdrop-blur-sm text-gray-700 border-gray-200 hover:bg-white'
-                }`}
-              >
-                <SlidersHorizontal size={16} />
-                <span>Search & Filter</span>
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* === Expandable filter panel === */}
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isFilterOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'
-            }`}
-          >
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                  <SlidersHorizontal size={15} className="text-gray-500" />
-                  Search & Filter
-                </h3>
-                <button onClick={() => setIsFilterOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                  <X size={15} className="text-gray-500" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Search */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Search</label>
-                  <div className="relative">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Property name, location, or address..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-9 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 focus:bg-white transition-all"
-                    />
-                    {searchQuery && (
-                      <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        <X size={14} />
-                      </button>
+          {/* Toolbar */}
+          {hasSidebar ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-gray-500">
+                {loading ? 'Loading...' : (
+                  <>
+                    <span className="font-semibold text-gray-800">{displayProperties.length}</span>
+                    {' '}{displayProperties.length === 1 ? 'property' : 'properties'} found
+                    {displayProperties.length < properties.length && (
+                      <span className="ml-1.5 text-xs text-gray-400">(filtered from {properties.length})</span>
                     )}
-                  </div>
-                </div>
-
-                {/* Module / Type */}
-                {availableModules.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Facility Type</label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setModuleFilter('all')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                          moduleFilter === 'all'
-                            ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        All Types
-                      </button>
-                      {availableModules.map((mod) => (
-                        <button
-                          key={mod.id}
-                          onClick={() => setModuleFilter(mod.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                            moduleFilter === mod.id
-                              ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {mod.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  </>
                 )}
-
-                {/* Category */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Category</label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'all', label: 'All Categories', active: categoryFilter === 'all', cls: 'bg-gray-800 text-white border-gray-800', def: 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50' },
-                      { value: 'A', label: 'Category A', active: categoryFilter === 'A', cls: 'bg-amber-600 text-white border-amber-600', def: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
-                      { value: 'B', label: 'Category B', active: categoryFilter === 'B', cls: 'bg-blue-600 text-white border-blue-600', def: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-                      { value: 'C', label: 'Category C', active: categoryFilter === 'C', cls: 'bg-gray-600 text-white border-gray-600', def: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' },
-                    ].map(({ value, label, active, cls, def }) => (
-                      <button
-                        key={value}
-                        onClick={() => setCategoryFilter(value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shadow-sm ${active ? cls : def}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Location / City */}
-                {availableCities.length > 0 && (
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Location</label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setCityFilter('all')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                          cityFilter === 'all'
-                            ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        All Locations
-                      </button>
-                      {availableCities.map((city) => (
-                        <button
-                          key={city}
-                          onClick={() => setCityFilter(city)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                            cityFilter === city
-                              ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <MapPin size={11} />
-                          {city}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              </p>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <SlidersHorizontal size={13} />
+                <span>Use sidebar to filter</span>
               </div>
-
-              {hasActiveFilters && (
-                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
-                    {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active &mdash; showing {filteredProperties.length} of {properties.length}
-                  </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-gray-500">
+                  {loading ? 'Loading...' : (
+                    <>
+                      <span className="font-semibold text-gray-800">{displayProperties.length}</span>
+                      {' '}{displayProperties.length === 1 ? 'property' : 'properties'} available
+                      {legacyActiveCount > 0 && (
+                        <span className="ml-1.5 text-xs text-gray-400">(filtered from {properties.length})</span>
+                      )}
+                    </>
+                  )}
+                </p>
+                <div className="flex items-center gap-2">
+                  {legacyActiveCount > 0 && (
+                    <button
+                      onClick={clearLegacy}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-2.5 py-2 rounded-lg hover:bg-gray-100"
+                    >
+                      <RotateCcw size={13} />
+                      Clear
+                    </button>
+                  )}
                   <button
-                    onClick={handleClearFilters}
-                    className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold transition-colors"
+                    onClick={() => setIsFilterOpen((v) => !v)}
+                    className={`relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all border shadow-sm hover:shadow-md ${
+                      isFilterOpen || legacyActiveCount > 0
+                        ? 'bg-gray-800 text-white border-gray-800'
+                        : 'bg-white/60 backdrop-blur-sm text-gray-700 border-gray-200 hover:bg-white'
+                    }`}
                   >
-                    <RotateCcw size={12} />
-                    Clear All
+                    <SlidersHorizontal size={16} />
+                    Search & Filter
+                    {legacyActiveCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
+                        {legacyActiveCount}
+                      </span>
+                    )}
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+
+              {/* Legacy expandable filter panel */}
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isFilterOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'
+              }`}>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <SlidersHorizontal size={15} className="text-gray-500" />
+                      Search & Filter
+                    </h3>
+                    <button onClick={() => setIsFilterOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                      <X size={15} className="text-gray-500" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Search</label>
+                      <div className="relative">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Property name, location, or address..."
+                          value={legacySearch}
+                          onChange={(e) => setLegacySearch(e.target.value)}
+                          className="w-full pl-9 pr-9 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 focus:bg-white transition-all"
+                        />
+                        {legacySearch && (
+                          <button onClick={() => setLegacySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {availableModules.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Facility Type</label>
+                        <div className="flex flex-wrap gap-2">
+                          {[{ id: 'all', name: 'All Types' }, ...availableModules].map((mod) => (
+                            <button
+                              key={mod.id}
+                              onClick={() => setLegacyModule(mod.id)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                legacyModule === mod.id
+                                  ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {mod.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Category</label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: 'all', label: 'All', cls: 'bg-gray-800 text-white border-gray-800', def: 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' },
+                          { value: 'A', label: 'Category A', cls: 'bg-amber-600 text-white border-amber-600', def: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
+                          { value: 'B', label: 'Category B', cls: 'bg-blue-600 text-white border-blue-600', def: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+                          { value: 'C', label: 'Category C', cls: 'bg-gray-600 text-white border-gray-600', def: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' },
+                        ].map(({ value, label, cls, def }) => (
+                          <button
+                            key={value}
+                            onClick={() => setLegacyCategory(value)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shadow-sm ${legacyCategory === value ? cls : def}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {availableCities.length > 0 && (
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Location</label>
+                        <div className="flex flex-wrap gap-2">
+                          {[{ city: 'all', label: 'All Locations' }, ...availableCities.map((c) => ({ city: c, label: c }))].map(({ city, label }) => (
+                            <button
+                              key={city}
+                              onClick={() => setLegacyCity(city)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                legacyCity === city
+                                  ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {city !== 'all' && <MapPin size={11} />}
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {legacyActiveCount > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                      <p className="text-xs text-gray-500">
+                        {legacyActiveCount} filter{legacyActiveCount > 1 ? 's' : ''} active — showing {displayProperties.length} of {properties.length}
+                      </p>
+                      <button
+                        onClick={clearLegacy}
+                        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold transition-colors"
+                      >
+                        <RotateCcw size={12} />
+                        Clear All
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Scrollable data area */}
+      {/* ── Scrollable content area ──────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 ${hasSidebar ? 'flex gap-0 items-start' : ''}`}>
 
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          ) : filteredProperties.length === 0 ? (
-            <FadeIn delay={200}>
-              <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
-                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
-                <p className="text-sm text-gray-500">
-                  {hasActiveFilters ? 'Try adjusting your search or filters' : 'No properties are available for your access level'}
-                </p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={handleClearFilters}
-                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Clear filters
-                  </button>
-                )}
+          {/* Left sidebar */}
+          {hasSidebar && (
+            <div
+              className={`flex-shrink-0 self-start sticky top-4 transition-all duration-300 ${
+                sidebarCollapsed ? 'w-11' : 'w-72'
+              }`}
+            >
+              <div
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+                style={{ maxHeight: 'calc(100vh - 160px)' }}
+              >
+                <FilterSidebar
+                  collapsed={sidebarCollapsed}
+                  onCollapse={setSidebarCollapsed}
+                  filters={filters}
+                  onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
+                  onClear={() => setFilters(defaultFilters(priceRange.min, priceRange.max))}
+                  properties={properties}
+                  filteredProperties={displayProperties}
+                  priceRange={priceRange}
+                  availableModules={availableModules}
+                  availableCities={availableCities}
+                  mapCenter={mapCenter}
+                />
               </div>
-            </FadeIn>
-          ) : viewMode === 'table' ? (
-            <FadeIn delay={50}>
-              <DataTable
-                columns={tableColumns}
-                data={filteredProperties}
-                keyExtractor={(p) => p.id}
-                onRowClick={(p) => navigate(`/properties/${p.id}`)}
-                emptyMessage="No properties found"
-              />
-            </FadeIn>
-          ) : viewMode === 'list' ? (
-            <FadeIn delay={50}>
-              <ListView emptyMessage="No properties found">
-                {filteredProperties.map((property) => {
-                  const cat = property.assetType?.category;
-                  const catInfo = cat ? CATEGORY_LABELS[cat] : null;
-                  return (
-                    <ListViewItem
+            </div>
+          )}
+
+          {/* Main property list */}
+          <div className={`flex-1 min-w-0 ${hasSidebar ? 'pl-5' : ''}`}>
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : displayProperties.length === 0 ? (
+              <FadeIn delay={200}>
+                <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-200">
+                  <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
+                  <p className="text-sm text-gray-500">
+                    {hasSidebar
+                      ? 'Try adjusting the filters in the sidebar'
+                      : legacyActiveCount > 0
+                      ? 'Try adjusting your search or filters'
+                      : 'No properties are available for your access level'}
+                  </p>
+                </div>
+              </FadeIn>
+            ) : viewMode === 'table' ? (
+              <FadeIn delay={50}>
+                <DataTable
+                  columns={tableColumns}
+                  data={displayProperties}
+                  keyExtractor={(p) => p.id}
+                  onRowClick={(p) => navigate(`/properties/${p.id}`)}
+                  emptyMessage="No properties found"
+                />
+              </FadeIn>
+            ) : viewMode === 'list' ? (
+              /* ── Booking.com-style list (all roles) ── */
+              <FadeIn delay={50}>
+                <div className="space-y-4">
+                  {displayProperties.map((property) => (
+                    <PropertyListCard
                       key={property.id}
-                      icon={
-                        property.images.length > 0
-                          ? <img src={property.images[0]} alt={property.name} className="w-10 h-10 rounded-full object-cover" />
-                          : <Building2 size={18} />
-                      }
-                      title={property.name}
-                      subtitle={[property.estate?.city, property.address].filter(Boolean).join(' · ')}
-                      badge={
-                        <div className="flex items-center gap-1.5">
-                          {property.module && <Badge variant="default" className="text-xs">{property.module.name}</Badge>}
-                          {catInfo && (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${catInfo.color}`}>
-                              {catInfo.label}
-                            </span>
-                          )}
-                        </div>
-                      }
-                      rightContent={
-                        <div className="flex items-center gap-3">
-                          {property.minPrice != null && (
-                            <span className="text-sm font-semibold text-gray-900 hidden sm:block">
-                              {formatCurrency(property.minPrice)}
-                            </span>
-                          )}
-                          <button
-                            onClick={(e) => handleBookClick(e, property)}
-                            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                          >
-                            <Calendar size={12} />
-                            Book
-                          </button>
-                        </div>
-                      }
-                      onClick={() => navigate(`/properties/${property.id}`)}
+                      property={property}
+                      isLoggedIn={!!user}
+                      onBookClick={handleBookClick}
                     />
+                  ))}
+                </div>
+              </FadeIn>
+            ) : (
+              /* ── Card grid ─────────────────────────────────── */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayProperties.map((property, index) => {
+                  const category = property.assetType?.category;
+                  const categoryInfo = category ? CATEGORY_LABELS[category] : null;
+                  const moduleBadgeText = getModuleBadgeText(property.module?.code);
+                  const moduleBadgeStyles = getModuleBadgeStyles(property.module?.code);
+
+                  return (
+                    <FadeIn key={property.id} delay={index * 50}>
+                      <div
+                        className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                        onClick={() => navigate(`/properties/${property.id}`)}
+                      >
+                        <div className="h-36 relative overflow-hidden bg-gray-100">
+                          {property.images.length > 0 ? (
+                            <>
+                              <ImageCarousel
+                                images={property.images}
+                                alt={property.name}
+                                className="h-36"
+                                autoPlay={true}
+                                autoPlayInterval={4000}
+                              />
+                              {property.images.length > 1 && (
+                                <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Camera className="w-3 h-3 text-white" />
+                                  <span className="text-white text-xs font-medium">{property.images.length}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                              <Building2 size={48} className="text-gray-300" />
+                            </div>
+                          )}
+                          {categoryInfo && (
+                            <div className="absolute top-3 right-3">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${categoryInfo.color}`}>
+                                {categoryInfo.label}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-4">
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {property.module && (
+                              <Badge variant="default" className="text-xs">{property.module.name}</Badge>
+                            )}
+                            {property.propertyType && (
+                              <Badge variant="success" className="text-xs">{property.propertyType.name}</Badge>
+                            )}
+                            {moduleBadgeText && (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${moduleBadgeStyles}`}>
+                                {moduleBadgeText}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
+                            {property.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                            {property.description || 'No description available'}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
+                            <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{property.estate?.city || property.address}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              {property.minPrice != null && (
+                                <p className="text-sm font-semibold text-gray-900">
+                                  From {formatCurrency(property.minPrice)}
+                                  <span className="text-xs font-normal text-gray-500"> / night</span>
+                                </p>
+                              )}
+                              {property.totalRooms != null && property.totalRooms > 0 && (
+                                <p className="text-xs text-gray-500">{property.totalRooms} rooms</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => handleBookClick(e, property)}
+                              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:shadow-md"
+                            >
+                              <Calendar size={14} />
+                              Book Now
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </FadeIn>
                   );
                 })}
-              </ListView>
-            </FadeIn>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredProperties.map((property, index) => {
-                const category = property.assetType?.category;
-                const categoryInfo = category ? CATEGORY_LABELS[category] : null;
-                const moduleBadgeText = getModuleBadgeText(property.module?.code);
-                const moduleBadgeStyles = getModuleBadgeStyles(property.module?.code);
-
-                return (
-                  <FadeIn key={property.id} delay={index * 50}>
-                    <div
-                      className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                      onClick={() => navigate(`/properties/${property.id}`)}
-                    >
-                      <div className="h-36 relative overflow-hidden bg-gray-100">
-                        {property.images.length > 0 ? (
-                          <>
-                            <ImageCarousel
-                              images={property.images}
-                              alt={property.name}
-                              className="h-36"
-                              autoPlay={true}
-                              autoPlayInterval={4000}
-                            />
-                            {property.images.length > 1 && (
-                              <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                                <Camera className="w-3 h-3 text-white" />
-                                <span className="text-white text-xs font-medium">{property.images.length}</span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                            <Building2 size={48} className="text-gray-300" />
-                          </div>
-                        )}
-                        {categoryInfo && (
-                          <div className="absolute top-3 right-3">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${categoryInfo.color}`}>
-                              {categoryInfo.label}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                          {property.module && (
-                            <Badge variant="default" className="text-xs">
-                              {property.module.name}
-                            </Badge>
-                          )}
-                          {property.propertyType && (
-                            <Badge variant="success" className="text-xs">
-                              {property.propertyType.name}
-                            </Badge>
-                          )}
-                          {moduleBadgeText && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${moduleBadgeStyles}`}>
-                              {moduleBadgeText}
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">
-                          {property.name}
-                        </h3>
-
-                        <p className="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-                          {property.description || 'No description available'}
-                        </p>
-
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
-                          <MapPin size={13} className="text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{property.estate?.city || property.address}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            {property.minPrice != null && (
-                              <p className="text-sm font-semibold text-gray-900">
-                                From {formatCurrency(property.minPrice)}
-                                <span className="text-xs font-normal text-gray-500"> / night</span>
-                              </p>
-                            )}
-                            {property.totalRooms != null && property.totalRooms > 0 && (
-                              <p className="text-xs text-gray-500">{property.totalRooms} rooms available</p>
-                            )}
-                          </div>
-                          <button
-                            onClick={(e) => handleBookClick(e, property)}
-                            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:shadow-md"
-                          >
-                            <Calendar size={14} />
-                            Book Now
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </FadeIn>
-                );
-              })}
-            </div>
-          )}
-
-          {!loading && properties.length > 0 && (
-            <FadeIn delay={300}>
-              <div className="mt-6 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-100 rounded-lg">
-                    <History size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-sm">View Your Bookings</h3>
-                    <p className="text-xs text-gray-500">Track your upcoming and past reservations</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(ROUTES.BOOKINGS)}
-                  className="flex items-center gap-2 flex-shrink-0"
-                >
-                  <History size={16} />
-                  My Booking History
-                  <ChevronRight size={16} />
-                </Button>
               </div>
-            </FadeIn>
-          )}
+            )}
+
+            {/* Bottom bookings CTA */}
+            {!loading && properties.length > 0 && (
+              <FadeIn delay={300}>
+                <div className="mt-6 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-100 rounded-lg">
+                      <History size={20} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-sm">View Your Bookings</h3>
+                      <p className="text-xs text-gray-500">Track your upcoming and past reservations</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(ROUTES.BOOKINGS)}
+                    className="flex items-center gap-2 flex-shrink-0"
+                  >
+                    <History size={16} />
+                    My Booking History
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+              </FadeIn>
+            )}
+          </div>
         </div>
       </div>
     </div>
