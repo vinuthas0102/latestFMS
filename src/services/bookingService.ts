@@ -20,7 +20,6 @@ export const bookingService = {
       bookingData.quantity
     );
 
-    const bookingNumber = await generateBookingNumber();
     const otpResult = generateOTPService();
 
     const totalAmount = await calculateBookingAmount(
@@ -35,7 +34,6 @@ export const bookingService = {
       .from('bookings')
       .insert([
         {
-          booking_number: bookingNumber,
           user_id: userId,
           property_id: bookingData.propertyId,
           room_type_id: bookingData.roomTypeId,
@@ -72,7 +70,6 @@ export const bookingService = {
       bookingData.quantity
     );
 
-    const bookingNumber = await generateBookingNumber();
     const otpResult = generateOTPService();
 
     const totalAmount = await calculateBookingAmount(
@@ -94,7 +91,6 @@ export const bookingService = {
       .from('bookings')
       .insert([
         {
-          booking_number: bookingNumber,
           user_id: GUEST_USER_ID,
           property_id: bookingData.propertyId,
           room_type_id: bookingData.roomTypeId,
@@ -372,11 +368,6 @@ function mapBookingFromDb(dbBooking: any): BookingDTO {
     user: dbBooking.user,
     isGuestBooking: dbBooking.is_guest_booking || false,
   };
-}
-
-async function generateBookingNumber(): Promise<string> {
-  const { data } = await supabase.rpc('generate_booking_number');
-  return data || `BK${Date.now()}`;
 }
 
 async function validateRoomsExistForProperty(
