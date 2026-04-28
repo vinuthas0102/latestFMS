@@ -266,8 +266,14 @@ export const QuarterRequestsPage: React.FC = () => {
       addToast('Request saved as draft', 'success');
       setShowNewModal(false);
       loadData();
-    } catch {
-      addToast('Failed to save request', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      addToast(
+        msg === 'MAX_QUARTERS_REACHED'
+          ? 'You already have 2 active quarter requests. The maximum allowed is 2.'
+          : 'Failed to save request',
+        'error'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -288,8 +294,14 @@ export const QuarterRequestsPage: React.FC = () => {
       addToast('Request submitted successfully', 'success');
       setShowNewModal(false);
       loadData();
-    } catch {
-      addToast('Failed to submit request', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      addToast(
+        msg === 'MAX_QUARTERS_REACHED'
+          ? 'You already have 2 active quarter requests. The maximum allowed is 2.'
+          : 'Failed to submit request',
+        'error'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -374,9 +386,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const statCounts = {
     open:            requests.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status)).length,
-    allotted:        requests.filter(r => r.request_status === 'ALLOTTED').length,
+    allotted:        requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
     occupied:        requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
-    tenantServices:  requests.filter(r => ['EXTEND_REQUESTED', 'UPGRADE_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
+    tenantServices:  requests.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
     vacated:         requests.filter(r => r.request_status === 'VACATED').length,
   };
 
@@ -386,9 +398,9 @@ export const QuarterRequestsPage: React.FC = () => {
     let result = [...requests];
 
     if (dpFilter === 'open')           result = result.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status));
-    else if (dpFilter === 'allotted')  result = result.filter(r => r.request_status === 'ALLOTTED');
+    else if (dpFilter === 'allotted')  result = result.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
     else if (dpFilter === 'occupied')  result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
-    else if (dpFilter === 'tenantServices') result = result.filter(r => ['EXTEND_REQUESTED', 'UPGRADE_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
+    else if (dpFilter === 'tenantServices') result = result.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
     else if (dpFilter === 'vacated')   result = result.filter(r => r.request_status === 'VACATED');
 
     if (reqSearch.trim()) {
@@ -461,19 +473,87 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Action Required</div>
 
           {rightAction === null && (
-            <div className="flex gap-3">
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRightAction('acknowledge')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                >
+                  <ThumbsUp size={15} /> Acknowledge
+                </button>
+                <button
+                  onClick={() => setRightAction('reject')}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+                >
+                  <ThumbsDown size={15} /> Reject
+                </button>
+              </div>
               <button
-                onClick={() => setRightAction('acknowledge')}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                onClick={() => setRightAction('upgrade')}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sky-200 text-sky-700 text-sm font-medium hover:bg-sky-50 transition-colors"
               >
-                <ThumbsUp size={15} /> Acknowledge
+                <ArrowRightCircle size={15} /> Request Upgrade
               </button>
-              <button
-                onClick={() => setRightAction('reject')}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-              >
-                <ThumbsDown size={15} /> Reject
-              </button>
+              <p className="text-[10px] text-gray-400 text-center">Request a higher-grade quarter instead of accepting this allotment</p>
+            </div>
+          )}
+
+          {rightAction === 'upgrade' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Request</span>
+                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
+                <input
+                  value={actionBhk}
+                  onChange={e => setActionBhk(e.target.value)}
+                  placeholder="e.g. 4 BHK"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
+                <textarea
+                  value={actionReason}
+                  onChange={e => setActionReason(e.target.value)}
+                  rows={2}
+                  placeholder="Reason for requesting an upgrade…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
+                <input
+                  value={actionRemarks}
+                  onChange={e => setActionRemarks(e.target.value)}
+                  placeholder="Additional remarks…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
+                <div className="relative">
+                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={actionDocUrl}
+                    onChange={e => setActionDocUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button
+                  onClick={() => handleTenantRequest('UPGRADE')}
+                  disabled={actionSubmitting}
+                  className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors"
+                >
+                  {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -579,11 +659,10 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Tenant Services</div>
 
           {rightAction === null && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {([
-                { action: 'extend' as RightAction, label: 'Extend', icon: <RefreshCw size={15} />, cls: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
-                { action: 'upgrade' as RightAction, label: 'Upgrade', icon: <ArrowRightCircle size={15} />, cls: 'border-sky-200 text-sky-700 hover:bg-sky-50' },
-                { action: 'vacate' as RightAction, label: 'Vacate', icon: <LogOut size={15} />, cls: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
+                { action: 'extend' as RightAction, label: 'Extend Lease', icon: <RefreshCw size={15} />, cls: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
+                { action: 'vacate' as RightAction, label: 'Vacate Quarter', icon: <LogOut size={15} />, cls: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
               ]).map(({ action, label, icon, cls }) => (
                 <button
                   key={action as string}
@@ -597,8 +676,8 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
 
-          {(rightAction === 'extend' || rightAction === 'upgrade' || rightAction === 'vacate') && (() => {
-            const serviceType = (rightAction.charAt(0).toUpperCase() + rightAction.slice(1).toUpperCase()) as 'EXTEND' | 'UPGRADE' | 'VACATE';
+          {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
+            const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
             const cfg = serviceTypeConfig(serviceType);
             return (
               <div className="space-y-3">
@@ -641,17 +720,6 @@ export const QuarterRequestsPage: React.FC = () => {
                         className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     </div>
-                  </div>
-                )}
-                {rightAction === 'upgrade' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config</label>
-                    <input
-                      value={actionBhk}
-                      onChange={e => setActionBhk(e.target.value)}
-                      placeholder="e.g. 3 BHK"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
                   </div>
                 )}
                 <div>
@@ -1118,8 +1186,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   <RightPanelTenantServices />
                 ) : selectedRequest ? (() => {
                   const s = selectedRequest.request_status;
-                  if (s === 'ALLOTTED') return <RightPanelAllotted />;
-                  if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'UPGRADE_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
+                  if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
+                  if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
                   return <RightPanelPreferences />;
                 })() : (
                   <div className="flex items-center justify-center h-64 text-gray-400">

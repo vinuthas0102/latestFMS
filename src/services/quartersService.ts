@@ -265,6 +265,17 @@ export const quartersService = {
   },
 
   async createRequest(employeeAuthId: string, input: CreateQuarterRequestInput): Promise<QuarterRequest> {
+    const ACTIVE_STATUSES = ['DRAFT', 'SUBMITTED', 'ALLOTTED', 'ACKNOWLEDGED', 'EXTEND_REQUESTED', 'UPGRADE_REQUESTED', 'VACATE_REQUESTED'];
+    const { count, error: countErr } = await supabase
+      .from('quarter_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('employee_id', employeeAuthId)
+      .in('request_status', ACTIVE_STATUSES);
+    if (countErr) throw countErr;
+    if ((count ?? 0) >= 2) {
+      throw new Error('MAX_QUARTERS_REACHED');
+    }
+
     const reqNumber = `REQ-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
 
     const { data: req, error: reqErr } = await supabase
