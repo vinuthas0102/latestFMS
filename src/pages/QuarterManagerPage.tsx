@@ -785,8 +785,8 @@ export const QuarterManagerPage: React.FC = () => {
           );
         })()}
 
-        {/* Compact Cycle Selector */}
-        {selectedCycle && (
+        {/* Compact Cycle Selector — hidden in DP view */}
+        {viewMode !== 'dp' && selectedCycle && (
           <div className="bg-white rounded-xl border border-gray-200 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
             <Calendar size={13} className="text-gray-400 shrink-0" />
             <span className="text-xs text-gray-500 uppercase tracking-wide">Cycle:</span>
@@ -819,8 +819,8 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-5 bg-white rounded-xl border border-gray-200 p-1 w-fit flex-wrap">
+        {/* Tabs — hidden in DP view */}
+        {viewMode !== 'dp' && <div className="flex gap-1 mb-5 bg-white rounded-xl border border-gray-200 p-1 w-fit flex-wrap">
           {TABS.map(tab => (
             <button
               key={tab.key}
@@ -834,9 +834,9 @@ export const QuarterManagerPage: React.FC = () => {
               {tab.icon}{tab.label}
             </button>
           ))}
-        </div>
+        </div>}
 
-        {loading ? (
+        {viewMode !== 'dp' && (loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-16 bg-white rounded-xl border border-gray-200 animate-pulse" />
@@ -1306,7 +1306,7 @@ export const QuarterManagerPage: React.FC = () => {
               </div>
             )}
           </>
-        )}
+        ))}
       </main>
 
       <QuarterOverrideModal
