@@ -1,14 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2, Search, Filter, Home, Bed, Ruler, IndianRupee, X,
-  CheckCircle, Clock, MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
-  Layers, Star, ChevronDown
+  Building2, Search, Filter, Home, Bed, Ruler, X,
+  CheckCircle, MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
+  Layers, ChevronDown, RotateCcw,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { ViewSwitcher, ViewMode } from '../components/ui/ViewSwitcher';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
+import { QuarterListCard } from '../components/quarters/QuarterListCard';
+import {
+  QuarterFilterSidebar,
+  QuarterSidebarFilters,
+  QuarterSortOrder,
+} from '../components/quarters/QuarterFilterSidebar';
 import { quartersService, Quarter, QuarterFilters } from '../services/quartersService';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
@@ -139,55 +145,6 @@ const QuarterCard: React.FC<QuarterCardProps> = ({ quarter, idx, onView, onAddTo
   </article>
 );
 
-const QuarterListRow: React.FC<QuarterCardProps> = ({ quarter, idx, onView, onAddToRequest }) => (
-  <div className="bg-white rounded-xl border border-gray-200 flex overflow-hidden hover:shadow-md transition-all duration-200 group">
-    <div className="w-32 shrink-0 overflow-hidden">
-      <img
-        src={resolveImage(quarter, idx)}
-        alt={quarter.quarter_number}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]; }}
-        style={{ minHeight: 80 }}
-      />
-    </div>
-    <div className="flex-1 flex items-center gap-4 p-4 min-w-0">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-semibold text-gray-900 text-sm">{quarter.quarter_number}</span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getOccupancyBadge(quarter.occupancy_status)}`}>
-            {quarter.occupancy_status === 'AVAILABLE' ? 'Available' : 'Occupied'}
-          </span>
-          <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">{quarter.quarter_type}</span>
-        </div>
-        {quarter.address && (
-          <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-            <MapPin size={11} /><span className="truncate">{quarter.address}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-4 text-xs text-gray-600">
-          <span className="flex items-center gap-1"><Bed size={12} />{quarter.bhk_config}</span>
-          <span className="flex items-center gap-1"><Ruler size={12} />{quarter.area_sqft} sq.ft</span>
-          <span>Blk {quarter.block_name} · Fl {quarter.floor_number}</span>
-          <span>{quarter.furnishing_status}</span>
-        </div>
-      </div>
-      <div className="text-right shrink-0">
-        <div className="text-base font-bold text-gray-900">{fmtINR(quarter.monthly_rent)}<span className="text-xs text-gray-500 font-normal">/mo</span></div>
-      </div>
-      <div className="flex gap-2 shrink-0">
-        <button onClick={() => onView(quarter)} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-blue-600 transition-colors" title="View details">
-          <Eye size={14} />
-        </button>
-        {quarter.occupancy_status === 'AVAILABLE' && (
-          <button onClick={() => onAddToRequest(quarter)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">
-            <Plus size={12} /> Add
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
 interface QuarterDetailModalProps {
   quarter: Quarter | null;
   isOpen: boolean;
@@ -289,28 +246,48 @@ const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({ quarter, isOpen
 
 export const QuarterFreeviewPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
 
   const [quarters, setQuarters] = useState<Quarter[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('card');
   const [detailQuarter, setDetailQuarter] = useState<Quarter | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Filter panel state
+  // Legacy top-panel filter (card + table views)
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<QuarterFilters>({});
 
-  // More-filters side drawer
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
-  const [pendingFilters, setPendingFilters] = useState<QuarterFilters>({});
+  // Sidebar filter state (list view only)
+  const [rentRange, setRentRange] = useState({ min: 0, max: 99999 });
+  const [sidebarFilters, setSidebarFilters] = useState<QuarterSidebarFilters>({
+    searchQuery: '',
+    quarterTypes: [],
+    bhkConfigs: [],
+    furnishingStatuses: [],
+    availableOnly: false,
+    minRent: 0,
+    maxRent: 99999,
+    sortOrder: 'default' as QuarterSortOrder,
+  });
 
   const load = useCallback(async (f: QuarterFilters) => {
     setLoading(true);
     try {
       const data = await quartersService.getQuarters({ ...f, search: search || undefined });
       setQuarters(data);
+      if (data.length > 0) {
+        const rents = data.map(q => q.monthly_rent);
+        const minR = Math.min(...rents);
+        const maxR = Math.max(...rents);
+        setRentRange({ min: minR, max: maxR });
+        setSidebarFilters(prev => ({
+          ...prev,
+          minRent: prev.minRent === 0 ? minR : prev.minRent,
+          maxRent: prev.maxRent === 99999 ? maxR : prev.maxRent,
+        }));
+      }
     } catch {
       addToast('Failed to load quarters', 'error');
     } finally {
@@ -323,22 +300,63 @@ export const QuarterFreeviewPage: React.FC = () => {
     return () => clearTimeout(t);
   }, [filters, search, load]);
 
+  const isListView = view === 'list';
   const available = quarters.filter(q => q.occupancy_status === 'AVAILABLE').length;
+
+  // Sidebar filtering + sorting (list view only)
+  const displayQuarters = useMemo(() => {
+    if (!isListView) return quarters;
+    const q = sidebarFilters.searchQuery.toLowerCase();
+    let result = quarters.filter((quarter) => {
+      if (sidebarFilters.searchQuery) {
+        const match =
+          quarter.quarter_number.toLowerCase().includes(q) ||
+          quarter.block_name?.toLowerCase().includes(q) ||
+          quarter.address?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (sidebarFilters.quarterTypes.length > 0 && !sidebarFilters.quarterTypes.includes(quarter.quarter_type)) return false;
+      if (sidebarFilters.bhkConfigs.length > 0 && !sidebarFilters.bhkConfigs.includes(quarter.bhk_config)) return false;
+      if (sidebarFilters.furnishingStatuses.length > 0 && !sidebarFilters.furnishingStatuses.includes(quarter.furnishing_status)) return false;
+      if (sidebarFilters.availableOnly && quarter.occupancy_status !== 'AVAILABLE') return false;
+      if (quarter.monthly_rent < sidebarFilters.minRent || quarter.monthly_rent > sidebarFilters.maxRent) return false;
+      return true;
+    });
+    switch (sidebarFilters.sortOrder) {
+      case 'rent_asc':  result = result.slice().sort((a, b) => a.monthly_rent - b.monthly_rent); break;
+      case 'rent_desc': result = result.slice().sort((a, b) => b.monthly_rent - a.monthly_rent); break;
+      case 'area_desc': result = result.slice().sort((a, b) => b.area_sqft - a.area_sqft); break;
+    }
+    return result;
+  }, [quarters, isListView, sidebarFilters]);
+
+  const mapCenter = useMemo(() => {
+    const first = quarters.find(q => q.metadata?.latitude && q.metadata?.longitude);
+    if (!first) return null;
+    return { lat: Number(first.metadata.latitude), lng: Number(first.metadata.longitude) };
+  }, [quarters]);
 
   const handleAddToRequest = (q: Quarter) => {
     navigate(ROUTES.QUARTERS_REQUESTS, { state: { prefill: q } });
   };
 
-  const applyMoreFilters = () => {
-    setFilters(f => ({ ...f, ...pendingFilters }));
-    setShowMoreFilters(false);
-  };
-
   const clearAllFilters = () => {
     setSearch('');
     setFilters({});
-    setPendingFilters({});
     setFilterPanelOpen(false);
+  };
+
+  const clearSidebarFilters = () => {
+    setSidebarFilters({
+      searchQuery: '',
+      quarterTypes: [],
+      bhkConfigs: [],
+      furnishingStatuses: [],
+      availableOnly: false,
+      minRent: rentRange.min,
+      maxRent: rentRange.max,
+      sortOrder: 'default' as QuarterSortOrder,
+    });
   };
 
   const activeFilterCount = [
@@ -351,13 +369,27 @@ export const QuarterFreeviewPage: React.FC = () => {
     filters.max_rent !== undefined ? 'y' : '',
   ].filter(Boolean).length;
 
+  const sidebarActiveCount = useMemo(() => {
+    let n = 0;
+    if (sidebarFilters.searchQuery) n++;
+    if (sidebarFilters.quarterTypes.length) n += sidebarFilters.quarterTypes.length;
+    if (sidebarFilters.bhkConfigs.length) n += sidebarFilters.bhkConfigs.length;
+    if (sidebarFilters.furnishingStatuses.length) n += sidebarFilters.furnishingStatuses.length;
+    if (sidebarFilters.availableOnly) n++;
+    if (rentRange.max > rentRange.min) {
+      if (sidebarFilters.minRent > rentRange.min || sidebarFilters.maxRent < rentRange.max) n++;
+    }
+    return n;
+  }, [sidebarFilters, rentRange]);
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <Header />
 
-      {/* Frozen hero header */}
+      {/* ── Sticky header ─────────────────────────────────────── */}
       <div className="flex-none bg-white/90 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+
           {/* Title row */}
           <div className="flex items-start justify-between mb-3 flex-wrap gap-3">
             <div>
@@ -376,7 +408,7 @@ export const QuarterFreeviewPage: React.FC = () => {
             </Button>
           </div>
 
-          {/* Compact Stats Strip */}
+          {/* Stats strip */}
           <div className="bg-gray-50 rounded-xl border border-gray-200 px-4 py-2.5 mb-3 flex items-center gap-6 flex-wrap">
             {[
               { label: 'Total', value: quarters.length, color: 'text-gray-900' },
@@ -392,46 +424,75 @@ export const QuarterFreeviewPage: React.FC = () => {
                 </div>
               </React.Fragment>
             ))}
+            {isListView && (
+              <>
+                <div className="w-px h-5 bg-gray-200" />
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-lg font-bold text-gray-900">{displayQuarters.length}</span>
+                  <span className="text-xs text-gray-500">showing</span>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Filter controls */}
+          {/* Filter toolbar */}
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <button
-                onClick={() => setFilterPanelOpen(o => !o)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                  filterPanelOpen || activeFilterCount > 0
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700'
-                }`}
-              >
-                <Filter size={15} />
-                Search &amp; Filter
-                {activeFilterCount > 0 && (
-                  <span className={`text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold ${
-                    filterPanelOpen ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'
-                  }`}>
-                    {activeFilterCount}
-                  </span>
-                )}
-                <ChevronDown size={14} className={`transition-transform ${filterPanelOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {activeFilterCount > 0 && (
-                <button onClick={clearAllFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
-                  <X size={12} /> Clear all
-                </button>
+              {!isListView && (
+                <>
+                  <button
+                    onClick={() => setFilterPanelOpen(o => !o)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                      filterPanelOpen || activeFilterCount > 0
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+                    }`}
+                  >
+                    <Filter size={15} />
+                    Search &amp; Filter
+                    {activeFilterCount > 0 && (
+                      <span className={`text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold ${
+                        filterPanelOpen ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'
+                      }`}>
+                        {activeFilterCount}
+                      </span>
+                    )}
+                    <ChevronDown size={14} className={`transition-transform ${filterPanelOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearAllFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
+                      <X size={12} /> Clear all
+                    </button>
+                  )}
+                </>
               )}
 
-              <div className="ml-auto">
+              {isListView && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span className="font-semibold text-gray-800">{displayQuarters.length}</span> quarters found
+                  {sidebarActiveCount > 0 && (
+                    <span className="text-xs text-gray-400">(filtered from {quarters.length})</span>
+                  )}
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 ml-2">
+                    <SlidersHorizontal size={13} />
+                    <span>Filters in sidebar</span>
+                  </div>
+                  {sidebarActiveCount > 0 && (
+                    <button onClick={clearSidebarFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 ml-1">
+                      <RotateCcw size={12} /> Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className={isListView ? '' : 'ml-auto'}>
                 <ViewSwitcher currentView={view} onViewChange={setView} />
               </div>
             </div>
 
-            {/* Expandable Filter Panel */}
-            {filterPanelOpen && (
+            {/* Expandable panel (card + table only) */}
+            {!isListView && filterPanelOpen && (
               <div className="mt-2 bg-white rounded-xl border border-gray-200 shadow-lg p-4 space-y-4 animate-slideDown">
-                {/* Search */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Search</label>
                   <div className="relative">
@@ -444,116 +505,61 @@ export const QuarterFreeviewPage: React.FC = () => {
                     />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Quarter Type */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Quarter Type</label>
                     <div className="flex flex-wrap gap-1.5">
                       {QUARTER_TYPES.map(t => (
-                        <button
-                          key={t}
-                          onClick={() => setFilters(f => ({ ...f, quarter_type: f.quarter_type === t ? undefined : t }))}
-                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
-                            filters.quarter_type === t
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                          }`}
-                        >
+                        <button key={t} onClick={() => setFilters(f => ({ ...f, quarter_type: f.quarter_type === t ? undefined : t }))}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${filters.quarter_type === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
                           {t}
                         </button>
                       ))}
                     </div>
                   </div>
-
-                  {/* BHK Config */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">BHK Config</label>
                     <div className="flex flex-wrap gap-1.5">
                       {BHK_OPTIONS.map(b => (
-                        <button
-                          key={b}
-                          onClick={() => setFilters(f => ({ ...f, bhk_config: f.bhk_config === b ? undefined : b }))}
-                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
-                            filters.bhk_config === b
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                          }`}
-                        >
+                        <button key={b} onClick={() => setFilters(f => ({ ...f, bhk_config: f.bhk_config === b ? undefined : b }))}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${filters.bhk_config === b ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
                           {b}
                         </button>
                       ))}
                     </div>
                   </div>
-
-                  {/* Furnishing */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Furnishing</label>
                     <div className="flex flex-wrap gap-1.5">
                       {FURNISHING_OPTIONS.map(f => (
-                        <button
-                          key={f}
-                          onClick={() => setFilters(p => ({ ...p, furnishing_status: p.furnishing_status === f ? undefined : f }))}
-                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
-                            filters.furnishing_status === f
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                          }`}
-                        >
+                        <button key={f} onClick={() => setFilters(p => ({ ...p, furnishing_status: p.furnishing_status === f ? undefined : f }))}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${filters.furnishing_status === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
                           {f}
                         </button>
                       ))}
                     </div>
                   </div>
-
-                  {/* Availability + Rent */}
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Availability</label>
-                      <button
-                        onClick={() => setFilters(f => ({ ...f, occupancy_status: f.occupancy_status === 'AVAILABLE' ? undefined : 'AVAILABLE' }))}
-                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                          filters.occupancy_status === 'AVAILABLE'
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-600'
-                        }`}
-                      >
+                      <button onClick={() => setFilters(f => ({ ...f, occupancy_status: f.occupancy_status === 'AVAILABLE' ? undefined : 'AVAILABLE' }))}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${filters.occupancy_status === 'AVAILABLE' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:text-emerald-600'}`}>
                         <CheckCircle size={11} /> Available only
                       </button>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Monthly Rent</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          placeholder="Min"
-                          value={filters.min_rent ?? ''}
-                          onChange={e => setFilters(f => ({ ...f, min_rent: e.target.value ? Number(e.target.value) : undefined }))}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                        />
+                        <input type="number" placeholder="Min" value={filters.min_rent ?? ''} onChange={e => setFilters(f => ({ ...f, min_rent: e.target.value ? Number(e.target.value) : undefined }))} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                         <span className="text-gray-400 text-xs">—</span>
-                        <input
-                          type="number"
-                          placeholder="Max"
-                          value={filters.max_rent ?? ''}
-                          onChange={e => setFilters(f => ({ ...f, max_rent: e.target.value ? Number(e.target.value) : undefined }))}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                        />
+                        <input type="number" placeholder="Max" value={filters.max_rent ?? ''} onChange={e => setFilters(f => ({ ...f, max_rent: e.target.value ? Number(e.target.value) : undefined }))} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                       </div>
                     </div>
                   </div>
                 </div>
-
                 <div className="flex justify-end pt-2 border-t border-gray-100">
-                  <button onClick={clearAllFilters} className="text-xs text-gray-500 hover:text-red-600 mr-4 transition-colors">
-                    Clear all filters
-                  </button>
-                  <button
-                    onClick={() => setFilterPanelOpen(false)}
-                    className="px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Done
-                  </button>
+                  <button onClick={clearAllFilters} className="text-xs text-gray-500 hover:text-red-600 mr-4 transition-colors">Clear all filters</button>
+                  <button onClick={() => setFilterPanelOpen(false)} className="px-4 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Done</button>
                 </div>
               </div>
             )}
@@ -561,95 +567,137 @@ export const QuarterFreeviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Scrollable data area */}
+      {/* ── Scrollable content area ──────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-3 text-sm">
-            <span className="text-gray-500">
-              <span className="font-semibold text-gray-900">{quarters.length}</span> quarters found
-              {filters.quarter_type && <> · type <span className="font-medium text-gray-800">{filters.quarter_type}</span></>}
-              {filters.occupancy_status === 'AVAILABLE' && <> · <span className="text-emerald-700 font-medium">available only</span></>}
-            </span>
-          </div>
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 ${isListView ? 'flex gap-0 items-start' : ''}`}>
 
-        {/* Results */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
-                <div className="bg-gray-200 aspect-[4/3]" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                  <div className="h-3 bg-gray-200 rounded w-1/2" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3" />
+          {/* Left sidebar (list view only) */}
+          {isListView && (
+            <div className={`flex-shrink-0 self-start sticky top-4 transition-all duration-300 ${sidebarCollapsed ? 'w-11' : 'w-72'}`}>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+                <QuarterFilterSidebar
+                  collapsed={sidebarCollapsed}
+                  onCollapse={setSidebarCollapsed}
+                  filters={sidebarFilters}
+                  onChange={(patch) => setSidebarFilters(prev => ({ ...prev, ...patch }))}
+                  onClear={clearSidebarFilters}
+                  allQuarters={quarters}
+                  rentRange={rentRange}
+                  mapCenter={mapCenter}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Main content */}
+          <div className={`flex-1 min-w-0 ${isListView ? 'pl-5' : ''}`}>
+
+            {/* Count row (card + table views) */}
+            {!isListView && (
+              <div className="flex items-center justify-between mb-3 text-sm">
+                <span className="text-gray-500">
+                  <span className="font-semibold text-gray-900">{quarters.length}</span> quarters found
+                  {filters.quarter_type && <> · type <span className="font-medium text-gray-800">{filters.quarter_type}</span></>}
+                  {filters.occupancy_status === 'AVAILABLE' && <> · <span className="text-emerald-700 font-medium">available only</span></>}
+                </span>
+              </div>
+            )}
+
+            {loading ? (
+              isListView ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-200 animate-pulse flex h-40 overflow-hidden">
+                      <div className="w-48 bg-gray-200 flex-shrink-0" />
+                      <div className="flex-1 p-4 space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-2/3" />
+                        <div className="h-3 bg-gray-200 rounded w-1/2" />
+                        <div className="h-3 bg-gray-200 rounded w-3/4" />
+                      </div>
+                      <div className="w-44 p-4 space-y-3 border-l border-gray-100">
+                        <div className="h-6 bg-gray-200 rounded w-full" />
+                        <div className="h-10 bg-gray-200 rounded w-full" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
+                      <div className="bg-gray-200 aspect-[4/3]" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4" />
+                        <div className="h-3 bg-gray-200 rounded w-1/2" />
+                        <div className="h-3 bg-gray-200 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : displayQuarters.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
+                <Building2 size={40} className="mx-auto text-gray-300 mb-3" />
+                <h3 className="text-base font-semibold text-gray-700 mb-1">No quarters found</h3>
+                <p className="text-sm text-gray-500">Try adjusting your filters or search terms.</p>
+                <button onClick={isListView ? clearSidebarFilters : clearAllFilters} className="mt-4 text-sm text-blue-600 hover:underline">Clear filters</button>
+              </div>
+            ) : isListView ? (
+              <div className="space-y-4">
+                {displayQuarters.map((q, i) => (
+                  <QuarterListCard key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
+                ))}
+              </div>
+            ) : view === 'card' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {displayQuarters.map((q, i) => (
+                  <QuarterCard key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        {['Quarter No.', 'Type', 'Config', 'Area', 'Block/Floor', 'Furnishing', 'Monthly Rent', 'Status', ''].map(h => (
+                          <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {displayQuarters.map((q) => (
+                        <tr key={q.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{q.quarter_number}</td>
+                          <td className="px-4 py-3 text-gray-600">{q.quarter_type}</td>
+                          <td className="px-4 py-3 text-gray-600">{q.bhk_config}</td>
+                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{q.area_sqft} sq.ft</td>
+                          <td className="px-4 py-3 text-gray-600">{q.block_name}/{q.floor_number}</td>
+                          <td className="px-4 py-3 text-gray-600">{q.furnishing_status}</td>
+                          <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{fmtINR(q.monthly_rent)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getOccupancyBadge(q.occupancy_status)}`}>
+                              {q.occupancy_status === 'AVAILABLE' ? 'Available' : 'Occupied'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => setDetailQuarter(q)} className="p-1.5 rounded border border-gray-200 text-gray-500 hover:text-blue-600 transition-colors"><Eye size={13} /></button>
+                              {q.occupancy_status === 'AVAILABLE' && (
+                                <button onClick={() => handleAddToRequest(q)} className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">
+                                  <Plus size={11} /> Add
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        ) : quarters.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
-            <Building2 size={40} className="mx-auto text-gray-300 mb-3" />
-            <h3 className="text-base font-semibold text-gray-700 mb-1">No quarters found</h3>
-            <p className="text-sm text-gray-500">Try adjusting your filters or search terms.</p>
-            <button onClick={clearAllFilters} className="mt-4 text-sm text-blue-600 hover:underline">Clear filters</button>
-          </div>
-        ) : view === 'card' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {quarters.map((q, i) => (
-              <QuarterCard key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
-            ))}
-          </div>
-        ) : view === 'list' ? (
-          <div className="flex flex-col gap-3">
-            {quarters.map((q, i) => (
-              <QuarterListRow key={q.id} quarter={q} idx={i} onView={setDetailQuarter} onAddToRequest={handleAddToRequest} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Quarter No.', 'Type', 'Config', 'Area', 'Block/Floor', 'Furnishing', 'Monthly Rent', 'Status', ''].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {quarters.map((q, i) => (
-                    <tr key={q.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{q.quarter_number}</td>
-                      <td className="px-4 py-3 text-gray-600">{q.quarter_type}</td>
-                      <td className="px-4 py-3 text-gray-600">{q.bhk_config}</td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{q.area_sqft} sq.ft</td>
-                      <td className="px-4 py-3 text-gray-600">{q.block_name}/{q.floor_number}</td>
-                      <td className="px-4 py-3 text-gray-600">{q.furnishing_status}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{fmtINR(q.monthly_rent)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getOccupancyBadge(q.occupancy_status)}`}>
-                          {q.occupancy_status === 'AVAILABLE' ? 'Available' : 'Occupied'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setDetailQuarter(q)} className="p-1.5 rounded border border-gray-200 text-gray-500 hover:text-blue-600 transition-colors">
-                            <Eye size={13} />
-                          </button>
-                          {q.occupancy_status === 'AVAILABLE' && (
-                            <button onClick={() => handleAddToRequest(q)} className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors">
-                              <Plus size={11} /> Add
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
         </div>
       </div>
 
