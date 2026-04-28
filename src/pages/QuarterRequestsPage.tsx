@@ -450,29 +450,107 @@ export const QuarterRequestsPage: React.FC = () => {
     const q = allotment.quarter;
     return (
       <>
-        {/* Allotted quarter detail */}
-        {q && (
-          <div className="p-5 border-b border-gray-100">
-            <div className="flex gap-4 bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-              <img src={getImage(q, 0)} alt={q.quarter_number} className="w-20 h-20 rounded-lg object-cover shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900 text-base">{q.quarter_number}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{q.address || `${q.block_name} Block`}</div>
-                <div className="flex items-center gap-3 text-xs text-gray-700 mt-2">
-                  <span className="flex items-center gap-1"><Bed size={11} />{q.bhk_config}</span>
-                  <span className="flex items-center gap-1"><Ruler size={11} />{q.area_sqft} sq.ft</span>
-                  <span className="font-semibold text-emerald-700">{fmtINR(q.monthly_rent)}/mo</span>
+        {/* Green header banner */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+            <CheckCircle size={18} className="text-white" />
+          </div>
+          <div>
+            <div className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Quarter Allotted</div>
+            <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          </div>
+          <span className="ml-auto text-xs font-medium bg-white/20 text-white px-2.5 py-1 rounded-full">
+            {allotment.approval_status}
+          </span>
+        </div>
+
+        {/* Allotted quarter detail card */}
+        <div className="p-5 border-b border-gray-100">
+          {q ? (
+            <div className="rounded-xl overflow-hidden border border-emerald-100">
+              <div className="relative">
+                <img
+                  src={getImage(q, 0)}
+                  alt={q.quarter_number}
+                  className="w-full h-40 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
+                  <div className="font-bold text-white text-lg leading-tight">{q.quarter_number}</div>
+                  <div className="text-xs text-white/80 mt-0.5">{q.address || `${q.block_name} Block`}</div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">Allotment date: {fmtDate(allotment.allotment_date)}</div>
+              </div>
+              <div className="bg-emerald-50 px-4 py-3 flex flex-wrap gap-4">
+                <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                  <Bed size={14} className="text-emerald-600" />
+                  <span className="font-medium">{q.bhk_config}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                  <Ruler size={14} className="text-emerald-600" />
+                  <span>{q.area_sqft} sq.ft</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 ml-auto">
+                  {fmtINR(q.monthly_rent)}<span className="font-normal text-gray-500 text-xs">/mo</span>
+                </div>
+              </div>
+              <div className="bg-white px-4 py-3 border-t border-gray-100 grid grid-cols-2 gap-3 text-xs">
+                {q.floor_number !== undefined && (
+                  <div>
+                    <div className="text-gray-400 mb-0.5">Floor</div>
+                    <div className="font-medium text-gray-800">{q.floor_number}</div>
+                  </div>
+                )}
+                {q.quarter_type && (
+                  <div>
+                    <div className="text-gray-400 mb-0.5">Type</div>
+                    <div className="font-medium text-gray-800">{q.quarter_type}</div>
+                  </div>
+                )}
+                {q.furnishing_status && (
+                  <div>
+                    <div className="text-gray-400 mb-0.5">Furnishing</div>
+                    <div className="font-medium text-gray-800">{q.furnishing_status}</div>
+                  </div>
+                )}
+                <div>
+                  <div className="text-gray-400 mb-0.5">Allotted On</div>
+                  <div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div>
+                </div>
               </div>
             </div>
-            {allotment.allotment_conditions && (
-              <div className="mt-3 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                <span className="font-medium text-amber-700">Conditions: </span>{allotment.allotment_conditions}
+          ) : (
+            /* Fallback when quarter join is not available */
+            <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 size={16} className="text-emerald-600" />
+                <span className="font-semibold text-gray-900">Quarter Allotted</span>
               </div>
-            )}
-          </div>
-        )}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div className="text-gray-400 mb-0.5">BHK Requested</div>
+                  <div className="font-medium text-gray-800">{selectedRequest.required_bhk_config || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-400 mb-0.5">Location</div>
+                  <div className="font-medium text-gray-800">{selectedRequest.preferred_location || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-400 mb-0.5">Allotted On</div>
+                  <div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-400 mb-0.5">Status</div>
+                  <div className="font-medium text-gray-800">{allotment.approval_status}</div>
+                </div>
+              </div>
+            </div>
+          )}
+          {allotment.allotment_conditions && (
+            <div className="mt-3 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              <span className="font-medium text-amber-700">Conditions: </span>{allotment.allotment_conditions}
+            </div>
+          )}
+        </div>
 
         {/* Action zone */}
         <div className="p-5">
@@ -1182,7 +1260,13 @@ export const QuarterRequestsPage: React.FC = () => {
                       <div className="flex">
                         <div className="w-28 shrink-0">
                           <img
-                            src={req.preferences?.[0]?.quarter ? getImage(req.preferences[0].quarter as Quarter, 0) : PLACEHOLDER_IMAGES[0]}
+                            src={
+                              req.allotment?.quarter
+                                ? getImage(req.allotment.quarter as Quarter, 0)
+                                : req.preferences?.[0]?.quarter
+                                ? getImage(req.preferences[0].quarter as Quarter, 0)
+                                : PLACEHOLDER_IMAGES[0]
+                            }
                             alt=""
                             className="w-full h-full object-cover"
                             style={{ minHeight: 90 }}
@@ -1211,8 +1295,11 @@ export const QuarterRequestsPage: React.FC = () => {
                               </button>
                             )}
                             {req.request_status === 'ALLOTTED' && req.allotment && (
-                              <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                                <CheckCircle size={11} /> Allotted: {(req.allotment as any).quarter?.quarter_number}
+                              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle size={11} />
+                                {(req.allotment as any).quarter?.quarter_number
+                                  ? `${(req.allotment as any).quarter.quarter_number} · ${(req.allotment as any).quarter.bhk_config}`
+                                  : 'Allotted'}
                               </span>
                             )}
                             {req.request_status === 'ACKNOWLEDGED' && (
