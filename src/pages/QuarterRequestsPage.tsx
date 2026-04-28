@@ -266,59 +266,81 @@ export const QuarterRequestsPage: React.FC = () => {
     return result;
   }, [requests, reqSearch, reqStatus, reqSort]);
 
+  const statCounts = {
+    occupied: requests.filter(r => r.request_status === 'ALLOTTED').length,
+    vacateRequest: requests.filter(r => r.request_status === 'VACATE_REQUESTED').length,
+    extensionRequest: requests.filter(r => r.request_status === 'EXTENSION_REQUESTED').length,
+    vacated: requests.filter(r => r.request_status === 'VACATED').length,
+    open: requests.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status)).length,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Breadcrumb + Title */}
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-              <Home size={13} />
-              <ChevronRight size={12} />
-              <span>My Workspace</span>
-              <ChevronRight size={12} />
-              <span className="text-gray-800 font-medium">Quarter Requests</span>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Compact header: breadcrumb + title + info strip + actions — all in one block */}
+        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Left: breadcrumb + title */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+                <Home size={11} />
+                <ChevronRight size={10} />
+                <span>My Workspace</span>
+                <ChevronRight size={10} />
+                <span className="text-gray-600 font-medium">Quarter Requests</span>
+              </div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">Quarter Requests</h1>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Quarter Requests</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage your allotment requests. Max 5 preferences per request.</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <Eye size={15} /> Browse Quarters
-            </button>
-            <Button onClick={() => openNewModal()}>
-              <Plus size={15} className="mr-1" /> New Request
-            </Button>
-          </div>
-        </div>
 
-        {/* Stats Banner */}
-        {user && (
-          <div className="bg-white rounded-xl border-l-4 border-amber-400 border border-gray-200 p-4 mb-6">
-            <div className="flex flex-wrap items-center gap-6 text-sm">
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5 uppercase tracking-wide">Employee</div>
-                <div className="font-semibold text-gray-900">{user.fullName}</div>
-              </div>
-              <div className="w-px h-8 bg-gray-200" />
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5 uppercase tracking-wide">Active Cycle</div>
-                <div className="font-semibold text-gray-900">
-                  {activeCycle ? `${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle'}
-                </div>
-              </div>
-              <div className="w-px h-8 bg-gray-200" />
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5 uppercase tracking-wide">Open Requests</div>
-                <div className="font-semibold text-gray-900">
-                  {requests.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status)).length} active
-                </div>
-              </div>
+            {/* Right: action buttons */}
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <Eye size={13} /> Browse Quarters
+              </button>
+              <Button onClick={() => openNewModal()}>
+                <Plus size={13} className="mr-1" /> New Request
+              </Button>
             </div>
           </div>
-        )}
+
+          {/* Info strip — single line */}
+          {user && (
+            <div className="flex items-center gap-0 mt-2.5 pt-2.5 border-t border-gray-100 flex-wrap gap-y-1.5">
+              {/* Employee */}
+              <div className="flex items-center gap-1.5 pr-3">
+                <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Employee</span>
+                <span className="text-xs font-semibold text-gray-800">{user.fullName}</span>
+              </div>
+              <div className="w-px h-4 bg-gray-200 mx-1 shrink-0" />
+              {/* Active Cycle */}
+              <div className="flex items-center gap-1.5 px-3">
+                <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Cycle</span>
+                <span className="text-xs font-semibold text-gray-800">
+                  {activeCycle ? `${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle'}
+                </span>
+              </div>
+              <div className="w-px h-4 bg-gray-200 mx-1 shrink-0" />
+              {/* Status data points */}
+              {([
+                { key: 'open',            label: 'Open',              count: statCounts.open,            color: 'text-blue-700 bg-blue-50 border-blue-200' },
+                { key: 'occupied',        label: 'Occupied',          count: statCounts.occupied,        color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+                { key: 'vacateRequest',   label: 'Vacate Req.',       count: statCounts.vacateRequest,   color: 'text-orange-700 bg-orange-50 border-orange-200' },
+                { key: 'extensionRequest',label: 'Extension Req.',    count: statCounts.extensionRequest,color: 'text-amber-700 bg-amber-50 border-amber-200' },
+                { key: 'vacated',         label: 'Vacated',           count: statCounts.vacated,         color: 'text-gray-600 bg-gray-100 border-gray-200' },
+              ] as { key: string; label: string; count: number; color: string }[]).map((item, idx) => (
+                <React.Fragment key={item.key}>
+                  {idx > 0 && <div className="w-px h-4 bg-gray-200 mx-1 shrink-0" />}
+                  <div className="flex items-center gap-1.5 px-2">
+                    <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">{item.label}</span>
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${item.color}`}>{item.count}</span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
