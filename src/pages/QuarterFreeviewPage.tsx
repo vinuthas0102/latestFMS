@@ -518,33 +518,6 @@ export const QuarterFreeviewPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Stats strip */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/80 px-4 py-2.5 mb-3 flex items-center gap-6 flex-wrap shadow-sm">
-            {[
-              { label: 'Total', value: quarters.length, color: 'text-gray-900' },
-              { label: 'Available', value: available, color: 'text-emerald-700' },
-              { label: 'Types', value: [...new Set(quarters.map(q => q.quarter_type))].length, color: 'text-blue-700' },
-              { label: 'Occupied', value: quarters.length - available, color: 'text-amber-700' },
-            ].map((s, i) => (
-              <React.Fragment key={s.label}>
-                {i > 0 && <div className="w-px h-5 bg-gray-200" />}
-                <div className="flex items-baseline gap-1.5">
-                  <span className={`text-lg font-bold ${s.color}`}>{s.value}</span>
-                  <span className="text-xs text-gray-500">{s.label}</span>
-                </div>
-              </React.Fragment>
-            ))}
-            {isListView && (
-              <>
-                <div className="w-px h-5 bg-gray-200" />
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-lg font-bold text-gray-900">{displayQuarters.length}</span>
-                  <span className="text-xs text-gray-500">showing</span>
-                </div>
-              </>
-            )}
-          </div>
-
           {/* Filter toolbar */}
           <div>
             <div className="flex items-center gap-3 flex-wrap">
@@ -678,7 +651,7 @@ export const QuarterFreeviewPage: React.FC = () => {
           {/* Left sidebar (list view only) */}
           {isListView && (
             <div className={`flex-shrink-0 self-start sticky top-4 transition-all duration-300 ${sidebarCollapsed ? 'w-11' : 'w-72'}`}>
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
                 <QuarterFilterSidebar
                   collapsed={sidebarCollapsed}
                   onCollapse={setSidebarCollapsed}

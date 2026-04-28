@@ -94,6 +94,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // My Requests filter state
+  const [reqSearch, setReqSearch] = useState('');
+  const [reqStatus, setReqStatus] = useState<string>('');
+  const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
+
   const loadRequests = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -242,6 +247,25 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
+  const filteredRequests = React.useMemo(() => {
+    let result = [...requests];
+    if (reqSearch.trim()) {
+      const q = reqSearch.toLowerCase();
+      result = result.filter(r =>
+        r.request_number?.toLowerCase().includes(q) ||
+        r.required_bhk_config?.toLowerCase().includes(q) ||
+        r.preferred_location?.toLowerCase().includes(q) ||
+        r.request_reason?.toLowerCase().includes(q)
+      );
+    }
+    if (reqStatus) result = result.filter(r => r.request_status === reqStatus);
+    result.sort((a, b) => {
+      const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return reqSort === 'newest' ? diff : -diff;
+    });
+    return result;
+  }, [requests, reqSearch, reqStatus, reqSort]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -315,13 +339,84 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Left: My Requests */}
             <div className="lg:col-span-2 space-y-3">
-              <div className="flex items-center justify-between mb-2">
+              {/* Heading + count */}
+              <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
                   <FileText size={16} /> My Requests
                 </h2>
-                <span className="text-xs text-gray-500">{requests.length} total</span>
+                <span className="text-xs text-gray-500">
+                  {filteredRequests.length < requests.length
+                    ? `${filteredRequests.length} of ${requests.length}`
+                    : `${requests.length} total`}
+                </span>
               </div>
-              {requests.map(req => {
+
+              {/* Filter bar */}
+              <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2.5 shadow-sm">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by number, BHK, location…"
+                    value={reqSearch}
+                    onChange={e => setReqSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors"
+                  />
+                  {reqSearch && (
+                    <button onClick={() => setReqSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Status pills + sort */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {(['', 'DRAFT', 'SUBMITTED', 'ALLOTTED', 'WITHDRAWN'] as const).map(s => {
+                      const labels: Record<string, string> = { '': 'All', DRAFT: 'Draft', SUBMITTED: 'Submitted', ALLOTTED: 'Allotted', WITHDRAWN: 'Withdrawn' };
+                      const active = reqStatus === s;
+                      return (
+                        <button
+                          key={s || 'all'}
+                          onClick={() => setReqStatus(s)}
+                          className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
+                            active
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                          }`}
+                        >
+                          {labels[s]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setReqSort(o => o === 'newest' ? 'oldest' : 'newest')}
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 whitespace-nowrap transition-colors"
+                    title="Toggle sort order"
+                  >
+                    <ArrowUp size={11} className={reqSort === 'newest' ? 'text-blue-600' : 'text-gray-400'} />
+                    <ArrowDown size={11} className={reqSort === 'oldest' ? 'text-blue-600' : 'text-gray-400'} />
+                    {reqSort === 'newest' ? 'Newest' : 'Oldest'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Request cards */}
+              {filteredRequests.length === 0 && !loading ? (
+                <div className="bg-white rounded-xl border border-gray-200 py-8 text-center">
+                  <Filter size={24} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">No requests match your filter.</p>
+                  <button
+                    onClick={() => { setReqSearch(''); setReqStatus(''); }}
+                    className="mt-2 text-xs text-blue-600 hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : null}
+              {filteredRequests.map(req => {
                 const sc = statusConfig(req.request_status);
                 const isSelected = selectedRequest?.id === req.id;
                 return (
