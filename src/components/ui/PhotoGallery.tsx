@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronLeft, ChevronRight, Grid3x3 as Grid3X3, ZoomIn } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Grid3x3 as Grid3X3, ZoomIn, Maximize2 } from 'lucide-react';
 
 interface PhotoGalleryProps {
   images: string[];
@@ -26,10 +26,18 @@ export const PhotoLightbox: React.FC<LightboxProps> = ({
   infoPanel,
 }) => {
   const [active, setActive] = useState(initialIndex);
-  const [thumbsRef, setThumbsRef] = useState<HTMLDivElement | null>(null);
+  const [animating, setAnimating] = useState(false);
+  const thumbsRef = useRef<HTMLDivElement>(null);
 
-  const prev = useCallback(() => setActive((i) => (i - 1 + images.length) % images.length), [images.length]);
-  const next = useCallback(() => setActive((i) => (i + 1) % images.length), [images.length]);
+  const go = useCallback((idx: number) => {
+    if (animating) return;
+    setAnimating(true);
+    setActive(idx);
+    setTimeout(() => setAnimating(false), 250);
+  }, [animating]);
+
+  const prev = useCallback(() => go((active - 1 + images.length) % images.length), [active, go, images.length]);
+  const next = useCallback(() => go((active + 1) % images.length), [active, go, images.length]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -41,77 +49,135 @@ export const PhotoLightbox: React.FC<LightboxProps> = ({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, prev, next]);
 
+  // Scroll active thumbnail into view
   useEffect(() => {
-    if (!thumbsRef) return;
-    const el = thumbsRef.querySelector(`[data-idx="${active}"]`) as HTMLElement | null;
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  }, [active, thumbsRef]);
+    if (!thumbsRef.current) return;
+    const el = thumbsRef.current.querySelector(`[data-idx="${active}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [active]);
 
+  // Lock body scroll
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const original = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    return () => { document.body.style.overflow = original; };
   }, []);
 
   const content = (
-    <div className="fixed inset-0 z-[99999] bg-black/96 flex flex-col md:flex-row">
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-        aria-label="Close gallery"
-      >
-        <X size={20} />
-      </button>
+    <div
+      style={{ background: 'rgba(3, 7, 18, 0.97)', zIndex: 99999 }}
+      className="fixed inset-0 flex flex-col"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* ── Top bar ─────────────────────────────────────────── */}
+      <div className="flex-none flex items-center justify-between px-5 py-3.5" style={{ background: 'rgba(0,0,0,0.5)' }}>
+        <div className="flex items-center gap-3">
+          <span className="text-white font-semibold text-sm truncate max-w-xs opacity-90">{alt}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className="text-xs font-medium px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)' }}
+          >
+            {active + 1} / {images.length}
+          </span>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+            aria-label="Close gallery"
+          >
+            <X size={18} className="text-white" />
+          </button>
+        </div>
+      </div>
 
-      {/* Left: main image + thumbnail strip */}
-      <div className={`flex flex-col ${infoPanel ? 'md:w-2/3' : 'w-full'} h-full`}>
-        <div className="flex-1 relative flex items-center justify-center min-h-0 px-14">
+      {/* ── Main area ────────────────────────────────────────── */}
+      <div className={`flex flex-1 min-h-0 ${infoPanel ? 'md:flex-row' : ''}`}>
+        {/* Image pane */}
+        <div className="flex-1 relative flex items-center justify-center min-w-0 min-h-0 px-16 py-4">
+          {/* Prev */}
+          {images.length > 1 && (
+            <button
+              onClick={prev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 hover:scale-105"
+              style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.22)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+              aria-label="Previous photo"
+            >
+              <ChevronLeft size={22} className="text-white" />
+            </button>
+          )}
+
+          {/* Main image */}
           <img
             key={active}
             src={images[active]}
             alt={`${alt} ${active + 1}`}
-            className="max-w-full max-h-full object-contain rounded-xl select-none"
+            className="max-w-full max-h-full object-contain rounded-2xl select-none shadow-2xl"
+            style={{
+              opacity: animating ? 0.4 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
             draggable={false}
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = images[0]; }}
           />
 
+          {/* Next */}
           {images.length > 1 && (
-            <>
-              <button
-                onClick={prev}
-                className="absolute left-2 p-2.5 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors"
-                aria-label="Previous photo"
-              >
-                <ChevronLeft size={22} />
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-2 p-2.5 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors"
-                aria-label="Next photo"
-              >
-                <ChevronRight size={22} />
-              </button>
-            </>
+            <button
+              onClick={next}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 hover:scale-105"
+              style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.22)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+              aria-label="Next photo"
+            >
+              <ChevronRight size={22} className="text-white" />
+            </button>
           )}
-
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium">
-            {active + 1} / {images.length}
-          </div>
         </div>
 
-        {images.length > 1 && (
+        {/* Info panel */}
+        {infoPanel && (
           <div
-            ref={setThumbsRef}
-            className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none flex-shrink-0"
+            className="flex-none w-full md:w-80 overflow-y-auto"
+            style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
+          >
+            {infoPanel}
+          </div>
+        )}
+      </div>
+
+      {/* ── Thumbnail strip ──────────────────────────────────── */}
+      {images.length > 1 && (
+        <div
+          className="flex-none py-3"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.4)' }}
+        >
+          <div
+            ref={thumbsRef}
+            className="flex gap-2 overflow-x-auto px-4 pb-1"
+            style={{ scrollbarWidth: 'none' }}
           >
             {images.map((src, i) => (
               <button
                 key={i}
                 data-idx={i}
-                onClick={() => setActive(i)}
-                className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all duration-150 ${
-                  active === i ? 'border-white scale-105' : 'border-transparent opacity-60 hover:opacity-90'
-                }`}
+                onClick={() => go(i)}
+                className="flex-shrink-0 rounded-lg overflow-hidden transition-all duration-200"
+                style={{
+                  width: 72,
+                  height: 52,
+                  border: `2px solid ${active === i ? '#ffffff' : 'transparent'}`,
+                  opacity: active === i ? 1 : 0.5,
+                  transform: active === i ? 'scale(1.05)' : 'scale(1)',
+                }}
+                onMouseEnter={e => { if (active !== i) e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={e => { if (active !== i) e.currentTarget.style.opacity = '0.5'; }}
               >
                 <img
                   src={src}
@@ -123,21 +189,23 @@ export const PhotoLightbox: React.FC<LightboxProps> = ({
               </button>
             ))}
           </div>
-        )}
-      </div>
-
-      {infoPanel && (
-        <div className="md:w-1/3 border-l border-white/10 bg-black/40 overflow-y-auto flex-shrink-0">
-          {infoPanel}
         </div>
       )}
+
+      {/* ESC hint */}
+      <div
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs pointer-events-none hidden md:block"
+        style={{ color: 'rgba(255,255,255,0.3)' }}
+      >
+        Press ESC to close · ← → to navigate
+      </div>
     </div>
   );
 
   return createPortal(content, document.body);
 };
 
-// ── Hero wall (Goibibo style) ─────────────────────────────────────────────────
+// ── Hero wall ─────────────────────────────────────────────────────────────────
 
 const FALLBACK = 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80';
 
@@ -172,11 +240,21 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
             <Grid3X3 size={64} className="text-white/30" />
           </div>
         ) : count === 1 ? (
-          <div className="w-full h-full group cursor-pointer" onClick={() => openLightbox(0)}>
+          <div
+            className="w-full h-full group cursor-pointer relative overflow-hidden"
+            onClick={() => openLightbox(0)}
+          >
             <img src={src(0)} alt={alt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'rgba(0,0,0,0.25)' }}>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 backdrop-blur-sm text-white text-sm font-semibold">
+                <Maximize2 size={15} />
+                View Photo
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex h-full gap-1">
+            {/* Main large image */}
             <div
               className="relative flex-[3] overflow-hidden cursor-pointer group"
               onClick={() => openLightbox(0)}
@@ -184,19 +262,20 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
               <img
                 src={src(0)}
                 alt={alt}
-                className="w-full h-full object-cover group-hover:brightness-95 transition-all duration-300"
+                className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
               />
               <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <div className="p-2 rounded-full bg-black/40 backdrop-blur-sm">
-                  <ChevronLeft size={18} className="text-white" />
+                <div className="p-2 rounded-full text-white" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}>
+                  <ChevronLeft size={18} />
                 </div>
-                <div className="p-2 rounded-full bg-black/40 backdrop-blur-sm">
-                  <ChevronRight size={18} className="text-white" />
+                <div className="p-2 rounded-full text-white" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}>
+                  <ChevronRight size={18} />
                 </div>
               </div>
             </div>
 
+            {/* Right 2x2 grid */}
             <div className="flex-[2] grid grid-rows-2 grid-cols-2 gap-1">
               {[1, 2, 3, 4].map((offset) => {
                 const imgIdx = offset;
@@ -215,7 +294,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
                       onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
                     />
                     {isLast && remaining > 0 && (
-                      <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-1">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ background: 'rgba(0,0,0,0.55)' }}>
                         <ZoomIn size={22} className="text-white" />
                         <span className="text-white font-bold text-sm">+{remaining} more</span>
                       </div>
@@ -227,6 +306,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
           </div>
         )}
 
+        {/* Show all photos button */}
         {count > 1 && (
           <button
             onClick={() => openLightbox(0)}

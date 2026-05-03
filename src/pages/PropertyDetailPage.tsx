@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   MapPin, Wifi, Calendar, ArrowLeft, Info, Layers,
-  DollarSign, Map, BarChart3, Building2, Star,
+  DollarSign, Map, BarChart3, Star,
   CheckCircle, Bed, Users, ChevronDown,
   CreditCard as EditIcon,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
+import { PhotoGallery } from '../components/ui/PhotoGallery';
 import { BookingFormSection } from '../components/property/BookingFormSection';
 import { BasicInfoDisplay } from '../components/property/BasicInfoDisplay';
 import { LocationDisplay } from '../components/property/LocationDisplay';
@@ -26,30 +26,30 @@ import { usePropertyHierarchy } from '../hooks/usePropertyHierarchy';
 import { canManageProperties } from '../utils/permissions';
 import { getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
 
-// ── Tab definitions ────────────────────────────────────────────────
+type SectionId = 'overview' | 'rooms' | 'availability' | 'location' | 'reviews' | 'book';
 
-type TabId = 'overview' | 'rooms' | 'availability' | 'location' | 'reviews' | 'book';
-
-interface TabDef {
-  id: TabId;
+interface SectionDef {
+  id: SectionId;
   label: string;
   icon: React.ReactNode;
 }
 
-const TABS: TabDef[] = [
-  { id: 'overview',     label: 'Overview',      icon: <Info size={15} /> },
-  { id: 'rooms',        label: 'Rooms & Pricing', icon: <Bed size={15} /> },
-  { id: 'availability', label: 'Availability',  icon: <Calendar size={15} /> },
-  { id: 'location',     label: 'Location',       icon: <Map size={15} /> },
-  { id: 'reviews',      label: 'Reviews',        icon: <Star size={15} /> },
-  { id: 'book',         label: 'Book Now',       icon: <Calendar size={15} /> },
+const SECTIONS: SectionDef[] = [
+  { id: 'overview',     label: 'Overview',        icon: <Info size={15} /> },
+  { id: 'rooms',        label: 'Rooms & Pricing',  icon: <Bed size={15} /> },
+  { id: 'availability', label: 'Availability',     icon: <Calendar size={15} /> },
+  { id: 'location',     label: 'Location',          icon: <Map size={15} /> },
+  { id: 'reviews',      label: 'Reviews',           icon: <Star size={15} /> },
+  { id: 'book',         label: 'Book Now',          icon: <Calendar size={15} /> },
 ];
 
-// ── Reviews placeholder ────────────────────────────────────────────
+// ── Sticky header height in px (back row + tab strip)
+const HEADER_OFFSET = 96;
 
-const ReviewsTab: React.FC<{ propertyName: string }> = ({ propertyName }) => (
+// ── Reviews section ────────────────────────────────────────────────
+
+const ReviewsSection: React.FC<{ propertyName: string }> = ({ propertyName }) => (
   <div className="space-y-8">
-    {/* Overall rating hero */}
     <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-6 flex flex-col sm:flex-row gap-6 items-start sm:items-center">
       <div className="text-center">
         <div className="text-6xl font-black text-amber-600 leading-none">4.2</div>
@@ -70,18 +70,13 @@ const ReviewsTab: React.FC<{ propertyName: string }> = ({ propertyName }) => (
           <div key={label} className="flex items-center gap-3">
             <span className="text-xs text-gray-600 w-20 flex-shrink-0">{label}</span>
             <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-400 rounded-full"
-                style={{ width: `${(score / 5) * 100}%` }}
-              />
+              <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(score / 5) * 100}%` }} />
             </div>
             <span className="text-xs font-semibold text-gray-700 w-6 text-right">{score}</span>
           </div>
         ))}
       </div>
     </div>
-
-    {/* No reviews state */}
     <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200 border-dashed">
       <Star size={48} className="mx-auto mb-4 text-gray-300" />
       <h3 className="text-lg font-semibold text-gray-700 mb-1">No reviews yet</h3>
@@ -93,7 +88,7 @@ const ReviewsTab: React.FC<{ propertyName: string }> = ({ propertyName }) => (
   </div>
 );
 
-// ── Room cards ─────────────────────────────────────────────────────
+// ── Room card ──────────────────────────────────────────────────────
 
 interface RoomCardProps {
   room: { id: string; roomNumber: string; capacity: number; basePrice: number; amenities: string[]; roomType?: { name: string }; status: string };
@@ -115,9 +110,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onBook }) => (
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-xl font-black text-gray-900 leading-none">
-            ₹{room.basePrice.toLocaleString('en-IN')}
-          </div>
+          <div className="text-xl font-black text-gray-900 leading-none">₹{room.basePrice.toLocaleString('en-IN')}</div>
           <div className="text-xs text-gray-400">per night</div>
         </div>
       </div>
@@ -141,7 +134,25 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onBook }) => (
   </div>
 );
 
-// ── Main page ─────────────────────────────────────────────────────
+// ── Section wrapper ────────────────────────────────────────────────
+
+interface SectionProps {
+  id: SectionId;
+  sectionRefs: React.MutableRefObject<Partial<Record<SectionId, HTMLElement>>>;
+  children: React.ReactNode;
+}
+
+const Section: React.FC<SectionProps> = ({ id, sectionRefs, children }) => (
+  <section
+    id={`section-${id}`}
+    ref={(el) => { if (el) sectionRefs.current[id] = el; }}
+    className="scroll-mt-24"
+  >
+    {children}
+  </section>
+);
+
+// ── Main page ──────────────────────────────────────────────────────
 
 export const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -152,8 +163,12 @@ export const PropertyDetailPage: React.FC = () => {
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
   const [checkOut, setCheckOut] = useState(searchParams.get('checkOut') || '');
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeSection, setActiveSection] = useState<SectionId>('overview');
+
   const tabBarRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
+  // Track if a programmatic scroll is in progress (suppress spy during it)
+  const scrollingRef = useRef(false);
 
   const { blocks, floors, rooms, loading: hierarchyLoading } = usePropertyHierarchy(id);
 
@@ -161,27 +176,64 @@ export const PropertyDetailPage: React.FC = () => {
     if (id) fetchPropertyById(id);
   }, [id]);
 
-  // Handle URL tab param
+  // ── Scroll-spy via IntersectionObserver ────────────────────────
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+
+    SECTIONS.forEach(({ id: sId }) => {
+      const el = sectionRefs.current[sId];
+      if (!el) return;
+
+      const obs = new IntersectionObserver(
+        ([entry]) => {
+          if (scrollingRef.current) return;
+          if (entry.isIntersecting) {
+            setActiveSection(sId);
+            // Keep tab button visible in the horizontal scroll strip
+            if (tabBarRef.current) {
+              const btn = tabBarRef.current.querySelector(`[data-tab="${sId}"]`) as HTMLElement | null;
+              btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+            }
+          }
+        },
+        { rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`, threshold: 0 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach(o => o.disconnect());
+  }, [currentProperty]); // re-run once property loads so refs are populated
+
+  // Handle URL tab param — scroll to section on load
   useEffect(() => {
     if (!currentProperty) return;
     const tab = searchParams.get('tab');
-    if (tab === 'booking') setActiveTab('book');
-    else if (tab && TABS.find(t => t.id === tab)) setActiveTab(tab as TabId);
+    const target = tab === 'booking' ? 'book' : (tab as SectionId | null);
+    if (target && SECTIONS.find(s => s.id === target)) {
+      setTimeout(() => scrollToSection(target), 400);
+    }
   }, [currentProperty]);
 
-  const scrollTabIntoView = useCallback((tabId: TabId) => {
-    if (!tabBarRef.current) return;
-    const el = tabBarRef.current.querySelector(`[data-tab="${tabId}"]`) as HTMLElement | null;
-    el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, []);
+  const scrollToSection = useCallback((sId: SectionId) => {
+    const el = sectionRefs.current[sId];
+    if (!el) return;
 
-  const handleTabChange = (tabId: TabId) => {
-    setActiveTab(tabId);
-    scrollTabIntoView(tabId);
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  };
+    scrollingRef.current = true;
+    setActiveSection(sId);
+
+    // Scroll tab button into view in the tab strip
+    if (tabBarRef.current) {
+      const btn = tabBarRef.current.querySelector(`[data-tab="${sId}"]`) as HTMLElement | null;
+      btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
+
+    const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+    window.scrollTo({ top, behavior: 'smooth' });
+
+    // Re-enable spy after scroll settles
+    setTimeout(() => { scrollingRef.current = false; }, 800);
+  }, []);
 
   const canManage = user && canManageProperties(user.role);
   const isOtherFacilities = currentProperty?.module?.code === 'OTHER_FAC';
@@ -212,27 +264,27 @@ export const PropertyDetailPage: React.FC = () => {
           {currentProperty.status}
         </Badge>
         {currentProperty.module && (
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white">
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
             {currentProperty.module.name}
           </span>
         )}
       </div>
       <h2 className="text-xl font-bold leading-tight">{currentProperty.name}</h2>
       {currentProperty.address && (
-        <div className="flex items-start gap-2 text-white/70 text-sm">
+        <div className="flex items-start gap-2 text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
           <MapPin size={14} className="mt-0.5 flex-shrink-0" />
           <span>{currentProperty.address}</span>
         </div>
       )}
       {currentProperty.minPrice && (
-        <div className="bg-white/10 rounded-xl p-3 border border-white/15">
-          <div className="text-xs text-white/60 mb-0.5">Starting from</div>
-          <div className="text-2xl font-black">₹{currentProperty.minPrice.toLocaleString('en-IN')}</div>
-          <div className="text-xs text-white/60">per night</div>
+        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <div className="text-xs mb-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Starting from</div>
+          <div className="text-2xl font-black text-white">₹{currentProperty.minPrice.toLocaleString('en-IN')}</div>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>per night</div>
         </div>
       )}
       <button
-        onClick={() => handleTabChange('book')}
+        onClick={() => scrollToSection('book')}
         className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-colors"
       >
         Book Now
@@ -246,10 +298,10 @@ export const PropertyDetailPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* ── Sticky tab bar ─────────────────────────────────────── */}
+      {/* ── Sticky nav bar ──────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Back / Edit row */}
+          {/* Back / price / edit row */}
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <button
               onClick={() => navigate(-1)}
@@ -276,19 +328,16 @@ export const PropertyDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Tab strip — underline style like Goibibo */}
-          <div
-            ref={tabBarRef}
-            className="flex items-center overflow-x-auto scrollbar-none"
-          >
-            {TABS.map(({ id: tId, label, icon }) => {
-              const isActive = activeTab === tId;
-              const isBook = tId === 'book';
+          {/* Tab / anchor nav strip */}
+          <div ref={tabBarRef} className="flex items-center overflow-x-auto scrollbar-none">
+            {SECTIONS.map(({ id: sId, label, icon }) => {
+              const isActive = activeSection === sId;
+              const isBook = sId === 'book';
               return (
                 <button
-                  key={tId}
-                  data-tab={tId}
-                  onClick={() => handleTabChange(tId)}
+                  key={sId}
+                  data-tab={sId}
+                  onClick={() => scrollToSection(sId)}
                   className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 border-b-2 -mb-px ${
                     isActive
                       ? isBook
@@ -309,20 +358,18 @@ export const PropertyDetailPage: React.FC = () => {
       </div>
 
       {/* ── Main content ──────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-10">
 
-        {/* Photo gallery — always visible at top */}
-        <div className="mb-6">
-          <PhotoGallery
-            images={currentProperty.images}
-            alt={currentProperty.name}
-            heroHeight="420px"
-            lightboxInfo={lightboxInfo}
-          />
-        </div>
+        {/* Photo gallery — always visible */}
+        <PhotoGallery
+          images={currentProperty.images}
+          alt={currentProperty.name}
+          heroHeight="420px"
+          lightboxInfo={lightboxInfo}
+        />
 
-        {/* Property title strip below gallery */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        {/* Property title strip */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <Badge variant={currentProperty.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
@@ -355,7 +402,7 @@ export const PropertyDetailPage: React.FC = () => {
               </div>
               <div className="text-sm text-gray-400">per night</div>
               <button
-                onClick={() => handleTabChange('book')}
+                onClick={() => scrollToSection('book')}
                 className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
               >
                 Book Now <ChevronDown size={14} />
@@ -364,27 +411,28 @@ export const PropertyDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* ── Tab Panels ────────────────────────────────────── */}
+        {/* ── OVERVIEW ────────────────────────────────────────── */}
+        <Section id="overview" sectionRefs={sectionRefs}>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-blue-600 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Overview</h2>
+            </div>
 
-        {/* OVERVIEW */}
-        {activeTab === 'overview' && (
-          <div className="space-y-8">
-            {/* About */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <Info size={18} className="text-blue-500" />
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <Info size={16} className="text-blue-500" />
                 About this property
-              </h2>
+              </h3>
               <BasicInfoDisplay property={currentProperty} />
-            </section>
+            </div>
 
-            {/* Amenities highlight grid */}
             {amenities.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <CheckCircle size={18} className="text-emerald-500" />
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <CheckCircle size={16} className="text-emerald-500" />
                   Amenities & Facilities
-                </h2>
+                </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {amenities.map((amenity) => (
                     <div
@@ -398,13 +446,12 @@ export const PropertyDetailPage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
-            {/* Property amenities (from property.amenities string array) */}
             {currentProperty.amenities?.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold text-gray-900 mb-4">What's included</h2>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-3">What's included</h3>
                 <div className="flex flex-wrap gap-2">
                   {currentProperty.amenities.map((a) => (
                     <span key={a} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">
@@ -413,53 +460,33 @@ export const PropertyDetailPage: React.FC = () => {
                     </span>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
-            {/* Structure */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Layers size={18} className="text-slate-500" />
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Layers size={16} className="text-slate-500" />
                 Property Structure
-              </h2>
+              </h3>
               {hierarchyLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <BlocksFloorsDisplay blocks={blocks} />
-                </div>
+                <BlocksFloorsDisplay blocks={blocks} />
               )}
-            </section>
-
-            {/* Location summary */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <MapPin size={18} className="text-rose-500" />
-                Location
-              </h2>
-              <LocationDisplay property={currentProperty} />
-              <button
-                onClick={() => handleTabChange('location')}
-                className="mt-3 text-sm text-blue-600 hover:underline font-medium"
-              >
-                View on map →
-              </button>
-            </section>
+            </div>
           </div>
-        )}
+        </Section>
 
-        {/* ROOMS & PRICING */}
-        {activeTab === 'rooms' && (
+        {/* ── ROOMS & PRICING ──────────────────────────────────── */}
+        <Section id="rooms" sectionRefs={sectionRefs}>
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Bed size={18} className="text-blue-500" />
-                Rooms & Pricing
-              </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-blue-600 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Rooms & Pricing</h2>
               {rooms.length > 0 && (
-                <span className="text-sm text-gray-500">{rooms.length} room{rooms.length !== 1 ? 's' : ''} available</span>
+                <span className="ml-auto text-sm text-gray-400">{rooms.length} room{rooms.length !== 1 ? 's' : ''}</span>
               )}
             </div>
 
@@ -475,52 +502,48 @@ export const PropertyDetailPage: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {rooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    onBook={() => handleTabChange('book')}
-                  />
+                  <RoomCard key={room.id} room={room} onBook={() => scrollToSection('book')} />
                 ))}
               </div>
             )}
 
-            {/* Full pricing table */}
             {!hierarchyLoading && rooms.length > 0 && (
-              <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign size={16} className="text-emerald-500" />
-                  Pricing Summary
-                </h3>
-                <PricingDisplay rooms={rooms} />
-              </section>
+              <>
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <DollarSign size={16} className="text-emerald-500" />
+                    Pricing Summary
+                  </h3>
+                  <PricingDisplay rooms={rooms} />
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <BarChart3 size={16} className="text-amber-500" />
+                    Room Availability Insights
+                  </h3>
+                  <RoomAvailabilityInsights propertyId={id!} />
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-bold text-gray-900 mb-4">All Room Details</h3>
+                  <RoomsDisplay rooms={rooms} blocks={blocks} floors={floors} />
+                </div>
+              </>
             )}
-
-            {/* Room insights */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <BarChart3 size={16} className="text-amber-500" />
-                Room Availability Insights
-              </h3>
-              <RoomAvailabilityInsights propertyId={id!} />
-            </section>
-
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4">All Room Details</h3>
-              <RoomsDisplay rooms={rooms} blocks={blocks} floors={floors} />
-            </div>
           </div>
-        )}
+        </Section>
 
-        {/* AVAILABILITY */}
-        {activeTab === 'availability' && (
+        {/* ── AVAILABILITY ─────────────────────────────────────── */}
+        <Section id="availability" sectionRefs={sectionRefs}>
           <div className="space-y-6">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Calendar size={18} className="text-blue-500" />
-              Check Availability
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-blue-600 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Availability</h2>
+            </div>
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <p className="text-sm text-gray-500 mb-4">
-                Select check-in and check-out dates below. After choosing your dates the booking form will open automatically.
+                Select check-in and check-out dates. After choosing your dates the booking form will open automatically.
               </p>
               <PropertyAvailabilityCalendar
                 propertyId={id!}
@@ -529,7 +552,7 @@ export const PropertyDetailPage: React.FC = () => {
                     setCheckIn(date);
                   } else if (!checkOut && date > checkIn) {
                     setCheckOut(date);
-                    setTimeout(() => handleTabChange('book'), 300);
+                    setTimeout(() => scrollToSection('book'), 300);
                   } else {
                     setCheckIn(date);
                     setCheckOut('');
@@ -546,7 +569,7 @@ export const PropertyDetailPage: React.FC = () => {
                     <span className="font-semibold text-blue-800">{checkOut}</span>
                   </div>
                   <button
-                    onClick={() => handleTabChange('book')}
+                    onClick={() => scrollToSection('book')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors"
                   >
                     Proceed to Book
@@ -555,15 +578,15 @@ export const PropertyDetailPage: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </Section>
 
-        {/* LOCATION */}
-        {activeTab === 'location' && (
+        {/* ── LOCATION ─────────────────────────────────────────── */}
+        <Section id="location" sectionRefs={sectionRefs}>
           <div className="space-y-6">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Map size={18} className="text-rose-500" />
-              Location & Nearby Places
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-rose-500 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Location & Nearby</h2>
+            </div>
             {currentProperty.latitude && currentProperty.longitude ? (
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
@@ -583,34 +606,33 @@ export const PropertyDetailPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <MapPin size={48} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500 font-medium">Location coordinates not available</p>
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                <LocationDisplay property={currentProperty} />
               </div>
             )}
           </div>
-        )}
+        </Section>
 
-        {/* REVIEWS */}
-        {activeTab === 'reviews' && (
+        {/* ── REVIEWS ──────────────────────────────────────────── */}
+        <Section id="reviews" sectionRefs={sectionRefs}>
           <div className="space-y-6">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Star size={18} className="text-amber-500" />
-              Guest Reviews
-            </h2>
-            <ReviewsTab propertyName={currentProperty.name} />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-amber-500 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Guest Reviews</h2>
+            </div>
+            <ReviewsSection propertyName={currentProperty.name} />
           </div>
-        )}
+        </Section>
 
-        {/* BOOK NOW */}
-        {activeTab === 'book' && (
+        {/* ── BOOK NOW ─────────────────────────────────────────── */}
+        <Section id="book" sectionRefs={sectionRefs}>
           <div className="space-y-6">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Calendar size={18} className="text-blue-600" />
-              Reserve Your Stay
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1 h-7 bg-blue-600 rounded-full" />
+              <h2 className="text-xl font-bold text-gray-900">Reserve Your Stay</h2>
+            </div>
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-4">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-5">
                 <h3 className="text-white font-bold text-lg">{currentProperty.name}</h3>
                 <p className="text-blue-100 text-sm flex items-center gap-1 mt-0.5">
                   <MapPin size={13} />
@@ -632,11 +654,11 @@ export const PropertyDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        </Section>
       </div>
 
-      {/* ── Sticky "Book Now" bottom bar (visible on all tabs except book) ── */}
-      {activeTab !== 'book' && currentProperty.status === 'PUBLISHED' && (
+      {/* ── Sticky bottom bar ───────────────────────────────────── */}
+      {activeSection !== 'book' && currentProperty.status === 'PUBLISHED' && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-2xl">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
             <div>
@@ -648,7 +670,7 @@ export const PropertyDetailPage: React.FC = () => {
               )}
             </div>
             <button
-              onClick={() => handleTabChange('book')}
+              onClick={() => scrollToSection('book')}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all duration-200"
             >
               <Calendar size={15} />
