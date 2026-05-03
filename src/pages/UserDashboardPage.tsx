@@ -10,11 +10,7 @@ import {
   Shield,
   Users,
   Home,
-  SlidersHorizontal,
-  RotateCcw,
-  X,
   Search,
-  MapPin as MapPinIcon,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -24,7 +20,7 @@ import { SkeletonCard } from '../components/ui/Loading';
 import { FadeIn } from '../components/animations/FadeIn';
 import { DataTable, Column } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
-import { FilterSidebar, FilterSidebarState, SortOrder } from '../components/property/FilterSidebar';
+import { FilterSidebarState, SortOrder } from '../components/property/FilterSidebar';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useViewPreference } from '../hooks/useViewPreference';
@@ -101,9 +97,6 @@ const VIEW_OPTIONS: { mode: ViewMode; icon: React.ReactNode; label: string }[] =
   { mode: 'table', icon: <TableIcon />, label: 'Table' },
 ];
 
-// Roles that get the sidebar filter panel
-const SIDEBAR_ROLES = new Set(['public', 'govt_official']);
-
 // ── Default filter state ─────────────────────────────────────────
 
 function defaultFilters(priceMin = 0, priceMax = 99999): FilterSidebarState {
@@ -146,7 +139,6 @@ export const UserDashboardPage: React.FC = () => {
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dashboardView', 'list') as [ViewMode, (v: ViewMode) => void];
 
   const [availableModules, setAvailableModules] = useState<{ id: string; name: string }[]>([]);
@@ -154,15 +146,9 @@ export const UserDashboardPage: React.FC = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 99999 });
   const [filters, setFilters] = useState<FilterSidebarState>(() => defaultFilters(0, 99999));
 
-  // Legacy filter state for non-sidebar roles
-  const [legacySearch, setLegacySearch] = useState('');
-  const [legacyModule, setLegacyModule] = useState('all');
-  const [legacyCategory, setLegacyCategory] = useState('all');
-  const [legacyCity, setLegacyCity] = useState('all');
 
   const roleKey = user?.role || 'public';
   const welcomeInfo = ROLE_WELCOME[roleKey] || ROLE_WELCOME.public;
-  const hasSidebar = SIDEBAR_ROLES.has(roleKey);
 
   useEffect(() => {
     loadProperties();
@@ -209,49 +195,32 @@ export const UserDashboardPage: React.FC = () => {
   // ── Filtering ────────────────────────────────────────────────
 
   const filteredProperties = useMemo(() => {
-    if (hasSidebar) {
-      return properties.filter((p) => {
-        if (filters.searchQuery) {
-          const q = filters.searchQuery.toLowerCase();
-          const match =
-            p.name.toLowerCase().includes(q) ||
-            p.address?.toLowerCase().includes(q) ||
-            p.estate?.city?.toLowerCase().includes(q);
-          if (!match) return false;
-        }
-        if (filters.moduleFilter !== 'all' && p.module?.id !== filters.moduleFilter) return false;
-        if (filters.categoryFilter !== 'all' && p.assetType?.category !== filters.categoryFilter) return false;
-        if (filters.cityFilter !== 'all' && p.estate?.city !== filters.cityFilter) return false;
-        if (filters.amenityFilters.length > 0) {
-          if (!filters.amenityFilters.every((k) => propertyHasAmenity(p, k))) return false;
-        }
-        if (priceRange.max > priceRange.min) {
-          const price = p.minPrice ?? p.maxPrice;
-          if (price != null && (price < filters.minPriceFilter || price > filters.maxPriceFilter)) return false;
-        }
-        return true;
-      });
-    }
     return properties.filter((p) => {
-      const q = legacySearch.toLowerCase();
-      const matchSearch =
-        !legacySearch ||
-        p.name.toLowerCase().includes(q) ||
-        p.address?.toLowerCase().includes(q) ||
-        p.estate?.city?.toLowerCase().includes(q);
-      return (
-        matchSearch &&
-        (legacyModule === 'all' || p.module?.id === legacyModule) &&
-        (legacyCategory === 'all' || p.assetType?.category === legacyCategory) &&
-        (legacyCity === 'all' || p.estate?.city === legacyCity)
-      );
+      if (filters.searchQuery) {
+        const q = filters.searchQuery.toLowerCase();
+        const match =
+          p.name.toLowerCase().includes(q) ||
+          p.address?.toLowerCase().includes(q) ||
+          p.estate?.city?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (filters.moduleFilter !== 'all' && p.module?.id !== filters.moduleFilter) return false;
+      if (filters.categoryFilter !== 'all' && p.assetType?.category !== filters.categoryFilter) return false;
+      if (filters.cityFilter !== 'all' && p.estate?.city !== filters.cityFilter) return false;
+      if (filters.amenityFilters.length > 0) {
+        if (!filters.amenityFilters.every((k) => propertyHasAmenity(p, k))) return false;
+      }
+      if (priceRange.max > priceRange.min) {
+        const price = p.minPrice ?? p.maxPrice;
+        if (price != null && (price < filters.minPriceFilter || price > filters.maxPriceFilter)) return false;
+      }
+      return true;
     });
-  }, [properties, hasSidebar, filters, priceRange, legacySearch, legacyModule, legacyCategory, legacyCity]);
+  }, [properties, filters, priceRange]);
 
-  // ── Sorting (sidebar roles) ──────────────────────────────────
+  // ── Sorting ──────────────────────────────────────────────────
 
   const displayProperties = useMemo(() => {
-    if (!hasSidebar) return filteredProperties;
     const arr = [...filteredProperties];
     switch (filters.sortOrder) {
       case 'price_asc':  return arr.sort((a, b) => (a.minPrice ?? Infinity) - (b.minPrice ?? Infinity));
@@ -259,15 +228,7 @@ export const UserDashboardPage: React.FC = () => {
       case 'name_asc':   return arr.sort((a, b) => a.name.localeCompare(b.name));
       default:           return arr;
     }
-  }, [filteredProperties, hasSidebar, filters.sortOrder]);
-
-  // ── Map centre from first geo-tagged property ────────────────
-
-  const mapCenter = useMemo(() => {
-    const first = properties.find((p) => p.latitude && p.longitude);
-    if (!first) return null;
-    return { lat: Number(first.latitude), lng: Number(first.longitude) };
-  }, [properties]);
+  }, [filteredProperties, filters.sortOrder]);
 
   // ── Actions ──────────────────────────────────────────────────
 
@@ -281,18 +242,6 @@ export const UserDashboardPage: React.FC = () => {
     navigate(`/properties/${property.id}?tab=booking`);
   };
 
-  const clearLegacy = () => {
-    setLegacySearch('');
-    setLegacyModule('all');
-    setLegacyCategory('all');
-    setLegacyCity('all');
-  };
-
-  const legacyActiveCount =
-    (legacySearch ? 1 : 0) +
-    (legacyModule !== 'all' ? 1 : 0) +
-    (legacyCategory !== 'all' ? 1 : 0) +
-    (legacyCity !== 'all' ? 1 : 0);
 
   // ── Table columns ─────────────────────────────────────────────
 
@@ -455,20 +404,16 @@ export const UserDashboardPage: React.FC = () => {
                   label: 'Search',
                   type: 'text',
                   placeholder: 'Search by name, location...',
-                  value: hasSidebar ? filters.searchQuery : legacySearch,
-                  onChange: (v) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, searchQuery: v }))
-                    : setLegacySearch(v),
+                  value: filters.searchQuery,
+                  onChange: (v) => setFilters((prev) => ({ ...prev, searchQuery: v })),
                   icon: <Search size={14} />,
                 },
                 {
                   key: 'module',
                   label: 'Facility Type',
                   type: 'select',
-                  value: hasSidebar ? filters.moduleFilter : legacyModule,
-                  onChange: (v) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, moduleFilter: v }))
-                    : setLegacyModule(v),
+                  value: filters.moduleFilter,
+                  onChange: (v) => setFilters((prev) => ({ ...prev, moduleFilter: v })),
                   options: [
                     { value: 'all', label: 'All Types' },
                     ...availableModules.map((m) => ({ value: m.id, label: m.name })),
@@ -478,10 +423,8 @@ export const UserDashboardPage: React.FC = () => {
                   key: 'category',
                   label: 'Category',
                   type: 'chips',
-                  value: hasSidebar ? filters.categoryFilter : legacyCategory,
-                  onChange: (v) => hasSidebar
-                    ? setFilters((prev) => ({ ...prev, categoryFilter: v }))
-                    : setLegacyCategory(v),
+                  value: filters.categoryFilter,
+                  onChange: (v) => setFilters((prev) => ({ ...prev, categoryFilter: v })),
                   options: [
                     { value: 'all', label: 'All' },
                     { value: 'A', label: 'Cat A' },
@@ -490,11 +433,7 @@ export const UserDashboardPage: React.FC = () => {
                   ],
                 },
               ]}
-              filterCount={
-                hasSidebar
-                  ? [filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length
-                  : (legacyCity !== 'all' ? 1 : 0)
-              }
+              filterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length}
               onFilterOpen={() => setIsFilterOpen(true)}
             />
           </div>
@@ -506,24 +445,16 @@ export const UserDashboardPage: React.FC = () => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         title="Advanced Filters"
-        activeFilterCount={
-          hasSidebar
-            ? [filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length
-            : (legacyCity !== 'all' ? 1 : 0)
-        }
+        activeFilterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length}
         onClearAll={() => {
-          if (hasSidebar) {
-            setFilters((prev) => ({
-              ...prev,
-              cityFilter: 'all',
-              sortOrder: 'top_picks',
-              amenityFilters: [],
-              minPriceFilter: priceRange.min,
-              maxPriceFilter: priceRange.max,
-            }));
-          } else {
-            setLegacyCity('all');
-          }
+          setFilters((prev) => ({
+            ...prev,
+            cityFilter: 'all',
+            sortOrder: 'top_picks',
+            amenityFilters: [],
+            minPriceFilter: priceRange.min,
+            maxPriceFilter: priceRange.max,
+          }));
         }}
       >
         <div className="space-y-6">
@@ -532,11 +463,8 @@ export const UserDashboardPage: React.FC = () => {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
               <select
-                value={hasSidebar ? filters.cityFilter : legacyCity}
-                onChange={(e) => hasSidebar
-                  ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
-                  : setLegacyCity(e.target.value)
-                }
+                value={filters.cityFilter}
+                onChange={(e) => setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))}
                 className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
               >
                 <option value="all">All Locations</option>
@@ -548,67 +476,38 @@ export const UserDashboardPage: React.FC = () => {
           )}
 
           {/* Sort */}
-          {hasSidebar && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
-              <div className="space-y-2">
-                {[
-                  { value: 'top_picks', label: 'Top Picks' },
-                  { value: 'price_asc', label: 'Price: Low to High' },
-                  { value: 'price_desc', label: 'Price: High to Low' },
-                  { value: 'name_asc', label: 'Name A–Z' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setFilters((prev) => ({ ...prev, sortOrder: value as SortOrder }))}
-                    className={`w-full flex items-center px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
-                      filters.sortOrder === value
-                        ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+            <div className="space-y-2">
+              {[
+                { value: 'top_picks', label: 'Top Picks' },
+                { value: 'price_asc', label: 'Price: Low to High' },
+                { value: 'price_desc', label: 'Price: High to Low' },
+                { value: 'name_asc', label: 'Name A–Z' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setFilters((prev) => ({ ...prev, sortOrder: value as SortOrder }))}
+                  className={`w-full flex items-center px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
+                    filters.sortOrder === value
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       </FilterDrawer>
 
       {/* ── Scrollable content area ──────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 ${hasSidebar ? 'flex gap-0 items-start' : ''}`}>
-
-          {/* Left sidebar */}
-          {hasSidebar && (
-            <div
-              className={`flex-shrink-0 self-start sticky top-4 transition-all duration-300 ${
-                sidebarCollapsed ? 'w-11' : 'w-72'
-              }`}
-            >
-              <div
-                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-hidden flex flex-col"
-                style={{ maxHeight: 'calc(100vh - 160px)' }}
-              >
-                <FilterSidebar
-                  collapsed={sidebarCollapsed}
-                  onCollapse={setSidebarCollapsed}
-                  filters={filters}
-                  onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
-                  onClear={() => setFilters(defaultFilters(priceRange.min, priceRange.max))}
-                  properties={properties}
-                  priceRange={priceRange}
-                  availableModules={availableModules}
-                  availableCities={availableCities}
-                  mapCenter={mapCenter}
-                />
-              </div>
-            </div>
-          )}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
           {/* Main property list */}
-          <div className={`flex-1 min-w-0 ${hasSidebar ? 'pl-5' : ''}`}>
+          <div className="flex-1 min-w-0">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
@@ -619,9 +518,7 @@ export const UserDashboardPage: React.FC = () => {
                   <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">No properties found</h3>
                   <p className="text-sm text-gray-500">
-                    {hasSidebar
-                      ? 'Try adjusting the filters in the sidebar'
-                      : legacyActiveCount > 0
+                    {filters.searchQuery || filters.moduleFilter !== 'all' || filters.categoryFilter !== 'all' || filters.cityFilter !== 'all'
                       ? 'Try adjusting your search or filters'
                       : 'No properties are available for your access level'}
                   </p>

@@ -215,8 +215,6 @@ export const QuarterFreeviewPage: React.FC = () => {
 
   // Unified filter drawer state (used across all view modes)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-  // Sidebar collapsed state is used only in list view's persistent sidebar
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Unified filter state for all views
   const [rentRange, setRentRange] = useState({ min: 0, max: 99999 });
