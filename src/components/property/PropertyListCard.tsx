@@ -26,6 +26,7 @@ interface PropertyListCardProps {
   guests?: number;
   isLoggedIn: boolean;
   onBookClick: (e: React.MouseEvent, property: PropertyDTO) => void;
+  onCardClick?: (property: PropertyDTO) => void;
 }
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -78,6 +79,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   guests,
   isLoggedIn,
   onBookClick,
+  onCardClick,
 }) => {
   const navigate = useNavigate();
   const [primaryImgError, setPrimaryImgError] = useState(false);
@@ -104,7 +106,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   return (
     <div
       className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
-      onClick={() => navigate(`/properties/${property.id}`)}
+      onClick={() => onCardClick ? onCardClick(property) : navigate(`/properties/${property.id}`)}
     >
       {/* ── Left: Gallery Image Section ─────────────────────────── */}
       <div className="relative flex-shrink-0 sm:w-64 md:w-72 flex flex-col bg-gray-100">

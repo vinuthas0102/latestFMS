@@ -14,6 +14,7 @@ import { requiresLoginForBooking } from '../utils/moduleHelpers';
 import { ROUTES } from '../constants/routes';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { PropertyDTO } from '../types';
+import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export const SearchPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [modalPropertyId, setModalPropertyId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchModules();
@@ -253,6 +255,7 @@ export const SearchPage: React.FC = () => {
                     checkOut={checkOut}
                     isLoggedIn={!!user}
                     onBookClick={handleBookNow}
+                    onCardClick={(p) => setModalPropertyId(p.id)}
                   />
                 ))}
               </div>
@@ -260,6 +263,14 @@ export const SearchPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {modalPropertyId && (
+        <PropertyDetailModal
+          isOpen={!!modalPropertyId}
+          onClose={() => setModalPropertyId(null)}
+          propertyId={modalPropertyId}
+        />
+      )}
     </div>
   );
 };

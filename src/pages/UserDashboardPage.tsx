@@ -31,6 +31,7 @@ import { PropertyDTO } from '../types';
 import { ROUTES } from '../constants/routes';
 import { ROLE_LABELS } from '../constants/roles';
 import { requiresLoginForBooking, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
+import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { formatCurrency } from '../utils/formatters';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ export const UserDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dashboardView', 'list') as [ViewMode, (v: ViewMode) => void];
+  const [modalPropertyId, setModalPropertyId] = useState<string | null>(null);
 
   const [availableModules, setAvailableModules] = useState<{ id: string; name: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
@@ -530,7 +532,7 @@ export const UserDashboardPage: React.FC = () => {
                   columns={tableColumns}
                   data={displayProperties}
                   keyExtractor={(p) => p.id}
-                  onRowClick={(p) => navigate(`/properties/${p.id}`)}
+                  onRowClick={(p) => setModalPropertyId(p.id)}
                   emptyMessage="No properties found"
                 />
               </FadeIn>
@@ -544,6 +546,7 @@ export const UserDashboardPage: React.FC = () => {
                       property={property}
                       isLoggedIn={!!user}
                       onBookClick={handleBookClick}
+                      onCardClick={(p) => setModalPropertyId(p.id)}
                     />
                   ))}
                 </div>
@@ -561,7 +564,7 @@ export const UserDashboardPage: React.FC = () => {
                     <FadeIn key={property.id} delay={index * 50}>
                       <div
                         className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                        onClick={() => navigate(`/properties/${property.id}`)}
+                        onClick={() => setModalPropertyId(property.id)}
                       >
                         <div className="h-36 relative overflow-hidden bg-gray-100">
                           {property.images.length > 0 ? (
@@ -674,6 +677,15 @@ export const UserDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Property detail modal */}
+      {modalPropertyId && (
+        <PropertyDetailModal
+          isOpen={!!modalPropertyId}
+          onClose={() => setModalPropertyId(null)}
+          propertyId={modalPropertyId}
+        />
+      )}
     </div>
   );
 };

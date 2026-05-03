@@ -16,7 +16,7 @@ import { useAuthStore } from '../stores/authStore';
 import { canManageProperties } from '../utils/permissions';
 import { SkeletonCard } from '../components/ui/Loading';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
-import { PropertyQuickViewModal } from '../components/property/PropertyQuickViewModal';
+import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { PropertyDTO } from '../types';
 import { ROUTES } from '../constants/routes';
 import { FadeIn } from '../components/animations/FadeIn';
@@ -27,7 +27,7 @@ export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { properties, loading, fetchProperties } = usePropertyStore();
-  const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,13 +44,13 @@ export const PropertiesPage: React.FC = () => {
   const canManage = user && canManageProperties(user.role);
 
   const handleCardClick = (property: PropertyDTO) => {
-    setSelectedProperty(property);
+    setSelectedPropertyId(property.id);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setSelectedProperty(null);
+    setSelectedPropertyId(null);
   };
 
   const handleBookingClick = (e: React.MouseEvent, property: PropertyDTO) => {
@@ -383,11 +383,11 @@ export const PropertiesPage: React.FC = () => {
               })}
             </div>
 
-            {selectedProperty && (
-              <PropertyQuickViewModal
+            {selectedPropertyId && (
+              <PropertyDetailModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
-                property={selectedProperty}
+                propertyId={selectedPropertyId}
               />
             )}
           </>
@@ -483,11 +483,11 @@ export const PropertiesPage: React.FC = () => {
           </FadeIn>
         )}
 
-        {selectedProperty && (
-          <PropertyQuickViewModal
+        {selectedPropertyId && (
+          <PropertyDetailModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}
-            property={selectedProperty}
+            propertyId={selectedPropertyId}
           />
         )}
         </div>

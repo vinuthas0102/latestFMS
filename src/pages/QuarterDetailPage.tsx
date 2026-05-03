@@ -1,26 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  MapPin,
-  Bed,
-  Ruler,
-  Layers,
-  Info,
-  Image as ImageIcon,
-  Map,
-  Plus,
-  Home,
-  Building2,
-  ChevronDown,
-  CheckCircle,
-  Wifi,
-  Settings,
-  Calendar,
-  IndianRupee,
+  ArrowLeft, MapPin, Bed, Ruler, Layers, Info, Map, Plus, Home,
+  Building2, CheckCircle, Wifi, Settings, IndianRupee,
+  Zap, Droplets, Shield, FileText, AlertCircle, ChevronDown,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { ImageCarousel } from '../components/ui/ImageCarousel';
+import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
 import { quartersService, Quarter } from '../services/quartersService';
@@ -46,25 +32,18 @@ function resolveImages(q: Quarter): string[] {
       images = JSON.parse(images as string);
     } catch {
       images = (images as string)
-        .replace(/^\{/, '')
-        .replace(/\}$/, '')
+        .replace(/^\{/, '').replace(/\}$/, '')
         .split(',')
         .map((s: string) => s.trim().replace(/^"|"$/g, ''))
         .filter(Boolean);
     }
   }
-  if (Array.isArray(images) && (images as string[]).length > 0) {
-    return images as string[];
-  }
+  if (Array.isArray(images) && (images as string[]).length > 0) return images as string[];
   return FALLBACK_IMAGES;
 }
 
 function fmtINR(amount: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 }
 
 function getOccupancyBadge(status: string) {
@@ -73,61 +52,28 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border border-amber-200';
 }
 
-// ── Section definitions ────────────────────────────────────────────
+// ── Tab definitions ────────────────────────────────────────────────
 
-interface SectionDef {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-}
+type TabId = 'overview' | 'financials' | 'amenities' | 'images' | 'location' | 'action';
 
-const SECTIONS: SectionDef[] = [
-  { id: 'overview', label: 'Overview',  icon: <Info size={15} /> },
-  { id: 'images',   label: 'Images',    icon: <ImageIcon size={15} /> },
-  { id: 'location', label: 'Location',  icon: <Map size={15} /> },
-  { id: 'action',   label: 'Request',   icon: <Plus size={15} /> },
+interface TabDef { id: TabId; label: string; icon: React.ReactNode }
+
+const BASE_TABS: TabDef[] = [
+  { id: 'overview',   label: 'Overview',    icon: <Info size={14} /> },
+  { id: 'financials', label: 'Financials',  icon: <IndianRupee size={14} /> },
+  { id: 'amenities',  label: 'Amenities',   icon: <CheckCircle size={14} /> },
+  { id: 'images',     label: 'Photos',      icon: <Building2 size={14} /> },
+  { id: 'location',   label: 'Location',    icon: <Map size={14} /> },
 ];
 
-function scrollToSection(sectionId: string) {
-  const el = document.getElementById(`section-${sectionId}`);
-  if (el) {
-    const top = el.getBoundingClientRect().top + window.scrollY - 115;
-    window.scrollTo({ top, behavior: 'smooth' });
-  }
-}
+// ── Spec tile ─────────────────────────────────────────────────────
 
-// ── Shared sub-components ──────────────────────────────────────────
-
-interface SectionHeadingProps {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  accent?: boolean;
-}
-
-const SectionHeading: React.FC<SectionHeadingProps> = ({ icon, title, subtitle, accent }) => (
-  <div className="flex items-start gap-3 mb-5">
-    <div
-      className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${
-        accent ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'
-      }`}
-    >
-      {icon}
-    </div>
-    <div>
-      <h2 className={`text-xl font-bold ${accent ? 'text-blue-700' : 'text-gray-900'}`}>
-        {title}
-      </h2>
-      {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
-    </div>
-  </div>
-);
-
-const SectionDivider: React.FC = () => (
-  <div className="flex items-center gap-3 mb-10">
-    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+const SpecTile: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; accent?: string }> = ({
+  icon, label, value, accent,
+}) => (
+  <div className={`rounded-xl border p-4 ${accent ? accent : 'bg-white border-gray-200'} shadow-sm`}>
+    <div className="flex items-center gap-1.5 text-gray-400 mb-2">{icon}<span className="text-xs font-medium">{label}</span></div>
+    <div className="text-sm font-bold text-gray-900">{value}</div>
   </div>
 );
 
@@ -140,63 +86,35 @@ export const QuarterDetailPage: React.FC = () => {
 
   const [quarter, setQuarter] = useState<Quarter | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState('overview');
-  const [navExpanded, setNavExpanded] = useState(false);
-
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryStart, setGalleryStart] = useState(0);
+  const tabBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
-    quartersService
-      .getQuarterById(id)
+    quartersService.getQuarterById(id)
       .then(setQuarter)
       .catch(() => setQuarter(null))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const setupObserver = useCallback(() => {
-    if (observerRef.current) observerRef.current.disconnect();
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        let topmost: { id: string; top: number } | null = null;
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const sectionId = entry.target.id.replace('section-', '');
-            const top = entry.boundingClientRect.top;
-            if (!topmost || top < topmost.top) topmost = { id: sectionId, top };
-          }
-        });
-        if (topmost) setActiveSection((topmost as { id: string }).id);
-      },
-      { threshold: 0.1, rootMargin: '-100px 0px -50% 0px' }
-    );
-    SECTIONS.forEach(({ id: sId }) => {
-      const el = document.getElementById(`section-${sId}`);
-      if (el) observerRef.current!.observe(el);
-    });
+  const handleTabChange = useCallback((tabId: TabId) => {
+    setActiveTab(tabId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
-
-  useEffect(() => {
-    if (!quarter) return;
-    const timer = setTimeout(setupObserver, 250);
-    return () => {
-      clearTimeout(timer);
-      observerRef.current?.disconnect();
-    };
-  }, [quarter, setupObserver]);
 
   const canManage = user && canManageProperties(user.role);
   const isGovtOfficial = user?.role === 'govt_official';
-  const isAvailable = quarter?.occupancy_status === 'AVAILABLE';
 
-  // ── Loading ──────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-teal-600" />
         </div>
       </div>
     );
@@ -209,10 +127,7 @@ export const QuarterDetailPage: React.FC = () => {
         <div className="flex flex-col items-center justify-center h-96 gap-4">
           <Building2 size={48} className="text-gray-300" />
           <h2 className="text-xl font-semibold text-gray-700">Quarter not found</h2>
-          <button
-            onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)}
-            className="text-blue-600 hover:underline text-sm"
-          >
+          <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="text-blue-600 hover:underline text-sm">
             Back to Browse Quarters
           </button>
         </div>
@@ -221,72 +136,125 @@ export const QuarterDetailPage: React.FC = () => {
   }
 
   const images = resolveImages(quarter);
+  const isAvailable = quarter.occupancy_status === 'AVAILABLE';
   const lat = quarter.metadata?.latitude ? Number(quarter.metadata.latitude) : null;
   const lng = quarter.metadata?.longitude ? Number(quarter.metadata.longitude) : null;
   const hasLocation = lat !== null && lng !== null;
 
-  // Label for the action section tab — role-sensitive
-  const actionLabel = canManage ? 'Manage' : 'Request';
-  const sectionsWithActionLabel = SECTIONS.map((s) =>
-    s.id === 'action' ? { ...s, label: actionLabel } : s
+  // Dynamic action tab label
+  const actionLabel = canManage ? 'Manage' : isGovtOfficial ? 'Request' : 'Info';
+  const tabs: TabDef[] = [
+    ...BASE_TABS,
+    { id: 'action', label: actionLabel, icon: canManage ? <Settings size={14} /> : <Plus size={14} /> },
+  ];
+
+  // Financials from metadata
+  const electricityRate = quarter.metadata?.electricity_rate as string | undefined;
+  const waterRate = quarter.metadata?.water_rate as string | undefined;
+  const maintenanceCharge = quarter.metadata?.maintenance_charge as number | undefined;
+  const depositMonths = quarter.metadata?.deposit_months as number | undefined;
+  const rentEscalation = quarter.metadata?.rent_escalation_pct as number | undefined;
+
+  // Lightbox info panel
+  const lightboxInfoPanel = (
+    <div className="p-6 text-white space-y-4">
+      <div className="flex gap-2 flex-wrap">
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+          {isAvailable ? 'Available' : 'Occupied'}
+        </span>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/15 border border-white/20 text-white">
+          {quarter.quarter_type}
+        </span>
+      </div>
+      <h2 className="text-xl font-bold">{quarter.quarter_number}</h2>
+      {quarter.address && (
+        <div className="flex items-start gap-2 text-white/70 text-sm">
+          <MapPin size={13} className="mt-0.5 flex-shrink-0" />
+          <span>{quarter.address}</span>
+        </div>
+      )}
+      <div className="bg-white/10 rounded-xl p-3 border border-white/15 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-white/60">Configuration</span>
+          <span className="font-bold">{quarter.bhk_config}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-white/60">Area</span>
+          <span className="font-bold">{quarter.area_sqft} sq.ft</span>
+        </div>
+        <div className="border-t border-white/10 pt-2 flex justify-between">
+          <span className="text-white/60 text-sm">Monthly Rent</span>
+          <span className="font-black text-lg text-emerald-300">{fmtINR(quarter.monthly_rent)}</span>
+        </div>
+      </div>
+      {isGovtOfficial && isAvailable && (
+        <button
+          onClick={() => navigate(ROUTES.QUARTERS_REQUESTS, { state: { prefill: quarter } })}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-colors"
+        >
+          Add to Request
+        </button>
+      )}
+    </div>
   );
 
+  // ── Render ─────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <Header />
 
-      {/* ── Sticky top navigation ──────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-white/92 backdrop-blur-md border-b border-gray-200/80 shadow-sm">
+      {/* ── Sticky tab bar ─────────────────────────────────────── */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Back / Manage */}
+          {/* Back / Action row */}
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <ArrowLeft size={16} />
-              Back
+              <ArrowLeft size={16} /> Back
             </button>
-            {canManage && (
-              <button
-                onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-1.5 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200"
-              >
-                <Settings size={14} />
-                Manage Quarters
-              </button>
-            )}
-            {isGovtOfficial && isAvailable && (
-              <button
-                onClick={() => scrollToSection('action')}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200"
-              >
-                <Plus size={14} />
-                Add to Request
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canManage && (
+                <button
+                  onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
+                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition-all"
+                >
+                  <Settings size={13} /> Quarter Manager
+                </button>
+              )}
+              {isGovtOfficial && isAvailable && (
+                <button
+                  onClick={() => handleTabChange('action')}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition-all"
+                >
+                  <Plus size={13} /> Add to Request
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Section pill strip */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 scrollbar-none">
-            {sectionsWithActionLabel.map(({ id: sId, label, icon }) => {
-              const isActive = activeSection === sId;
-              const isAction = sId === 'action';
+          {/* Tab strip */}
+          <div ref={tabBarRef} className="flex items-center overflow-x-auto scrollbar-none">
+            {tabs.map(({ id: tId, label, icon }) => {
+              const isActive = activeTab === tId;
+              const isAction = tId === 'action';
               return (
                 <button
-                  key={sId}
-                  onClick={() => scrollToSection(sId)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 border ${
+                  key={tId}
+                  onClick={() => handleTabChange(tId)}
+                  className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 border-b-2 -mb-px ${
                     isActive
                       ? isAction
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                        : 'bg-gray-800 text-white border-gray-800 shadow-md'
+                        ? 'text-teal-700 border-teal-600'
+                        : 'text-slate-900 border-slate-800'
                       : isAction
-                      ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'text-teal-600 border-transparent hover:border-teal-300'
+                      : 'text-gray-500 border-transparent hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
-                  {icon}
+                  <span className={isActive ? '' : 'opacity-70'}>{icon}</span>
                   {label}
                 </button>
               );
@@ -295,406 +263,464 @@ export const QuarterDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Floating right section navigator ──────────────────── */}
-      <div
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 hidden lg:block"
-        onMouseEnter={() => setNavExpanded(true)}
-        onMouseLeave={() => setNavExpanded(false)}
-      >
-        <div
-          className={`flex flex-col gap-0.5 bg-white/96 backdrop-blur-sm shadow-xl border border-gray-200/80 rounded-l-2xl py-2.5 px-1.5 transition-all duration-300 ease-in-out ${
-            navExpanded ? 'w-36' : 'w-11'
-          }`}
-        >
-          {sectionsWithActionLabel.map(({ id: sId, label, icon }) => {
-            const isActive = activeSection === sId;
-            const isAction = sId === 'action';
-            return (
-              <button
-                key={sId}
-                onClick={() => scrollToSection(sId)}
-                title={!navExpanded ? label : undefined}
-                className={`flex items-center gap-2.5 rounded-xl transition-all duration-200 overflow-hidden flex-shrink-0 ${
-                  navExpanded ? 'px-2.5 py-2' : 'p-2 justify-center'
-                } ${
-                  isActive
-                    ? isAction
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-800 text-white shadow-sm'
-                    : isAction
-                    ? 'text-blue-600 hover:bg-blue-50'
-                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
-                }`}
-              >
-                <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">{icon}</span>
-                {navExpanded && (
-                  <span className="text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
-                    {label}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Main content ──────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
 
-      {/* ── Main scrollable content ────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 pr-4 lg:pr-16">
-
-        {/* Hero */}
-        <div className="relative rounded-2xl overflow-hidden shadow-xl mb-10" style={{ height: 380 }}>
-          <ImageCarousel
+        {/* Photo gallery — always visible */}
+        <div className="mb-6">
+          <PhotoGallery
             images={images}
             alt={quarter.quarter_number}
-            className="h-full"
-            showFullscreen
-            autoPlay={false}
+            heroHeight="400px"
+            lightboxInfo={lightboxInfoPanel}
           />
+        </div>
 
-          {/* Dark gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
-
-          {/* Badges */}
-          <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-              {isAvailable ? 'Available' : 'Occupied'}
-            </span>
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-800/80 text-white backdrop-blur-sm">
-              {quarter.quarter_type}
-            </span>
-          </div>
-
-          {/* Title + address */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-none">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">
-              {quarter.quarter_number}
-            </h1>
+        {/* Quarter title strip */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+                {isAvailable ? 'Available' : 'Occupied'}
+              </span>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                {quarter.quarter_type}
+              </span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                {quarter.bhk_config}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{quarter.quarter_number}</h1>
             {quarter.address && (
-              <div className="flex items-center gap-2 text-white/80 text-sm">
-                <MapPin size={14} className="flex-shrink-0" />
+              <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
+                <MapPin size={13} className="flex-shrink-0" />
                 <span>{quarter.address}</span>
               </div>
             )}
           </div>
-
-          {/* CTA overlay button */}
-          {isGovtOfficial && isAvailable && (
-            <button
-              onClick={() => scrollToSection('action')}
-              className="absolute top-4 right-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200"
-            >
-              <Plus size={15} />
-              Add to Request
-              <ChevronDown size={13} />
-            </button>
-          )}
+          <div className="flex-shrink-0 text-right">
+            <div className="text-xs text-gray-400 uppercase tracking-wide">Monthly Rent</div>
+            <div className="text-3xl font-black text-emerald-700 leading-none">
+              {fmtINR(quarter.monthly_rent)}
+            </div>
+            <div className="text-sm text-gray-400">per month</div>
+            {isGovtOfficial && isAvailable && (
+              <button
+                onClick={() => handleTabChange('action')}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
+              >
+                Request Quarter <ChevronDown size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* ── 1. Overview ──────────────────────────────────────── */}
-        <section id="section-overview" className="mb-12 scroll-mt-28">
-          <SectionHeading icon={<Info size={20} />} title="Overview" />
+        {/* ── Tab Panels ────────────────────────────────────── */}
 
+        {/* OVERVIEW */}
+        {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Primary spec grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { icon: <Bed size={16} />,       label: 'Configuration', value: quarter.bhk_config },
-                { icon: <Ruler size={16} />,     label: 'Area',          value: `${quarter.area_sqft} sq.ft` },
-                { icon: <Building2 size={16} />, label: 'Block / Floor', value: `${quarter.block_name || '—'} / ${quarter.floor_number}` },
-                { icon: <Layers size={16} />,    label: 'Furnishing',    value: quarter.furnishing_status },
-              ].map((item) => (
-                <div key={item.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-2">
-                    {item.icon}
-                    <span className="text-xs font-medium">{item.label}</span>
-                  </div>
-                  <div className="text-sm font-bold text-gray-900">{item.value}</div>
-                </div>
-              ))}
-            </div>
+            <section>
+              <h2 className="text-base font-bold text-gray-800 mb-3">Quarter Specifications</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
+                <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
+                <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
+                <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
+              </div>
+            </section>
 
-            {/* Secondary info row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-center gap-1.5 text-gray-400 mb-2">
-                  <Home size={16} />
-                  <span className="text-xs font-medium">Quarter Type</span>
-                </div>
-                <div className="text-sm font-bold text-gray-900">{quarter.quarter_type}</div>
+            <section>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
+                <SpecTile
+                  icon={<IndianRupee size={14} />}
+                  label="Monthly Rent"
+                  value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
+                  accent="bg-emerald-50 border-emerald-200"
+                />
+                <SpecTile
+                  icon={<CheckCircle size={14} />}
+                  label="Status"
+                  value={
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+                      <CheckCircle size={10} />
+                      {isAvailable ? 'Available' : 'Occupied'}
+                    </span>
+                  }
+                />
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-center gap-1.5 text-gray-400 mb-2">
-                  <IndianRupee size={16} />
-                  <span className="text-xs font-medium">Monthly Rent</span>
-                </div>
-                <div className="text-sm font-bold text-emerald-700">
-                  {fmtINR(quarter.monthly_rent)}
-                  <span className="text-xs text-gray-400 font-normal"> /mo</span>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-center gap-1.5 text-gray-400 mb-2">
-                  <CheckCircle size={16} />
-                  <span className="text-xs font-medium">Status</span>
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}
-                >
-                  <CheckCircle size={11} />
-                  {isAvailable ? 'Available' : 'Occupied'}
-                </span>
-              </div>
-            </div>
+            </section>
 
             {/* Description */}
             {quarter.description && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Description</h3>
+              <section className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+                  <Info size={14} className="text-blue-500" /> Description
+                </h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
-              </div>
+              </section>
             )}
+          </div>
+        )}
 
-            {/* Amenities */}
-            {quarter.amenities?.length > 0 && (
-              <div>
-                <h3 className="text-base font-semibold text-gray-800 mb-3">Amenities</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {/* FINANCIALS */}
+        {activeTab === 'financials' && (
+          <div className="space-y-6">
+            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <IndianRupee size={18} className="text-emerald-600" /> Financial Details
+            </h2>
+
+            {/* Rent card */}
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-emerald-800">Monthly Rent</h3>
+                <span className="text-3xl font-black text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>
+              </div>
+              <div className="text-xs text-emerald-600 bg-emerald-100 rounded-lg px-3 py-2">
+                Rent is payable monthly in advance by the 5th of each month.
+              </div>
+            </div>
+
+            {/* Charges breakdown */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-sm font-bold text-gray-800">Utility Charges</h3>
+              </div>
+              <div className="divide-y divide-gray-100">
+                <div className="px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center">
+                      <Zap size={14} className="text-yellow-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">Electricity</div>
+                      <div className="text-xs text-gray-400">Metered, as per actual consumption</div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-gray-700">
+                    {electricityRate ? `₹${electricityRate}/unit` : 'As per actual'}
+                  </div>
+                </div>
+                <div className="px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <Droplets size={14} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">Water</div>
+                      <div className="text-xs text-gray-400">Flat charge per month</div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-gray-700">
+                    {waterRate ? `₹${waterRate}/month` : 'Included'}
+                  </div>
+                </div>
+                <div className="px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                      <Shield size={14} className="text-slate-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">Maintenance</div>
+                      <div className="text-xs text-gray-400">Common area upkeep</div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-gray-700">
+                    {maintenanceCharge ? fmtINR(maintenanceCharge) : 'Nil'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Deposit & escalation */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText size={15} className="text-slate-500" />
+                  <h3 className="text-sm font-bold text-gray-800">Security Deposit</h3>
+                </div>
+                <div className="text-2xl font-black text-slate-700">
+                  {depositMonths
+                    ? `${depositMonths} month${depositMonths > 1 ? 's' : ''} rent`
+                    : fmtINR(quarter.monthly_rent * 2)}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">Refundable on vacating</div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle size={15} className="text-amber-500" />
+                  <h3 className="text-sm font-bold text-gray-800">Annual Escalation</h3>
+                </div>
+                <div className="text-2xl font-black text-amber-600">
+                  {rentEscalation ? `${rentEscalation}%` : '5%'}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">Per annum, effective April each year</div>
+              </div>
+            </div>
+
+            {/* Payment info note */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+              <Info size={15} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700 leading-relaxed">
+                All charges are subject to revision as per government orders. Rent arrears may attract interest as per departmental policy. Contact the Estate Office for the latest rates.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* AMENITIES */}
+        {activeTab === 'amenities' && (
+          <div className="space-y-6">
+            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <CheckCircle size={18} className="text-emerald-500" /> Amenities & Facilities
+            </h2>
+
+            {quarter.amenities?.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {quarter.amenities.map((amenity) => (
                     <div
                       key={amenity}
-                      className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-gray-200 shadow-sm"
+                      className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-teal-200 hover:shadow-md transition-all"
                     >
-                      <Wifi size={15} className="text-blue-500 flex-shrink-0" />
-                      <span className="text-sm text-gray-700">{amenity}</span>
+                      <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+                        <Wifi size={14} className="text-teal-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 leading-tight">{amenity}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        </section>
 
-        <SectionDivider />
-
-        {/* ── 2. Images ────────────────────────────────────────── */}
-        <section id="section-images" className="mb-12 scroll-mt-28">
-          <SectionHeading
-            icon={<ImageIcon size={20} />}
-            title="Images"
-            subtitle="All photos of this quarter"
-          />
-
-          <div className="space-y-4">
-            <div className="rounded-2xl overflow-hidden shadow-md">
-              <ImageCarousel
-                images={images}
-                alt={quarter.quarter_number}
-                className="h-80"
-                showFullscreen
-                autoPlay={false}
-              />
-            </div>
-
-            {images.length > 1 && (
-              <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
-                {images.map((src, i) => (
-                  <div
-                    key={i}
-                    className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors cursor-pointer"
-                  >
-                    <img
-                      src={src}
-                      alt={`${quarter.quarter_number} ${i + 1}`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGES[0];
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="text-sm text-gray-500 text-center">
-              {images.length} {images.length === 1 ? 'image' : 'images'} available
-            </div>
-          </div>
-        </section>
-
-        <SectionDivider />
-
-        {/* ── 3. Location ──────────────────────────────────────── */}
-        <section id="section-location" className="mb-12 scroll-mt-28">
-          <SectionHeading icon={<Map size={20} />} title="Location & Nearby Places" />
-
-          {hasLocation ? (
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <GoogleMapComponent
-                  latitude={lat!}
-                  longitude={lng!}
-                  propertyName={quarter.quarter_number}
-                  propertyAddress={quarter.address}
-                  height="480px"
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <NearbyPlacesPanel latitude={lat!} longitude={lng!} />
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-gray-100 rounded-xl">
-                  <MapPin size={20} className="text-gray-500" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 mb-1">Address</div>
-                  <div className="text-sm text-gray-600">{quarter.address || 'Address not available'}</div>
-                  {quarter.block_name && (
-                    <div className="text-sm text-gray-500 mt-1">
-                      Block {quarter.block_name} · Floor {quarter.floor_number}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <SectionDivider />
-
-        {/* ── 4. Action section (role-aware) ───────────────────── */}
-        <section id="section-action" className="mb-8 scroll-mt-28">
-          {canManage ? (
-            // Admin / Manager — Edit / Manage panel
-            <>
-              <SectionHeading
-                icon={<Settings size={20} />}
-                title="Manage Quarter"
-                subtitle="Manage this quarter's details, allotments, and tenant records"
-                accent
-              />
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                  {[
-                    { label: 'Quarter',  value: quarter.quarter_number },
-                    { label: 'Config',   value: quarter.bhk_config },
-                    { label: 'Area',     value: `${quarter.area_sqft} sq.ft` },
-                    { label: 'Rent',     value: `${fmtINR(quarter.monthly_rent)}/mo` },
-                  ].map((item) => (
-                    <div key={item.label} className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                      <div className="text-xs text-gray-500 mb-1">{item.label}</div>
-                      <div className="text-sm font-bold text-gray-900">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md hover:shadow-lg"
-                  >
-                    <Settings size={16} />
-                    Go to Quarter Manager
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : isGovtOfficial ? (
-            // Govt official — allotment request CTA
-            <>
-              <SectionHeading
-                icon={<Calendar size={20} />}
-                title="Request This Quarter"
-                subtitle={
-                  isAvailable
-                    ? 'Submit an allotment request to apply for this quarter'
-                    : 'This quarter is currently not available for allotment'
-                }
-                accent
-              />
-
-              {isAvailable ? (
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 shadow-xl text-white">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                {/* Standard government facilities note */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                  <h3 className="text-sm font-bold text-slate-700 mb-3">Standard Government Quarter Inclusions</h3>
+                  <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: 'Quarter',  value: quarter.quarter_number },
-                      { label: 'Config',   value: quarter.bhk_config },
-                      { label: 'Area',     value: `${quarter.area_sqft} sq.ft` },
-                      { label: 'Rent',     value: `${fmtINR(quarter.monthly_rent)}/mo` },
+                      'Piped water supply',
+                      'Covered parking',
+                      'Garbage collection',
+                      'Common area lighting',
+                      'Security personnel',
+                      'Postal address',
                     ].map((item) => (
-                      <div key={item.label} className="bg-white/15 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                        <div className="text-xs text-blue-100 mb-1">{item.label}</div>
-                        <div className="text-sm font-bold">{item.value}</div>
+                      <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
+                        <CheckCircle size={13} className="text-teal-500 flex-shrink-0" />
+                        {item}
                       </div>
                     ))}
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      onClick={() => navigate(ROUTES.QUARTERS_REQUESTS, { state: { prefill: quarter } })}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-colors shadow-md hover:shadow-lg"
-                    >
-                      <Plus size={16} />
-                      Add to Allotment Request
-                    </button>
-                    <button
-                      onClick={() => navigate(ROUTES.QUARTERS_REQUESTS)}
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-white/15 border border-white/30 text-white rounded-xl font-medium text-sm hover:bg-white/25 transition-colors"
-                    >
-                      View My Requests
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-200 mt-4">
-                    "Add to Allotment Request" takes you to the Requests page with this quarter pre-selected as a preference.
-                  </p>
                 </div>
-              ) : (
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-gray-100 rounded-xl">
-                      <Building2 size={20} className="text-gray-500" />
+              </>
+            ) : (
+              <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <CheckCircle size={40} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 font-medium">Amenity details not available</p>
+                <p className="text-sm text-gray-400 mt-1">Contact the Estate Office for facility details</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* IMAGES */}
+        {activeTab === 'images' && (
+          <div className="space-y-6">
+            <h2 className="text-base font-bold text-gray-800">All Photos</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {images.map((src, i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded-xl overflow-hidden border border-gray-200 cursor-pointer hover:border-teal-400 hover:shadow-md transition-all group"
+                  onClick={() => { setGalleryStart(i); setGalleryOpen(true); }}
+                >
+                  <img
+                    src={src}
+                    alt={`${quarter.quarter_number} photo ${i + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGES[0]; }}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-gray-400 text-center">{images.length} photo{images.length !== 1 ? 's' : ''}</p>
+          </div>
+        )}
+
+        {/* LOCATION */}
+        {activeTab === 'location' && (
+          <div className="space-y-6">
+            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <Map size={18} className="text-rose-500" /> Location & Nearby Places
+            </h2>
+            {hasLocation ? (
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
+                  <GoogleMapComponent
+                    latitude={lat!}
+                    longitude={lng!}
+                    propertyName={quarter.quarter_number}
+                    propertyAddress={quarter.address}
+                    height="480px"
+                  />
+                </div>
+                <div>
+                  <NearbyPlacesPanel latitude={lat!} longitude={lng!} />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <MapPin size={40} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500">Location details not available</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ACTION */}
+        {activeTab === 'action' && (
+          <div className="space-y-6">
+            {canManage ? (
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <Settings size={18} className="text-slate-600" /> Manage Quarter
+                </h2>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    {[
+                      { label: 'Quarter No.',  value: quarter.quarter_number },
+                      { label: 'Config',   value: quarter.bhk_config },
+                      { label: 'Area',     value: `${quarter.area_sqft} sq.ft` },
+                      { label: 'Rent',     value: fmtINR(quarter.monthly_rent) },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <div className="text-xs text-gray-500 mb-0.5">{item.label}</div>
+                        <div className="text-sm font-bold text-gray-900">{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
+                  >
+                    <Settings size={16} /> Go to Quarter Manager
+                  </button>
+                </div>
+              </div>
+            ) : isGovtOfficial ? (
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <Plus size={18} className="text-blue-600" />
+                  {isAvailable ? 'Request This Quarter' : 'Quarter Unavailable'}
+                </h2>
+                {isAvailable ? (
+                  <div className="bg-gradient-to-br from-blue-600 via-blue-600 to-teal-600 rounded-2xl p-8 shadow-xl text-white">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                      {[
+                        { label: 'Quarter',  value: quarter.quarter_number },
+                        { label: 'Config',   value: quarter.bhk_config },
+                        { label: 'Area',     value: `${quarter.area_sqft} sq.ft` },
+                        { label: 'Rent',     value: fmtINR(quarter.monthly_rent) },
+                      ].map((item) => (
+                        <div key={item.label} className="bg-white/15 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                          <div className="text-xs text-blue-100 mb-0.5">{item.label}</div>
+                          <div className="text-sm font-bold">{item.value}</div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 mb-1">Currently Occupied</div>
-                      <p className="text-sm text-gray-600">
-                        This quarter is occupied at the moment. Browse other available quarters or check back later.
-                      </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <button
-                        onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)}
-                        className="mt-3 inline-flex items-center gap-1.5 text-sm bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg transition-colors font-medium"
+                        onClick={() => navigate(ROUTES.QUARTERS_REQUESTS, { state: { prefill: quarter } })}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-50 transition-colors shadow-md"
                       >
-                        Browse Available Quarters
+                        <Plus size={16} /> Add to Allotment Request
+                      </button>
+                      <button
+                        onClick={() => navigate(ROUTES.QUARTERS_REQUESTS)}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-white/15 border border-white/30 text-white rounded-xl font-medium text-sm hover:bg-white/25 transition-colors"
+                      >
+                        View My Requests
                       </button>
                     </div>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            // Other authenticated roles — read-only informational panel
-            <>
-              <SectionHeading
-                icon={<Home size={20} />}
-                title="Allotment Information"
-                subtitle="How government quarters are allocated"
-              />
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-50 rounded-xl">
-                    <Home size={20} className="text-blue-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 mb-2">Official Allotment Process</div>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Government quarters are allocated through an official allotment cycle process managed by the Estate Office. Only authorised government officials can submit allotment requests. Contact your department's administrative office for eligibility and process details.
+                    <p className="text-xs text-blue-200 mt-4">
+                      This quarter will be added as a preference in your allotment request form.
                     </p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-gray-100 rounded-xl">
+                        <Building2 size={20} className="text-gray-500" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 mb-1">Currently Occupied</div>
+                        <p className="text-sm text-gray-600">
+                          This quarter is occupied at the moment. Browse other available quarters.
+                        </p>
+                        <button
+                          onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)}
+                          className="mt-3 inline-flex items-center gap-1.5 text-sm bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg transition-colors font-medium"
+                        >
+                          Browse Available Quarters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <Info size={18} className="text-blue-500" /> Allotment Information
+                </h2>
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-50 rounded-xl">
+                      <Home size={20} className="text-blue-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900 mb-2">Official Allotment Process</div>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        Government quarters are allocated through an official allotment cycle process managed by the Estate Office. Only authorised government officials can submit allotment requests. Contact your department's administrative office for eligibility and process details.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </>
-          )}
-        </section>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Standalone lightbox for Images tab */}
+      {galleryOpen && (
+        <PhotoLightbox
+          images={images}
+          initialIndex={galleryStart}
+          onClose={() => setGalleryOpen(false)}
+          infoPanel={lightboxInfoPanel}
+        />
+      )}
+
+      {/* Sticky rent bar for govt officials when not on action tab */}
+      {isGovtOfficial && isAvailable && activeTab !== 'action' && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-2xl">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <div>
+              <div className="font-bold text-gray-900">{quarter.quarter_number}</div>
+              <div className="text-sm text-gray-500">
+                <span className="font-semibold text-emerald-700">{fmtINR(quarter.monthly_rent)}</span> /month · {quarter.bhk_config}
+              </div>
+            </div>
+            <button
+              onClick={() => handleTabChange('action')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all"
+            >
+              <Plus size={14} /> Add to Request
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
