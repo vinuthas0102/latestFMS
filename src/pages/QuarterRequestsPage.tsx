@@ -12,6 +12,8 @@ import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import {
   quartersService,
@@ -1103,70 +1105,53 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Status dashboard cards ─────────────────────────────────── */}
-        <div className="mb-5 overflow-x-auto pb-1">
-          <div className="flex gap-3 min-w-max">
-            {STATUS_CARDS.map((card) => {
-              const isActive = dpFilter === card.key;
-              return (
-                <button
-                  key={card.key}
-                  onClick={() => {
-                    setDpFilter(card.key);
-                    resetActionForm();
-                    setSelectedTenantReq(null);
-                    setReqSearch('');
-                    setReqBhkFilter('ALL');
-                    // Auto-select first request for the chosen filter
-                    const statusMap: Record<DPFilter, string[]> = {
-                      all: [],
-                      draft: ['DRAFT'],
-                      submitted: ['SUBMITTED'],
-                      allotted: ['ALLOTTED', 'UPGRADE_REQUESTED'],
-                      occupied: ['ACKNOWLEDGED'],
-                      tenantServices: ['EXTEND_REQUESTED', 'VACATE_REQUESTED'],
-                      vacated: ['VACATED'],
-                    };
-                    const statuses = statusMap[card.key];
-                    const first = statuses.length
-                      ? requests.find(r => statuses.includes(r.request_status)) ?? null
-                      : (requests[0] ?? null);
-                    setSelectedRequest(first);
-                  }}
-                  className={`relative flex items-start gap-3.5 p-4 rounded-2xl border-2 transition-all duration-200 w-44 text-left group ${
-                    isActive
-                      ? 'border-transparent shadow-lg scale-[1.03]'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md hover:scale-[1.01]'
-                  }`}
-                  style={isActive ? {
-                    background: `linear-gradient(135deg, var(--tw-gradient-stops))`,
-                  } : {}}
-                >
-                  {/* Gradient bg for active */}
-                  {isActive && (
-                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${card.gradient} opacity-100`} />
-                  )}
-                  <div className="relative z-10 flex items-start gap-3 w-full">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-white/25' : card.iconBg}`}>
-                      {React.cloneElement(card.icon as React.ReactElement, {
-                        className: isActive ? 'text-white' : undefined,
-                      })}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className={`text-2xl font-black leading-none mb-0.5 ${isActive ? 'text-white' : card.countColor}`}>
-                        {card.count}
-                      </div>
-                      <div className={`text-xs font-bold leading-tight ${isActive ? 'text-white' : 'text-gray-800'}`}>
-                        {card.label}
-                      </div>
-                      <div className={`text-[10px] mt-0.5 leading-tight ${isActive ? 'text-white/75' : 'text-gray-400'}`}>
-                        {card.description}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+        {/* ── Status summary cards (SummaryStatsCard, matches QuarterManagerPage) ── */}
+        <div className="mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {STATUS_CARDS.map((card, idx) => (
+              <SummaryStatsCard
+                key={card.key}
+                label={card.label}
+                value={card.count}
+                icon={(() => {
+                  const iconMap: Record<DPFilter, React.FC<any>> = {
+                    all: FileText,
+                    draft: FileText,
+                    submitted: Send,
+                    allotted: CheckCircle,
+                    occupied: Home,
+                    tenantServices: RefreshCw,
+                    vacated: Building2,
+                  };
+                  return iconMap[card.key];
+                })()}
+                gradient={`bg-gradient-to-r ${card.gradient}`}
+                delay={idx * 50}
+                subtitle={card.description}
+                isActive={dpFilter === card.key}
+                onClick={() => {
+                  setDpFilter(card.key);
+                  resetActionForm();
+                  setSelectedTenantReq(null);
+                  setReqSearch('');
+                  setReqBhkFilter('ALL');
+                  const statusMap: Record<DPFilter, string[]> = {
+                    all: [],
+                    draft: ['DRAFT'],
+                    submitted: ['SUBMITTED'],
+                    allotted: ['ALLOTTED', 'UPGRADE_REQUESTED'],
+                    occupied: ['ACKNOWLEDGED'],
+                    tenantServices: ['EXTEND_REQUESTED', 'VACATE_REQUESTED'],
+                    vacated: ['VACATED'],
+                  };
+                  const statuses = statusMap[card.key];
+                  const first = statuses.length
+                    ? requests.find(r => statuses.includes(r.request_status)) ?? null
+                    : (requests[0] ?? null);
+                  setSelectedRequest(first);
+                }}
+              />
+            ))}
           </div>
         </div>
 
@@ -1183,84 +1168,57 @@ export const QuarterRequestsPage: React.FC = () => {
             <Button onClick={() => openNewModal()}><Plus size={15} className="mr-1" /> New Request</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
-
-            {/* ── LEFT: filter sidebar ───────────────────────────── */}
-            <div className="hidden lg:block lg:col-span-1">
-              <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-4 space-y-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Filters</h3>
-                  {activeFilterCount > 0 && (
-                    <button
-                      onClick={() => { setReqSearch(''); setReqBhkFilter('ALL'); }}
-                      className="text-[10px] text-blue-600 hover:underline"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-
-                {/* Search */}
-                <div>
-                  <div className="relative">
-                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search…"
-                      value={reqSearch}
-                      onChange={e => setReqSearch(e.target.value)}
-                      className="w-full pl-7 pr-7 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    />
-                    {reqSearch && (
-                      <button onClick={() => setReqSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={11} /></button>
-                    )}
-                  </div>
-                </div>
-
-                {/* BHK Config */}
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">BHK Config</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
-                      <button
-                        key={v}
-                        onClick={() => setReqBhkFilter(v)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
-                          reqBhkFilter === v
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'
-                        }`}
-                      >
-                        {v === 'ALL' ? 'Any' : v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sort */}
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Sort By</label>
-                  <div className="space-y-1">
-                    {[
-                      { value: 'newest', label: 'Newest first' },
-                      { value: 'oldest', label: 'Oldest first' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => setReqSort(value as 'newest' | 'oldest')}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          reqSort === value ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+          <>
+            {/* ── MandatorySearchBar (matches QuarterManagerPage filter style) ── */}
+            {!isTenantView && (
+              <div className="mb-3 space-y-2">
+                <MandatorySearchBar
+                  fields={[
+                    {
+                      key: 'search',
+                      label: 'Search',
+                      type: 'text',
+                      placeholder: 'Request no., BHK, location…',
+                      value: reqSearch,
+                      onChange: setReqSearch,
+                      icon: <Search size={14} />,
+                    },
+                    {
+                      key: 'bhk',
+                      label: 'BHK Config',
+                      type: 'chips',
+                      value: reqBhkFilter,
+                      onChange: setReqBhkFilter,
+                      options: [
+                        { value: 'ALL', label: 'Any' },
+                        { value: '1BHK', label: '1 BHK' },
+                        { value: '2BHK', label: '2 BHK' },
+                        { value: '3BHK', label: '3 BHK' },
+                        { value: '4BHK', label: '4 BHK' },
+                      ],
+                    },
+                    {
+                      key: 'sort',
+                      label: 'Sort By',
+                      type: 'chips',
+                      value: reqSort,
+                      onChange: v => setReqSort(v as 'newest' | 'oldest'),
+                      options: [
+                        { value: 'newest', label: 'Newest' },
+                        { value: 'oldest', label: 'Oldest' },
+                      ],
+                    },
+                  ]}
+                />
+                <div className="flex justify-end">
+                  <span className="text-xs text-gray-500">{filteredRequests.length} of {requests.length} requests</span>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* ── MIDDLE: request list ──────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+            {/* ── LEFT: request list ──────────────────────────── */}
             <div className="lg:col-span-2 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
@@ -1270,16 +1228,17 @@ export const QuarterRequestsPage: React.FC = () => {
                     ({isTenantView ? filteredTenantRequests.length : filteredRequests.length})
                   </span>
                 </h2>
-                {/* Mobile filter button */}
-                <button
-                  onClick={() => setFilterDrawerOpen(true)}
-                  className={`lg:hidden relative flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
-                    activeFilterCount > 0 ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <Filter size={14} />
-                  {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />}
-                </button>
+                {isTenantView && (
+                  <button
+                    onClick={() => setFilterDrawerOpen(true)}
+                    className={`lg:hidden relative flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
+                      activeFilterCount > 0 ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Filter size={14} />
+                    {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
+                )}
               </div>
 
               {/* Tenant service request cards */}
@@ -1299,20 +1258,20 @@ export const QuarterRequestsPage: React.FC = () => {
                     <div
                       key={tr.id}
                       onClick={() => setSelectedTenantReq(tr)}
-                      className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden hover:shadow-md ${isSelected ? 'border-blue-400 shadow-md ring-1 ring-blue-100' : 'border-gray-200'}`}
+                      className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-md ring-2 ring-blue-100' : 'border-gray-200'}`}
                     >
                       <div className="flex">
-                        <div className="w-24 shrink-0">
-                          {q && <img src={getImage(q, 0)} alt="" className="w-full h-full object-cover" style={{ minHeight: 80 }} />}
-                          {!q && <div className="w-full h-full bg-gray-100 flex items-center justify-center" style={{ minHeight: 80 }}><Building2 size={20} className="text-gray-300" /></div>}
+                        <div className="w-32 shrink-0">
+                          {q && <img src={getImage(q, 0)} alt="" className="w-full h-full object-cover" style={{ minHeight: 104 }} />}
+                          {!q && <div className="w-full h-full bg-gray-100 flex items-center justify-center" style={{ minHeight: 104 }}><Building2 size={24} className="text-gray-300" /></div>}
                         </div>
-                        <div className="flex-1 p-3 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 border ${stc.cls}`}>{stc.icon}{stc.label}</span>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${sc.cls}`}>{sc.label}</span>
+                        <div className="flex-1 p-4 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${stc.cls}`}>{stc.icon}{stc.label}</span>
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${sc.cls}`}>{sc.label}</span>
                           </div>
-                          {q && <div className="font-semibold text-gray-900 text-xs truncate">{q.quarter_number} · {q.bhk_config}</div>}
-                          <div className="text-xs text-gray-400 mt-0.5">{fmtDate(tr.created_at)}</div>
+                          {q && <div className="font-bold text-gray-900 text-sm truncate mb-1">{q.quarter_number} · {q.bhk_config}</div>}
+                          <div className="text-xs text-gray-400">{fmtDate(tr.created_at)}</div>
                         </div>
                       </div>
                     </div>
@@ -1357,53 +1316,53 @@ export const QuarterRequestsPage: React.FC = () => {
                     <div
                       key={req.id}
                       onClick={() => { setSelectedRequest(req); resetActionForm(); }}
-                      className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden hover:shadow-md ${isSelected ? 'border-blue-400 shadow-md ring-1 ring-blue-100' : 'border-gray-200'}`}
+                      className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-md ring-2 ring-blue-100' : 'border-gray-200'}`}
                     >
                       <div className="flex">
                         {/* Thumbnail — clickable to preview */}
                         <div
-                          className="w-28 shrink-0 relative group/thumb"
+                          className="w-32 shrink-0 relative group/thumb"
                           onClick={e => { e.stopPropagation(); openQuarterPreview(req); }}
                         >
                           <img
                             src={thumbQ ? getImage(thumbQ, 0) : PLACEHOLDER_IMAGES[0]}
                             alt=""
                             className="w-full h-full object-cover"
-                            style={{ minHeight: 90 }}
+                            style={{ minHeight: 104 }}
                           />
                           {/* Eye overlay */}
                           <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/25 transition-colors flex items-center justify-center">
                             <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 rounded-full p-1.5 shadow">
-                              <Eye size={13} className="text-gray-700" />
+                              <Eye size={14} className="text-gray-700" />
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex-1 p-3 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-mono text-xs text-gray-500">{req.request_number}</span>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
+                        <div className="flex-1 p-4 min-w-0">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-mono text-xs font-medium text-gray-500">{req.request_number}</span>
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
                           </div>
-                          <div className="font-semibold text-gray-900 text-sm truncate mb-1">
+                          <div className="font-bold text-gray-900 text-base truncate mb-1">
                             {req.required_bhk_config || 'Any BHK'} · {req.preferred_location || 'Any location'}
                           </div>
-                          <div className="text-xs text-gray-500 mb-2">
+                          <div className="text-xs text-gray-500 mb-3">
                             {req.preferences?.length ?? 0} preferences · {fmtDate(req.created_at)}
                           </div>
 
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {req.request_status === 'DRAFT' && (
-                              <button onClick={e => { e.stopPropagation(); openNewModal(req); }} className="text-xs px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                              <button onClick={e => { e.stopPropagation(); openNewModal(req); }} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium">
                                 Modify
                               </button>
                             )}
                             {req.request_status === 'SUBMITTED' && (
-                              <button onClick={e => { e.stopPropagation(); handleWithdraw(req.id); }} className="text-xs px-2.5 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                              <button onClick={e => { e.stopPropagation(); handleWithdraw(req.id); }} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-medium">
                                 Withdraw
                               </button>
                             )}
                             {req.request_status === 'ALLOTTED' && req.allotment && (
-                              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
                                 <CheckCircle size={11} />
                                 {(req.allotment as any).quarter?.quarter_number
                                   ? `${(req.allotment as any).quarter.quarter_number} · ${(req.allotment as any).quarter.bhk_config}`
@@ -1411,34 +1370,34 @@ export const QuarterRequestsPage: React.FC = () => {
                               </span>
                             )}
                             {isOccupied && (
-                              <span className="text-xs text-teal-700 font-medium flex items-center gap-1">
+                              <span className="text-xs text-teal-700 font-semibold flex items-center gap-1 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
                                 <ThumbsUp size={11} /> Occupying
                               </span>
                             )}
 
                             {/* Inline action icons for occupied quarters */}
                             {isOccupied && req.allotment && (
-                              <div className="ml-auto flex items-center gap-1">
+                              <div className="ml-auto flex items-center gap-1.5">
                                 <button
                                   onClick={e => { e.stopPropagation(); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
                                   title="Request Extension"
-                                  className="p-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
+                                  className="p-2 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
                                 >
-                                  <RefreshCw size={12} />
+                                  <RefreshCw size={13} />
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); openActionPopup('VACATE', req.id, req.allotment!.id); }}
                                   title="Request Vacate"
-                                  className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
+                                  className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
                                 >
-                                  <LogOut size={12} />
+                                  <LogOut size={13} />
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
                                   title="Raise Grievance"
-                                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                                 >
-                                  <AlertCircle size={12} />
+                                  <AlertCircle size={13} />
                                 </button>
                               </div>
                             )}
@@ -1473,6 +1432,7 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
 
           </div>
+          </>
         )}
       </main>
 
