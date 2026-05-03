@@ -31,7 +31,7 @@ export const PropertiesPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('propertiesView', 'card');
+  const [viewMode, setViewMode] = useViewPreference('propertiesView', 'list');
 
   useEffect(() => {
     fetchProperties();
@@ -123,15 +123,18 @@ export const PropertiesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryStatsCard
               label="Total Properties"
               value={stats.total}
               icon={Building2}
-              gradient="bg-gradient-to-r from-blue-500 to-teal-500"
+              gradient="bg-gradient-to-r from-blue-600 to-teal-500"
               onClick={() => setFilterStatus('all')}
               isActive={filterStatus === 'all'}
               delay={100}
+              subtitle="All facilities"
+              secondaryValue={stats.published}
+              secondaryLabel="Live"
             />
             <SummaryStatsCard
               label="Published"
@@ -141,6 +144,8 @@ export const PropertiesPage: React.FC = () => {
               onClick={() => setFilterStatus('PUBLISHED')}
               isActive={filterStatus === 'PUBLISHED'}
               delay={150}
+              subtitle="Active & bookable"
+              trend={stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0}
             />
             <SummaryStatsCard
               label="Draft"
@@ -150,6 +155,9 @@ export const PropertiesPage: React.FC = () => {
               onClick={() => setFilterStatus('DRAFT')}
               isActive={filterStatus === 'DRAFT'}
               delay={200}
+              subtitle="Pending publish"
+              secondaryValue={stats.total > 0 ? Math.round((stats.draft / stats.total) * 100) : 0}
+              secondaryLabel="%"
             />
             <SummaryStatsCard
               label="Total Rooms"
@@ -157,6 +165,9 @@ export const PropertiesPage: React.FC = () => {
               icon={Layers}
               gradient="bg-gradient-to-r from-sky-500 to-blue-600"
               delay={250}
+              subtitle="Across all properties"
+              secondaryValue={stats.total > 0 ? Math.round(stats.totalRooms / stats.total) : 0}
+              secondaryLabel="Avg/prop"
             />
           </div>
         </div>

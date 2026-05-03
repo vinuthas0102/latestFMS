@@ -11,7 +11,7 @@ import { ListView, ListViewItem } from '../components/ui/ListView';
 import {
   Calendar, Eye, History, CheckCircle, Clock, XCircle,
   Home, Filter, MapPin, ArrowRight, CreditCard, Users,
-  Building2,
+  Building2, Images,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { BookingDTO, BookingStatus } from '../types';
@@ -72,6 +72,202 @@ function calcNights(checkIn: string, checkOut: string): number {
   }
 }
 
+interface BookingCardItemProps {
+  booking: BookingDTO;
+  index: number;
+  navigate: (path: string) => void;
+}
+
+const BookingCardItem: React.FC<BookingCardItemProps> = ({ booking, index, navigate }) => {
+  const [primaryErr, setPrimaryErr] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
+  const statusCfg = getStatusConfig(booking.status);
+  const nights = calcNights(booking.checkInDate, booking.checkOutDate);
+
+  const rawImages = booking.property?.images;
+  const images: string[] = Array.isArray(rawImages) ? rawImages : [];
+  if (images.length === 0) {
+    const fallback = PROPERTY_FALLBACK_IMAGES[index % PROPERTY_FALLBACK_IMAGES.length];
+    images.push(fallback);
+  }
+  const primaryImage = images[0];
+  const thumbnails = Array.from({ length: 4 }, (_, i) => images[i + 1] || '');
+  const extraCount = images.length > 5 ? images.length - 4 : 0;
+
+  return (
+    <FadeIn delay={index * 40}>
+      <div
+        className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row border-l-4 ${statusCfg.border}`}
+        onClick={() => navigate(`/bookings/${booking.id}`)}
+      >
+        {/* Gallery section */}
+        <div className="relative flex-shrink-0 sm:w-64 md:w-72 flex flex-col bg-gray-100">
+          {/* Hero image */}
+          <div className="relative overflow-hidden" style={{ height: '196px' }}>
+            {!primaryErr ? (
+              <img
+                src={primaryImage}
+                alt={booking.property?.name || 'Property'}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                onError={() => setPrimaryErr(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                <Building2 size={40} className="text-gray-300" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+            {/* Status pill */}
+            <div className="absolute bottom-3 left-3">
+              <span className={`${statusCfg.bg} text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shadow-sm`}>
+                {statusCfg.label}
+              </span>
+            </div>
+            {/* Booking number top-right */}
+            <div className="absolute top-3 right-3">
+              <span className="font-mono text-[10px] font-bold px-2 py-1 rounded-full bg-black/50 text-white backdrop-blur-sm tracking-wider">
+                #{booking.bookingNumber}
+              </span>
+            </div>
+          </div>
+
+          {/* Thumbnail strip */}
+          <div className="flex h-[62px] border-t border-gray-200/60">
+            {thumbnails.map((src, i) => {
+              const isLast = i === 3;
+              const showViewAll = isLast && extraCount > 0;
+              return (
+                <div key={i} className="relative flex-1 overflow-hidden border-r border-gray-200/60 last:border-r-0 bg-gray-100">
+                  {src && !thumbErrors[i] ? (
+                    <img
+                      src={src}
+                      alt={`View ${i + 2}`}
+                      className="w-full h-full object-cover brightness-95 group-hover:brightness-100 transition-all duration-300"
+                      onError={() => setThumbErrors(prev => ({ ...prev, [i]: true }))}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <Images size={13} className="text-gray-400" />
+                    </div>
+                  )}
+                  {showViewAll && (
+                    <div className="absolute inset-0 bg-slate-900/72 flex flex-col items-center justify-center">
+                      <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">VIEW</span>
+                      <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">ALL</span>
+                      {extraCount > 0 && <span className="text-white/70 text-[8px] font-semibold mt-0.5">+{extraCount}</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Main details */}
+        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-0.5 truncate flex items-center gap-1.5">
+              <Home size={13} className="text-gray-400 flex-shrink-0" />
+              {booking.property?.name || 'Property'}
+            </h3>
+            {booking.property?.address && (
+              <div className="flex items-center gap-1 mb-3 text-xs text-gray-400">
+                <MapPin size={11} className="flex-shrink-0" />
+                <span className="truncate">{booking.property.address}</span>
+              </div>
+            )}
+
+            {/* Date + nights grid */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-in</p>
+                <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkInDate)}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-out</p>
+                <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkOutDate)}</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
+                <p className="text-[10px] text-blue-400 uppercase tracking-wide font-semibold">Duration</p>
+                <p className="text-xs font-bold text-blue-700 mt-0.5">{nights} night{nights !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Room type + guest */}
+          <div className="flex items-center flex-wrap gap-3 mt-3 text-xs text-gray-500">
+            {booking.roomType?.name && (
+              <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                <Home size={11} className="text-gray-400" />
+                {booking.roomType.name}
+              </span>
+            )}
+            {booking.quantity > 0 && (
+              <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                <Users size={11} className="text-gray-400" />
+                {booking.quantity} room{booking.quantity !== 1 ? 's' : ''}
+              </span>
+            )}
+            {booking.guestDetails?.fullName && (
+              <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-gray-500 truncate max-w-[180px]">
+                Guest: {booking.guestDetails.fullName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right: amount + action */}
+        <div
+          className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-48 flex-shrink-0 bg-gray-50/40"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Total Amount</p>
+            <p className="text-xl font-black text-gray-900 leading-none">
+              {formatCurrency(booking.totalAmount)}
+            </p>
+            {booking.paidAmount > 0 && booking.paidAmount < booking.totalAmount && (
+              <div className="mt-1 text-right space-y-0.5">
+                <p className="text-[10px] text-emerald-600 font-semibold">Paid: {formatCurrency(booking.paidAmount)}</p>
+                <p className="text-[10px] text-amber-600 font-semibold">Due: {formatCurrency(booking.balanceAmount)}</p>
+              </div>
+            )}
+            {booking.balanceAmount > 0 && booking.paidAmount === 0 && (
+              <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1 mt-1 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                <CreditCard size={10} />
+                Payment pending
+              </span>
+            )}
+            {booking.paymentStatus === 'COMPLETED' && (
+              <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1 mt-1 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                <CheckCircle size={10} />
+                Paid in full
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/bookings/${booking.id}`); }}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-md"
+          >
+            <Eye size={12} />
+            View Details
+            <ArrowRight size={11} />
+          </button>
+        </div>
+      </div>
+    </FadeIn>
+  );
+};
+
+const BookingCardList: React.FC<{ bookings: BookingDTO[]; navigate: (p: string) => void }> = ({ bookings, navigate }) => (
+  <div className="space-y-3">
+    {bookings.map((booking, index) => (
+      <BookingCardItem key={booking.id} booking={booking} index={index} navigate={navigate} />
+    ))}
+  </div>
+);
+
 export const BookingHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -82,7 +278,7 @@ export const BookingHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | string[]>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('bookingHistoryView', 'card');
+  const [viewMode, setViewMode] = useViewPreference('bookingHistoryView', 'list');
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -202,17 +398,19 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Summary stat tiles — richer layout */}
+          {/* Summary stat tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryStatsCard
               label="Total Bookings"
               value={stats.total}
               icon={History}
-              gradient="bg-gradient-to-br from-blue-500 to-teal-500"
+              gradient="bg-gradient-to-br from-blue-600 to-teal-500"
               onClick={() => handleStatCardClick('all')}
               isActive={statusFilter === 'all'}
               delay={100}
               subtitle="All time reservations"
+              secondaryValue={stats.upcoming}
+              secondaryLabel="Active"
             />
             <SummaryStatsCard
               label="Upcoming"
@@ -223,6 +421,8 @@ export const BookingHistoryPage: React.FC = () => {
               isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED') && statusFilter.includes('PROVISIONED')}
               delay={150}
               subtitle="Confirmed & allocated"
+              secondaryValue={bookings.filter(b => b.status === 'PROVISIONED').length}
+              secondaryLabel="Pending"
             />
             <SummaryStatsCard
               label="Completed"
@@ -233,6 +433,7 @@ export const BookingHistoryPage: React.FC = () => {
               isActive={statusFilter === 'CHECKED_OUT'}
               delay={200}
               subtitle={`${completionRate}% completion rate`}
+              trend={completionRate > 50 ? completionRate - 50 : -(50 - completionRate)}
             />
             <SummaryStatsCard
               label="Cancelled"
@@ -243,6 +444,8 @@ export const BookingHistoryPage: React.FC = () => {
               isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED') && statusFilter.includes('REJECTED')}
               delay={250}
               subtitle={`${cancellationRate}% of total`}
+              secondaryValue={bookings.filter(b => b.status === 'REJECTED').length}
+              secondaryLabel="Rejected"
             />
           </div>
         </div>
@@ -327,145 +530,10 @@ export const BookingHistoryPage: React.FC = () => {
               </div>
             </FadeIn>
           ) : viewMode === 'card' ? (
-            <div className="space-y-3">
-              {filteredBookings.map((booking, index) => {
-                const statusCfg = getStatusConfig(booking.status);
-                const nights = calcNights(booking.checkInDate, booking.checkOutDate);
-                const imgSrc = getPropertyImage(booking, index);
-                const hasImgError = imgErrors[booking.id];
-
-                return (
-                  <FadeIn key={booking.id} delay={index * 40}>
-                    <div
-                      className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer group flex flex-col sm:flex-row border-l-4 ${statusCfg.border}`}
-                      onClick={() => navigate(`/bookings/${booking.id}`)}
-                    >
-                      {/* Property image */}
-                      <div className="relative sm:w-40 md:w-44 h-36 sm:h-auto flex-shrink-0 bg-gray-100 overflow-hidden">
-                        {!hasImgError ? (
-                          <img
-                            src={imgSrc}
-                            alt={booking.property?.name || 'Property'}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-400"
-                            onError={() => setImgErrors(prev => ({ ...prev, [booking.id]: true }))}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                            <Building2 size={36} className="text-gray-300" />
-                          </div>
-                        )}
-                        {/* Status pill */}
-                        <div className="absolute bottom-2 left-2">
-                          <span className={`${statusCfg.bg} text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm`}>
-                            {statusCfg.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Main details */}
-                      <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-                        <div>
-                          {/* Booking number + property */}
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-xs text-gray-400 font-medium tracking-wider">
-                                  #{booking.bookingNumber}
-                                </span>
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusCfg.dot}`} />
-                              </div>
-                              <h3 className="text-sm font-bold text-gray-900 mt-0.5 truncate flex items-center gap-1.5">
-                                <Home size={13} className="text-gray-400 flex-shrink-0" />
-                                {booking.property?.name || 'Property'}
-                              </h3>
-                              {booking.property?.address && (
-                                <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
-                                  <MapPin size={11} />
-                                  <span className="truncate max-w-[180px]">{booking.property.address}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Date + nights grid */}
-                          <div className="grid grid-cols-3 gap-2 mt-2">
-                            <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-in</p>
-                              <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkInDate)}</p>
-                            </div>
-                            <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-out</p>
-                              <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkOutDate)}</p>
-                            </div>
-                            <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
-                              <p className="text-[10px] text-blue-400 uppercase tracking-wide font-semibold">Duration</p>
-                              <p className="text-xs font-bold text-blue-700 mt-0.5">{nights} night{nights !== 1 ? 's' : ''}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Room type + guest */}
-                        <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
-                          {booking.roomType?.name && (
-                            <span className="flex items-center gap-1">
-                              <Home size={11} className="text-gray-400" />
-                              {booking.roomType.name}
-                            </span>
-                          )}
-                          {booking.quantity > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Users size={11} className="text-gray-400" />
-                              {booking.quantity} room{booking.quantity !== 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {booking.guestDetails?.fullName && (
-                            <span className="text-gray-400 truncate">
-                              Guest: {booking.guestDetails.fullName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: amount + action */}
-                      <div
-                        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-40 flex-shrink-0 bg-gray-50/40"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex flex-col items-end gap-1">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Total</p>
-                          <p className="text-xl font-black text-gray-900 leading-none">
-                            {formatCurrency(booking.totalAmount)}
-                          </p>
-                          {booking.paidAmount > 0 && booking.paidAmount < booking.totalAmount && (
-                            <div className="mt-1 text-right">
-                              <p className="text-[10px] text-gray-400">Paid: {formatCurrency(booking.paidAmount)}</p>
-                              <p className="text-[10px] text-amber-600 font-semibold">
-                                Due: {formatCurrency(booking.balanceAmount)}
-                              </p>
-                            </div>
-                          )}
-                          {booking.balanceAmount > 0 && booking.paidAmount === 0 && (
-                            <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1 mt-1">
-                              <CreditCard size={10} />
-                              Payment pending
-                            </span>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/bookings/${booking.id}`); }}
-                          className="mt-3 w-full flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-md"
-                        >
-                          <Eye size={12} />
-                          Details
-                          <ArrowRight size={11} />
-                        </button>
-                      </div>
-                    </div>
-                  </FadeIn>
-                );
-              })}
-            </div>
+            <BookingCardList
+              bookings={filteredBookings}
+              navigate={navigate}
+            />
           ) : viewMode === 'table' ? (
             <FadeIn delay={300}>
               <DataTable

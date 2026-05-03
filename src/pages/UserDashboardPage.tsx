@@ -146,7 +146,7 @@ export const UserDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('dashboardView', 'card') as [ViewMode, (v: ViewMode) => void];
+  const [viewMode, setViewMode] = useViewPreference('dashboardView', 'list') as [ViewMode, (v: ViewMode) => void];
 
   const [availableModules, setAvailableModules] = useState<{ id: string; name: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<string[]>([]);

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 export type ViewMode = 'card' | 'table' | 'list';
 
-export const useViewPreference = (storageKey: string, defaultView: ViewMode = 'card') => {
+export const useViewPreference = (storageKey: string, defaultView: ViewMode = 'list') => {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem(storageKey);

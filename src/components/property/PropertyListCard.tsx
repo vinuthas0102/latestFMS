@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Users,
   BedDouble,
+  Images,
 } from 'lucide-react';
 import { PropertyDTO } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
@@ -79,7 +80,8 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   onBookClick,
 }) => {
   const navigate = useNavigate();
-  const [imgError, setImgError] = useState(false);
+  const [primaryImgError, setPrimaryImgError] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
 
   const cat = property.assetType?.category;
   const catStyle = cat ? CATEGORY_STYLES[cat] : null;
@@ -93,69 +95,120 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
     ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
     : null;
 
+  const images = property.images || [];
+  const primaryImage = images[0] || '';
+  const thumbnails = Array.from({ length: 4 }, (_, i) => images[i + 1] || '');
+  const realImageCount = images.length;
+  const extraCount = realImageCount > 5 ? realImageCount - 4 : 0;
+
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer group flex flex-col sm:flex-row"
+      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
       onClick={() => navigate(`/properties/${property.id}`)}
     >
-      {/* ── Left: Image ───────────────────────────────────────── */}
-      <div className="relative sm:w-48 sm:min-w-[192px] h-48 sm:h-auto flex-shrink-0 bg-gray-100 overflow-hidden">
-        {property.images.length > 0 && !imgError ? (
-          <img
-            src={property.images[0]}
-            alt={property.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <Building2 size={48} className="text-gray-300" />
-          </div>
-        )}
+      {/* ── Left: Gallery Image Section ─────────────────────────── */}
+      <div className="relative flex-shrink-0 sm:w-64 md:w-72 flex flex-col bg-gray-100">
 
-        {/* Photo count */}
-        {property.images.length > 1 && !imgError && (
-          <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded-full font-medium">
-            +{property.images.length - 1} photos
-          </div>
-        )}
+        {/* Primary hero image */}
+        <div className="relative overflow-hidden" style={{ height: '196px' }}>
+          {images.length > 0 && !primaryImgError ? (
+            <img
+              src={primaryImage}
+              alt={property.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={() => setPrimaryImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <Building2 size={48} className="text-gray-300" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+
+          {/* Category badge top-left */}
+          {catStyle && (
+            <div className="absolute top-3 left-3">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border bg-white/90 backdrop-blur-sm ${catStyle}`}>
+                {cat === 'A' ? 'Cat A' : cat === 'B' ? 'Cat B' : 'Cat C'}
+              </span>
+            </div>
+          )}
+
+          {/* Module badge top-right */}
+          {property.module && (
+            <div className="absolute top-3 right-3">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800/85 text-white backdrop-blur-sm shadow-sm">
+                {property.module.name}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Thumbnail strip — 4 small images, 62px height */}
+        <div className="flex h-[62px] border-t border-gray-200/60">
+          {thumbnails.map((src, i) => {
+            const isLast = i === 3;
+            const showViewAll = isLast && extraCount > 0;
+            const hasError = thumbErrors[i];
+            return (
+              <div
+                key={i}
+                className="relative flex-1 overflow-hidden border-r border-gray-200/60 last:border-r-0 bg-gray-100"
+              >
+                {src && !hasError ? (
+                  <img
+                    src={src}
+                    alt={`View ${i + 2}`}
+                    className="w-full h-full object-cover brightness-95 group-hover:brightness-100 transition-all duration-300"
+                    onError={() => setThumbErrors(prev => ({ ...prev, [i]: true }))}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <Images size={13} className="text-gray-400" />
+                  </div>
+                )}
+                {showViewAll && (
+                  <div className="absolute inset-0 bg-slate-900/72 flex flex-col items-center justify-center">
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">VIEW</span>
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">ALL</span>
+                    {extraCount > 0 && (
+                      <span className="text-white/70 text-[8px] font-semibold mt-0.5">+{extraCount}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Centre: Details ───────────────────────────────────── */}
       <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-        {/* Top row: name + category */}
         <div>
           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-            {property.module && (
-              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {property.module.name}
-              </span>
-            )}
-            {catStyle && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${catStyle}`}>
-                {cat === 'A' ? 'Category A' : cat === 'B' ? 'Category B' : 'Category C'}
-              </span>
-            )}
             {moduleBadgeText && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${moduleBadgeStyles}`}>
                 {moduleBadgeText}
               </span>
             )}
+            {property.propertyType && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                {property.propertyType.name}
+              </span>
+            )}
           </div>
 
-          <h3 className="text-base font-bold text-blue-700 group-hover:text-blue-800 transition-colors leading-snug mb-1 line-clamp-1">
+          <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-700 transition-colors leading-snug mb-1 line-clamp-1">
             {property.name}
           </h3>
 
-          {/* Location */}
-          <div className="flex items-center gap-1 text-gray-500 text-xs mb-2">
+          <div className="flex items-center gap-1 text-gray-500 text-xs mb-2.5">
             <MapPin size={12} className="flex-shrink-0 text-gray-400" />
             <span className="truncate">{property.estate?.city || property.address || 'Location not specified'}</span>
           </div>
 
-          {/* Amenity chips */}
           {detectedAmenities.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mb-2.5">
+            <div className="flex flex-wrap items-center gap-3 mb-2.5">
               {detectedAmenities.map((key) => (
                 <div key={key} className="flex items-center gap-1 text-gray-500 text-xs">
                   <span className="text-gray-400">{AMENITY_ICONS[key]}</span>
@@ -165,7 +218,6 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
             </div>
           )}
 
-          {/* Room type / property type */}
           {property.propertyType && (
             <div className="flex items-center gap-1.5 text-xs text-gray-700 mb-2">
               <BedDouble size={13} className="text-gray-400" />
@@ -173,10 +225,9 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
             </div>
           )}
 
-          {/* Highlights */}
           <div className="space-y-1">
             {property.isExempt === false && (
-              <div className="flex items-center gap-1.5 text-xs text-green-700">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700">
                 <CheckCircle size={12} className="flex-shrink-0" />
                 <span>No restrictions apply</span>
               </div>
@@ -187,7 +238,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
                 <span>Login required to book</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs text-green-700">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-700">
                 <CheckCircle size={12} className="flex-shrink-0" />
                 <span>Book online instantly</span>
               </div>
@@ -195,17 +246,15 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
           </div>
         </div>
 
-        {/* Description snippet */}
         {property.description && (
-          <p className="text-xs text-gray-400 mt-2 line-clamp-1 leading-relaxed">
+          <p className="text-xs text-gray-400 mt-2 line-clamp-2 leading-relaxed">
             {property.description}
           </p>
         )}
       </div>
 
       {/* ── Right: Price + CTA ───────────────────────────────── */}
-      <div className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-44 sm:min-w-[176px] flex-shrink-0">
-        {/* Dates / guests context */}
+      <div className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-48 sm:min-w-[192px] flex-shrink-0 bg-gray-50/50">
         {showDatesGuests && (checkIn || guests) && (
           <div className="mb-3 text-xs text-gray-500 leading-relaxed text-right">
             {nightCount != null && nightCount > 0 && (
@@ -223,8 +272,8 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
         <div className="flex-1 flex flex-col justify-center items-end gap-1">
           {property.minPrice != null ? (
             <>
-              <p className="text-xs text-gray-500 text-right">From</p>
-              <p className="text-xl font-bold text-gray-900 text-right leading-none">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold text-right">From</p>
+              <p className="text-2xl font-black text-gray-900 text-right leading-none">
                 {formatCurrency(property.minPrice)}
               </p>
               <p className="text-xs text-gray-400 text-right">per night</p>
@@ -239,15 +288,15 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
           )}
 
           {property.totalRooms != null && property.totalRooms > 0 && (
-            <p className="text-xs text-gray-400 text-right mt-0.5">
-              {property.totalRooms} rooms
+            <p className="text-xs text-gray-400 text-right mt-1">
+              {property.totalRooms} rooms available
             </p>
           )}
         </div>
 
         <button
           onClick={(e) => onBookClick(e, property)}
-          className="mt-4 w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-md"
+          className="mt-4 w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         >
           <Calendar size={14} />
           {needsLogin ? 'Login to Book' : 'See availability'}

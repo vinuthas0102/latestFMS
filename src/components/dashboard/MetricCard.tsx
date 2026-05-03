@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { type LucideProps } from 'lucide-react';
+import React from 'react';
+import { type LucideProps, TrendingUp, TrendingDown } from 'lucide-react';
 import { CountUp } from '../animations/CountUp';
 
 type LucideIcon = React.FC<LucideProps>;
@@ -25,60 +25,74 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   subtitle,
   onClick,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const colorClasses = {
-    blue:     'bg-gradient-to-r from-blue-500 to-teal-500',
-    teal:     'bg-gradient-to-r from-teal-500 to-green-500',
-    green:    'bg-gradient-to-r from-emerald-500 to-cyan-500',
-    orange:   'bg-gradient-to-r from-orange-500 to-red-500',
-    coral:    'bg-gradient-to-r from-orange-500 to-red-500',
-    lavender: 'bg-gradient-to-r from-violet-500 to-blue-500',
-    yellow:   'bg-gradient-to-r from-amber-500 to-orange-500',
-    pink:     'bg-gradient-to-r from-rose-500 to-pink-500',
-    cyan:     'bg-gradient-to-r from-sky-500 to-blue-600',
+  const colorClasses: Record<string, string> = {
+    blue:     'bg-gradient-to-br from-blue-600 to-teal-500',
+    teal:     'bg-gradient-to-br from-teal-500 to-green-500',
+    green:    'bg-gradient-to-br from-emerald-500 to-cyan-500',
+    orange:   'bg-gradient-to-br from-orange-500 to-red-500',
+    coral:    'bg-gradient-to-br from-orange-500 to-rose-500',
+    lavender: 'bg-gradient-to-br from-violet-500 to-blue-500',
+    yellow:   'bg-gradient-to-br from-amber-500 to-orange-500',
+    pink:     'bg-gradient-to-br from-rose-500 to-pink-500',
+    cyan:     'bg-gradient-to-br from-sky-500 to-blue-600',
   };
 
-  const gradientClass = colorClasses[color as keyof typeof colorClasses] ?? colorClasses.blue;
+  const gradientClass = colorClasses[color] ?? colorClasses.blue;
   const isNumeric = typeof value === 'number';
 
   return (
     <div
-      className={`${gradientClass} rounded-lg px-3 py-2 ${
-        onClick ? 'cursor-pointer' : ''
-      } overflow-hidden relative group`}
+      className={`${gradientClass} rounded-xl relative overflow-hidden transition-all duration-200 flex flex-row min-h-[80px] ${
+        onClick ? 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]' : ''
+      } shadow-sm`}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-between relative z-10 gap-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className={`p-1 bg-white/20 rounded-md border border-white/30 transition-all duration-300 shrink-0 ${
-            isHovered ? 'scale-110' : ''
-          }`}>
-            <Icon size={13} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-white/90 uppercase tracking-wide leading-none truncate">{title}</p>
-            {(trend || subtitle) && (
-              <p className="text-[10px] text-white/70 leading-none mt-0.5 truncate">
-                {trend ? `${trendUp ? '↑' : '↓'} ${trend}` : subtitle}
-              </p>
-            )}
-          </div>
+      {/* Decorative overlays */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-black/10 pointer-events-none" />
+      <div className="absolute -top-5 -right-5 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
+      <div className="absolute -bottom-4 -left-3 w-14 h-14 bg-black/8 rounded-full pointer-events-none" />
+
+      {/* Icon column */}
+      <div className="relative z-10 flex-shrink-0 flex items-center justify-center px-3 border-r border-white/20">
+        <div className="p-2 bg-white/25 backdrop-blur-sm rounded-xl border border-white/30">
+          <Icon size={16} className="text-white" />
         </div>
-        <div className="text-base font-bold text-white leading-none flex-shrink-0">
-          {isNumeric ? (
-            <CountUp end={value as number} duration={1500} />
-          ) : (
-            value
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 flex-1 px-3 py-3 flex flex-col justify-center min-w-0 gap-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-2xl font-black text-white leading-none tabular-nums">
+            {isNumeric ? (
+              <CountUp end={value as number} duration={1200} />
+            ) : (
+              value
+            )}
+          </p>
+          {trend && (
+            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+              trendUp ? 'bg-white/20 text-white' : 'bg-black/20 text-white/80'
+            }`}>
+              {trendUp ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+              {trend}
+            </span>
+          )}
+        </div>
+
+        <div>
+          <p className="text-[10px] font-bold text-white/95 uppercase tracking-widest leading-tight truncate">
+            {title}
+          </p>
+          {subtitle && (
+            <p className="text-[10px] text-white/65 leading-tight mt-0.5 truncate">
+              {subtitle}
+            </p>
           )}
         </div>
       </div>
 
-      <div className={`absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 transition-transform duration-700 ${
-        isHovered ? 'translate-x-full' : '-translate-x-full'
-      }`} style={{ pointerEvents: 'none' }} />
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20" />
     </div>
   );
 };

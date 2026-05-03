@@ -398,6 +398,9 @@ export const QuarterManagerPage: React.FC = () => {
                 icon={Building2}
                 gradient="bg-gradient-to-r from-slate-600 to-slate-500"
                 delay={0}
+                subtitle="All housing units"
+                secondaryValue={quartersSummary.available}
+                secondaryLabel="Free"
               />
             )}
             {quartersSummary && quartersSummary.available > 0 && (
@@ -407,6 +410,8 @@ export const QuarterManagerPage: React.FC = () => {
                 icon={CheckCircle}
                 gradient="bg-gradient-to-r from-emerald-400 to-teal-400"
                 delay={25}
+                subtitle="Ready for allotment"
+                trend={quartersSummary.total > 0 ? Math.round((quartersSummary.available / quartersSummary.total) * 100) : 0}
               />
             )}
             {dpCounts.occupied > 0 && (
@@ -418,6 +423,7 @@ export const QuarterManagerPage: React.FC = () => {
                 onClick={() => setDpFilter(dpFilter === 'occupied' ? 'all' : 'occupied')}
                 isActive={dpFilter === 'occupied'}
                 delay={75}
+                subtitle="Currently occupied"
               />
             )}
             {dpCounts.allotted > 0 && (
@@ -429,6 +435,7 @@ export const QuarterManagerPage: React.FC = () => {
                 onClick={() => setDpFilter(dpFilter === 'allotted' ? 'all' : 'allotted')}
                 isActive={dpFilter === 'allotted'}
                 delay={125}
+                subtitle="Confirmed allotments"
               />
             )}
             {dpCounts.allocated > 0 && (
@@ -440,6 +447,7 @@ export const QuarterManagerPage: React.FC = () => {
                 onClick={() => setDpFilter(dpFilter === 'allocated' ? 'all' : 'allocated')}
                 isActive={dpFilter === 'allocated'}
                 delay={175}
+                subtitle="Pending check-in"
               />
             )}
             {dpCounts.submitted > 0 && (
@@ -451,6 +459,7 @@ export const QuarterManagerPage: React.FC = () => {
                 onClick={() => setDpFilter(dpFilter === 'submitted' ? 'all' : 'submitted')}
                 isActive={dpFilter === 'submitted'}
                 delay={225}
+                subtitle="Awaiting review"
               />
             )}
             {dpCounts.draft > 0 && (
@@ -462,6 +471,7 @@ export const QuarterManagerPage: React.FC = () => {
                 onClick={() => setDpFilter(dpFilter === 'draft' ? 'all' : 'draft')}
                 isActive={dpFilter === 'draft'}
                 delay={275}
+                subtitle="Incomplete requests"
               />
             )}
           </div>
