@@ -9,19 +9,22 @@ import {
   Eye,
   ChevronRight,
   CheckCircle,
+  Images,
 } from 'lucide-react';
 import { Quarter } from '../../services/quartersService';
 
 const FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
-  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80',
-  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80',
-  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80',
-  'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&q=80',
-  'https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=600&q=80',
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
+  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80',
+  'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
+  'https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=800&q=80',
+  'https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=800&q=80',
+  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80',
 ];
 
-function resolveImage(q: Quarter, idx: number): string {
+function resolveImages(q: Quarter, idx: number): string[] {
   let images = q.images;
   if (typeof images === 'string') {
     try {
@@ -35,8 +38,14 @@ function resolveImage(q: Quarter, idx: number): string {
         .filter(Boolean);
     }
   }
-  const first = Array.isArray(images) && images.length > 0 ? images[0] : null;
-  return first || FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+  const parsed: string[] = Array.isArray(images) ? images.filter(Boolean) : [];
+  const result = [...parsed];
+  let fi = idx;
+  while (result.length < 5) {
+    result.push(FALLBACK_IMAGES[fi % FALLBACK_IMAGES.length]);
+    fi++;
+  }
+  return result;
 }
 
 function fmtINR(amount: number) {
@@ -66,41 +75,91 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
   onView,
   onAddToRequest,
 }) => {
-  const [imgError, setImgError] = useState(false);
+  const [primaryImgError, setPrimaryImgError] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
   const isAvailable = quarter.occupancy_status === 'AVAILABLE';
+  const allImages = resolveImages(quarter, idx);
+  const primaryImage = allImages[0];
+  const thumbnails = allImages.slice(1, 5);
+  const realImageCount = (() => {
+    let imgs = quarter.images;
+    if (typeof imgs === 'string') {
+      try { imgs = JSON.parse(imgs); } catch { imgs = []; }
+    }
+    return Array.isArray(imgs) ? imgs.filter(Boolean).length : 0;
+  })();
+  const extraCount = realImageCount > 5 ? realImageCount - 4 : 0;
 
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer group flex flex-col sm:flex-row"
+      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
       onClick={() => onView(quarter)}
     >
-      {/* ── Left: Image ─────────────────────────────────────────── */}
-      <div className="relative sm:w-48 sm:min-w-[192px] h-48 sm:h-auto flex-shrink-0 bg-gray-100 overflow-hidden">
-        {!imgError ? (
-          <img
-            src={resolveImage(quarter, idx)}
-            alt={quarter.quarter_number}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <Home size={48} className="text-gray-300" />
-          </div>
-        )}
+      {/* ── Left: Gallery Image Section ─────────────────────────── */}
+      <div className="relative flex-shrink-0 sm:w-64 md:w-72 flex flex-col bg-gray-100">
 
-        {/* Availability badge */}
-        <div className="absolute top-3 left-3">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyStyles(quarter.occupancy_status)}`}>
-            {isAvailable ? 'Available' : 'Occupied'}
-          </span>
+        {/* Primary hero image */}
+        <div className="relative overflow-hidden" style={{ height: '196px' }}>
+          {!primaryImgError ? (
+            <img
+              src={primaryImage}
+              alt={quarter.quarter_number}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={() => setPrimaryImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <Home size={48} className="text-gray-300" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+
+          <div className="absolute top-3 left-3">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border bg-white/90 backdrop-blur-sm ${getOccupancyStyles(quarter.occupancy_status)}`}>
+              {isAvailable ? 'Available' : 'Occupied'}
+            </span>
+          </div>
+          <div className="absolute top-3 right-3">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800/85 text-white backdrop-blur-sm shadow-sm">
+              {quarter.quarter_type}
+            </span>
+          </div>
         </div>
 
-        {/* Quarter type badge */}
-        <div className="absolute top-3 right-3">
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800/80 text-white backdrop-blur-sm">
-            {quarter.quarter_type}
-          </span>
+        {/* Thumbnail strip — 4 small images */}
+        <div className="flex h-[62px] border-t border-gray-200/60">
+          {thumbnails.map((src, i) => {
+            const isLast = i === 3;
+            const showViewAll = isLast && extraCount > 0;
+            return (
+              <div
+                key={i}
+                className="relative flex-1 overflow-hidden border-r border-gray-200/60 last:border-r-0 bg-gray-100"
+              >
+                {!thumbErrors[i] ? (
+                  <img
+                    src={src}
+                    alt={`View ${i + 2}`}
+                    className="w-full h-full object-cover brightness-95 group-hover:brightness-100 transition-all duration-300"
+                    onError={() => setThumbErrors(prev => ({ ...prev, [i]: true }))}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <Images size={13} className="text-gray-400" />
+                  </div>
+                )}
+                {showViewAll && (
+                  <div className="absolute inset-0 bg-slate-900/72 flex flex-col items-center justify-center gap-0">
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">VIEW</span>
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">ALL</span>
+                    {extraCount > 0 && (
+                      <span className="text-white/70 text-[8px] font-semibold mt-0.5">+{extraCount}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -108,7 +167,7 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
       <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
         <div>
           {/* Title row */}
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <h3 className="text-base font-bold text-blue-700 group-hover:text-blue-800 transition-colors leading-snug">
               {quarter.quarter_number}
             </h3>
@@ -120,68 +179,62 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
             </span>
           </div>
 
-          {/* Address */}
           {quarter.address && (
-            <div className="flex items-center gap-1 text-gray-500 text-xs mb-2">
+            <div className="flex items-center gap-1 text-gray-500 text-xs mb-3">
               <MapPin size={12} className="flex-shrink-0 text-gray-400" />
               <span className="truncate">{quarter.address}</span>
             </div>
           )}
 
-          {/* Specs chips */}
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2.5">
-            <span className="flex items-center gap-1">
-              <Bed size={12} className="text-gray-400" />
-              {quarter.bhk_config}
+          {/* Specs */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600 mb-3">
+            <span className="flex items-center gap-1.5">
+              <Bed size={13} className="text-gray-400" />{quarter.bhk_config}
             </span>
-            <span className="flex items-center gap-1">
-              <Ruler size={12} className="text-gray-400" />
-              {quarter.area_sqft} sq.ft
+            <span className="flex items-center gap-1.5">
+              <Ruler size={13} className="text-gray-400" />{quarter.area_sqft} sq.ft
             </span>
-            <span className="flex items-center gap-1">
-              <Layers size={12} className="text-gray-400" />
-              {quarter.furnishing_status}
+            <span className="flex items-center gap-1.5">
+              <Layers size={13} className="text-gray-400" />{quarter.furnishing_status}
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-400 font-mono text-[11px]">
               Blk {quarter.block_name || '—'} · Fl {quarter.floor_number}
             </span>
           </div>
 
           {/* Amenities */}
           {quarter.amenities?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {quarter.amenities.slice(0, 4).map((a) => (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {quarter.amenities.slice(0, 5).map((a) => (
                 <span key={a} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
                   {a}
                 </span>
               ))}
-              {quarter.amenities.length > 4 && (
+              {quarter.amenities.length > 5 && (
                 <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  +{quarter.amenities.length - 4} more
+                  +{quarter.amenities.length - 5} more
                 </span>
               )}
             </div>
           )}
 
-          {/* Highlights */}
-          <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs">
             {isAvailable ? (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-700">
-                <CheckCircle size={12} className="flex-shrink-0" />
-                <span>Available now — apply via request</span>
-              </div>
+              <>
+                <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
+                <span className="text-emerald-700 font-medium">Available now — apply via request</span>
+              </>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <CheckCircle size={12} className="flex-shrink-0 text-gray-300" />
-                <span>Currently occupied</span>
-              </div>
+              <>
+                <div className="w-2.5 h-2.5 rounded-full bg-red-300 flex-shrink-0" />
+                <span className="text-gray-500">Currently occupied</span>
+              </>
             )}
           </div>
         </div>
 
-        {/* Description snippet */}
         {quarter.description && (
-          <p className="text-xs text-gray-400 mt-2 line-clamp-1 leading-relaxed">
+          <p className="text-xs text-gray-400 mt-2.5 line-clamp-1 leading-relaxed border-t border-gray-100 pt-2">
             {quarter.description}
           </p>
         )}
@@ -189,25 +242,29 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
 
       {/* ── Right: Rent + CTA ────────────────────────────────────── */}
       <div
-        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-44 sm:min-w-[176px] flex-shrink-0"
+        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-48 flex-shrink-0 bg-gray-50/40"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 flex flex-col justify-center items-end gap-1">
-          <p className="text-xs text-gray-500 text-right">Monthly rent</p>
-          <p className="text-xl font-bold text-gray-900 text-right leading-none">
+        <div className="flex flex-col items-end gap-1">
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Monthly Rent</p>
+          <p className="text-2xl font-bold text-gray-900 leading-none tracking-tight">
             {fmtINR(quarter.monthly_rent)}
           </p>
-          <p className="text-xs text-gray-400 text-right">per month</p>
-          <p className="text-xs text-gray-400 text-right mt-0.5">
-            {quarter.area_sqft} sq.ft · {quarter.bhk_config}
-          </p>
+          <p className="text-xs text-gray-400">per month</p>
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 shadow-sm">
+            <Ruler size={11} className="text-gray-400" />
+            <span>{quarter.area_sqft} sq.ft</span>
+            <span className="text-gray-300">·</span>
+            <Bed size={11} className="text-gray-400" />
+            <span>{quarter.bhk_config}</span>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-2">
           {isAvailable && (
             <button
               onClick={(e) => { e.stopPropagation(); onAddToRequest(quarter); }}
-              className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-md"
+              className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
             >
               <Plus size={14} />
               Add to Request
@@ -215,7 +272,7 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onView(quarter); }}
-            className="w-full flex items-center justify-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+            className="w-full flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
           >
             <Eye size={13} />
             View Details

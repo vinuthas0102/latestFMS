@@ -209,7 +209,7 @@ export const QuarterFreeviewPage: React.FC = () => {
 
   const [quarters, setQuarters] = useState<Quarter[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>('card');
+  const [view, setView] = useState<ViewMode>('list');
 
   // Unified filter drawer state (used across all view modes)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
