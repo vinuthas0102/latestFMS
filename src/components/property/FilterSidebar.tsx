@@ -36,7 +36,6 @@ interface FilterSidebarProps {
   onChange: (patch: Partial<FilterSidebarState>) => void;
   onClear: () => void;
   properties: PropertyDTO[];
-  filteredProperties: PropertyDTO[];
   priceRange: { min: number; max: number };
   availableModules: { id: string; name: string }[];
   availableCities: string[];
@@ -77,7 +76,6 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   onChange,
   onClear,
   properties,
-  filteredProperties,
   priceRange,
   availableModules,
   availableCities,

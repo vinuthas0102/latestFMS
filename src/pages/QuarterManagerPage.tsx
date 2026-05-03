@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Home, ChevronRight, Building2, CheckCircle, Clock, AlertTriangle,
-  Eye, Settings, RotateCcw, Calendar, Users, Hash, ChevronDown,
+  Home, ChevronRight, Building2, CheckCircle, Clock,
+  Eye, Settings, Calendar, Users, Hash,
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
-  MoreVertical,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { Header } from '../components/layout/Header';
@@ -304,13 +303,6 @@ export const QuarterManagerPage: React.FC = () => {
       addToast('Failed to cancel request', 'error');
     }
   };
-
-  const cycleStats = selectedCycle ? {
-    total: cycleRequests.length,
-    allotted: cycleRequests.filter(r => r.request_status === 'ALLOTTED').length,
-    pending: cycleRequests.filter(r => r.request_status === 'SUBMITTED').length,
-    overridden: cycleAllotments.filter(a => a.is_overridden).length,
-  } : null;
 
   const filteredAllRequests = React.useMemo(() => {
     let r = [...allRequests];

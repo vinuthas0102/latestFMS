@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, Search, Plus, AlertCircle, CheckCircle, ArrowLeftRight,
-  Shuffle, PauseCircle, Star, MapPin, Home
+  Shuffle, PauseCircle, Star, Home
 } from 'lucide-react';
 import { quartersService, QuarterAllotment, QuarterRequest, Quarter } from '../../services/quartersService';
 import { useUIStore } from '../../stores/uiStore';

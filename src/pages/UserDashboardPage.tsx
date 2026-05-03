@@ -634,7 +634,6 @@ export const UserDashboardPage: React.FC = () => {
                   onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
                   onClear={() => setFilters(defaultFilters(priceRange.min, priceRange.max))}
                   properties={properties}
-                  filteredProperties={displayProperties}
                   priceRange={priceRange}
                   availableModules={availableModules}
                   availableCities={availableCities}
