@@ -153,6 +153,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const tabBarRef = useRef<HTMLDivElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen || !propertyId) return;
@@ -192,6 +193,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
   const handleTabChange = useCallback((tabId: TabId) => {
     setActiveTab(tabId);
+    scrollBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   if (!isOpen) return null;
@@ -318,7 +320,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
           </div>
 
           {/* ── Scrollable body ──────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto">
+          <div ref={scrollBodyRef} className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-200 border-t-blue-600" />

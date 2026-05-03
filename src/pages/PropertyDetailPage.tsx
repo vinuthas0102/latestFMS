@@ -178,7 +178,9 @@ export const PropertyDetailPage: React.FC = () => {
   const handleTabChange = (tabId: TabId) => {
     setActiveTab(tabId);
     scrollTabIntoView(tabId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   const canManage = user && canManageProperties(user.role);
