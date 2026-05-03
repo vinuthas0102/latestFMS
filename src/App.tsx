@@ -28,6 +28,7 @@ const QuarterFreeviewPage = lazy(() => import('./pages/QuarterFreeviewPage').the
 const QuarterDetailPage = lazy(() => import('./pages/QuarterDetailPage').then(m => ({ default: m.QuarterDetailPage })));
 const QuarterRequestsPage = lazy(() => import('./pages/QuarterRequestsPage').then(m => ({ default: m.QuarterRequestsPage })));
 const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(m => ({ default: m.QuarterManagerPage })));
+const QuarterRentPage = lazy(() => import('./pages/QuarterRentPage').then(m => ({ default: m.QuarterRentPage })));
 
 function PageLoader() {
   return (
@@ -198,6 +199,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'manager']}>
                 <QuarterManagerPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/quarters/rent"
+            element={
+              <ProtectedRoute allowedRoles={['govt_official']}>
+                <QuarterRentPage />
               </ProtectedRoute>
             }
           />

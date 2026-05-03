@@ -2,15 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, Plus, FileText, CheckCircle, Clock, XCircle,
-  ArrowUp, ArrowDown, Trash2, Search, Star, Filter, X, Eye, Send,
+  ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
-  MapPin, Layers,
+  MapPin, Layers, IndianRupee, Wrench, Filter,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import {
   quartersService,
   Quarter,
@@ -60,36 +62,22 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-interface QuarterDetailCardProps {
-  quarter: Quarter;
-  compact?: boolean;
-}
+interface QuarterDetailCardProps { quarter: Quarter; compact?: boolean }
 
 const QuarterDetailCard: React.FC<QuarterDetailCardProps> = ({ quarter, compact }) => {
   const images = resolveAllImages(quarter);
   return (
     <div className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
-      {/* Image carousel — click to open fullscreen lightbox */}
       <div className={compact ? 'h-44' : 'h-56'}>
-        <ImageCarousel
-          images={images}
-          alt={quarter.quarter_number}
-          className="h-full"
-          showFullscreen
-          autoPlay={false}
-        />
+        <ImageCarousel images={images} alt={quarter.quarter_number} className="h-full" showFullscreen autoPlay={false} />
       </div>
-
-      {/* Details */}
       <div className="p-4 space-y-3">
-        {/* Title + status */}
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="font-bold text-gray-900 text-base leading-tight">{quarter.quarter_number}</h3>
             {quarter.address && (
               <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                <MapPin size={11} className="flex-shrink-0" />
-                <span className="truncate">{quarter.address}</span>
+                <MapPin size={11} className="flex-shrink-0" /><span className="truncate">{quarter.address}</span>
               </div>
             )}
           </div>
@@ -97,52 +85,36 @@ const QuarterDetailCard: React.FC<QuarterDetailCardProps> = ({ quarter, compact 
             {quarter.occupancy_status === 'AVAILABLE' ? 'Available' : quarter.occupancy_status === 'OCCUPIED' ? 'Occupied' : quarter.occupancy_status}
           </span>
         </div>
-
-        {/* Spec chips */}
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: <Bed size={13} />,       label: 'Config',    value: quarter.bhk_config },
-            { icon: <Ruler size={13} />,     label: 'Area',      value: `${quarter.area_sqft} sq.ft` },
-            { icon: <Building2 size={13} />, label: 'Block/Fl',  value: `${quarter.block_name || '—'} / ${quarter.floor_number}` },
-            { icon: <Layers size={13} />,    label: 'Furnish',   value: quarter.furnishing_status },
+            { icon: <Bed size={13} />,       label: 'Config',   value: quarter.bhk_config },
+            { icon: <Ruler size={13} />,     label: 'Area',     value: `${quarter.area_sqft} sq.ft` },
+            { icon: <Building2 size={13} />, label: 'Block/Fl', value: `${quarter.block_name || '—'} / ${quarter.floor_number}` },
+            { icon: <Layers size={13} />,    label: 'Furnish',  value: quarter.furnishing_status },
           ].map(item => (
             <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-              <div className="flex items-center gap-1 text-gray-400 mb-0.5">
-                {item.icon}
-                <span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span>
-              </div>
+              <div className="flex items-center gap-1 text-gray-400 mb-0.5">{item.icon}<span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span></div>
               <div className="text-xs font-semibold text-gray-800 truncate">{item.value}</div>
             </div>
           ))}
         </div>
-
-        {/* Rent */}
         <div className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
-          <span className="text-xs text-blue-600 font-medium">Monthly Rent</span>
-          <span className="text-base font-bold text-blue-800">{fmtINR(quarter.monthly_rent)}<span className="text-xs font-normal text-blue-500">/mo</span></span>
+          <div className="text-xs text-blue-600 font-medium">Monthly Rent</div>
+          <div className="font-bold text-gray-900">{fmtINR(quarter.monthly_rent)}</div>
         </div>
-
-        {/* Amenities */}
         {quarter.amenities?.length > 0 && (
-          <div>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Amenities</div>
-            <div className="flex flex-wrap gap-1.5">
-              {quarter.amenities.slice(0, 6).map(a => (
-                <span key={a} className="text-xs bg-sky-50 text-sky-700 border border-sky-100 px-2 py-0.5 rounded-full">{a}</span>
-              ))}
-              {quarter.amenities.length > 6 && (
-                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{quarter.amenities.length - 6}</span>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {quarter.amenities.slice(0, 6).map(a => (
+              <span key={a} className="text-xs bg-sky-50 text-sky-700 border border-sky-100 px-2 py-0.5 rounded-full">{a}</span>
+            ))}
+            {quarter.amenities.length > 6 && (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{quarter.amenities.length - 6}</span>
+            )}
           </div>
         )}
-
-        {/* Quarter type badge */}
         <div className="flex items-center gap-2 pt-0.5">
           <span className="text-xs bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-full font-medium">{quarter.quarter_type}</span>
-          {quarter.block_name && (
-            <span className="text-xs text-gray-500">Block {quarter.block_name}</span>
-          )}
+          {quarter.block_name && <span className="text-xs text-gray-500">Block {quarter.block_name}</span>}
         </div>
       </div>
     </div>
@@ -153,22 +125,21 @@ function fmtINR(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('en-IN');
-}
+function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-IN'); }
 
 function statusConfig(status: string) {
   const cfg: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-    DRAFT:              { label: 'Draft',            cls: 'bg-amber-50 text-amber-700 border border-amber-200',   icon: <Clock size={11} /> },
-    SUBMITTED:         { label: 'Submitted',         cls: 'bg-blue-50 text-blue-700 border border-blue-200',      icon: <Send size={11} /> },
-    ALLOTTED:          { label: 'Allotted',          cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle size={11} /> },
-    ACKNOWLEDGED:      { label: 'Acknowledged',      cls: 'bg-teal-50 text-teal-700 border border-teal-200',      icon: <ThumbsUp size={11} /> },
-    REJECTED:          { label: 'Rejected',          cls: 'bg-red-50 text-red-700 border border-red-200',         icon: <ThumbsDown size={11} /> },
-    EXTEND_REQUESTED:  { label: 'Extension Req.',    cls: 'bg-amber-50 text-amber-700 border border-amber-200',   icon: <RefreshCw size={11} /> },
-    UPGRADE_REQUESTED: { label: 'Upgrade Req.',      cls: 'bg-sky-50 text-sky-700 border border-sky-200',         icon: <ArrowRightCircle size={11} /> },
-    VACATE_REQUESTED:  { label: 'Vacate Req.',       cls: 'bg-orange-50 text-orange-700 border border-orange-200',icon: <LogOut size={11} /> },
-    VACATED:           { label: 'Vacated',           cls: 'bg-gray-100 text-gray-500 border border-gray-200',     icon: <XCircle size={11} /> },
-    WITHDRAWN:         { label: 'Withdrawn',         cls: 'bg-gray-100 text-gray-500 border border-gray-200',     icon: <XCircle size={11} /> },
+    DRAFT:              { label: 'Draft',           cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <Clock size={11} /> },
+    SUBMITTED:         { label: 'Submitted',        cls: 'bg-blue-50 text-blue-700 border border-blue-200',       icon: <Send size={11} /> },
+    ALLOTTED:          { label: 'Allotted',         cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle size={11} /> },
+    ACKNOWLEDGED:      { label: 'Occupied',         cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ThumbsUp size={11} /> },
+    REJECTED:          { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200',          icon: <ThumbsDown size={11} /> },
+    EXTEND_REQUESTED:  { label: 'Extension Req.',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
+    UPGRADE_REQUESTED: { label: 'Upgrade Req.',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
+    VACATE_REQUESTED:  { label: 'Vacate Req.',      cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
+    VACATED:           { label: 'Vacated',          cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
+    WITHDRAWN:         { label: 'Withdrawn',        cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
+    ON_HOLD:           { label: 'On Hold',          cls: 'bg-purple-50 text-purple-700 border border-purple-200', icon: <Clock size={11} /> },
   };
   return cfg[status] ?? cfg.DRAFT;
 }
@@ -185,36 +156,47 @@ function tenantStatusConfig(status: string) {
 
 function serviceTypeConfig(type: string) {
   const cfg: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-    EXTEND:  { label: 'Extension',  cls: 'bg-amber-50 text-amber-700 border border-amber-200',  icon: <RefreshCw size={11} /> },
-    UPGRADE: { label: 'Upgrade',    cls: 'bg-sky-50 text-sky-700 border border-sky-200',         icon: <ArrowRightCircle size={11} /> },
-    VACATE:  { label: 'Vacate',     cls: 'bg-orange-50 text-orange-700 border border-orange-200',icon: <LogOut size={11} /> },
+    EXTEND:      { label: 'Extension',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
+    UPGRADE:     { label: 'Upgrade',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',           icon: <ArrowRightCircle size={11} /> },
+    VACATE:      { label: 'Vacate',      cls: 'bg-orange-50 text-orange-700 border border-orange-200',  icon: <LogOut size={11} /> },
+    GRIEVANCE:   { label: 'Grievance',   cls: 'bg-rose-50 text-rose-700 border border-rose-200',        icon: <AlertCircle size={11} /> },
+    MAINTENANCE: { label: 'Maintenance', cls: 'bg-slate-50 text-slate-700 border border-slate-200',     icon: <Wrench size={11} /> },
   };
   return cfg[type] ?? cfg.EXTEND;
 }
 
-// ─── types ────────────────────────────────────────────────────────────────────
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
 
-type DPFilter = 'all' | 'open' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
-
-interface PrefItem { quarter: Quarter; rank: number; }
+interface PrefItem { quarter: Quarter; rank: number }
 
 interface NewRequestForm {
-  request_reason: string;
-  required_bhk_config: string;
-  preferred_location: string;
-  move_in_date: string;
-  family_member_count: number;
-  employee_notes: string;
+  request_reason: string; required_bhk_config: string; preferred_location: string;
+  move_in_date: string; family_member_count: number; employee_notes: string;
 }
 
 const DEFAULT_FORM: NewRequestForm = {
-  request_reason: '',
-  required_bhk_config: '',
-  preferred_location: '',
-  move_in_date: '',
-  family_member_count: 1,
-  employee_notes: '',
+  request_reason: '', required_bhk_config: '', preferred_location: '',
+  move_in_date: '', family_member_count: 1, employee_notes: '',
 };
+
+// ─── Status dashboard card ─────────────────────────────────────────────────────
+
+interface StatusCard {
+  key: DPFilter; label: string; description: string;
+  count: number;
+  gradient: string; iconBg: string; textColor: string; countColor: string;
+  icon: React.ReactNode;
+}
+
+// ─── Action popup types ────────────────────────────────────────────────────────
+
+type ActionPopupType = 'EXTEND' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | null;
+
+interface ActionPopupState {
+  type: ActionPopupType;
+  requestId: string;
+  allotmentId: string;
+}
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -231,8 +213,8 @@ export const QuarterRequestsPage: React.FC = () => {
   const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Header DP filter
-  const [dpFilter, setDpFilter] = useState<DPFilter>('all');
+  // Dashboard filter — default to 'allotted' per spec
+  const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
 
   // New-request modal
   const [showNewModal, setShowNewModal] = useState(false);
@@ -243,11 +225,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // My Requests list filters
+  // List filters
   const [reqSearch, setReqSearch] = useState('');
   const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
-  const [reqStatusFilter, setReqStatusFilter] = useState<string>('ALL');
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [reqBhkFilter, setReqBhkFilter] = useState<string>('ALL');
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Selected preference quarter for detail view
   const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
@@ -262,13 +244,33 @@ export const QuarterRequestsPage: React.FC = () => {
   const [actionBhk, setActionBhk] = useState('');
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
+  // Quarter preview modal (photo click)
+  const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Inline action popup (card-level icons)
+  const [actionPopup, setActionPopup] = useState<ActionPopupState>({ type: null, requestId: '', allotmentId: '' });
+  const [popupReason, setPopupReason] = useState('');
+  const [popupRemarks, setPopupRemarks] = useState('');
+  const [popupDocUrl, setPopupDocUrl] = useState('');
+  const [popupDate, setPopupDate] = useState('');
+  const [popupSubject, setPopupSubject] = useState('');
+  const [popupUrgency, setPopupUrgency] = useState('NORMAL');
+  const [popupSubmitting, setPopupSubmitting] = useState(false);
+
   function resetActionForm() {
-    setRightAction(null);
-    setActionRemarks('');
-    setActionReason('');
-    setActionDocUrl('');
-    setActionDate('');
-    setActionBhk('');
+    setRightAction(null); setActionRemarks(''); setActionReason('');
+    setActionDocUrl(''); setActionDate(''); setActionBhk('');
+  }
+
+  function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
+    setActionPopup({ type, requestId, allotmentId });
+    setPopupReason(''); setPopupRemarks(''); setPopupDocUrl('');
+    setPopupDate(''); setPopupSubject(''); setPopupUrgency('NORMAL');
+  }
+
+  function closeActionPopup() {
+    setActionPopup({ type: null, requestId: '', allotmentId: '' });
   }
 
   const loadData = useCallback(async () => {
@@ -283,9 +285,11 @@ export const QuarterRequestsPage: React.FC = () => {
       setRequests(reqs);
       setActiveCycle(cycle);
       setTenantRequests(tReqs);
-      if (reqs.length > 0 && !selectedRequest) setSelectedRequest(reqs[0]);
+      // Auto-select the first request matching the default 'allotted' filter
+      const allottedReq = reqs.find(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
+      if (allottedReq) setSelectedRequest(allottedReq);
     } catch {
-      addToast('Failed to load requests', 'error');
+      addToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
@@ -293,9 +297,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Auto-select top preference quarter when selected request changes
+  // Auto-select top preference for detail view
   useEffect(() => {
-    if (!selectedRequest) { setSelectedPrefQuarter(null); return; }
+    if (!selectedRequest) return;
     const prefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
     const topQ = prefs[0]?.quarter as Quarter | undefined;
     setSelectedPrefQuarter(topQ ?? null);
@@ -355,12 +359,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const openNewModal = (req?: QuarterRequest) => {
     if (req) {
       setForm({
-        request_reason: req.request_reason,
-        required_bhk_config: req.required_bhk_config,
-        preferred_location: req.preferred_location,
-        move_in_date: req.move_in_date ?? '',
-        family_member_count: req.family_member_count,
-        employee_notes: req.employee_notes,
+        request_reason: req.request_reason, required_bhk_config: req.required_bhk_config,
+        preferred_location: req.preferred_location, move_in_date: req.move_in_date ?? '',
+        family_member_count: req.family_member_count, employee_notes: req.employee_notes,
       });
       const existing = req.preferences?.map(p => ({ quarter: p.quarter as Quarter, rank: p.preference_rank })) ?? [];
       setPrefs(existing.sort((a, b) => a.rank - b.rank));
@@ -377,64 +378,51 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user) return;
     setSubmitting(true);
     try {
-      await quartersService.createRequest(user.id, {
-        cycle_id: activeCycle?.id ?? null,
-        ...form,
-        move_in_date: form.move_in_date || null,
-        preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
-      });
-      addToast('Request saved as draft', 'success');
+      const existing = requests.find(r => r.request_status === 'DRAFT' && showNewModal);
+      if (existing && selectedRequest?.request_status === 'DRAFT') {
+        await quartersService.updateRequestPreferences(
+          selectedRequest.id,
+          prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
+        );
+      } else {
+        const req = await quartersService.createRequest(user.id, {
+          ...form,
+          move_in_date: form.move_in_date || null,
+          preferred_location: form.preferred_location || '',
+          required_bhk_config: form.required_bhk_config || '',
+          employee_notes: form.employee_notes,
+        });
+        await quartersService.updateRequestPreferences(
+          req.id,
+          prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
+        );
+      }
+      addToast('Draft saved', 'success');
       setShowNewModal(false);
       loadData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      addToast(
-        msg === 'MAX_QUARTERS_REACHED'
-          ? 'You already have 2 active quarter requests. The maximum allowed is 2.'
-          : 'Failed to save request',
-        'error'
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { addToast('Failed to save draft', 'error'); } finally { setSubmitting(false); }
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
-    if (prefs.length === 0) { addToast('Add at least one preference before submitting', 'warning'); return; }
+    if (!user || !form.request_reason.trim()) { addToast('Please provide a request reason', 'warning'); return; }
     setSubmitting(true);
     try {
       const req = await quartersService.createRequest(user.id, {
-        cycle_id: activeCycle?.id ?? null,
         ...form,
         move_in_date: form.move_in_date || null,
-        preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
+        preferred_location: form.preferred_location || '',
+        required_bhk_config: form.required_bhk_config || '',
+        employee_notes: form.employee_notes,
       });
+      await quartersService.updateRequestPreferences(
+        req.id,
+        prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
+      );
       await quartersService.submitRequest(req.id);
       addToast('Request submitted successfully', 'success');
       setShowNewModal(false);
       loadData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      addToast(
-        msg === 'MAX_QUARTERS_REACHED'
-          ? 'You already have 2 active quarter requests. The maximum allowed is 2.'
-          : 'Failed to submit request',
-        'error'
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleWithdraw = async (reqId: string) => {
-    try {
-      await quartersService.withdrawRequest(reqId);
-      addToast('Request withdrawn', 'success');
-      loadData();
-    } catch {
-      addToast('Failed to withdraw request', 'error');
-    }
+    } catch { addToast('Failed to submit request', 'error'); } finally { setSubmitting(false); }
   };
 
   const handleAcknowledge = async () => {
@@ -445,27 +433,18 @@ export const QuarterRequestsPage: React.FC = () => {
       addToast('Allotment acknowledged', 'success');
       resetActionForm();
       loadData();
-    } catch {
-      addToast('Failed to acknowledge', 'error');
-    } finally {
-      setActionSubmitting(false);
-    }
+    } catch { addToast('Failed to acknowledge', 'error'); } finally { setActionSubmitting(false); }
   };
 
   const handleReject = async () => {
-    if (!selectedRequest?.allotment) return;
-    if (!actionReason.trim()) { addToast('Please provide a rejection reason', 'warning'); return; }
+    if (!selectedRequest?.allotment || !actionReason.trim()) { addToast('Please provide a reason', 'warning'); return; }
     setActionSubmitting(true);
     try {
       await quartersService.rejectAllotment(selectedRequest.allotment.id, selectedRequest.id, actionReason, actionDocUrl || undefined);
       addToast('Allotment rejected', 'success');
       resetActionForm();
       loadData();
-    } catch {
-      addToast('Failed to reject', 'error');
-    } finally {
-      setActionSubmitting(false);
-    }
+    } catch { addToast('Failed to reject', 'error'); } finally { setActionSubmitting(false); }
   };
 
   const handleTenantRequest = async (serviceType: 'EXTEND' | 'UPGRADE' | 'VACATE') => {
@@ -474,22 +453,24 @@ export const QuarterRequestsPage: React.FC = () => {
     setActionSubmitting(true);
     try {
       const input: CreateTenantRequestInput = {
-        service_type: serviceType,
-        remarks: actionRemarks,
-        reason: actionReason,
-        document_url: actionDocUrl || undefined,
-        requested_date: actionDate || null,
+        service_type: serviceType, remarks: actionRemarks, reason: actionReason,
+        document_url: actionDocUrl || undefined, requested_date: actionDate || null,
         required_bhk_config: actionBhk || undefined,
       };
       await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, input);
       addToast('Request submitted successfully', 'success');
       resetActionForm();
       loadData();
-    } catch {
-      addToast('Failed to submit request', 'error');
-    } finally {
-      setActionSubmitting(false);
-    }
+    } catch { addToast('Failed to submit request', 'error'); } finally { setActionSubmitting(false); }
+  };
+
+  const handleWithdraw = async (id: string) => {
+    try {
+      await quartersService.withdrawRequest(id);
+      addToast('Request withdrawn', 'success');
+      setSelectedRequest(null);
+      loadData();
+    } catch { addToast('Failed to withdraw', 'error'); }
   };
 
   const handleWithdrawTenantReq = async (id: string) => {
@@ -497,35 +478,106 @@ export const QuarterRequestsPage: React.FC = () => {
       await quartersService.withdrawTenantRequest(id);
       addToast('Request withdrawn', 'success');
       loadData();
-    } catch {
-      addToast('Failed to withdraw', 'error');
+    } catch { addToast('Failed to withdraw', 'error'); }
+  };
+
+  // ─── inline action popup submit ────────────────────────────────────────────
+
+  const handlePopupSubmit = async () => {
+    if (!user || !actionPopup.type || !actionPopup.allotmentId) return;
+    if (!popupReason.trim() && actionPopup.type !== 'GRIEVANCE') {
+      addToast('Please provide a reason', 'warning'); return;
     }
+    if (actionPopup.type === 'GRIEVANCE' && !popupSubject.trim()) {
+      addToast('Please provide a subject', 'warning'); return;
+    }
+    setPopupSubmitting(true);
+    try {
+      const input: CreateTenantRequestInput = {
+        service_type: actionPopup.type,
+        reason: popupReason,
+        remarks: popupRemarks,
+        document_url: popupDocUrl || undefined,
+        requested_date: popupDate || null,
+        grievance_subject: popupSubject || undefined,
+        urgency_level: popupUrgency,
+      };
+      await quartersService.createTenantRequest(user.id, actionPopup.allotmentId, input);
+      addToast('Request submitted successfully', 'success');
+      closeActionPopup();
+      loadData();
+    } catch { addToast('Failed to submit request', 'error'); } finally { setPopupSubmitting(false); }
   };
 
   // ─── derived counts ─────────────────────────────────────────────────────────
 
   const statCounts = {
-    open:            requests.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status)).length,
-    allotted:        requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
-    occupied:        requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
-    tenantServices:  requests.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
-    vacated:         requests.filter(r => r.request_status === 'VACATED').length,
+    draft:          requests.filter(r => r.request_status === 'DRAFT').length,
+    submitted:      requests.filter(r => r.request_status === 'SUBMITTED').length,
+    allotted:       requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
+    occupied:       requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
+    tenantServices: requests.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
+    vacated:        requests.filter(r => r.request_status === 'VACATED').length,
   };
+
+  const STATUS_CARDS: StatusCard[] = [
+    {
+      key: 'draft', label: 'Draft Requests', description: 'Not yet submitted',
+      count: statCounts.draft,
+      gradient: 'from-amber-500 to-yellow-400',
+      iconBg: 'bg-amber-100', textColor: 'text-amber-700', countColor: 'text-amber-900',
+      icon: <FileText size={20} className="text-amber-600" />,
+    },
+    {
+      key: 'submitted', label: 'Submitted', description: 'Awaiting EO review',
+      count: statCounts.submitted,
+      gradient: 'from-blue-500 to-sky-400',
+      iconBg: 'bg-blue-100', textColor: 'text-blue-700', countColor: 'text-blue-900',
+      icon: <Send size={20} className="text-blue-600" />,
+    },
+    {
+      key: 'allotted', label: 'Allotted', description: 'Pending your action',
+      count: statCounts.allotted,
+      gradient: 'from-emerald-500 to-green-400',
+      iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
+      icon: <CheckCircle size={20} className="text-emerald-600" />,
+    },
+    {
+      key: 'occupied', label: 'Occupied', description: 'Currently occupying',
+      count: statCounts.occupied,
+      gradient: 'from-teal-500 to-cyan-400',
+      iconBg: 'bg-teal-100', textColor: 'text-teal-700', countColor: 'text-teal-900',
+      icon: <Home size={20} className="text-teal-600" />,
+    },
+    {
+      key: 'tenantServices', label: 'Tenant Services', description: 'Ext / Vacate in progress',
+      count: statCounts.tenantServices,
+      gradient: 'from-orange-500 to-amber-400',
+      iconBg: 'bg-orange-100', textColor: 'text-orange-700', countColor: 'text-orange-900',
+      icon: <RefreshCw size={20} className="text-orange-600" />,
+    },
+    {
+      key: 'vacated', label: 'Vacated', description: 'Historical records',
+      count: statCounts.vacated,
+      gradient: 'from-slate-400 to-gray-400',
+      iconBg: 'bg-slate-100', textColor: 'text-slate-600', countColor: 'text-slate-700',
+      icon: <Building2 size={20} className="text-slate-500" />,
+    },
+  ];
 
   // ─── filtered request lists ─────────────────────────────────────────────────
 
   const filteredRequests = React.useMemo(() => {
     let result = [...requests];
 
-    if (dpFilter === 'open')           result = result.filter(r => ['DRAFT', 'SUBMITTED'].includes(r.request_status));
-    else if (dpFilter === 'allotted')  result = result.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
-    else if (dpFilter === 'occupied')  result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
+    if (dpFilter === 'draft') result = result.filter(r => r.request_status === 'DRAFT');
+    else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
+    else if (dpFilter === 'allotted') result = result.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
+    else if (dpFilter === 'occupied') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
     else if (dpFilter === 'tenantServices') result = result.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
-    else if (dpFilter === 'vacated')   result = result.filter(r => r.request_status === 'VACATED');
+    else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
-    if (reqStatusFilter !== 'ALL') {
-      result = result.filter(r => r.request_status === reqStatusFilter);
-    }
+    if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
 
     if (reqSearch.trim()) {
       const q = reqSearch.toLowerCase();
@@ -541,7 +593,7 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort, reqStatusFilter]);
+  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter]);
 
   const filteredTenantRequests = React.useMemo(() => {
     return [...tenantRequests].sort((a, b) =>
@@ -552,13 +604,20 @@ export const QuarterRequestsPage: React.FC = () => {
   const isTenantView = dpFilter === 'tenantServices';
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
-  const dpItems: { key: DPFilter; label: string; count: number; color: string }[] = [
-    { key: 'open',           label: 'Open',           count: statCounts.open,           color: 'text-blue-700 bg-blue-50 border-blue-200' },
-    { key: 'allotted',       label: 'Allotted',       count: statCounts.allotted,       color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-    { key: 'occupied',       label: 'Occupied',       count: statCounts.occupied,       color: 'text-teal-700 bg-teal-50 border-teal-200' },
-    { key: 'tenantServices', label: 'Tenant Services',count: statCounts.tenantServices, color: 'text-amber-700 bg-amber-50 border-amber-200' },
-    { key: 'vacated',        label: 'Vacated',        count: statCounts.vacated,        color: 'text-gray-600 bg-gray-100 border-gray-200' },
-  ];
+  const activeFilterCount = [
+    reqBhkFilter !== 'ALL',
+    reqSearch.trim().length > 0,
+  ].filter(Boolean).length;
+
+  // ─── helper to open preview modal ──────────────────────────────────────────
+
+  function openQuarterPreview(req: QuarterRequest) {
+    const qId = (req.allotment?.quarter as Quarter | undefined)?.id
+      ?? (req.preferences?.[0]?.quarter as Quarter | undefined)?.id;
+    if (!qId) { addToast('No quarter linked to this request yet', 'info'); return; }
+    setPreviewQuarterId(qId);
+    setIsPreviewOpen(true);
+  }
 
   // ─── right panel sections ────────────────────────────────────────────────────
 
@@ -568,7 +627,6 @@ export const QuarterRequestsPage: React.FC = () => {
     const q = allotment.quarter;
     return (
       <>
-        {/* Green header banner */}
         <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
             <CheckCircle size={18} className="text-white" />
@@ -582,7 +640,6 @@ export const QuarterRequestsPage: React.FC = () => {
           </span>
         </div>
 
-        {/* Allotted quarter detail card */}
         <div className="p-5 border-b border-gray-100">
           {q ? (
             <>
@@ -605,22 +662,10 @@ export const QuarterRequestsPage: React.FC = () => {
                 <span className="font-semibold text-gray-900">Quarter Allotted</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <div className="text-gray-400 mb-0.5">BHK Requested</div>
-                  <div className="font-medium text-gray-800">{selectedRequest.required_bhk_config || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-400 mb-0.5">Location</div>
-                  <div className="font-medium text-gray-800">{selectedRequest.preferred_location || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-400 mb-0.5">Allotted On</div>
-                  <div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div>
-                </div>
-                <div>
-                  <div className="text-gray-400 mb-0.5">Status</div>
-                  <div className="font-medium text-gray-800">{allotment.approval_status}</div>
-                </div>
+                <div><div className="text-gray-400 mb-0.5">BHK Requested</div><div className="font-medium text-gray-800">{selectedRequest.required_bhk_config || '—'}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Location</div><div className="font-medium text-gray-800">{selectedRequest.preferred_location || '—'}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Allotted On</div><div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Status</div><div className="font-medium text-gray-800">{allotment.approval_status}</div></div>
               </div>
             </div>
           )}
@@ -631,90 +676,17 @@ export const QuarterRequestsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Action zone */}
         <div className="p-5">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Action Required</div>
 
           {rightAction === null && (
             <div className="space-y-2">
               <div className="flex gap-3">
-                <button
-                  onClick={() => setRightAction('acknowledge')}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
-                >
+                <button onClick={() => setRightAction('acknowledge')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
                   <ThumbsUp size={15} /> Acknowledge
                 </button>
-                <button
-                  onClick={() => setRightAction('reject')}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-                >
+                <button onClick={() => setRightAction('reject')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors">
                   <ThumbsDown size={15} /> Reject
-                </button>
-              </div>
-              <button
-                onClick={() => setRightAction('upgrade')}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sky-200 text-sky-700 text-sm font-medium hover:bg-sky-50 transition-colors"
-              >
-                <ArrowRightCircle size={15} /> Request Upgrade
-              </button>
-              <p className="text-[10px] text-gray-400 text-center">Request a higher-grade quarter instead of accepting this allotment</p>
-            </div>
-          )}
-
-          {rightAction === 'upgrade' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Request</span>
-                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
-                <input
-                  value={actionBhk}
-                  onChange={e => setActionBhk(e.target.value)}
-                  placeholder="e.g. 4 BHK"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                <textarea
-                  value={actionReason}
-                  onChange={e => setActionReason(e.target.value)}
-                  rows={2}
-                  placeholder="Reason for requesting an upgrade…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                <input
-                  value={actionRemarks}
-                  onChange={e => setActionRemarks(e.target.value)}
-                  placeholder="Additional remarks…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
-                <div className="relative">
-                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    value={actionDocUrl}
-                    onChange={e => setActionDocUrl(e.target.value)}
-                    placeholder="https://…"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button
-                  onClick={() => handleTenantRequest('UPGRADE')}
-                  disabled={actionSubmitting}
-                  className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors"
-                >
-                  {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
                 </button>
               </div>
             </div>
@@ -728,21 +700,11 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Remarks (optional)</label>
-                <textarea
-                  value={actionRemarks}
-                  onChange={e => setActionRemarks(e.target.value)}
-                  rows={3}
-                  placeholder="Any remarks about the allotment…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
-                />
+                <textarea value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} rows={3} placeholder="Any remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none" />
               </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button
-                  onClick={handleAcknowledge}
-                  disabled={actionSubmitting}
-                  className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                >
+                <button onClick={handleAcknowledge} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                   {actionSubmitting ? 'Saving…' : 'Confirm Acknowledgement'}
                 </button>
               </div>
@@ -757,33 +719,18 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Rejection Reason *</label>
-                <textarea
-                  value={actionReason}
-                  onChange={e => setActionReason(e.target.value)}
-                  rows={3}
-                  placeholder="State the reason for rejection…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
-                />
+                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={3} placeholder="State the reason…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Supporting Document URL (optional)</label>
                 <div className="relative">
                   <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    value={actionDocUrl}
-                    onChange={e => setActionDocUrl(e.target.value)}
-                    placeholder="https://…"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20"
-                  />
+                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20" />
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button
-                  onClick={handleReject}
-                  disabled={actionSubmitting}
-                  className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
-                >
+                <button onClick={handleReject} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
                   {actionSubmitting ? 'Saving…' : 'Confirm Rejection'}
                 </button>
               </div>
@@ -816,18 +763,29 @@ export const QuarterRequestsPage: React.FC = () => {
           {rightAction === null && (
             <div className="grid grid-cols-2 gap-3">
               {([
-                { action: 'extend' as RightAction, label: 'Extend Lease', icon: <RefreshCw size={15} />, cls: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
-                { action: 'vacate' as RightAction, label: 'Vacate Quarter', icon: <LogOut size={15} />, cls: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
+                { action: 'extend' as RightAction,  label: 'Extend Lease',    icon: <RefreshCw size={15} />,    cls: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
+                { action: 'upgrade' as RightAction, label: 'Upgrade Quarter', icon: <ArrowRightCircle size={15} />, cls: 'border-sky-200 text-sky-700 hover:bg-sky-50' },
+                { action: 'vacate' as RightAction,  label: 'Vacate Quarter',  icon: <LogOut size={15} />,       cls: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
               ]).map(({ action, label, icon, cls }) => (
-                <button
-                  key={action as string}
-                  onClick={() => setRightAction(action)}
-                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-colors ${cls}`}
-                >
-                  {icon}
-                  <span className="text-xs">{label}</span>
+                <button key={action as string} onClick={() => setRightAction(action)} className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-colors ${cls}`}>
+                  {icon}<span className="text-xs">{label}</span>
                 </button>
               ))}
+              {/* Rent Details & Maintenance */}
+              <button
+                onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
+                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border border-teal-200 text-teal-700 hover:bg-teal-50 text-sm font-medium transition-colors"
+              >
+                <IndianRupee size={15} />
+                <span className="text-xs">Rent Details</span>
+              </button>
+              <button
+                onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
+                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors"
+              >
+                <Wrench size={15} />
+                <span className="text-xs">Maintenance</span>
+              </button>
             </div>
           )}
 
@@ -844,64 +802,67 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                  <textarea
-                    value={actionReason}
-                    onChange={e => setActionReason(e.target.value)}
-                    rows={2}
-                    placeholder="Reason for this request…"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
-                  />
+                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                  <input
-                    value={actionRemarks}
-                    onChange={e => setActionRemarks(e.target.value)}
-                    placeholder="Additional remarks…"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
-                {(rightAction === 'extend' || rightAction === 'vacate') && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
-                    </label>
-                    <div className="relative">
-                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="date"
-                        value={actionDate}
-                        onChange={e => setActionDate(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
+                  </label>
+                  <div className="relative">
+                    <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                   </div>
-                )}
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
                   <div className="relative">
                     <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      value={actionDocUrl}
-                      onChange={e => setActionDocUrl(e.target.value)}
-                      placeholder="https://…"
-                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
+                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button
-                    onClick={() => handleTenantRequest(serviceType)}
-                    disabled={actionSubmitting}
-                    className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
+                  <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
                     {actionSubmitting ? 'Submitting…' : 'Submit Request'}
                   </button>
                 </div>
               </div>
             );
           })()}
+
+          {rightAction === 'upgrade' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
+                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
+                <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
+                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
+                <div className="relative">
+                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
+                  {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </>
     );
@@ -974,10 +935,7 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
           {tr.request_status === 'PENDING' && (
-            <button
-              onClick={() => handleWithdrawTenantReq(tr.id)}
-              className="w-full py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={() => handleWithdrawTenantReq(tr.id)} className="w-full py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
               Withdraw Request
             </button>
           )}
@@ -988,7 +946,6 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const RightPanelPreferences = () => (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div>
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
@@ -1009,25 +966,18 @@ export const QuarterRequestsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Selected quarter detail card */}
       {selectedPrefQuarter && (
         <div className="px-5 pt-4 pb-3 border-b border-gray-100 bg-gray-50/60">
           <div className="flex items-center justify-between mb-2">
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
               Viewing Preference #{selectedPrefs.findIndex(p => (p.quarter as Quarter | undefined)?.id === selectedPrefQuarter.id) + 1}
             </div>
-            <button
-              onClick={() => setSelectedPrefQuarter(null)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"
-            >
-              <X size={14} />
-            </button>
+            <button onClick={() => setSelectedPrefQuarter(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 rounded"><X size={14} /></button>
           </div>
           <QuarterDetailCard quarter={selectedPrefQuarter} compact />
         </div>
       )}
 
-      {/* Preference list */}
       <div className="p-5">
         {selectedRequest?.request_status === 'DRAFT' && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800 flex items-start gap-2">
@@ -1041,9 +991,7 @@ export const QuarterRequestsPage: React.FC = () => {
             <Star size={32} className="mx-auto mb-2 opacity-30" />
             <p className="text-sm">No preferences added yet.</p>
             {selectedRequest?.request_status === 'DRAFT' && (
-              <button onClick={() => openNewModal(selectedRequest)} className="mt-3 text-sm text-blue-600 hover:underline">
-                Add preferences
-              </button>
+              <button onClick={() => openNewModal(selectedRequest)} className="mt-3 text-sm text-blue-600 hover:underline">Add preferences</button>
             )}
           </div>
         ) : (
@@ -1055,18 +1003,12 @@ export const QuarterRequestsPage: React.FC = () => {
               return (
                 <div
                   key={pref.id}
-                  className={`flex items-center gap-3 rounded-xl p-3 border transition-all cursor-pointer hover:shadow-sm ${
-                    isViewing
-                      ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200 shadow-sm'
-                      : 'bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200'
-                  }`}
+                  className={`flex items-center gap-3 rounded-xl p-3 border transition-all cursor-pointer hover:shadow-sm ${isViewing ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200 shadow-sm' : 'bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200'}`}
                   onClick={() => setSelectedPrefQuarter(isViewing ? null : q)}
                 >
                   <div className="relative shrink-0">
                     <img src={getImage(q, i)} alt={q.quarter_number} className="w-16 h-16 rounded-lg object-cover" />
-                    <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center ${isViewing ? 'bg-blue-600' : 'bg-slate-800'}`}>
-                      {pref.preference_rank}
-                    </div>
+                    <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center ${isViewing ? 'bg-blue-600' : 'bg-slate-800'}`}>{pref.preference_rank}</div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
@@ -1077,17 +1019,13 @@ export const QuarterRequestsPage: React.FC = () => {
                       <span className="font-medium text-gray-800">{fmtINR(q.monthly_rent)}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); setSelectedPrefQuarter(isViewing ? null : q); }}
-                    className={`p-2 rounded-lg shrink-0 transition-colors ${
-                      isViewing
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300'
-                    }`}
-                    title={isViewing ? 'Hide details' : 'View details'}
-                  >
-                    <Eye size={14} />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={e => { e.stopPropagation(); setPreviewQuarterId(q.id); setIsPreviewOpen(true); }}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                      title="View quarter details"
+                    ><Eye size={13} /></button>
+                  </div>
                 </div>
               );
             })}
@@ -1095,12 +1033,9 @@ export const QuarterRequestsPage: React.FC = () => {
         )}
 
         {selectedRequest?.request_status === 'DRAFT' && (
-          <div className="flex gap-3 mt-5 pt-5 border-t border-gray-100 justify-end">
-            <button
-              onClick={() => selectedRequest && openNewModal(selectedRequest)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Plus size={14} /> Add / Reorder Preferences
+          <div className="mt-4 flex gap-2">
+            <button onClick={() => openNewModal(selectedRequest)} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+              <Plus size={14} /> Add / Reorder
             </button>
             <Button onClick={async () => {
               if (!selectedRequest) return;
@@ -1110,7 +1045,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 loadData();
               } catch { addToast('Failed to submit', 'error'); }
             }}>
-              <Send size={14} className="mr-1" /> Submit Request
+              <Send size={14} className="mr-1" /> Submit
             </Button>
           </div>
         )}
@@ -1126,84 +1061,119 @@ export const QuarterRequestsPage: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
-        {/* ── Compact header card ─────────────────────────────────────────── */}
+        {/* ── Compact header ─────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="min-w-0">
+              {/* Breadcrumb */}
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
                 <Home size={11} />
                 <ChevronRight size={10} />
                 <span>My Workspace</span>
                 <ChevronRight size={10} />
-                <span className="text-gray-600 font-medium">Quarter Requests</span>
+                <button
+                  onClick={() => { setSelectedRequest(null); setDpFilter('allotted'); resetActionForm(); }}
+                  className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
+                >
+                  Quarter Requests
+                </button>
+                {selectedRequest && (
+                  <>
+                    <ChevronRight size={10} />
+                    <span className="font-mono text-gray-700 font-medium">{selectedRequest.request_number}</span>
+                  </>
+                )}
               </div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">Quarter Requests</h1>
             </div>
-            <div className="flex gap-2 shrink-0">
+            <div className="flex gap-2 shrink-0 items-center">
+              {user && activeCycle && (
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                  <Clock size={11} className="text-blue-500" />
+                  {activeCycle.cycle_name} · Closes {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}
+                </span>
+              )}
               <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                <Eye size={13} /> Browse Quarters
+                <Eye size={13} /> Browse
               </button>
               <Button onClick={() => openNewModal()}>
                 <Plus size={13} className="mr-1" /> New Request
               </Button>
             </div>
           </div>
-
-          {/* Info strip + DP pills */}
-          {user && (
-            <div className="flex items-center mt-2.5 pt-2.5 border-t border-gray-100 flex-wrap gap-y-1.5">
-              <div className="flex items-center gap-1.5 pr-3">
-                <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Employee</span>
-                <span className="text-xs font-semibold text-gray-800">{user.fullName}</span>
-              </div>
-              <div className="w-px h-4 bg-gray-200 mx-1 shrink-0" />
-              <div className="flex items-center gap-1.5 px-3">
-                <span className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Cycle</span>
-                <span className="text-xs font-semibold text-gray-800">
-                  {activeCycle ? `${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle'}
-                </span>
-              </div>
-              <div className="w-px h-4 bg-gray-200 mx-1 shrink-0" />
-              {/* Clickable DP filter pills */}
-              <div className="flex items-center gap-1 flex-wrap pl-1">
-                <button
-                  onClick={() => { setDpFilter('all'); resetActionForm(); }}
-                  className={`text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
-                    dpFilter === 'all'
-                      ? 'bg-gray-700 text-white border-gray-700'
-                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400'
-                  }`}
-                >
-                  All ({requests.length})
-                </button>
-                {dpItems.map(item => {
-                  const active = dpFilter === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => { setDpFilter(item.key); resetActionForm(); setSelectedRequest(null); setSelectedTenantReq(null); }}
-                      className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
-                        active
-                          ? 'bg-gray-700 text-white border-gray-700'
-                          : `${item.color} hover:opacity-90`
-                      }`}
-                    >
-                      {item.label}
-                      <span className={`ml-0.5 font-bold ${active ? 'text-white' : ''}`}>{item.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ── Main content ──────────────────────────────────────────────────── */}
+        {/* ── Status dashboard cards ─────────────────────────────────── */}
+        <div className="mb-5 overflow-x-auto pb-1">
+          <div className="flex gap-3 min-w-max">
+            {STATUS_CARDS.map((card) => {
+              const isActive = dpFilter === card.key;
+              return (
+                <button
+                  key={card.key}
+                  onClick={() => {
+                    setDpFilter(card.key);
+                    resetActionForm();
+                    setSelectedTenantReq(null);
+                    setReqSearch('');
+                    setReqBhkFilter('ALL');
+                    // Auto-select first request for the chosen filter
+                    const statusMap: Record<DPFilter, string[]> = {
+                      all: [],
+                      draft: ['DRAFT'],
+                      submitted: ['SUBMITTED'],
+                      allotted: ['ALLOTTED', 'UPGRADE_REQUESTED'],
+                      occupied: ['ACKNOWLEDGED'],
+                      tenantServices: ['EXTEND_REQUESTED', 'VACATE_REQUESTED'],
+                      vacated: ['VACATED'],
+                    };
+                    const statuses = statusMap[card.key];
+                    const first = statuses.length
+                      ? requests.find(r => statuses.includes(r.request_status)) ?? null
+                      : (requests[0] ?? null);
+                    setSelectedRequest(first);
+                  }}
+                  className={`relative flex items-start gap-3.5 p-4 rounded-2xl border-2 transition-all duration-200 w-44 text-left group ${
+                    isActive
+                      ? 'border-transparent shadow-lg scale-[1.03]'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md hover:scale-[1.01]'
+                  }`}
+                  style={isActive ? {
+                    background: `linear-gradient(135deg, var(--tw-gradient-stops))`,
+                  } : {}}
+                >
+                  {/* Gradient bg for active */}
+                  {isActive && (
+                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${card.gradient} opacity-100`} />
+                  )}
+                  <div className="relative z-10 flex items-start gap-3 w-full">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-white/25' : card.iconBg}`}>
+                      {React.cloneElement(card.icon as React.ReactElement, {
+                        className: isActive ? 'text-white' : undefined,
+                      })}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-2xl font-black leading-none mb-0.5 ${isActive ? 'text-white' : card.countColor}`}>
+                        {card.count}
+                      </div>
+                      <div className={`text-xs font-bold leading-tight ${isActive ? 'text-white' : 'text-gray-800'}`}>
+                        {card.label}
+                      </div>
+                      <div className={`text-[10px] mt-0.5 leading-tight ${isActive ? 'text-white/75' : 'text-gray-400'}`}>
+                        {card.description}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Main content ──────────────────────────────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[1, 2].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />
-            ))}
+            {[1, 2].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />)}
           </div>
         ) : !isTenantView && filteredRequests.length === 0 && requests.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 py-20 text-center">
@@ -1213,96 +1183,104 @@ export const QuarterRequestsPage: React.FC = () => {
             <Button onClick={() => openNewModal()}><Plus size={15} className="mr-1" /> New Request</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
 
-            {/* ── Left: list ────────────────────────────────────────────── */}
+            {/* ── LEFT: filter sidebar ───────────────────────────── */}
+            <div className="hidden lg:block lg:col-span-1">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-4 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Filters</h3>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={() => { setReqSearch(''); setReqBhkFilter('ALL'); }}
+                      className="text-[10px] text-blue-600 hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Search */}
+                <div>
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search…"
+                      value={reqSearch}
+                      onChange={e => setReqSearch(e.target.value)}
+                      className="w-full pl-7 pr-7 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    />
+                    {reqSearch && (
+                      <button onClick={() => setReqSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={11} /></button>
+                    )}
+                  </div>
+                </div>
+
+                {/* BHK Config */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">BHK Config</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setReqBhkFilter(v)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                          reqBhkFilter === v
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {v === 'ALL' ? 'Any' : v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sort */}
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Sort By</label>
+                  <div className="space-y-1">
+                    {[
+                      { value: 'newest', label: 'Newest first' },
+                      { value: 'oldest', label: 'Oldest first' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setReqSort(value as 'newest' | 'oldest')}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          reqSort === value ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── MIDDLE: request list ──────────────────────────── */}
             <div className="lg:col-span-2 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <FileText size={15} />
                   {isTenantView ? 'Tenant Service Requests' : 'My Requests'}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">
-                    {isTenantView
-                      ? `${filteredTenantRequests.length} total`
-                      : `${filteredRequests.length}${filteredRequests.length < requests.length ? ` of ${requests.length}` : ''} total`}
+                  <span className="text-xs text-gray-400 font-normal">
+                    ({isTenantView ? filteredTenantRequests.length : filteredRequests.length})
                   </span>
-                  {!isTenantView && (
-                    <button
-                      onClick={() => setShowFilterPanel(v => !v)}
-                      className={`relative flex items-center justify-center w-7 h-7 rounded-lg border transition-colors ${
-                        showFilterPanel || reqSearch || reqStatusFilter !== 'ALL'
-                          ? 'bg-blue-50 border-blue-300 text-blue-600'
-                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                      }`}
-                      title="Filter requests"
-                    >
-                      <Filter size={13} />
-                      {(reqSearch || reqStatusFilter !== 'ALL') && (
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />
-                      )}
-                    </button>
-                  )}
-                </div>
+                </h2>
+                {/* Mobile filter button */}
+                <button
+                  onClick={() => setFilterDrawerOpen(true)}
+                  className={`lg:hidden relative flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
+                    activeFilterCount > 0 ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <Filter size={14} />
+                  {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />}
+                </button>
               </div>
-
-              {/* Collapsible filter panel */}
-              {!isTenantView && showFilterPanel && (
-                <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2.5 shadow-sm">
-                  <div className="relative">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by number, BHK, location…"
-                      value={reqSearch}
-                      onChange={e => setReqSearch(e.target.value)}
-                      className="w-full pl-8 pr-8 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    />
-                    {reqSearch && (
-                      <button onClick={() => setReqSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Status</label>
-                    <select
-                      value={reqStatusFilter}
-                      onChange={e => setReqStatusFilter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    >
-                      <option value="ALL">All statuses</option>
-                      <option value="DRAFT">Draft</option>
-                      <option value="SUBMITTED">Submitted</option>
-                      <option value="ALLOTTED">Allotted</option>
-                      <option value="ACKNOWLEDGED">Acknowledged (Occupied)</option>
-                      <option value="UPGRADE_REQUESTED">Upgrade Requested</option>
-                      <option value="EXTEND_REQUESTED">Extension Requested</option>
-                      <option value="VACATE_REQUESTED">Vacate Requested</option>
-                      <option value="VACATED">Vacated</option>
-                      <option value="REJECTED">Rejected</option>
-                      <option value="WITHDRAWN">Withdrawn</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between pt-0.5">
-                    <button
-                      onClick={() => { setReqSearch(''); setReqStatusFilter('ALL'); }}
-                      className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      Clear filters
-                    </button>
-                    <button
-                      onClick={() => setReqSort(o => o === 'newest' ? 'oldest' : 'newest')}
-                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
-                    >
-                      <ArrowUp size={11} className={reqSort === 'newest' ? 'text-blue-600' : 'text-gray-400'} />
-                      <ArrowDown size={11} className={reqSort === 'oldest' ? 'text-blue-600' : 'text-gray-400'} />
-                      {reqSort === 'newest' ? 'Newest first' : 'Oldest first'}
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Tenant service request cards */}
               {isTenantView && (
@@ -1345,14 +1323,36 @@ export const QuarterRequestsPage: React.FC = () => {
               {/* Quarter request cards */}
               {!isTenantView && (
                 filteredRequests.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-gray-200 py-8 text-center">
-                    <Filter size={24} className="mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">No requests match this filter.</p>
-                    <button onClick={() => { setDpFilter('all'); setReqSearch(''); }} className="mt-2 text-xs text-blue-600 hover:underline">Clear filters</button>
-                  </div>
+                  dpFilter === 'allotted' ? (
+                    // Special empty state for allotted filter (default landing)
+                    <div className="bg-white rounded-xl border border-gray-200 py-14 text-center px-6">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-100 border-dashed mb-4">
+                        <Building2 size={28} className="text-emerald-300" />
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-700 mb-2">No Quarter Allocated Yet</h3>
+                      <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                        Your quarter allocation will appear here once an Estate Officer processes and approves your request.
+                      </p>
+                      <button
+                        onClick={() => setDpFilter('all')}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline"
+                      >
+                        View all requests →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-xl border border-gray-200 py-8 text-center">
+                      <Filter size={24} className="mx-auto text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500">No requests match this filter.</p>
+                      <button onClick={() => { setDpFilter('all'); setReqSearch(''); }} className="mt-2 text-xs text-blue-600 hover:underline">Clear filters</button>
+                    </div>
+                  )
                 ) : filteredRequests.map(req => {
                   const sc = statusConfig(req.request_status);
                   const isSelected = selectedRequest?.id === req.id;
+                  const isOccupied = req.request_status === 'ACKNOWLEDGED';
+                  const thumbQ = (req.allotment?.quarter as Quarter | undefined) ?? (req.preferences?.[0]?.quarter as Quarter | undefined);
+
                   return (
                     <div
                       key={req.id}
@@ -1360,20 +1360,25 @@ export const QuarterRequestsPage: React.FC = () => {
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden hover:shadow-md ${isSelected ? 'border-blue-400 shadow-md ring-1 ring-blue-100' : 'border-gray-200'}`}
                     >
                       <div className="flex">
-                        <div className="w-28 shrink-0">
+                        {/* Thumbnail — clickable to preview */}
+                        <div
+                          className="w-28 shrink-0 relative group/thumb"
+                          onClick={e => { e.stopPropagation(); openQuarterPreview(req); }}
+                        >
                           <img
-                            src={
-                              req.allotment?.quarter
-                                ? getImage(req.allotment.quarter as Quarter, 0)
-                                : req.preferences?.[0]?.quarter
-                                ? getImage(req.preferences[0].quarter as Quarter, 0)
-                                : PLACEHOLDER_IMAGES[0]
-                            }
+                            src={thumbQ ? getImage(thumbQ, 0) : PLACEHOLDER_IMAGES[0]}
                             alt=""
                             className="w-full h-full object-cover"
                             style={{ minHeight: 90 }}
                           />
+                          {/* Eye overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/25 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 rounded-full p-1.5 shadow">
+                              <Eye size={13} className="text-gray-700" />
+                            </div>
+                          </div>
                         </div>
+
                         <div className="flex-1 p-3 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-mono text-xs text-gray-500">{req.request_number}</span>
@@ -1385,7 +1390,8 @@ export const QuarterRequestsPage: React.FC = () => {
                           <div className="text-xs text-gray-500 mb-2">
                             {req.preferences?.length ?? 0} preferences · {fmtDate(req.created_at)}
                           </div>
-                          <div className="flex gap-1.5 flex-wrap">
+
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {req.request_status === 'DRAFT' && (
                               <button onClick={e => { e.stopPropagation(); openNewModal(req); }} className="text-xs px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                                 Modify
@@ -1404,10 +1410,37 @@ export const QuarterRequestsPage: React.FC = () => {
                                   : 'Allotted'}
                               </span>
                             )}
-                            {req.request_status === 'ACKNOWLEDGED' && (
+                            {isOccupied && (
                               <span className="text-xs text-teal-700 font-medium flex items-center gap-1">
                                 <ThumbsUp size={11} /> Occupying
                               </span>
+                            )}
+
+                            {/* Inline action icons for occupied quarters */}
+                            {isOccupied && req.allotment && (
+                              <div className="ml-auto flex items-center gap-1">
+                                <button
+                                  onClick={e => { e.stopPropagation(); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
+                                  title="Request Extension"
+                                  className="p-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
+                                >
+                                  <RefreshCw size={12} />
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); openActionPopup('VACATE', req.id, req.allotment!.id); }}
+                                  title="Request Vacate"
+                                  className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
+                                >
+                                  <LogOut size={12} />
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
+                                  title="Raise Grievance"
+                                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                                >
+                                  <AlertCircle size={12} />
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1418,7 +1451,7 @@ export const QuarterRequestsPage: React.FC = () => {
               )}
             </div>
 
-            {/* ── Right: detail panel ───────────────────────────────────── */}
+            {/* ── RIGHT: detail panel ───────────────────────────── */}
             <div className="lg:col-span-3">
               <div className="bg-white rounded-xl border border-gray-200 min-h-[400px] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                 {isTenantView ? (
@@ -1442,6 +1475,48 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* ── Mobile filter drawer ──────────────────────────────────────── */}
+      <FilterDrawer
+        isOpen={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        title="Filters"
+        activeFilterCount={activeFilterCount}
+        onClearAll={() => { setReqSearch(''); setReqBhkFilter('ALL'); }}
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Search</label>
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Number, BHK, location…" value={reqSearch} onChange={e => setReqSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">BHK Config</label>
+            <div className="flex flex-wrap gap-2">
+              {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+                <button key={v} onClick={() => setReqBhkFilter(v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v === 'ALL' ? 'Any' : v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Sort By</label>
+            <div className="space-y-2">
+              {[{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }].map(({ value, label }) => (
+                <button key={value} onClick={() => setReqSort(value as 'newest' | 'oldest')}
+                  className={`w-full px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${reqSort === value ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </FilterDrawer>
 
       {/* ── New/Modify Request Modal ──────────────────────────────────────── */}
       <Modal isOpen={showNewModal} onClose={() => setShowNewModal(false)} size="2xl" noPadding>
@@ -1467,25 +1542,24 @@ export const QuarterRequestsPage: React.FC = () => {
               ].map(({ label, key, placeholder }) => (
                 <div key={key}>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-                  <input
-                    value={form[key] as string}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <input value={form[key] as string} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
               ))}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
-                <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
-                <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
-                <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional notes" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional notes"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
             </div>
           </div>
@@ -1495,7 +1569,8 @@ export const QuarterRequestsPage: React.FC = () => {
               <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search available quarters…" className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search available quarters…"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
                   <span className="font-medium text-gray-700">{modalQuarters.length}</span> available · click <span className="font-medium text-blue-700">Add</span> to push to preferences
@@ -1518,7 +1593,8 @@ export const QuarterRequestsPage: React.FC = () => {
                           <span className="font-medium text-gray-800">{fmtINR(q.monthly_rent)}</span>
                         </div>
                       </div>
-                      <button onClick={() => addPref(q)} disabled={prefs.length >= 5 || !!prefs.find(p => p.quarter.id === q.id)} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0">
+                      <button onClick={() => addPref(q)} disabled={prefs.length >= 5 || !!prefs.find(p => p.quarter.id === q.id)}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0">
                         <Plus size={12} className="inline" /> Add
                       </button>
                     </div>
@@ -1570,6 +1646,116 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* ── Inline Action Popup (Extension / Vacate / Grievance / Maintenance) ── */}
+      <Modal
+        isOpen={!!actionPopup.type}
+        onClose={closeActionPopup}
+        size="sm"
+        noPadding={false}
+      >
+        {actionPopup.type && (() => {
+          const typeLabels: Record<string, { title: string; color: string; icon: React.ReactNode }> = {
+            EXTEND:      { title: 'Extension Request',    color: 'text-amber-700',  icon: <RefreshCw size={16} className="text-amber-600" /> },
+            VACATE:      { title: 'Vacate Request',       color: 'text-rose-700',   icon: <LogOut size={16} className="text-rose-600" /> },
+            GRIEVANCE:   { title: 'Raise Grievance',      color: 'text-slate-700',  icon: <AlertCircle size={16} className="text-slate-600" /> },
+            MAINTENANCE: { title: 'Maintenance Request',  color: 'text-teal-700',   icon: <Wrench size={16} className="text-teal-600" /> },
+          };
+          const cfg = typeLabels[actionPopup.type];
+          const isGrievance = actionPopup.type === 'GRIEVANCE';
+          const isMaintenance = actionPopup.type === 'MAINTENANCE';
+          const hasDate = actionPopup.type === 'EXTEND' || actionPopup.type === 'VACATE';
+
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                {cfg.icon}
+                <h3 className={`text-base font-bold ${cfg.color}`}>{cfg.title}</h3>
+              </div>
+
+              {isGrievance && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Subject *</label>
+                  <input value={popupSubject} onChange={e => setPopupSubject(e.target.value)} placeholder="Brief subject of your grievance"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500/20" />
+                </div>
+              )}
+
+              {isMaintenance && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Urgency Level</label>
+                  <div className="flex gap-2">
+                    {(['LOW', 'NORMAL', 'HIGH'] as const).map(u => (
+                      <button key={u} onClick={() => setPopupUrgency(u)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                          popupUrgency === u
+                            ? u === 'HIGH' ? 'bg-red-600 text-white border-red-600' : u === 'LOW' ? 'bg-gray-600 text-white border-gray-600' : 'bg-teal-600 text-white border-teal-600'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+                        }`}>
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {isGrievance ? 'Description *' : 'Reason *'}
+                </label>
+                <textarea value={popupReason} onChange={e => setPopupReason(e.target.value)} rows={3}
+                  placeholder={isGrievance ? 'Describe your grievance in detail…' : isMaintenance ? 'Describe the issue…' : 'Reason for this request…'}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (optional)</label>
+                <input value={popupRemarks} onChange={e => setPopupRemarks(e.target.value)} placeholder="Additional remarks…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+
+              {hasDate && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    {actionPopup.type === 'EXTEND' ? 'Extension Until Date' : 'Intended Vacate Date'}
+                  </label>
+                  <div className="relative">
+                    <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="date" value={popupDate} onChange={e => setPopupDate(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Document URL (optional)</label>
+                <div className="relative">
+                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={popupDocUrl} onChange={e => setPopupDocUrl(e.target.value)} placeholder="https://…"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={closeActionPopup} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button onClick={handlePopupSubmit} disabled={popupSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {popupSubmitting ? 'Submitting…' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
+      {previewQuarterId && (
+        <QuarterDetailModal
+          isOpen={isPreviewOpen}
+          onClose={() => { setIsPreviewOpen(false); setPreviewQuarterId(null); }}
+          quarterId={previewQuarterId}
+        />
+      )}
     </div>
   );
 };

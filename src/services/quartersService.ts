@@ -92,7 +92,7 @@ export interface QuarterTenantRequest {
   id: string;
   allotment_id: string;
   employee_id: string;
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
   request_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
   remarks: string;
   reason: string;
@@ -100,18 +100,22 @@ export interface QuarterTenantRequest {
   requested_date: string | null;
   required_bhk_config: string;
   eo_notes: string;
+  grievance_subject: string;
+  urgency_level: string;
   created_at: string;
   updated_at: string;
   allotment?: QuarterAllotment;
 }
 
 export interface CreateTenantRequestInput {
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
   remarks: string;
   reason: string;
   document_url?: string;
   requested_date?: string | null;
   required_bhk_config?: string;
+  grievance_subject?: string;
+  urgency_level?: string;
 }
 
 export interface QuarterFilters {
@@ -449,6 +453,8 @@ export const quartersService = {
         document_url: input.document_url ?? '',
         requested_date: input.requested_date ?? null,
         required_bhk_config: input.required_bhk_config ?? '',
+        grievance_subject: input.grievance_subject ?? '',
+        urgency_level: input.urgency_level ?? 'NORMAL',
       })
       .select()
       .single();
