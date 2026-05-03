@@ -7,6 +7,7 @@ import {
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { Header } from '../components/layout/Header';
 import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import {
@@ -1077,27 +1078,30 @@ export const QuarterManagerPage: React.FC = () => {
                 </div>
 
                 {/* Search + filter bar */}
-                <div className="bg-white rounded-xl border border-gray-200 p-3 flex flex-wrap gap-3 items-center">
-                  <div className="relative flex-1 min-w-48">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by request no., BHK, location…"
-                      value={allReqSearch}
-                      onChange={e => setAllReqSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    />
-                  </div>
-                  <select
-                    value={allReqStatus}
-                    onChange={e => setAllReqStatus(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    {ALL_STATUS_OPTIONS.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">{filteredAllRequests.length} of {allRequests.length}</span>
+                <MandatorySearchBar
+                  fields={[
+                    {
+                      key: 'search',
+                      label: 'Search',
+                      type: 'text',
+                      placeholder: 'Request no., BHK, location…',
+                      value: allReqSearch,
+                      onChange: setAllReqSearch,
+                      icon: <Search size={14} />,
+                    },
+                    {
+                      key: 'status',
+                      label: 'Status',
+                      type: 'chips',
+                      value: allReqStatus,
+                      onChange: setAllReqStatus,
+                      options: ALL_STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label })),
+                    },
+                  ]}
+                  className="mb-0"
+                />
+                <div className="flex justify-end mt-1.5">
+                  <span className="text-xs text-gray-500">{filteredAllRequests.length} of {allRequests.length} requests</span>
                 </div>
 
                 {loadingAll ? (
@@ -1187,39 +1191,48 @@ export const QuarterManagerPage: React.FC = () => {
                 </div>
 
                 {/* Filter bar */}
-                <div className="bg-white rounded-xl border border-gray-200 p-3 flex flex-wrap gap-3 items-center">
-                  <div className="relative flex-1 min-w-48">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by quarter no., reason…"
-                      value={tenantSearch}
-                      onChange={e => setTenantSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <select
-                    value={tenantTypeFilter}
-                    onChange={e => setTenantTypeFilter(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-                  >
-                    <option value="ALL">All types</option>
-                    <option value="EXTEND">Extend</option>
-                    <option value="UPGRADE">Upgrade</option>
-                    <option value="VACATE">Vacate</option>
-                  </select>
-                  <select
-                    value={tenantStatusFilter}
-                    onChange={e => setTenantStatusFilter(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-                  >
-                    <option value="ALL">All statuses</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="WITHDRAWN">Withdrawn</option>
-                  </select>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">{filteredTenantRequests.length} of {allTenantRequests.length}</span>
+                <MandatorySearchBar
+                  fields={[
+                    {
+                      key: 'search',
+                      label: 'Search',
+                      type: 'text',
+                      placeholder: 'Quarter no., reason…',
+                      value: tenantSearch,
+                      onChange: setTenantSearch,
+                      icon: <Search size={14} />,
+                    },
+                    {
+                      key: 'type',
+                      label: 'Request Type',
+                      type: 'chips',
+                      value: tenantTypeFilter,
+                      onChange: setTenantTypeFilter,
+                      options: [
+                        { value: 'ALL', label: 'All' },
+                        { value: 'EXTEND', label: 'Extend' },
+                        { value: 'UPGRADE', label: 'Upgrade' },
+                        { value: 'VACATE', label: 'Vacate' },
+                      ],
+                    },
+                    {
+                      key: 'status',
+                      label: 'Status',
+                      type: 'chips',
+                      value: tenantStatusFilter,
+                      onChange: setTenantStatusFilter,
+                      options: [
+                        { value: 'ALL', label: 'All' },
+                        { value: 'PENDING', label: 'Pending' },
+                        { value: 'APPROVED', label: 'Approved' },
+                        { value: 'REJECTED', label: 'Rejected' },
+                      ],
+                    },
+                  ]}
+                  className="mb-0"
+                />
+                <div className="flex justify-end mt-1.5">
+                  <span className="text-xs text-gray-500">{filteredTenantRequests.length} of {allTenantRequests.length} requests</span>
                 </div>
 
                 {loadingTenant ? (

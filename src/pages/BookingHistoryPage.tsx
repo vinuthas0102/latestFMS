@@ -6,11 +6,12 @@ import { Badge } from '../components/ui/Badge';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { ViewSwitcher } from '../components/ui/ViewSwitcher';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DataTable } from '../components/ui/DataTable';
 import { ListView, ListViewItem } from '../components/ui/ListView';
 import {
   Calendar, Eye, History, CheckCircle, Clock, XCircle,
-  Home, Filter, MapPin, ArrowRight, CreditCard, Users,
+  Home, MapPin, ArrowRight, CreditCard, Users,
   Building2, Images,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
@@ -383,20 +384,46 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="relative flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all"
-              >
-                <Filter size={16} />
-                <span className="font-medium text-sm">Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
+
+          {/* Mandatory search bar */}
+          <MandatorySearchBar
+            fields={[
+              {
+                key: 'search',
+                label: 'Search',
+                type: 'text',
+                placeholder: 'Booking number or property...',
+                value: searchQuery,
+                onChange: setSearchQuery,
+                icon: <History size={14} />,
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                type: 'chips',
+                value: Array.isArray(statusFilter)
+                  ? (statusFilter.includes('ALLOCATED') ? 'upcoming' : statusFilter.includes('CANCELLED') ? 'cancelled' : 'all')
+                  : statusFilter === 'CHECKED_OUT' ? 'completed' : statusFilter === 'REQUESTED' ? 'REQUESTED' : statusFilter,
+                onChange: (v) => {
+                  if (v === 'all') setStatusFilter('all');
+                  else if (v === 'upcoming') setStatusFilter(['ALLOCATED', 'PROVISIONED']);
+                  else if (v === 'completed') setStatusFilter('CHECKED_OUT');
+                  else if (v === 'cancelled') setStatusFilter(['CANCELLED', 'REJECTED']);
+                  else setStatusFilter(v);
+                },
+                options: [
+                  { value: 'all', label: 'All' },
+                  { value: 'upcoming', label: 'Upcoming' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                  { value: 'REQUESTED', label: 'Requested' },
+                ],
+              },
+            ]}
+            className="mb-3"
+          />
 
           {/* Summary stat tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -451,50 +478,7 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       </div>
 
-      <FilterDrawer
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        title="Booking Filters"
-        onClearAll={handleClearFilters}
-        activeFilterCount={activeFilterCount}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
-            <Input
-              type="text"
-              placeholder="Booking number or property..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-            <div className="space-y-2">
-              {[
-                { value: 'all' as string | string[], label: 'All Bookings', icon: History },
-                { value: 'REQUESTED' as string | string[], label: 'Requested', icon: Clock },
-                { value: ['ALLOCATED', 'PROVISIONED'] as string[], label: 'Upcoming', icon: Calendar },
-                { value: 'CHECKED_OUT' as string | string[], label: 'Completed', icon: CheckCircle },
-                { value: ['CANCELLED', 'REJECTED'] as string[], label: 'Cancelled', icon: XCircle },
-              ].map(({ value, label, icon: Icon }) => (
-                <button
-                  key={Array.isArray(value) ? value.join('-') : value}
-                  onClick={() => setStatusFilter(value)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
-                    isFilterActive(value)
-                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon size={18} />
-                  <span className="font-medium text-sm">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </FilterDrawer>
+      {/* FilterDrawer reserved for future advanced filters */}
 
       {/* Scrollable data area */}
       <div className="flex-1 overflow-y-auto">

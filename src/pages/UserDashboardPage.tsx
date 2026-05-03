@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -14,6 +14,7 @@ import {
   RotateCcw,
   X,
   Search,
+  MapPin as MapPinIcon,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -24,6 +25,8 @@ import { FadeIn } from '../components/animations/FadeIn';
 import { DataTable, Column } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { FilterSidebar, FilterSidebarState, SortOrder } from '../components/property/FilterSidebar';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { propertyService } from '../services/propertyService';
 import { useAuthStore } from '../stores/authStore';
@@ -140,8 +143,6 @@ export const UserDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
-  const filterPanelRef = useRef<HTMLDivElement>(null);
-
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -167,22 +168,6 @@ export const UserDashboardPage: React.FC = () => {
     loadProperties();
   }, [user]);
 
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsFilterOpen(false); };
-    if (isFilterOpen) {
-      document.addEventListener('mousedown', handleOutside);
-      document.addEventListener('keydown', handleEsc);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('keydown', handleEsc);
-    };
-  }, [isFilterOpen]);
 
   const loadProperties = async () => {
     setLoading(true);
@@ -388,7 +373,7 @@ export const UserDashboardPage: React.FC = () => {
       <Header />
 
       {/* ── Sticky header ────────────────────────────────────── */}
-      <div className="flex-none z-20" ref={filterPanelRef}>
+      <div className="flex-none z-20">
         {/* Banner */}
         <div className={`relative ${welcomeInfo.gradient} overflow-hidden shadow-md`}>
           <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -428,32 +413,6 @@ export const UserDashboardPage: React.FC = () => {
 
               {/* Right: controls */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Filter toggle button */}
-                {(() => {
-                  const activeCount = hasSidebar
-                    ? [filters.searchQuery, filters.moduleFilter !== 'all', filters.categoryFilter !== 'all', filters.cityFilter !== 'all'].filter(Boolean).length
-                    : legacyActiveCount;
-                  return (
-                    <button
-                      onClick={() => setIsFilterOpen((v) => !v)}
-                      title="Search & Filter"
-                      className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                        isFilterOpen || activeCount > 0
-                          ? 'bg-white text-gray-800 border-white shadow-sm'
-                          : 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
-                      }`}
-                    >
-                      <SlidersHorizontal size={13} />
-                      <span className="hidden sm:inline">Filters</span>
-                      {activeCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-gray-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow">
-                          {activeCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })()}
-
                 {/* View toggle */}
                 <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-0.5 gap-0.5">
                   {VIEW_OPTIONS.map(({ mode, icon, label }) => (
@@ -486,131 +445,136 @@ export const UserDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter dropdown panel */}
-        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isFilterOpen ? 'max-h-[260px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="bg-white/95 backdrop-blur-md border-b border-gray-200/70 shadow-lg">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Search */}
-                <div className="relative flex-1 min-w-[180px] max-w-sm">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, location..."
-                    value={hasSidebar ? filters.searchQuery : legacySearch}
-                    onChange={(e) => hasSidebar
-                      ? setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))
-                      : setLegacySearch(e.target.value)
-                    }
-                    className="w-full pl-7 pr-7 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
-                  />
-                  {(hasSidebar ? filters.searchQuery : legacySearch) && (
-                    <button
-                      onClick={() => hasSidebar
-                        ? setFilters((prev) => ({ ...prev, searchQuery: '' }))
-                        : setLegacySearch('')
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Facility Type */}
-                {availableModules.length > 0 && (
-                  <select
-                    value={hasSidebar ? filters.moduleFilter : legacyModule}
-                    onChange={(e) => hasSidebar
-                      ? setFilters((prev) => ({ ...prev, moduleFilter: e.target.value }))
-                      : setLegacyModule(e.target.value)
-                    }
-                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
-                  >
-                    <option value="all">All Types</option>
-                    {availableModules.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                )}
-
-                {/* Category chips */}
-                <div className="flex items-center gap-1">
-                  {[
+        {/* Mandatory search bar */}
+        <div className="bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+            <MandatorySearchBar
+              fields={[
+                {
+                  key: 'search',
+                  label: 'Search',
+                  type: 'text',
+                  placeholder: 'Search by name, location...',
+                  value: hasSidebar ? filters.searchQuery : legacySearch,
+                  onChange: (v) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, searchQuery: v }))
+                    : setLegacySearch(v),
+                  icon: <Search size={14} />,
+                },
+                {
+                  key: 'module',
+                  label: 'Facility Type',
+                  type: 'select',
+                  value: hasSidebar ? filters.moduleFilter : legacyModule,
+                  onChange: (v) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, moduleFilter: v }))
+                    : setLegacyModule(v),
+                  options: [
+                    { value: 'all', label: 'All Types' },
+                    ...availableModules.map((m) => ({ value: m.id, label: m.name })),
+                  ],
+                },
+                {
+                  key: 'category',
+                  label: 'Category',
+                  type: 'chips',
+                  value: hasSidebar ? filters.categoryFilter : legacyCategory,
+                  onChange: (v) => hasSidebar
+                    ? setFilters((prev) => ({ ...prev, categoryFilter: v }))
+                    : setLegacyCategory(v),
+                  options: [
                     { value: 'all', label: 'All' },
                     { value: 'A', label: 'Cat A' },
                     { value: 'B', label: 'Cat B' },
                     { value: 'C', label: 'Cat C' },
-                  ].map(({ value, label }) => {
-                    const active = (hasSidebar ? filters.categoryFilter : legacyCategory) === value;
-                    return (
-                      <button
-                        key={value}
-                        onClick={() => hasSidebar
-                          ? setFilters((prev) => ({ ...prev, categoryFilter: value }))
-                          : setLegacyCategory(value)
-                        }
-                        className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${
-                          active
-                            ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Location */}
-                {availableCities.length > 0 && (
-                  <select
-                    value={hasSidebar ? filters.cityFilter : legacyCity}
-                    onChange={(e) => hasSidebar
-                      ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
-                      : setLegacyCity(e.target.value)
-                    }
-                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
-                  >
-                    <option value="all">All Locations</option>
-                    {availableCities.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                )}
-
-                {/* Sort */}
-                {hasSidebar && (
-                  <select
-                    value={filters.sortOrder}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, sortOrder: e.target.value as SortOrder }))}
-                    className="px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer"
-                  >
-                    <option value="top_picks">Top Picks</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="name_asc">Name A–Z</option>
-                  </select>
-                )}
-
-                {/* Clear */}
-                {(hasSidebar
-                  ? (filters.searchQuery || filters.moduleFilter !== 'all' || filters.categoryFilter !== 'all' || filters.cityFilter !== 'all')
-                  : legacyActiveCount > 0
-                ) && (
-                  <button
-                    onClick={hasSidebar ? () => setFilters(defaultFilters(priceRange.min, priceRange.max)) : clearLegacy}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all"
-                  >
-                    <RotateCcw size={11} />
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
+                  ],
+                },
+              ]}
+              filterCount={
+                hasSidebar
+                  ? [filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length
+                  : (legacyCity !== 'all' ? 1 : 0)
+              }
+              onFilterOpen={() => setIsFilterOpen(true)}
+            />
           </div>
         </div>
       </div>
+
+      {/* Advanced filter drawer */}
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Advanced Filters"
+        activeFilterCount={
+          hasSidebar
+            ? [filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length
+            : (legacyCity !== 'all' ? 1 : 0)
+        }
+        onClearAll={() => {
+          if (hasSidebar) {
+            setFilters((prev) => ({
+              ...prev,
+              cityFilter: 'all',
+              sortOrder: 'top_picks',
+              amenityFilters: [],
+              minPriceFilter: priceRange.min,
+              maxPriceFilter: priceRange.max,
+            }));
+          } else {
+            setLegacyCity('all');
+          }
+        }}
+      >
+        <div className="space-y-6">
+          {/* Location */}
+          {availableCities.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+              <select
+                value={hasSidebar ? filters.cityFilter : legacyCity}
+                onChange={(e) => hasSidebar
+                  ? setFilters((prev) => ({ ...prev, cityFilter: e.target.value }))
+                  : setLegacyCity(e.target.value)
+                }
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              >
+                <option value="all">All Locations</option>
+                {availableCities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Sort */}
+          {hasSidebar && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+              <div className="space-y-2">
+                {[
+                  { value: 'top_picks', label: 'Top Picks' },
+                  { value: 'price_asc', label: 'Price: Low to High' },
+                  { value: 'price_desc', label: 'Price: High to Low' },
+                  { value: 'name_asc', label: 'Name A–Z' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setFilters((prev) => ({ ...prev, sortOrder: value as SortOrder }))}
+                    className={`w-full flex items-center px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
+                      filters.sortOrder === value
+                        ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </FilterDrawer>
 
       {/* ── Scrollable content area ──────────────────────────── */}
       <div className="flex-1 overflow-y-auto">

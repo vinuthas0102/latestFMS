@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Building2, MapPin, Calendar, Camera, Filter, CheckCircle, Clock, Layers } from 'lucide-react';
+import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
-import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { ViewSwitcher } from '../components/ui/ViewSwitcher';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DataTable } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { usePropertyStore } from '../stores/propertyStore';
@@ -30,7 +30,6 @@ export const PropertiesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('propertiesView', 'list');
 
   useEffect(() => {
@@ -82,8 +81,6 @@ export const PropertiesPage: React.FC = () => {
     setSearchQuery('');
   };
 
-  const activeFilterCount = (filterStatus !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
-
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-green-50/20">
       <Header />
@@ -91,37 +88,54 @@ export const PropertiesPage: React.FC = () => {
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          {/* Title row */}
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900 mb-0.5 flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg">
-                  <Building2 className="w-7 h-7 text-white" />
+                  <Building2 className="w-5 h-5 text-white" />
                 </div>
                 Property Management
               </h1>
-              <p className="text-gray-600">Manage all facilities and assets</p>
+              <p className="text-sm text-gray-500 ml-12">Manage all facilities and assets</p>
             </div>
             <div className="flex items-center gap-3">
               <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="relative flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-white hover:shadow-md transition-all"
-              >
-                <Filter size={18} />
-                <span className="font-medium text-sm">Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
               {canManage && (
-                <Button onClick={() => navigate(ROUTES.PROPERTY_CREATE)} icon={<Plus size={20} />}>
+                <Button onClick={() => navigate(ROUTES.PROPERTY_CREATE)} icon={<Plus size={18} />} size="sm">
                   New Property
                 </Button>
               )}
             </div>
           </div>
+
+          {/* Mandatory search bar */}
+          <MandatorySearchBar
+            fields={[
+              {
+                key: 'search',
+                label: 'Search',
+                type: 'text',
+                placeholder: 'Property name or location...',
+                value: searchQuery,
+                onChange: setSearchQuery,
+                icon: <Search size={14} />,
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                type: 'chips',
+                value: filterStatus,
+                onChange: setFilterStatus,
+                options: [
+                  { value: 'all', label: 'All' },
+                  { value: 'PUBLISHED', label: 'Published' },
+                  { value: 'DRAFT', label: 'Draft' },
+                ],
+              },
+            ]}
+            className="mb-3"
+          />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryStatsCard
@@ -173,52 +187,7 @@ export const PropertiesPage: React.FC = () => {
         </div>
       </div>
 
-      <FilterDrawer
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        title="Property Filters"
-        onClearAll={handleClearFilters}
-        activeFilterCount={activeFilterCount}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Search
-            </label>
-            <Input
-              type="text"
-              placeholder="Property name or location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Status
-            </label>
-            <div className="space-y-2">
-              {[
-                { value: 'all', label: 'All Properties', icon: Building2 },
-                { value: 'PUBLISHED', label: 'Published', icon: CheckCircle },
-                { value: 'DRAFT', label: 'Draft', icon: Clock },
-              ].map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  onClick={() => setFilterStatus(value)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-all ${
-                    filterStatus === value
-                      ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-md'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon size={18} />
-                  <span className="font-medium text-sm">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </FilterDrawer>
+      {/* No optional drawer needed for PropertiesPage — all filters are in the mandatory bar */}
 
       {/* Scrollable data area */}
       <div className="flex-1 overflow-y-auto">

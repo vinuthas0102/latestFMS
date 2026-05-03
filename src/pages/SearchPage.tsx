@@ -2,17 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Calendar, Building2, Map, List } from 'lucide-react';
 import { Header } from '../components/layout/Header';
-import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useSearchStore } from '../stores/searchStore';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
-import { formatPriceRange } from '../utils/formatters';
 import { SkeletonCard } from '../components/ui/Loading';
 import { MapSearchView } from '../components/search/MapSearchView';
-import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
+import { requiresLoginForBooking } from '../utils/moduleHelpers';
 import { ROUTES } from '../constants/routes';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { PropertyDTO } from '../types';
@@ -32,6 +30,7 @@ export const SearchPage: React.FC = () => {
   const [roomTypeId, setRoomTypeId] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchModules();
@@ -74,14 +73,7 @@ export const SearchPage: React.FC = () => {
   }, [searchParams, hasAutoSearched]);
 
   const handleSearch = () => {
-    setFilters({
-      location,
-      checkInDate: checkIn,
-      checkOutDate: checkOut,
-      moduleId,
-      propertyTypeId,
-      roomTypeId,
-    });
+    setFilters({ location, checkInDate: checkIn, checkOutDate: checkOut, moduleId, propertyTypeId, roomTypeId });
     search();
   };
 
@@ -89,13 +81,11 @@ export const SearchPage: React.FC = () => {
     e.stopPropagation();
     const moduleCode = property.module?.code;
     const needsLogin = requiresLoginForBooking(moduleCode);
-
     const params = new URLSearchParams();
     if (checkIn) params.set('checkIn', checkIn);
     if (checkOut) params.set('checkOut', checkOut);
     params.set('tab', 'booking');
     const queryString = params.toString();
-
     if (needsLogin && !user) {
       navigate(`${ROUTES.LOGIN}?returnUrl=/properties/${property.id}?${queryString}`);
       return;
@@ -103,89 +93,108 @@ export const SearchPage: React.FC = () => {
     navigate(`/properties/${property.id}?${queryString}`);
   };
 
+  const optionalFilterCount = (moduleId ? 1 : 0) + (propertyTypeId ? 1 : 0) + (roomTypeId ? 1 : 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <div className="bg-gradient-to-br from-blue-600 to-teal-600 text-white py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2 animate-fadeIn">Find Your Perfect Facility</h1>
-          <p className="text-base text-blue-100 mb-5 animate-slideUp">
+      {/* Hero banner */}
+      <div className="bg-gradient-to-br from-blue-600 to-teal-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-3xl font-bold mb-1 animate-fadeIn">Find Your Perfect Facility</h1>
+          <p className="text-sm text-blue-100 mb-5 animate-slideUp">
             Search from thousands of available properties across the region
           </p>
 
-          <Card className="animate-slideUp" style={{ animationDelay: '0.1s' }}>
-            <CardBody>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Input
-                  placeholder="Location or property name"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  icon={<MapPin size={20} />}
-                  className="bg-white"
-                />
-                <Input
-                  type="date"
-                  placeholder="Check-in date"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  icon={<Calendar size={20} />}
-                  className="bg-white"
-                />
-                <Input
-                  type="date"
-                  placeholder="Check-out date"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  icon={<Calendar size={20} />}
-                  className="bg-white"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <Select
-                  options={[
-                    { value: '', label: 'All Modules' },
-                    ...modules.map((m) => ({ value: m.id, label: m.name })),
-                  ]}
-                  value={moduleId}
-                  onChange={(e) => setModuleId(e.target.value)}
-                  className="bg-white"
-                />
-                <Select
-                  options={[
-                    { value: '', label: moduleId ? 'All Property Types' : 'Select module first...' },
-                    ...propertyTypes.map((pt) => ({ value: pt.id, label: pt.name })),
-                  ]}
-                  value={propertyTypeId}
-                  onChange={(e) => setPropertyTypeId(e.target.value)}
-                  disabled={!moduleId && propertyTypes.length === 0}
-                  className="bg-white"
-                />
-                <Select
-                  options={[
-                    { value: '', label: 'All Room Types' },
-                    ...roomTypes.map((rt) => ({ value: rt.id, label: rt.name })),
-                  ]}
-                  value={roomTypeId}
-                  onChange={(e) => setRoomTypeId(e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-              <div className="mt-4">
-                <Button
-                  onClick={handleSearch}
-                  className="w-full"
-                  size="lg"
-                  icon={<Search size={20} />}
-                  loading={loading}
-                >
-                  Search Facilities
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+          {/* Mandatory search bar */}
+          <MandatorySearchBar
+            fields={[
+              {
+                key: 'location',
+                label: 'Location',
+                type: 'text',
+                placeholder: 'City, property name or area...',
+                value: location,
+                onChange: setLocation,
+                icon: <MapPin size={14} />,
+              },
+              {
+                key: 'checkin',
+                label: 'Check-in',
+                type: 'date',
+                value: checkIn,
+                onChange: setCheckIn,
+              },
+              {
+                key: 'checkout',
+                label: 'Check-out',
+                type: 'date',
+                value: checkOut,
+                onChange: setCheckOut,
+              },
+            ]}
+            onSearch={handleSearch}
+            searchLabel="Search"
+            filterCount={optionalFilterCount}
+            onFilterOpen={() => setIsFilterOpen(true)}
+          />
         </div>
       </div>
+
+      {/* Optional filter drawer */}
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Advanced Filters"
+        activeFilterCount={optionalFilterCount}
+        onClearAll={() => { setModuleId(''); setPropertyTypeId(''); setRoomTypeId(''); }}
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Facility Type</label>
+            <select
+              value={moduleId}
+              onChange={(e) => setModuleId(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            >
+              <option value="">All Facility Types</option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Property Type</label>
+            <select
+              value={propertyTypeId}
+              onChange={(e) => setPropertyTypeId(e.target.value)}
+              disabled={!moduleId && propertyTypes.length === 0}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">{moduleId ? 'All Property Types' : 'Select facility type first'}</option>
+              {propertyTypes.map((pt) => (
+                <option key={pt.id} value={pt.id}>{pt.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Room Type</label>
+            <select
+              value={roomTypeId}
+              onChange={(e) => setRoomTypeId(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            >
+              <option value="">All Room Types</option>
+              {roomTypes.map((rt) => (
+                <option key={rt.id} value={rt.id}>{rt.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </FilterDrawer>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {loading ? (
@@ -198,7 +207,7 @@ export const SearchPage: React.FC = () => {
           <div className="text-center py-10">
             <Building2 className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-2xl font-semibold text-gray-900 mb-2">No properties found</h3>
-            <p className="text-gray-600">Try adjusting your search criteria</p>
+            <p className="text-gray-600">Try adjusting your search criteria or use More Filters</p>
           </div>
         ) : (
           <div>
@@ -207,22 +216,28 @@ export const SearchPage: React.FC = () => {
                 {results.length} {results.length === 1 ? 'Property' : 'Properties'} Found
               </h2>
               <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'list' ? 'primary' : 'ghost'}
-                  size="sm"
+                <button
                   onClick={() => setViewMode('list')}
-                  icon={<List size={18} />}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
                 >
-                  List
-                </Button>
-                <Button
-                  variant={viewMode === 'map' ? 'primary' : 'ghost'}
-                  size="sm"
+                  <List size={15} />
+                  <span>List</span>
+                </button>
+                <button
                   onClick={() => setViewMode('map')}
-                  icon={<Map size={18} />}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                    viewMode === 'map'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
                 >
-                  Map
-                </Button>
+                  <Map size={15} />
+                  <span>Map</span>
+                </button>
               </div>
             </div>
 
