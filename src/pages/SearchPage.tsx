@@ -14,6 +14,8 @@ import { SkeletonCard } from '../components/ui/Loading';
 import { MapSearchView } from '../components/search/MapSearchView';
 import { requiresLoginForBooking, getBookingButtonText, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
 import { ROUTES } from '../constants/routes';
+import { PropertyListCard } from '../components/property/PropertyListCard';
+import { PropertyDTO } from '../types';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -83,7 +85,7 @@ export const SearchPage: React.FC = () => {
     search();
   };
 
-  const handleBookNow = (property: any, e: React.MouseEvent) => {
+  const handleBookNow = (e: React.MouseEvent, property: PropertyDTO) => {
     e.stopPropagation();
     const moduleCode = property.module?.code;
     const needsLogin = requiresLoginForBooking(moduleCode);
@@ -227,78 +229,17 @@ export const SearchPage: React.FC = () => {
             {viewMode === 'map' ? (
               <MapSearchView properties={results} checkIn={checkIn} checkOut={checkOut} />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {results.map((property, index) => (
-                <Card
-                  key={property.id}
-                  hoverable
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    if (checkIn) params.set('checkIn', checkIn);
-                    if (checkOut) params.set('checkOut', checkOut);
-                    const queryString = params.toString();
-                    navigate(`/properties/${property.id}${queryString ? `?${queryString}` : ''}`);
-                  }}
-                  className="overflow-hidden animate-slideUp"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <div className="h-36 bg-gradient-to-br from-blue-400 to-teal-400 relative overflow-hidden">
-                    {property.images.length > 0 ? (
-                      <img
-                        src={property.images[0]}
-                        alt={property.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <Building2 size={48} className="text-white opacity-50" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {property.module && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {property.module.name}
-                        </span>
-                      )}
-                      {property.propertyType && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                          {property.propertyType.name}
-                        </span>
-                      )}
-                      {getModuleBadgeText(property.module?.code) && (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(property.module?.code)}`}>
-                          {getModuleBadgeText(property.module?.code)}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{property.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {property.description || 'No description available'}
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                      <MapPin size={16} />
-                      <span>{property.estate?.city || property.address}</span>
-                    </div>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm text-gray-600">
-                        {property.minPrice !== property.maxPrice ? 'Price range' : 'Price'}
-                      </span>
-                      <span className="text-lg font-bold text-blue-600">
-                        {formatPriceRange(property.minPrice, property.maxPrice)}
-                      </span>
-                    </div>
-                    <Button
-                      className="w-full"
-                      size="sm"
-                      onClick={(e) => handleBookNow(property, e)}
-                    >
-                      {getBookingButtonText(property.module?.code, !!user)}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+              <div className="space-y-4">
+                {results.map((property) => (
+                  <PropertyListCard
+                    key={property.id}
+                    property={property}
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    isLoggedIn={!!user}
+                    onBookClick={handleBookNow}
+                  />
+                ))}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, Clock, XCircle, Users, ChevronDown, ChevronUp, Calendar, User, Home, DollarSign } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, Users, ChevronDown, ChevronUp, Calendar, User, Home, DollarSign, Building2, MapPin, Images } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -15,6 +15,89 @@ import { formatDate } from '../utils/dateHelpers';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../constants/statuses';
 import { BookingDTO, RoomDTO } from '../types';
 import { FadeIn } from '../components/animations/FadeIn';
+
+const FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&q=80',
+  'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400&q=80',
+  'https://images.unsplash.com/photo-1444201983204-c43cbd584d93?w=400&q=80',
+  'https://images.unsplash.com/photo-1455587734955-081b22074882?w=400&q=80',
+];
+
+interface BookingGalleryProps {
+  booking: BookingDTO;
+  idx: number;
+}
+
+const BookingGallery: React.FC<BookingGalleryProps> = ({ booking, idx }) => {
+  const [primaryErr, setPrimaryErr] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
+
+  const rawImages = booking.property?.images;
+  const images: string[] = Array.isArray(rawImages) && rawImages.length > 0
+    ? rawImages
+    : [FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]];
+
+  const primaryImage = images[0];
+  const thumbnails = Array.from({ length: 4 }, (_, i) => images[i + 1] || '');
+  const extraCount = images.length > 5 ? images.length - 4 : 0;
+
+  return (
+    <div className="relative flex-shrink-0 sm:w-56 md:w-64 flex flex-col bg-gray-100">
+      {/* Hero image */}
+      <div className="relative overflow-hidden" style={{ height: '172px' }}>
+        {!primaryErr ? (
+          <img
+            src={primaryImage}
+            alt={booking.property?.name || 'Property'}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setPrimaryErr(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <Building2 size={36} className="text-gray-300" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent pointer-events-none" />
+        {/* Booking number overlay */}
+        <div className="absolute top-3 right-3">
+          <span className="font-mono text-[10px] font-bold px-2 py-1 rounded-full bg-black/55 text-white backdrop-blur-sm tracking-wider">
+            #{booking.bookingNumber}
+          </span>
+        </div>
+      </div>
+      {/* Thumbnail strip */}
+      <div className="flex h-[52px] border-t border-gray-200/60">
+        {thumbnails.map((src, i) => {
+          const isLast = i === 3;
+          const showViewAll = isLast && extraCount > 0;
+          return (
+            <div key={i} className="relative flex-1 overflow-hidden border-r border-gray-200/60 last:border-r-0 bg-gray-100">
+              {src && !thumbErrors[i] ? (
+                <img
+                  src={src}
+                  alt={`View ${i + 2}`}
+                  className="w-full h-full object-cover brightness-95 group-hover:brightness-100 transition-all duration-300"
+                  onError={() => setThumbErrors(prev => ({ ...prev, [i]: true }))}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <Images size={11} className="text-gray-400" />
+                </div>
+              )}
+              {showViewAll && (
+                <div className="absolute inset-0 bg-slate-900/70 flex flex-col items-center justify-center">
+                  <span className="text-white text-[8px] font-black uppercase leading-tight tracking-widest">VIEW</span>
+                  <span className="text-white text-[8px] font-black uppercase leading-tight tracking-widest">ALL</span>
+                  {extraCount > 0 && <span className="text-white/70 text-[7px] font-semibold mt-0.5">+{extraCount}</span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const ManagerPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -151,97 +234,120 @@ export const ManagerPage: React.FC = () => {
               const isExpanded = expandedBookingId === booking.id;
 
               return (
-                <FadeIn key={booking.id} delay={index * 80}>
-                  <div className="pastel-cyan-gradient rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900">
-                            {booking.bookingNumber}
-                          </h3>
-                          <Badge className={BOOKING_STATUS_COLORS[booking.status]}>
-                            {BOOKING_STATUS_LABELS[booking.status]}
-                          </Badge>
-                        </div>
-                        <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                          <Home size={16} className="text-gray-400" />
-                          {booking.property?.name}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
-                        className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                      >
-                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                      </button>
-                    </div>
+                <FadeIn key={booking.id} delay={index * 60}>
+                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col sm:flex-row border-l-4 border-l-cyan-400">
+                    {/* Gallery section */}
+                    <BookingGallery booking={booking} idx={index} />
 
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {[
-                        { icon: <User size={12} />, label: 'Guest', value: booking.guestDetails.fullName },
-                        { icon: <Home size={12} />, label: 'Room Type', value: booking.roomType?.name },
-                        { icon: <Calendar size={12} />, label: 'Rooms', value: `${booking.quantity} room(s)` },
-                        { icon: <DollarSign size={12} />, label: 'Amount', value: formatCurrency(booking.totalAmount) },
-                      ].map(item => (
-                        <div key={item.label} className="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white/80 flex items-center gap-2">
-                          <span className="text-gray-400">{item.icon}</span>
-                          <span className="text-xs text-gray-500">{item.label}:</span>
-                          <span className="text-xs font-semibold text-gray-900">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {isExpanded && (
-                      <div className="mt-4 space-y-3 animate-slideDown">
-                        <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-white/80">
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                            <Calendar size={16} />
-                            <span className="font-medium">Stay Duration</span>
+                    {/* Main content */}
+                    <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                      <div>
+                        {/* Header row */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <Badge className={BOOKING_STATUS_COLORS[booking.status]}>
+                                {BOOKING_STATUS_LABELS[booking.status]}
+                              </Badge>
+                            </div>
+                            <h3 className="text-sm font-bold text-gray-900 truncate flex items-center gap-1.5">
+                              <Home size={13} className="text-gray-400 flex-shrink-0" />
+                              {booking.property?.name || 'Property'}
+                            </h3>
+                            {booking.property?.address && (
+                              <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
+                                <MapPin size={11} className="flex-shrink-0" />
+                                <span className="truncate">{booking.property.address}</span>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-sm text-gray-900">
-                            {formatDate(booking.checkInDate)} - {formatDate(booking.checkOutDate)}
-                          </p>
+                          <button
+                            onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
+                            className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+                          >
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
                         </div>
 
-                        {booking.specialRequirements && (
-                          <div className="pastel-yellow-gradient rounded-lg p-3">
-                            <p className="text-sm text-gray-700">
-                              <span className="font-semibold">Special Requirements:</span>{' '}
-                              {booking.specialRequirements}
-                            </p>
+                        {/* Info chips */}
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { icon: <User size={11} />, label: booking.guestDetails.fullName },
+                            { icon: <Home size={11} />, label: booking.roomType?.name },
+                            { icon: <Calendar size={11} />, label: `${booking.quantity} room${booking.quantity !== 1 ? 's' : ''}` },
+                          ].filter(item => item.label).map((item, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1 text-xs text-gray-700">
+                              <span className="text-gray-400">{item.icon}</span>
+                              <span className="font-medium truncate max-w-[140px]">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Expanded: dates + special requirements */}
+                        {isExpanded && (
+                          <div className="mt-3 space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-in</p>
+                                <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkInDate)}</p>
+                              </div>
+                              <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Check-out</p>
+                                <p className="text-xs font-bold text-gray-800 mt-0.5">{formatDate(booking.checkOutDate)}</p>
+                              </div>
+                              <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
+                                <p className="text-[10px] text-blue-400 uppercase tracking-wide font-semibold">Guests</p>
+                                <p className="text-xs font-bold text-blue-700 mt-0.5">{booking.quantity} room{booking.quantity !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                            {booking.specialRequirements && (
+                              <div className="bg-amber-50 border border-amber-100 rounded-lg p-2.5">
+                                <p className="text-xs text-amber-800">
+                                  <span className="font-semibold">Special Requirements: </span>
+                                  {booking.specialRequirements}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
 
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleApprove(booking.id)}
-                        icon={<CheckCircle size={16} />}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleOpenAllocation(booking)}
-                        icon={<Users size={16} />}
-                      >
-                        Allocate Rooms
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedBooking(booking);
-                          setApprovalModalOpen(true);
-                        }}
-                        icon={<XCircle size={16} />}
-                      >
-                        Reject
-                      </Button>
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleApprove(booking.id)}
+                          icon={<CheckCircle size={14} />}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleOpenAllocation(booking)}
+                          icon={<Users size={14} />}
+                        >
+                          Allocate Rooms
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => { setSelectedBooking(booking); setApprovalModalOpen(true); }}
+                          icon={<XCircle size={14} />}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Right: amount */}
+                    <div className="flex flex-col items-end justify-center p-4 sm:border-l border-gray-100 sm:w-40 flex-shrink-0 bg-gray-50/50">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Total</p>
+                      <p className="text-xl font-black text-gray-900 leading-none mt-0.5">
+                        {formatCurrency(booking.totalAmount)}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">requested</p>
                     </div>
                   </div>
                 </FadeIn>

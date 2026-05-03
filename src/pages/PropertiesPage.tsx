@@ -9,7 +9,7 @@ import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { ViewSwitcher } from '../components/ui/ViewSwitcher';
 import { DataTable } from '../components/ui/DataTable';
-import { ListView, ListViewItem } from '../components/ui/ListView';
+import { PropertyListCard } from '../components/property/PropertyListCard';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
 import { canManageProperties } from '../utils/permissions';
@@ -412,39 +412,16 @@ export const PropertiesPage: React.FC = () => {
           </FadeIn>
         ) : (
           <FadeIn delay={300}>
-            <ListView emptyMessage="No properties found">
+            <div className="space-y-4">
               {filteredProperties.map((property) => (
-                <ListViewItem
+                <PropertyListCard
                   key={property.id}
-                  icon={<Building2 size={18} />}
-                  title={property.name}
-                  subtitle={`${property.module?.name || 'N/A'} • ${property.estate?.city || property.address}`}
-                  badge={
-                    <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
-                      {property.status}
-                    </Badge>
-                  }
-                  rightContent={
-                    <div className="text-right flex items-center gap-2">
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">{property.totalRooms || 0} rooms</p>
-                        <p className="text-xs text-gray-500">{property.propertyType?.name}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBookingClick(e as any, property);
-                        }}
-                      >
-                        <Calendar size={14} />
-                      </Button>
-                    </div>
-                  }
-                  onClick={() => handleCardClick(property)}
+                  property={property}
+                  isLoggedIn={!!user}
+                  onBookClick={handleBookingClick}
                 />
               ))}
-            </ListView>
+            </div>
           </FadeIn>
         )}
 
