@@ -378,10 +378,10 @@ export const BookingHistoryPage: React.FC = () => {
                                 <Home size={13} className="text-gray-400 flex-shrink-0" />
                                 {booking.property?.name || 'Property'}
                               </h3>
-                              {booking.property?.city && (
+                              {booking.property?.address && (
                                 <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400">
                                   <MapPin size={11} />
-                                  <span>{booking.property.city}</span>
+                                  <span className="truncate max-w-[180px]">{booking.property.address}</span>
                                 </div>
                               )}
                             </div>
@@ -418,9 +418,9 @@ export const BookingHistoryPage: React.FC = () => {
                               {booking.quantity} room{booking.quantity !== 1 ? 's' : ''}
                             </span>
                           )}
-                          {booking.guestDetails?.name && (
+                          {booking.guestDetails?.fullName && (
                             <span className="text-gray-400 truncate">
-                              Guest: {booking.guestDetails.name}
+                              Guest: {booking.guestDetails.fullName}
                             </span>
                           )}
                         </div>
