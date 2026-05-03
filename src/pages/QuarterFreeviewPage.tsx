@@ -20,6 +20,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
 import { ROLE_LABELS } from '../constants/roles';
+import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 
 // ── Role-aware welcome banner config ────────────────────────────
 
@@ -212,6 +213,8 @@ export const QuarterFreeviewPage: React.FC = () => {
   const [quarters, setQuarters] = useState<Quarter[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
+  const [selectedQuarterId, setSelectedQuarterId] = useState<string | null>(null);
+  const [isQuarterModalOpen, setIsQuarterModalOpen] = useState(false);
 
   // Unified filter drawer state (used across all view modes)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -299,7 +302,13 @@ export const QuarterFreeviewPage: React.FC = () => {
   }, [quarters]);
 
   const handleViewQuarter = (q: Quarter) => {
-    navigate(`/quarters/${q.id}`);
+    setSelectedQuarterId(q.id);
+    setIsQuarterModalOpen(true);
+  };
+
+  const handleCloseQuarterModal = () => {
+    setIsQuarterModalOpen(false);
+    setSelectedQuarterId(null);
   };
 
   const handleAddToRequest = (q: Quarter) => {
@@ -688,6 +697,14 @@ export const QuarterFreeviewPage: React.FC = () => {
               )}
         </div>
       </div>
+
+      {selectedQuarterId && (
+        <QuarterDetailModal
+          isOpen={isQuarterModalOpen}
+          onClose={handleCloseQuarterModal}
+          quarterId={selectedQuarterId}
+        />
+      )}
     </div>
   );
 };
