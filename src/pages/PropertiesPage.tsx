@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { ViewSwitcher } from '../components/ui/ViewSwitcher';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DataTable } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { usePropertyStore } from '../stores/propertyStore';
@@ -31,6 +32,10 @@ export const PropertiesPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useViewPreference('propertiesView', 'list');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'default' | 'name_asc' | 'newest'>('default');
 
   useEffect(() => {
     fetchProperties();
@@ -60,14 +65,30 @@ export const PropertiesPage: React.FC = () => {
     navigate(`/properties/${property.id}?tab=booking`);
   };
 
-  const filteredProperties = properties.filter((property) => {
-    const matchesStatus = filterStatus === 'all' || property.status === filterStatus;
-    const matchesSearch = !searchQuery ||
-      property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      property.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      property.estate?.city?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const availableModules = useMemo(() => (
+    [...new Map(properties.filter(p => p.module).map(p => [p.module!.id, p.module!])).values()]
+  ), [properties]);
+
+  const availableCities = useMemo(() => (
+    [...new Set(properties.map(p => p.estate?.city).filter(Boolean) as string[])].sort()
+  ), [properties]);
+
+  const drawerActiveCount = (moduleFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (sortOrder !== 'default' ? 1 : 0);
+
+  const filteredProperties = useMemo(() => {
+    let result = properties.filter((property) => {
+      const matchesStatus = filterStatus === 'all' || property.status === filterStatus;
+      const matchesSearch = !searchQuery ||
+        property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        property.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        property.estate?.city?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesModule = moduleFilter === 'all' || property.module?.id === moduleFilter;
+      const matchesCity = cityFilter === 'all' || property.estate?.city === cityFilter;
+      return matchesStatus && matchesSearch && matchesModule && matchesCity;
+    });
+    if (sortOrder === 'name_asc') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    return result;
+  }, [properties, filterStatus, searchQuery, moduleFilter, cityFilter, sortOrder]);
 
   const stats = {
     total: properties.length,
@@ -79,6 +100,9 @@ export const PropertiesPage: React.FC = () => {
   const handleClearFilters = () => {
     setFilterStatus('all');
     setSearchQuery('');
+    setModuleFilter('all');
+    setCityFilter('all');
+    setSortOrder('default');
   };
 
   return (
@@ -134,6 +158,8 @@ export const PropertiesPage: React.FC = () => {
                 ],
               },
             ]}
+            filterCount={drawerActiveCount}
+            onFilterOpen={() => setIsFilterOpen(true)}
             className="mb-3"
           />
 
@@ -187,7 +213,70 @@ export const PropertiesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* No optional drawer needed for PropertiesPage — all filters are in the mandatory bar */}
+      {/* Optional advanced filter drawer */}
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Advanced Filters"
+        activeFilterCount={drawerActiveCount}
+        onClearAll={() => { setModuleFilter('all'); setCityFilter('all'); setSortOrder('default'); }}
+      >
+        <div className="space-y-6">
+          {availableModules.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Facility Type</label>
+              <select
+                value={moduleFilter}
+                onChange={(e) => setModuleFilter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              >
+                <option value="all">All Types</option>
+                {availableModules.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {availableCities.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              >
+                <option value="all">All Locations</option>
+                {availableCities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+            <div className="space-y-2">
+              {[
+                { value: 'default', label: 'Default' },
+                { value: 'name_asc', label: 'Name A–Z' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setSortOrder(value as typeof sortOrder)}
+                  className={`w-full flex items-center px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
+                    sortOrder === value
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </FilterDrawer>
 
       {/* Scrollable data area */}
       <div className="flex-1 overflow-y-auto">

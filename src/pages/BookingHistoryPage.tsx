@@ -279,6 +279,8 @@ export const BookingHistoryPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | string[]>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useViewPreference('bookingHistoryView', 'list');
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
@@ -288,7 +290,7 @@ export const BookingHistoryPage: React.FC = () => {
 
   useEffect(() => {
     filterBookings();
-  }, [bookings, statusFilter, searchQuery]);
+  }, [bookings, statusFilter, searchQuery, dateFrom, dateTo]);
 
   const loadBookings = async () => {
     try {
@@ -317,6 +319,12 @@ export const BookingHistoryPage: React.FC = () => {
           b.bookingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
           b.property?.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+    if (dateFrom) {
+      filtered = filtered.filter((b) => new Date(b.checkInDate) >= new Date(dateFrom));
+    }
+    if (dateTo) {
+      filtered = filtered.filter((b) => new Date(b.checkOutDate) <= new Date(dateTo));
     }
     setFilteredBookings(filtered);
   };
@@ -350,8 +358,9 @@ export const BookingHistoryPage: React.FC = () => {
   const cancellationRate = stats.total > 0 ? Math.round((stats.cancelled / stats.total) * 100) : 0;
 
   const handleStatCardClick = (filter: string | string[]) => setStatusFilter(filter);
-  const handleClearFilters = () => { setStatusFilter('all'); setSearchQuery(''); };
-  const activeFilterCount = (statusFilter !== 'all' && statusFilter.length > 0 ? 1 : 0) + (searchQuery ? 1 : 0);
+  const handleClearFilters = () => { setStatusFilter('all'); setSearchQuery(''); setDateFrom(''); setDateTo(''); };
+  const drawerActiveCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  const activeFilterCount = (statusFilter !== 'all' && statusFilter.length > 0 ? 1 : 0) + (searchQuery ? 1 : 0) + drawerActiveCount;
 
   const isFilterActive = (filterValue: string | string[]) => {
     if (filterValue === 'all') return statusFilter === 'all';
@@ -422,6 +431,8 @@ export const BookingHistoryPage: React.FC = () => {
                 ],
               },
             ]}
+            filterCount={drawerActiveCount}
+            onFilterOpen={() => setIsFilterOpen(true)}
             className="mb-3"
           />
 
@@ -478,7 +489,42 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* FilterDrawer reserved for future advanced filters */}
+      {/* Advanced date range filter drawer */}
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Advanced Filters"
+        activeFilterCount={drawerActiveCount}
+        onClearAll={() => { setDateFrom(''); setDateTo(''); }}
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Check-in From</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Check-out To</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              min={dateFrom || undefined}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <p className="text-xs text-gray-500">
+              Showing bookings{dateFrom ? ` checking in from ${new Date(dateFrom).toLocaleDateString('en-IN')}` : ''}
+              {dateTo ? ` checking out by ${new Date(dateTo).toLocaleDateString('en-IN')}` : ''}.
+            </p>
+          )}
+        </div>
+      </FilterDrawer>
 
       {/* Scrollable data area */}
       <div className="flex-1 overflow-y-auto">

@@ -284,6 +284,14 @@ export const QuarterFreeviewPage: React.FC = () => {
     return result;
   }, [quarters, sidebarFilters]);
 
+  const availableQuarterTypes = useMemo(() => (
+    [...new Set(quarters.map(q => q.quarter_type).filter(Boolean))].sort()
+  ), [quarters]);
+
+  const availableFurnishingStatuses = useMemo(() => (
+    [...new Set(quarters.map(q => q.furnishing_status).filter(Boolean))].sort()
+  ), [quarters]);
+
   const mapCenter = useMemo(() => {
     const first = quarters.find(q => q.metadata?.latitude && q.metadata?.longitude);
     if (!first) return null;
@@ -479,54 +487,58 @@ export const QuarterFreeviewPage: React.FC = () => {
       >
         <div className="space-y-6">
           {/* Quarter Type */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Quarter Type</label>
-            <div className="flex flex-wrap gap-2">
-              {['Type I', 'Type II', 'Type III', 'Type IV', 'Type V'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setSidebarFilters(prev => ({
-                    ...prev,
-                    quarterTypes: prev.quarterTypes.includes(type)
-                      ? prev.quarterTypes.filter(t => t !== type)
-                      : [...prev.quarterTypes, type],
-                  }))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    sidebarFilters.quarterTypes.includes(type)
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+          {availableQuarterTypes.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Quarter Type</label>
+              <div className="flex flex-wrap gap-2">
+                {availableQuarterTypes.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSidebarFilters(prev => ({
+                      ...prev,
+                      quarterTypes: prev.quarterTypes.includes(type)
+                        ? prev.quarterTypes.filter(t => t !== type)
+                        : [...prev.quarterTypes, type],
+                    }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      sidebarFilters.quarterTypes.includes(type)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Furnishing */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Furnishing</label>
-            <div className="flex flex-wrap gap-2">
-              {['Furnished', 'Semi-Furnished', 'Unfurnished'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setSidebarFilters(prev => ({
-                    ...prev,
-                    furnishingStatuses: prev.furnishingStatuses.includes(status)
-                      ? prev.furnishingStatuses.filter(s => s !== status)
-                      : [...prev.furnishingStatuses, status],
-                  }))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    sidebarFilters.furnishingStatuses.includes(status)
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
-                  }`}
-                >
-                  {status}
-                </button>
-              ))}
+          {availableFurnishingStatuses.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Furnishing</label>
+              <div className="flex flex-wrap gap-2">
+                {availableFurnishingStatuses.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setSidebarFilters(prev => ({
+                      ...prev,
+                      furnishingStatuses: prev.furnishingStatuses.includes(status)
+                        ? prev.furnishingStatuses.filter(s => s !== status)
+                        : [...prev.furnishingStatuses, status],
+                    }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      sidebarFilters.furnishingStatuses.includes(status)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Sort */}
           <div>

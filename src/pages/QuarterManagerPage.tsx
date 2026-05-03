@@ -140,6 +140,12 @@ export const QuarterManagerPage: React.FC = () => {
   const miniMenuRef = useRef<HTMLDivElement>(null);
   const [overrideInitialAction, setOverrideInitialAction] = useState<string | undefined>(undefined);
 
+  // Cycle Requests (submitted) filter
+  const [cycleReqSearch, setCycleReqSearch] = useState('');
+
+  // Allotments filter
+  const [allotSearch, setAllotSearch] = useState('');
+
   // All Requests filters
   const [allReqSearch, setAllReqSearch] = useState('');
   const [allReqStatus, setAllReqStatus] = useState('ALL');
@@ -894,13 +900,35 @@ export const QuarterManagerPage: React.FC = () => {
             {/* ── Cycle Requests Tab ─────────────────────────────────── */}
             {activeTab === 'requests' && (() => {
               const submittedRequests = cycleRequests.filter(r => r.request_status === 'SUBMITTED');
+              const visibleCycleReqs = cycleReqSearch
+                ? submittedRequests.filter(r =>
+                    r.request_number?.toLowerCase().includes(cycleReqSearch.toLowerCase()) ||
+                    r.required_bhk_config?.toLowerCase().includes(cycleReqSearch.toLowerCase()) ||
+                    r.preferred_location?.toLowerCase().includes(cycleReqSearch.toLowerCase())
+                  )
+                : submittedRequests;
               return (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                   <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
                     <span className="text-sm font-semibold text-gray-900">Submitted Requests</span>
                     <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium">
-                      {submittedRequests.length}
+                      {visibleCycleReqs.length}
                     </span>
+                  </div>
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <MandatorySearchBar
+                      fields={[
+                        {
+                          key: 'search',
+                          label: 'Search',
+                          type: 'text',
+                          placeholder: 'Request no., BHK, preferred location…',
+                          value: cycleReqSearch,
+                          onChange: setCycleReqSearch,
+                          icon: <Search size={14} />,
+                        },
+                      ]}
+                    />
                   </div>
                   {loadingCycleData ? (
                     <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
@@ -915,9 +943,9 @@ export const QuarterManagerPage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {submittedRequests.length === 0 ? (
+                          {visibleCycleReqs.length === 0 ? (
                             <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">No submitted requests for this cycle</td></tr>
-                          ) : submittedRequests.map((req, idx) => (
+                          ) : visibleCycleReqs.map((req, idx) => (
                             <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-xs text-gray-500 font-medium">{idx + 1}</td>
                               <td className="px-4 py-3 font-mono text-xs text-gray-700">{req.request_number}</td>
@@ -951,8 +979,37 @@ export const QuarterManagerPage: React.FC = () => {
             })()}
 
             {/* ── Allotments Tab ─────────────────────────────────────── */}
-            {activeTab === 'allotments' && (
+            {activeTab === 'allotments' && (() => {
+              const visibleAllotments = allotSearch
+                ? cycleAllotments.filter(a => {
+                    const q = a.quarter as Quarter | undefined;
+                    const req = a.request as QuarterRequest | undefined;
+                    const s = allotSearch.toLowerCase();
+                    return (
+                      q?.quarter_number?.toLowerCase().includes(s) ||
+                      req?.request_number?.toLowerCase().includes(s)
+                    );
+                  })
+                : cycleAllotments;
+              return (
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {cycleAllotments.length > 0 && (
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <MandatorySearchBar
+                      fields={[
+                        {
+                          key: 'search',
+                          label: 'Search',
+                          type: 'text',
+                          placeholder: 'Quarter number or request no…',
+                          value: allotSearch,
+                          onChange: setAllotSearch,
+                          icon: <Search size={14} />,
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
                 {loadingCycleData ? (
                   <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
                 ) : cycleAllotments.length === 0 && cycleRequests.length > 0 ? (
@@ -982,7 +1039,7 @@ export const QuarterManagerPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {cycleAllotments.map((allot, i) => {
+                        {visibleAllotments.map((allot, i) => {
                           const q = allot.quarter as Quarter | undefined;
                           const req = allot.request as QuarterRequest | undefined;
                           const prefUsed = req?.preferences?.find(p => p.quarter_id === q?.id)?.preference_rank;
@@ -1043,7 +1100,8 @@ export const QuarterManagerPage: React.FC = () => {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
 
             {/* ── All Requests Tab ───────────────────────────────────── */}
             {activeTab === 'all_requests' && (
