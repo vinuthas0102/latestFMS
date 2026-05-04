@@ -231,6 +231,8 @@ export const QuarterRequestsPage: React.FC = () => {
   const [reqSearch, setReqSearch] = useState('');
   const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
   const [reqBhkFilter, setReqBhkFilter] = useState<string>('ALL');
+  const [reqToiletFilter, setReqToiletFilter] = useState<string[]>([]);
+  const [reqFloorFilter, setReqFloorFilter] = useState<number[]>([]);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Selected preference quarter for detail view
@@ -581,6 +583,23 @@ export const QuarterRequestsPage: React.FC = () => {
 
     if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
 
+    if (reqToiletFilter.length > 0) {
+      result = result.filter(r => {
+        const quarter = (r.allotment?.quarter as Quarter | undefined) ?? r.preferences?.[0]?.quarter;
+        if (!quarter) return false;
+        return reqToiletFilter.includes((quarter as Quarter).toilet_type ?? 'Western');
+      });
+    }
+
+    if (reqFloorFilter.length > 0) {
+      result = result.filter(r => {
+        const quarter = (r.allotment?.quarter as Quarter | undefined) ?? r.preferences?.[0]?.quarter;
+        if (!quarter) return false;
+        const floor = (quarter as Quarter).floor_number ?? 0;
+        return reqFloorFilter.some(f => f === 4 ? floor >= 4 : floor === f);
+      });
+    }
+
     if (reqSearch.trim()) {
       const q = reqSearch.toLowerCase();
       result = result.filter(r =>
@@ -595,7 +614,7 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter]);
+  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter]);
 
   const filteredTenantRequests = React.useMemo(() => {
     return [...tenantRequests].sort((a, b) =>
@@ -609,7 +628,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const activeFilterCount = [
     reqBhkFilter !== 'ALL',
     reqSearch.trim().length > 0,
-  ].filter(Boolean).length;
+  ].filter(Boolean).length + reqToiletFilter.length + reqFloorFilter.length;
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -1442,7 +1461,7 @@ export const QuarterRequestsPage: React.FC = () => {
         onClose={() => setFilterDrawerOpen(false)}
         title="Filters"
         activeFilterCount={activeFilterCount}
-        onClearAll={() => { setReqSearch(''); setReqBhkFilter('ALL'); }}
+        onClearAll={() => { setReqSearch(''); setReqBhkFilter('ALL'); setReqToiletFilter([]); setReqFloorFilter([]); }}
       >
         <div className="space-y-5">
           <div>
@@ -1460,6 +1479,38 @@ export const QuarterRequestsPage: React.FC = () => {
                 <button key={v} onClick={() => setReqBhkFilter(v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                   {v === 'ALL' ? 'Any' : v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {['Indian', 'Western', 'Both'].map(v => (
+                <button key={v} onClick={() => setReqToiletFilter(prev =>
+                  prev.includes(v) ? prev.filter(t => t !== v) : [...prev, v]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqToiletFilter.includes(v) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Floor</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 0, label: 'Ground' },
+                { value: 1, label: '1st' },
+                { value: 2, label: '2nd' },
+                { value: 3, label: '3rd' },
+                { value: 4, label: '4th+' },
+              ].map(({ value, label }) => (
+                <button key={value} onClick={() => setReqFloorFilter(prev =>
+                  prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqFloorFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
                 </button>
               ))}
             </div>

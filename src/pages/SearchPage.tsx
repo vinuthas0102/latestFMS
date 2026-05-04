@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Calendar, Building2, Map, List } from 'lucide-react';
+import { Search, MapPin, Calendar, Building2, Map, List, Navigation, X } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
@@ -33,6 +33,12 @@ export const SearchPage: React.FC = () => {
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [modalPropertyId, setModalPropertyId] = useState<string | null>(null);
+  const [amenityFilters, setAmenityFilters] = useState<string[]>([]);
+  const [proximityCenter, setProximityCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [proximityRadiusKm, setProximityRadiusKm] = useState(10);
+  const [proximityLoading, setProximityLoading] = useState(false);
+
+  const AMENITY_OPTIONS = ['Swimming Pool', 'Lounge', 'Bath Tub', 'Garden View', 'Mountain View', 'Living Room'];
 
   useEffect(() => {
     fetchModules();
@@ -75,8 +81,31 @@ export const SearchPage: React.FC = () => {
   }, [searchParams, hasAutoSearched]);
 
   const handleSearch = () => {
-    setFilters({ location, checkInDate: checkIn, checkOutDate: checkOut, moduleId, propertyTypeId, roomTypeId });
+    setFilters({
+      location,
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
+      moduleId,
+      propertyTypeId,
+      roomTypeId,
+      amenities: amenityFilters.length > 0 ? amenityFilters : undefined,
+      latitude: proximityCenter ? proximityCenter.lat : undefined,
+      longitude: proximityCenter ? proximityCenter.lng : undefined,
+      radius: proximityCenter ? proximityRadiusKm : undefined,
+    });
     search();
+  };
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setProximityLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setProximityCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setProximityLoading(false);
+      },
+      () => setProximityLoading(false)
+    );
   };
 
   const handleBookNow = (e: React.MouseEvent, property: PropertyDTO) => {
@@ -95,7 +124,7 @@ export const SearchPage: React.FC = () => {
     navigate(`/properties/${property.id}?${queryString}`);
   };
 
-  const optionalFilterCount = (moduleId ? 1 : 0) + (propertyTypeId ? 1 : 0) + (roomTypeId ? 1 : 0);
+  const optionalFilterCount = (moduleId ? 1 : 0) + (propertyTypeId ? 1 : 0) + (roomTypeId ? 1 : 0) + amenityFilters.length + (proximityCenter ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,9 +179,69 @@ export const SearchPage: React.FC = () => {
         onClose={() => setIsFilterOpen(false)}
         title="Advanced Filters"
         activeFilterCount={optionalFilterCount}
-        onClearAll={() => { setModuleId(''); setPropertyTypeId(''); setRoomTypeId(''); }}
+        onClearAll={() => {
+          setModuleId('');
+          setPropertyTypeId('');
+          setRoomTypeId('');
+          setAmenityFilters([]);
+          setProximityCenter(null);
+        }}
       >
         <div className="space-y-6">
+
+          {/* Proximity Search */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <MapPin size={14} className="text-blue-500" /> Proximity Search
+            </label>
+            <div className={`rounded-xl border p-4 transition-all ${proximityCenter ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+              {!proximityCenter ? (
+                <button
+                  onClick={handleUseMyLocation}
+                  disabled={proximityLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-all disabled:opacity-50"
+                >
+                  <Navigation size={14} className="text-blue-500" />
+                  {proximityLoading ? 'Getting location…' : 'Use My Location'}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <MapPin size={12} className="text-blue-500 flex-shrink-0" />
+                      <span>Location set</span>
+                    </div>
+                    <button
+                      onClick={() => setProximityCenter(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">Radius</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[5, 10, 20, 50].map(r => (
+                        <button
+                          key={r}
+                          onClick={() => setProximityRadiusKm(r)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                            proximityRadiusKm === r
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                          }`}
+                        >
+                          {r} km
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-600 font-medium">Click Search to apply</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Facility Type</label>
             <select
@@ -194,6 +283,31 @@ export const SearchPage: React.FC = () => {
                 <option key={rt.id} value={rt.id}>{rt.name}</option>
               ))}
             </select>
+          </div>
+
+          {/* Amenities */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Amenities</label>
+            <div className="flex flex-wrap gap-2">
+              {AMENITY_OPTIONS.map((amenity) => (
+                <button
+                  key={amenity}
+                  onClick={() => setAmenityFilters(prev =>
+                    prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]
+                  )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    amenityFilters.includes(amenity)
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  {amenity}
+                </button>
+              ))}
+            </div>
+            {amenityFilters.length > 0 && (
+              <p className="text-xs text-gray-400 mt-2">Showing properties with ALL selected amenities · Click Search to apply</p>
+            )}
           </div>
         </div>
       </FilterDrawer>

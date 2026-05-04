@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
@@ -6,15 +6,20 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Badge } from '../components/ui/Badge';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { PropertyDTO } from '../types';
 import { locationSearchService } from '../services/locationSearchService';
 import { propertyService } from '../services/propertyService';
-import { Building2, MapPin, Calendar, Navigation } from 'lucide-react';
+import { usePropertyStore } from '../stores/propertyStore';
+import { Building2, MapPin, Calendar, Navigation, SlidersHorizontal } from 'lucide-react';
 import { AvailabilityCalendarModal } from '../components/availability/AvailabilityCalendarModal';
+
+const AMENITY_OPTIONS = ['Swimming Pool', 'Lounge', 'Bath Tub', 'Garden View', 'Mountain View', 'Living Room'];
 
 export const MapSearchPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { modules, propertyTypes, fetchModules, fetchPropertyTypes } = usePropertyStore();
   const [_properties, setProperties] = useState<PropertyDTO[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<PropertyDTO[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
@@ -23,19 +28,33 @@ export const MapSearchPage: React.FC = () => {
   const [radiusKm, setRadiusKm] = useState<number>(20);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarProperty, setCalendarProperty] = useState<PropertyDTO | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [moduleFilter, setModuleFilter] = useState('');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState('');
+  const [amenityFilters, setAmenityFilters] = useState<string[]>([]);
 
   const defaultLat = parseFloat(searchParams.get('lat') || '28.6139');
   const defaultLng = parseFloat(searchParams.get('lng') || '77.209');
 
   useEffect(() => {
     loadAllProperties();
+    fetchModules();
   }, []);
+
+  useEffect(() => {
+    if (moduleFilter) {
+      fetchPropertyTypes(moduleFilter);
+      setPropertyTypeFilter('');
+    } else {
+      fetchPropertyTypes();
+    }
+  }, [moduleFilter]);
 
   useEffect(() => {
     if (searchLocation) {
       handleLocationSearch(searchLocation.lat, searchLocation.lng);
     }
-  }, [searchLocation, radiusKm]);
+  }, [searchLocation, radiusKm, moduleFilter, propertyTypeFilter]);
 
   const loadAllProperties = async () => {
     try {
@@ -58,6 +77,8 @@ export const MapSearchPage: React.FC = () => {
         latitude: lat,
         longitude: lng,
         radiusKm,
+        moduleId: moduleFilter || undefined,
+        propertyTypeId: propertyTypeFilter || undefined,
       });
       setFilteredProperties(nearbyProperties);
     } catch (error) {
@@ -86,10 +107,19 @@ export const MapSearchPage: React.FC = () => {
     }
   };
 
+  const displayProperties = useMemo(() => {
+    if (amenityFilters.length === 0) return filteredProperties;
+    return filteredProperties.filter(p =>
+      amenityFilters.every(a => p.amenities?.includes(a))
+    );
+  }, [filteredProperties, amenityFilters]);
+
+  const drawerActiveCount = (moduleFilter ? 1 : 0) + (propertyTypeFilter ? 1 : 0) + amenityFilters.length;
+
   const centerLat = searchLocation?.lat || defaultLat;
   const centerLng = searchLocation?.lng || defaultLng;
 
-  const markers = filteredProperties.map((p) => ({
+  const markers = displayProperties.map((p) => ({
     lat: parseFloat(p.latitude as any),
     lng: parseFloat(p.longitude as any),
     title: p.name,
@@ -98,7 +128,7 @@ export const MapSearchPage: React.FC = () => {
   }));
 
   const handleMarkerClick = (marker: any) => {
-    const property = filteredProperties.find((p) => p.id === marker.propertyId);
+    const property = displayProperties.find((p) => p.id === marker.propertyId);
     if (property) {
       setSelectedProperty(property);
     }
@@ -142,10 +172,95 @@ export const MapSearchPage: React.FC = () => {
             </Select>
           </div>
 
+          <button
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${
+              drawerActiveCount > 0
+                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <SlidersHorizontal size={16} />
+            Filters
+            {drawerActiveCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {drawerActiveCount}
+              </span>
+            )}
+          </button>
+
           <Badge className="bg-blue-100 text-blue-800">
-            {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
+            {displayProperties.length} {displayProperties.length === 1 ? 'property' : 'properties'} found
           </Badge>
         </div>
+
+        {/* Advanced filter drawer */}
+        <FilterDrawer
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          title="Map Filters"
+          activeFilterCount={drawerActiveCount}
+          onClearAll={() => { setModuleFilter(''); setPropertyTypeFilter(''); setAmenityFilters([]); }}
+        >
+          <div className="space-y-6">
+            {modules.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Facility Type</label>
+                <select
+                  value={moduleFilter}
+                  onChange={(e) => setModuleFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                >
+                  <option value="">All Facility Types</option>
+                  {modules.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {propertyTypes.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Property Type</label>
+                <select
+                  value={propertyTypeFilter}
+                  onChange={(e) => setPropertyTypeFilter(e.target.value)}
+                  disabled={!moduleFilter}
+                  className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">{moduleFilter ? 'All Property Types' : 'Select facility type first'}</option>
+                  {propertyTypes.map((pt) => (
+                    <option key={pt.id} value={pt.id}>{pt.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Amenities</label>
+              <div className="flex flex-wrap gap-2">
+                {AMENITY_OPTIONS.map((amenity) => (
+                  <button
+                    key={amenity}
+                    onClick={() => setAmenityFilters(prev =>
+                      prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]
+                    )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      amenityFilters.includes(amenity)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {amenity}
+                  </button>
+                ))}
+              </div>
+              {amenityFilters.length > 0 && (
+                <p className="text-xs text-gray-400 mt-2">Showing properties with ALL selected amenities</p>
+              )}
+            </div>
+          </div>
+        </FilterDrawer>
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
@@ -231,9 +346,9 @@ export const MapSearchPage: React.FC = () => {
               </Card>
             )}
 
-            {!selectedProperty && filteredProperties.length > 0 && (
+            {!selectedProperty && displayProperties.length > 0 && (
               <div className="space-y-3">
-                {filteredProperties.slice(0, 10).map((property) => (
+                {displayProperties.slice(0, 10).map((property) => (
                   <Card
                     key={property.id}
                     className="hover:shadow-lg transition-all cursor-pointer"
