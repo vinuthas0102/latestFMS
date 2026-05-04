@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search, Navigation, X } from 'lucide-react';
+import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search, Navigation, X, Home, ChevronRight, ExternalLink, Images, Bed, Users, Wifi, Star } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
@@ -10,6 +10,7 @@ import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DataTable } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
+import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
 import { canManageProperties } from '../utils/permissions';
@@ -26,6 +27,7 @@ export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { properties, loading, fetchProperties } = usePropertyStore();
+  const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -40,6 +42,9 @@ export const PropertiesPage: React.FC = () => {
   const [proximityCenter, setProximityCenter] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [proximityRadiusKm, setProximityRadiusKm] = useState(10);
   const [proximityLoading, setProximityLoading] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -48,8 +53,15 @@ export const PropertiesPage: React.FC = () => {
   const canManage = user && canManageProperties(user.role);
 
   const handleCardClick = (property: PropertyDTO) => {
+    // On desktop: open split panel. Modal fallback kept for table actions.
+    setSelectedProperty(property);
     setSelectedPropertyId(property.id);
-    setIsModalOpen(true);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedProperty(null);
+    setSelectedPropertyId(null);
+    setIsModalOpen(false);
   };
 
   const handleCloseModal = () => {
@@ -144,22 +156,54 @@ export const PropertiesPage: React.FC = () => {
     setProximityCenter(null);
   };
 
+  const filterStatusLabel = filterStatus === 'all' ? null : filterStatus === 'PUBLISHED' ? 'Published' : 'Draft';
+
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-green-50/20">
 
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
+            <Home size={11} />
+            <ChevronRight size={10} />
+            <span>My Workspace</span>
+            <ChevronRight size={10} />
+            <button
+              onClick={() => { handleClosePanel(); setFilterStatus('all'); }}
+              className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
+            >
+              Properties
+            </button>
+            {filterStatusLabel && (
+              <>
+                <ChevronRight size={10} />
+                <button
+                  onClick={() => handleClosePanel()}
+                  className="text-gray-700 font-medium hover:text-blue-600 transition-colors"
+                >
+                  {filterStatusLabel}
+                </button>
+              </>
+            )}
+            {selectedProperty && (
+              <>
+                <ChevronRight size={10} />
+                <span className="text-gray-700 font-medium truncate max-w-[160px]">{selectedProperty.name}</span>
+              </>
+            )}
+          </div>
+
           {/* Title row */}
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-0.5 flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg">
-                  <Building2 className="w-5 h-5 text-white" />
+              <h1 className="text-xl font-bold text-gray-900 mb-0.5 flex items-center gap-2.5">
+                <div className="p-1.5 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg">
+                  <Building2 className="w-4 h-4 text-white" />
                 </div>
                 Property Management
               </h1>
-              <p className="text-sm text-gray-500 ml-12">Manage all facilities and assets</p>
             </div>
             <div className="flex items-center gap-3">
               <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
@@ -394,220 +438,280 @@ export const PropertiesPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
-      {/* Scrollable data area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
+      {/* Split-screen data area */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Left panel: property list */}
+        <div className={`flex flex-col overflow-y-auto transition-all duration-300 ${selectedProperty ? 'hidden lg:flex lg:w-2/5 xl:w-[38%]' : 'w-full'}`}>
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : filteredProperties.length === 0 ? (
+              <FadeIn delay={300}>
+                <div className="pastel-lavender-gradient rounded-xl p-12 text-center">
+                  <Building2 className="mx-auto text-gray-400 mb-4 animate-pulse-slow" size={64} />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties found</h3>
+                  <p className="text-gray-600 mb-6">{properties.length === 0 ? 'Create your first property to get started' : 'Try adjusting your filters'}</p>
+                  {canManage && properties.length === 0 && (
+                    <Button onClick={() => navigate('/properties/create')}>Create Property</Button>
+                  )}
+                </div>
+              </FadeIn>
+            ) : viewMode === 'card' ? (
+              <div className={`grid gap-4 ${selectedProperty ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+                {filteredProperties.map((property, index) => {
+                  const getGradientClass = () => {
+                    if (property.status === 'PUBLISHED') return 'pastel-green-gradient';
+                    if (property.status === 'DRAFT') return 'pastel-yellow-gradient';
+                    return 'pastel-blue-gradient';
+                  };
+                  const isSelected = selectedProperty?.id === property.id;
+                  return (
+                    <FadeIn key={property.id} delay={index * 60}>
+                      <div
+                        onClick={() => handleCardClick(property)}
+                        className={`${getGradientClass()} rounded-xl overflow-hidden cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg' : 'hover:shadow-md'}`}
+                      >
+                        <div className="h-36 relative overflow-hidden">
+                          {property.images.length > 0 ? (
+                            <>
+                              <ImageCarousel images={property.images} alt={property.name} className="h-36" autoPlay={true} autoPlayInterval={3000} />
+                              {property.images.length > 1 && (
+                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Camera className="w-3 h-3 text-white" />
+                                  <span className="text-white text-xs font-medium">{property.images.length}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className={`${getGradientClass()} flex items-center justify-center h-full`}>
+                              <Building2 size={40} className="text-gray-400" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
+                              {property.status}
+                            </Badge>
+                          </div>
+                          <button
+                            onClick={(e) => handleBookingClick(e, property)}
+                            className="absolute bottom-2 right-2 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-2.5 py-1.5 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 flex items-center gap-1.5 text-xs font-medium"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            <span>{requiresLoginForBooking(property.module?.code) && !user ? 'Login' : 'Book'}</span>
+                          </button>
+                        </div>
+                        <div className="p-3 bg-white">
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {property.module && <Badge variant="default" className="text-xs">{property.module.name}</Badge>}
+                            {property.propertyType && <Badge variant="success" className="text-xs">{property.propertyType.name}</Badge>}
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-900 mb-1 truncate">{property.name}</h3>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{property.estate?.city || property.address}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </FadeIn>
+                  );
+                })}
+              </div>
+            ) : viewMode === 'table' ? (
+              <FadeIn delay={300}>
+                <DataTable
+                  columns={[
+                    { key: 'name', label: 'Property Name', sortable: true, width: '25%' },
+                    { key: 'module', label: 'Module', sortable: false, render: (p) => p.module?.name || 'N/A' },
+                    { key: 'propertyType', label: 'Type', sortable: false, render: (p) => p.propertyType?.name || 'N/A' },
+                    { key: 'location', label: 'Location', sortable: false, render: (p) => p.estate?.city || p.address || 'N/A' },
+                    { key: 'totalRooms', label: 'Rooms', sortable: true, render: (p) => p.totalRooms || 0 },
+                    {
+                      key: 'status', label: 'Status', sortable: true,
+                      render: (p) => <Badge variant={p.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">{p.status}</Badge>,
+                    },
+                    {
+                      key: 'actions', label: 'Actions', sortable: false, width: '15%',
+                      render: (p) => (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/properties/${p.id}`); }}>View</Button>
+                          <Button size="sm" onClick={(e) => handleBookingClick(e as any, p)}>Book</Button>
+                        </div>
+                      ),
+                    },
+                  ]}
+                  data={filteredProperties}
+                  keyExtractor={(p) => p.id}
+                  onRowClick={(p) => handleCardClick(p)}
+                  emptyMessage="No properties found"
+                />
+              </FadeIn>
+            ) : (
+              <FadeIn delay={300}>
+                <div className="space-y-3">
+                  {filteredProperties.map((property) => {
+                    const isSelected = selectedProperty?.id === property.id;
+                    return (
+                      <div
+                        key={property.id}
+                        onClick={() => handleCardClick(property)}
+                        className={`cursor-pointer rounded-xl transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg' : 'hover:shadow-md'}`}
+                      >
+                        <PropertyListCard
+                          property={property}
+                          isLoggedIn={!!user}
+                          onBookClick={handleBookingClick}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </FadeIn>
+            )}
           </div>
-        ) : filteredProperties.length === 0 ? (
-          <FadeIn delay={300}>
-            <div className="pastel-lavender-gradient rounded-xl p-12 text-center">
-              <Building2 className="mx-auto text-gray-400 mb-4 animate-pulse-slow" size={64} />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties found</h3>
-              <p className="text-gray-600 mb-6">{properties.length === 0 ? 'Create your first property to get started' : 'Try adjusting your filters'}</p>
-              {canManage && properties.length === 0 && (
-                <Button onClick={() => navigate('/properties/create')}>Create Property</Button>
+        </div>
+
+        {/* Right panel: property detail */}
+        {selectedProperty ? (
+          <div className="flex flex-col w-full lg:w-3/5 xl:w-[62%] border-l border-gray-200 bg-white overflow-y-auto">
+            {/* Panel header */}
+            <div className="flex-none sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={handleClosePanel}
+                  className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
+                >
+                  <ChevronRight size={16} className="rotate-180" />
+                </button>
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-400 truncate">{selectedProperty.estate?.name || selectedProperty.address}</div>
+                  <h2 className="text-sm font-bold text-gray-900 truncate">{selectedProperty.name}</h2>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => navigate(`/properties/${selectedProperty.id}`)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-all border border-blue-200"
+                >
+                  <ExternalLink size={12} />
+                  Full Page
+                </button>
+                <button onClick={handleClosePanel} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Image tiles */}
+            <div className="flex-none px-5 pt-4">
+              {selectedProperty.images.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {selectedProperty.images.slice(0, 5).map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setLightboxImages(selectedProperty.images); setLightboxIndex(i); setLightboxOpen(true); }}
+                      className="relative flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md group"
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      {i === 4 && selectedProperty.images.length > 5 && (
+                        <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-0.5">
+                          <Images size={14} className="text-white" />
+                          <span className="text-white text-xs font-bold">+{selectedProperty.images.length - 5}</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-16 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center">
+                  <Building2 size={28} className="text-gray-300" />
+                </div>
               )}
             </div>
-          </FadeIn>
-        ) : viewMode === 'card' ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredProperties.map((property, index) => {
-                const getGradientClass = () => {
-                  if (property.status === 'PUBLISHED') return 'pastel-green-gradient';
-                  if (property.status === 'DRAFT') return 'pastel-yellow-gradient';
-                  return 'pastel-blue-gradient';
-                };
 
-                return (
-                  <FadeIn key={property.id} delay={index * 60}>
-                    <div
-                      onClick={() => handleCardClick(property)}
-                      className={`${getGradientClass()} rounded-xl overflow-hidden cursor-pointer`}
-                    >
-                      <div className="h-40 relative overflow-hidden">
-                        {property.images.length > 0 ? (
-                          <>
-                            <ImageCarousel
-                              images={property.images}
-                              alt={property.name}
-                              className="h-40"
-                              autoPlay={true}
-                              autoPlayInterval={3000}
-                            />
-                            {property.images.length > 1 && (
-                              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                                <Camera className="w-3 h-3 text-white" />
-                                <span className="text-white text-xs font-medium">{property.images.length}</span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className={`${getGradientClass()} flex items-center justify-center h-full`}>
-                            <Building2 size={40} className="text-gray-400" />
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2">
-                          <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
-                            {property.status}
-                          </Badge>
-                        </div>
-                        <button
-                          onClick={(e) => handleBookingClick(e, property)}
-                          className="absolute bottom-2 right-2 bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-3 py-2 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 flex items-center gap-2 text-xs font-medium"
-                          title={getBookingButtonText(property.module?.code, !!user)}
-                        >
-                          <Calendar className="w-3 h-3" />
-                          <span>{requiresLoginForBooking(property.module?.code) && !user ? 'Login' : 'Book'}</span>
-                        </button>
-                      </div>
-                      <div className="p-4 bg-white">
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {property.module && (
-                            <Badge variant="default" className="text-xs">
-                              {property.module.name}
-                            </Badge>
-                          )}
-                          {property.propertyType && (
-                            <Badge variant="success" className="text-xs">
-                              {property.propertyType.name}
-                            </Badge>
-                          )}
-                          {getModuleBadgeText(property.module?.code) && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(property.module?.code)}`}>
-                              {getModuleBadgeText(property.module?.code)}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-base font-bold text-gray-900 mb-2">{property.name}</h3>
-                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                          {property.description || 'No description available'}
-                        </p>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-white/50 rounded-md p-2">
-                          <MapPin size={14} className="text-gray-400" />
-                          <span className="truncate">{property.estate?.city || property.address}</span>
-                        </div>
-                      </div>
+            {/* Property info */}
+            <div className="flex-1 px-5 py-4 space-y-4">
+              {/* Badges */}
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant={selectedProperty.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">{selectedProperty.status}</Badge>
+                {selectedProperty.module && <Badge variant="default" className="text-xs">{selectedProperty.module.name}</Badge>}
+                {selectedProperty.propertyType && <Badge variant="success" className="text-xs">{selectedProperty.propertyType.name}</Badge>}
+                {getModuleBadgeText(selectedProperty.module?.code) && (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
+                    {getModuleBadgeText(selectedProperty.module?.code)}
+                  </span>
+                )}
+              </div>
+
+              {/* Description */}
+              {selectedProperty.description && (
+                <p className="text-sm text-gray-600 leading-relaxed">{selectedProperty.description}</p>
+              )}
+
+              {/* Key specs grid */}
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { icon: <MapPin size={13} />, label: 'Location', value: selectedProperty.estate?.city || selectedProperty.address || '—', color: 'text-blue-500' },
+                  { icon: <Layers size={13} />, label: 'Total Rooms', value: selectedProperty.totalRooms ? `${selectedProperty.totalRooms} rooms` : '—', color: 'text-teal-500' },
+                  { icon: <Building2 size={13} />, label: 'Estate', value: selectedProperty.estate?.name || '—', color: 'text-gray-500' },
+                  { icon: <Calendar size={13} />, label: 'Bookable', value: requiresLoginForBooking(selectedProperty.module?.code) ? 'Login required' : 'Open booking', color: 'text-green-500' },
+                ].map(item => (
+                  <div key={item.label} className="bg-gray-50 rounded-xl px-3.5 py-2.5 border border-gray-100">
+                    <div className={`flex items-center gap-1.5 ${item.color} mb-1`}>
+                      {item.icon}
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{item.label}</span>
                     </div>
-                  </FadeIn>
-                );
-              })}
+                    <div className="text-sm font-semibold text-gray-800 truncate">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Amenities */}
+              {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProperty.amenities.map((a: string) => (
+                      <span key={a} className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-xs font-medium">{a}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CTA buttons */}
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  onClick={(e) => handleBookingClick(e as any, selectedProperty)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <Calendar size={15} />
+                  {requiresLoginForBooking(selectedProperty.module?.code) && !user ? 'Login to Book' : 'Book Now'}
+                </button>
+                <button
+                  onClick={() => navigate(`/properties/${selectedProperty.id}`)}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
+                >
+                  <ExternalLink size={14} />
+                  Details
+                </button>
+              </div>
             </div>
-
-            {selectedPropertyId && (
-              <PropertyDetailModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                propertyId={selectedPropertyId}
-              />
-            )}
-          </>
-        ) : viewMode === 'table' ? (
-          <FadeIn delay={300}>
-            <DataTable
-              columns={[
-                {
-                  key: 'name',
-                  label: 'Property Name',
-                  sortable: true,
-                  width: '25%',
-                },
-                {
-                  key: 'module',
-                  label: 'Module',
-                  sortable: false,
-                  render: (property) => property.module?.name || 'N/A',
-                },
-                {
-                  key: 'propertyType',
-                  label: 'Type',
-                  sortable: false,
-                  render: (property) => property.propertyType?.name || 'N/A',
-                },
-                {
-                  key: 'location',
-                  label: 'Location',
-                  sortable: false,
-                  render: (property) => property.estate?.city || property.address || 'N/A',
-                },
-                {
-                  key: 'totalRooms',
-                  label: 'Rooms',
-                  sortable: true,
-                  render: (property) => property.totalRooms || 0,
-                },
-                {
-                  key: 'status',
-                  label: 'Status',
-                  sortable: true,
-                  render: (property) => (
-                    <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
-                      {property.status}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: 'actions',
-                  label: 'Actions',
-                  sortable: false,
-                  width: '15%',
-                  render: (property) => (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/properties/${property.id}`);
-                        }}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={(e) => handleBookingClick(e as any, property)}
-                      >
-                        Book
-                      </Button>
-                    </div>
-                  ),
-                },
-              ]}
-              data={filteredProperties}
-              keyExtractor={(property) => property.id}
-              onRowClick={(property) => handleCardClick(property)}
-              emptyMessage="No properties found"
-            />
-          </FadeIn>
+          </div>
         ) : (
-          <FadeIn delay={300}>
-            <div className="space-y-4">
-              {filteredProperties.map((property) => (
-                <PropertyListCard
-                  key={property.id}
-                  property={property}
-                  isLoggedIn={!!user}
-                  onBookClick={handleBookingClick}
-                />
-              ))}
+          <div className="hidden lg:flex flex-col w-3/5 xl:w-[62%] border-l border-gray-200 bg-gray-50/60 items-center justify-center text-center p-8">
+            <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
+              <Building2 size={28} className="text-gray-300" />
             </div>
-          </FadeIn>
+            <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
+            <div className="text-xs text-gray-300">Click any property on the left to view its details here</div>
+          </div>
         )}
-
-        {selectedPropertyId && (
-          <PropertyDetailModal
-            isOpen={isModalOpen}
-            onClose={handleCloseModal}
-            propertyId={selectedPropertyId}
-          />
-        )}
-        </div>
       </div>
+
+      {lightboxOpen && (
+        <PhotoLightbox images={lightboxImages} initialIndex={lightboxIndex} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   );
 };

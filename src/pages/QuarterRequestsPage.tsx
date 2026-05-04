@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, Plus, FileText, CheckCircle, Clock, XCircle,
   ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
-  MapPin, Layers, IndianRupee, Wrench, Filter,
+  MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
+  Images,
 } from 'lucide-react';
+import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
@@ -168,6 +170,16 @@ function serviceTypeConfig(type: string) {
 
 type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
 
+const DP_LABELS: Record<DPFilter, string> = {
+  all: 'All Requests',
+  draft: 'Draft Requests',
+  submitted: 'Submitted',
+  allotted: 'Allotted',
+  occupied: 'Occupied',
+  tenantServices: 'Tenant Services',
+  vacated: 'Vacated',
+};
+
 interface PrefItem { quarter: Quarter; rank: number }
 
 interface NewRequestForm {
@@ -251,6 +263,26 @@ export const QuarterRequestsPage: React.FC = () => {
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // Card-level dot-menu (per-card action dropdown)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Lightbox for allotted panel image tiles
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Close dot-menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // Inline action popup (card-level icons)
   const [actionPopup, setActionPopup] = useState<ActionPopupState>({ type: null, requestId: '', allotmentId: '' });
   const [popupReason, setPopupReason] = useState('');
@@ -288,9 +320,6 @@ export const QuarterRequestsPage: React.FC = () => {
       setRequests(reqs);
       setActiveCycle(cycle);
       setTenantRequests(tReqs);
-      // Auto-select the first request matching the default 'allotted' filter
-      const allottedReq = reqs.find(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
-      if (allottedReq) setSelectedRequest(allottedReq);
     } catch {
       addToast('Failed to load data', 'error');
     } finally {
@@ -645,8 +674,17 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!selectedRequest?.allotment) return null;
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
+    const qImages = q ? resolveAllImages(q) : PLACEHOLDER_IMAGES;
+
+    const approvalBadgeColor = allotment.approval_status === 'ACKNOWLEDGED'
+      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+      : allotment.approval_status === 'REJECTED'
+      ? 'bg-red-100 text-red-800 border border-red-200'
+      : 'bg-white/20 text-white';
+
     return (
       <>
+        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
             <CheckCircle size={18} className="text-white" />
@@ -655,43 +693,135 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Quarter Allotted</div>
             <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
           </div>
-          <span className="ml-auto text-xs font-medium bg-white/20 text-white px-2.5 py-1 rounded-full">
+          <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${approvalBadgeColor}`}>
             {allotment.approval_status}
           </span>
         </div>
 
-        <div className="p-5 border-b border-gray-100">
+        {/* Image tile strip + allotment details */}
+        <div className="p-5 border-b border-gray-100 space-y-4">
+          {/* Image tiles */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Images size={13} className="text-gray-400" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</span>
+              <span className="text-xs text-gray-400 ml-auto">{qImages.length} photo{qImages.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+              {qImages.slice(0, 5).map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setLightboxImages(qImages); setLightboxIndex(i); setLightboxOpen(true); }}
+                  className="relative flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all group"
+                >
+                  <img src={img} alt={`Photo ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  {i === 4 && qImages.length > 5 && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">+{qImages.length - 5}</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quarter details */}
           {q ? (
             <>
-              <QuarterDetailCard quarter={q} />
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                  <div className="text-gray-400 mb-0.5">Allotted On</div>
-                  <div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div>
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-base leading-tight">{q.quarter_number}</h3>
+                    {q.address && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <MapPin size={11} className="flex-shrink-0" /><span className="truncate">{q.address}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${getOccupancyBadge(q.occupancy_status)}`}>
+                    {q.occupancy_status === 'AVAILABLE' ? 'Available' : q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status}
+                  </span>
                 </div>
-                <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                  <div className="text-gray-400 mb-0.5">Status</div>
-                  <div className="font-medium text-gray-800">{allotment.approval_status}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { icon: <Bed size={12} />,       label: 'Config',   value: q.bhk_config },
+                    { icon: <Ruler size={12} />,     label: 'Area',     value: `${q.area_sqft} sq.ft` },
+                    { icon: <Building2 size={12} />, label: 'Block/Fl', value: `${q.block_name || '—'} / ${q.floor_number}` },
+                    { icon: <Layers size={12} />,    label: 'Furnish',  value: q.furnishing_status },
+                  ].map(item => (
+                    <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                      <div className="flex items-center gap-1 text-gray-400 mb-0.5">{item.icon}<span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span></div>
+                      <div className="text-xs font-semibold text-gray-800 truncate">{item.value}</div>
+                    </div>
+                  ))}
                 </div>
+                <div className="mt-2 flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+                  <div className="text-xs text-blue-600 font-medium">Monthly Rent</div>
+                  <div className="font-bold text-gray-900 text-sm">{fmtINR(q.monthly_rent)}</div>
+                </div>
+                {q.amenities?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {q.amenities.slice(0, 5).map(a => (
+                      <span key={a} className="text-xs bg-sky-50 text-sky-700 border border-sky-100 px-2 py-0.5 rounded-full">{a}</span>
+                    ))}
+                    {q.amenities.length > 5 && (
+                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{q.amenities.length - 5}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Allotment details */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Allotment Details</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                    <div className="text-gray-400 mb-0.5">Allotted On</div>
+                    <div className="font-semibold text-gray-800">{fmtDate(allotment.allotment_date)}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                    <div className="text-gray-400 mb-0.5">Quarter Type</div>
+                    <div className="font-semibold text-gray-800">{q.quarter_type}</div>
+                  </div>
+                  {selectedRequest.required_bhk_config && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                      <div className="text-gray-400 mb-0.5">BHK Requested</div>
+                      <div className="font-semibold text-gray-800">{selectedRequest.required_bhk_config}</div>
+                    </div>
+                  )}
+                  {selectedRequest.preferred_location && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                      <div className="text-gray-400 mb-0.5">Pref. Location</div>
+                      <div className="font-semibold text-gray-800 truncate">{selectedRequest.preferred_location}</div>
+                    </div>
+                  )}
+                  {selectedRequest.request_reason && (
+                    <div className="col-span-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                      <div className="text-gray-400 mb-0.5">Request Reason</div>
+                      <div className="font-semibold text-gray-800">{selectedRequest.request_reason}</div>
+                    </div>
+                  )}
+                </div>
+                {allotment.allotment_conditions && (
+                  <div className="mt-2 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <span className="font-semibold text-amber-700">Conditions: </span>{allotment.allotment_conditions}
+                  </div>
+                )}
+                {allotment.acknowledgement_remarks && (
+                  <div className="mt-2 text-xs text-gray-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    <span className="font-semibold text-blue-700">Remarks: </span>{allotment.acknowledgement_remarks}
+                  </div>
+                )}
               </div>
             </>
           ) : (
-            <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 size={16} className="text-emerald-600" />
-                <span className="font-semibold text-gray-900">Quarter Allotted</span>
+            <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div><div className="text-gray-400 mb-0.5">BHK Requested</div><div className="font-semibold text-gray-800">{selectedRequest.required_bhk_config || '—'}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Location</div><div className="font-semibold text-gray-800">{selectedRequest.preferred_location || '—'}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Allotted On</div><div className="font-semibold text-gray-800">{fmtDate(allotment.allotment_date)}</div></div>
+                <div><div className="text-gray-400 mb-0.5">Status</div><div className="font-semibold text-gray-800">{allotment.approval_status}</div></div>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div><div className="text-gray-400 mb-0.5">BHK Requested</div><div className="font-medium text-gray-800">{selectedRequest.required_bhk_config || '—'}</div></div>
-                <div><div className="text-gray-400 mb-0.5">Location</div><div className="font-medium text-gray-800">{selectedRequest.preferred_location || '—'}</div></div>
-                <div><div className="text-gray-400 mb-0.5">Allotted On</div><div className="font-medium text-gray-800">{fmtDate(allotment.allotment_date)}</div></div>
-                <div><div className="text-gray-400 mb-0.5">Status</div><div className="font-medium text-gray-800">{allotment.approval_status}</div></div>
-              </div>
-            </div>
-          )}
-          {allotment.allotment_conditions && (
-            <div className="mt-3 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              <span className="font-medium text-amber-700">Conditions: </span>{allotment.allotment_conditions}
             </div>
           )}
         </div>
@@ -765,14 +895,81 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!selectedRequest?.allotment) return null;
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
+    const qImages = q ? resolveAllImages(q) : PLACEHOLDER_IMAGES;
     return (
       <>
+        <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+            <ThumbsUp size={18} className="text-white" />
+          </div>
+          <div>
+            <div className="text-xs font-medium text-teal-100 uppercase tracking-wide">Currently Occupied</div>
+            <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          </div>
+          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
+            Since {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
+          </span>
+        </div>
+
         {q && (
-          <div className="p-5 border-b border-gray-100">
-            <QuarterDetailCard quarter={q} />
-            <div className="mt-3 bg-teal-50 rounded-lg border border-teal-100 px-3 py-2 text-xs text-teal-800">
-              <span className="font-medium">Occupied since: </span>
-              {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
+          <div className="p-5 border-b border-gray-100 space-y-4">
+            {/* Image tiles */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Images size={13} className="text-gray-400" />
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Photos</span>
+                <span className="text-xs text-gray-400 ml-auto">{qImages.length} photo{qImages.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+                {qImages.slice(0, 5).map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setLightboxImages(qImages); setLightboxIndex(i); setLightboxOpen(true); }}
+                    className="relative flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-teal-400 hover:shadow-md transition-all group"
+                  >
+                    <img src={img} alt={`Photo ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                    {i === 4 && qImages.length > 5 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">+{qImages.length - 5}</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quarter info tiles */}
+            <div>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base leading-tight">{q.quarter_number}</h3>
+                  {q.address && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <MapPin size={11} className="flex-shrink-0" /><span className="truncate">{q.address}</span>
+                    </div>
+                  )}
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${getOccupancyBadge(q.occupancy_status)}`}>
+                  {q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: <Bed size={12} />,       label: 'Config',   value: q.bhk_config },
+                  { icon: <Ruler size={12} />,     label: 'Area',     value: `${q.area_sqft} sq.ft` },
+                  { icon: <Building2 size={12} />, label: 'Block/Fl', value: `${q.block_name || '—'} / ${q.floor_number}` },
+                  { icon: <Layers size={12} />,    label: 'Furnish',  value: q.furnishing_status },
+                ].map(item => (
+                  <div key={item.label} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                    <div className="flex items-center gap-1 text-gray-400 mb-0.5">{item.icon}<span className="text-[10px] font-medium uppercase tracking-wide">{item.label}</span></div>
+                    <div className="text-xs font-semibold text-gray-800 truncate">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center justify-between bg-teal-50 rounded-lg px-3 py-2 border border-teal-100">
+                <div className="text-xs text-teal-600 font-medium">Monthly Rent</div>
+                <div className="font-bold text-gray-900 text-sm">{fmtINR(q.monthly_rent)}</div>
+              </div>
             </div>
           </div>
         )}
@@ -1084,7 +1281,7 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="min-w-0">
               {/* Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1 flex-wrap">
                 <Home size={11} />
                 <ChevronRight size={10} />
                 <span>My Workspace</span>
@@ -1094,6 +1291,13 @@ export const QuarterRequestsPage: React.FC = () => {
                   className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
                 >
                   Quarter Requests
+                </button>
+                <ChevronRight size={10} />
+                <button
+                  onClick={() => { setSelectedRequest(null); resetActionForm(); }}
+                  className="text-gray-700 font-medium hover:text-blue-600 transition-colors"
+                >
+                  {DP_LABELS[dpFilter]}
                 </button>
                 {selectedRequest && (
                   <>
@@ -1147,24 +1351,11 @@ export const QuarterRequestsPage: React.FC = () => {
                 isActive={dpFilter === card.key}
                 onClick={() => {
                   setDpFilter(card.key);
+                  setSelectedRequest(null);
                   resetActionForm();
                   setSelectedTenantReq(null);
                   setReqSearch('');
                   setReqBhkFilter('ALL');
-                  const statusMap: Record<DPFilter, string[]> = {
-                    all: [],
-                    draft: ['DRAFT'],
-                    submitted: ['SUBMITTED'],
-                    allotted: ['ALLOTTED', 'UPGRADE_REQUESTED'],
-                    occupied: ['ACKNOWLEDGED'],
-                    tenantServices: ['EXTEND_REQUESTED', 'VACATE_REQUESTED'],
-                    vacated: ['VACATED'],
-                  };
-                  const statuses = statusMap[card.key];
-                  const first = statuses.length
-                    ? requests.find(r => statuses.includes(r.request_status)) ?? null
-                    : (requests[0] ?? null);
-                  setSelectedRequest(first);
                 }}
               />
             ))}
@@ -1225,6 +1416,8 @@ export const QuarterRequestsPage: React.FC = () => {
                       ],
                     },
                   ]}
+                  filterCount={reqToiletFilter.length + reqFloorFilter.length}
+                  onFilterOpen={() => setFilterDrawerOpen(true)}
                 />
                 <div className="flex justify-end">
                   <span className="text-xs text-gray-500">{filteredRequests.length} of {requests.length} requests</span>
@@ -1367,16 +1560,7 @@ export const QuarterRequestsPage: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-2 flex-wrap">
-                            {req.request_status === 'DRAFT' && (
-                              <button onClick={e => { e.stopPropagation(); openNewModal(req); }} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium">
-                                Modify
-                              </button>
-                            )}
-                            {req.request_status === 'SUBMITTED' && (
-                              <button onClick={e => { e.stopPropagation(); handleWithdraw(req.id); }} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-                                Withdraw
-                              </button>
-                            )}
+                            {/* Status badge pill */}
                             {req.request_status === 'ALLOTTED' && req.allotment && (
                               <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
                                 <CheckCircle size={11} />
@@ -1391,30 +1575,99 @@ export const QuarterRequestsPage: React.FC = () => {
                               </span>
                             )}
 
-                            {/* Inline action icons for occupied quarters */}
-                            {isOccupied && req.allotment && (
-                              <div className="ml-auto flex items-center gap-1.5">
+                            {/* Single dot-menu for all actionable statuses */}
+                            {!['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
+                              <div className="ml-auto relative" ref={openMenuId === req.id ? menuRef : undefined}>
                                 <button
-                                  onClick={e => { e.stopPropagation(); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
-                                  title="Request Extension"
-                                  className="p-2 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
+                                  onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === req.id ? null : req.id); }}
+                                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                  title="Actions"
                                 >
-                                  <RefreshCw size={13} />
+                                  <MoreVertical size={14} />
                                 </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); openActionPopup('VACATE', req.id, req.allotment!.id); }}
-                                  title="Request Vacate"
-                                  className="p-2 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
-                                >
-                                  <LogOut size={13} />
-                                </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
-                                  title="Raise Grievance"
-                                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                                >
-                                  <AlertCircle size={13} />
-                                </button>
+
+                                {openMenuId === req.id && (
+                                  <div className="absolute right-0 bottom-full mb-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[172px]" onClick={e => e.stopPropagation()}>
+                                    {req.request_status === 'DRAFT' && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setOpenMenuId(null); openNewModal(req); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                                      >
+                                        <FileText size={13} className="text-blue-500" /> Modify Request
+                                      </button>
+                                    )}
+                                    {req.request_status === 'SUBMITTED' && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setOpenMenuId(null); handleWithdraw(req.id); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                      >
+                                        <XCircle size={13} className="text-red-400" /> Withdraw Request
+                                      </button>
+                                    )}
+                                    {(req.request_status === 'ALLOTTED' || req.request_status === 'UPGRADE_REQUESTED') && req.allotment && (
+                                      <>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); setSelectedRequest(req); resetActionForm(); setRightAction('acknowledge'); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                                        >
+                                          <ThumbsUp size={13} className="text-emerald-500" /> Acknowledge
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); setSelectedRequest(req); resetActionForm(); setRightAction('reject'); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                        >
+                                          <ThumbsDown size={13} className="text-red-400" /> Reject Allotment
+                                        </button>
+                                      </>
+                                    )}
+                                    {isOccupied && req.allotment && (
+                                      <>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                                        >
+                                          <RefreshCw size={13} className="text-amber-500" /> Extend Lease
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
+                                        >
+                                          <ArrowRightCircle size={13} className="text-sky-500" /> Upgrade Quarter
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                                        >
+                                          <LogOut size={13} className="text-orange-500" /> Vacate Quarter
+                                        </button>
+                                        <div className="my-1 border-t border-gray-100" />
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                        >
+                                          <AlertCircle size={13} className="text-rose-400" /> Raise Grievance
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); openActionPopup('MAINTENANCE', req.id, req.allotment!.id); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                                        >
+                                          <Wrench size={13} className="text-slate-400" /> Maintenance
+                                        </button>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setOpenMenuId(null); navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${req.allotment!.id}`); }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                                        >
+                                          <IndianRupee size={13} className="text-teal-500" /> Rent Details
+                                        </button>
+                                      </>
+                                    )}
+                                    {['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status) && (
+                                      <div className="px-3.5 py-2 text-xs text-gray-400 italic">
+                                        Request pending review
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1762,6 +2015,15 @@ export const QuarterRequestsPage: React.FC = () => {
           isOpen={isPreviewOpen}
           onClose={() => { setIsPreviewOpen(false); setPreviewQuarterId(null); }}
           quarterId={previewQuarterId}
+        />
+      )}
+
+      {/* ── Image lightbox (allotted/occupied panel tiles) ─────────────── */}
+      {lightboxOpen && (
+        <PhotoLightbox
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
         />
       )}
     </div>
