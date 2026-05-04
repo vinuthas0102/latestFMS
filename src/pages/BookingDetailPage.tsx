@@ -36,7 +36,6 @@ export const BookingDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="flex items-center justify-center h-96">
           <Spinner size="lg" />
         </div>
@@ -47,7 +46,6 @@ export const BookingDetailPage: React.FC = () => {
   if (!booking) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="max-w-4xl mx-auto px-4 py-8">
           <Card>
             <CardBody>

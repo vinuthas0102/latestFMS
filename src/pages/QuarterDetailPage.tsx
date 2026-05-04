@@ -175,7 +175,6 @@ export const QuarterDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="flex items-center justify-center h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-teal-600" />
         </div>
@@ -186,7 +185,6 @@ export const QuarterDetailPage: React.FC = () => {
   if (!quarter) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="flex flex-col items-center justify-center h-96 gap-4">
           <Building2 size={48} className="text-gray-300" />
           <h2 className="text-xl font-semibold text-gray-700">Quarter not found</h2>
