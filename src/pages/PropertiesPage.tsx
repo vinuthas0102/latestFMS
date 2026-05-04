@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search } from 'lucide-react';
+import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search, Navigation, X } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -36,6 +36,11 @@ export const PropertiesPage: React.FC = () => {
   const [moduleFilter, setModuleFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'default' | 'name_asc' | 'newest'>('default');
+  const [amenityFilters, setAmenityFilters] = useState<string[]>([]);
+  const [proximityEnabled, setProximityEnabled] = useState(false);
+  const [proximityCenter, setProximityCenter] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [proximityRadiusKm, setProximityRadiusKm] = useState(10);
+  const [proximityLoading, setProximityLoading] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -73,7 +78,34 @@ export const PropertiesPage: React.FC = () => {
     [...new Set(properties.map(p => p.estate?.city).filter(Boolean) as string[])].sort()
   ), [properties]);
 
-  const drawerActiveCount = (moduleFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (sortOrder !== 'default' ? 1 : 0);
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) { return; }
+    setProximityLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setProximityCenter({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          address: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
+        });
+        setProximityEnabled(true);
+        setProximityLoading(false);
+      },
+      () => setProximityLoading(false)
+    );
+  };
+
+  const AMENITY_OPTIONS = ['Swimming Pool', 'Lounge', 'Bath Tub', 'Garden View', 'Mountain View', 'Living Room'];
+
+  const drawerActiveCount = (moduleFilter !== 'all' ? 1 : 0) + (cityFilter !== 'all' ? 1 : 0) + (sortOrder !== 'default' ? 1 : 0) + (amenityFilters.length > 0 ? amenityFilters.length : 0) + (proximityEnabled && proximityCenter ? 1 : 0);
 
   const filteredProperties = useMemo(() => {
     let result = properties.filter((property) => {
@@ -84,11 +116,16 @@ export const PropertiesPage: React.FC = () => {
         property.estate?.city?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesModule = moduleFilter === 'all' || property.module?.id === moduleFilter;
       const matchesCity = cityFilter === 'all' || property.estate?.city === cityFilter;
-      return matchesStatus && matchesSearch && matchesModule && matchesCity;
+      const matchesAmenities = amenityFilters.length === 0 ||
+        amenityFilters.every(a => property.amenities?.includes(a));
+      const matchesProximity = !proximityEnabled || !proximityCenter ||
+        (property.latitude != null && property.longitude != null &&
+          haversineKm(proximityCenter.lat, proximityCenter.lng, property.latitude, property.longitude) <= proximityRadiusKm);
+      return matchesStatus && matchesSearch && matchesModule && matchesCity && matchesAmenities && matchesProximity;
     });
     if (sortOrder === 'name_asc') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     return result;
-  }, [properties, filterStatus, searchQuery, moduleFilter, cityFilter, sortOrder]);
+  }, [properties, filterStatus, searchQuery, moduleFilter, cityFilter, sortOrder, amenityFilters, proximityEnabled, proximityCenter, proximityRadiusKm]);
 
   const stats = {
     total: properties.length,
@@ -103,6 +140,9 @@ export const PropertiesPage: React.FC = () => {
     setModuleFilter('all');
     setCityFilter('all');
     setSortOrder('default');
+    setAmenityFilters([]);
+    setProximityEnabled(false);
+    setProximityCenter(null);
   };
 
   return (
@@ -219,9 +259,62 @@ export const PropertiesPage: React.FC = () => {
         onClose={() => setIsFilterOpen(false)}
         title="Advanced Filters"
         activeFilterCount={drawerActiveCount}
-        onClearAll={() => { setModuleFilter('all'); setCityFilter('all'); setSortOrder('default'); }}
+        onClearAll={() => { setModuleFilter('all'); setCityFilter('all'); setSortOrder('default'); setAmenityFilters([]); setProximityEnabled(false); setProximityCenter(null); }}
       >
         <div className="space-y-6">
+
+          {/* ── Proximity / Map Search ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <MapPin size={14} className="text-blue-500" /> Proximity Search
+            </label>
+            <div className={`rounded-xl border p-4 transition-all ${proximityEnabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+              {!proximityCenter ? (
+                <button
+                  onClick={handleUseMyLocation}
+                  disabled={proximityLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-all disabled:opacity-50"
+                >
+                  <Navigation size={14} className="text-blue-500" />
+                  {proximityLoading ? 'Getting location…' : 'Use My Location'}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <MapPin size={12} className="text-blue-500 flex-shrink-0" />
+                      <span className="truncate">{proximityCenter.address}</span>
+                    </div>
+                    <button
+                      onClick={() => { setProximityCenter(null); setProximityEnabled(false); }}
+                      className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">Radius</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[5, 10, 20, 50].map(r => (
+                        <button
+                          key={r}
+                          onClick={() => setProximityRadiusKm(r)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                            proximityRadiusKm === r
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                          }`}
+                        >
+                          {r} km
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {availableModules.length > 0 && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Facility Type</label>
@@ -253,6 +346,31 @@ export const PropertiesPage: React.FC = () => {
               </select>
             </div>
           )}
+
+          {/* ── Amenities ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Amenities</label>
+            <div className="flex flex-wrap gap-2">
+              {AMENITY_OPTIONS.map((amenity) => (
+                <button
+                  key={amenity}
+                  onClick={() => setAmenityFilters(prev =>
+                    prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]
+                  )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    amenityFilters.includes(amenity)
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  {amenity}
+                </button>
+              ))}
+            </div>
+            {amenityFilters.length > 0 && (
+              <p className="text-xs text-gray-400 mt-2">Showing properties with ALL selected amenities</p>
+            )}
+          </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, Home, Bed, Ruler,
   MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
-  Layers, RotateCcw, Shield, History, Search,
+  Layers, RotateCcw, Shield, History, Search, Navigation, X,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { ViewMode } from '../components/ui/ViewSwitcher';
@@ -226,11 +226,19 @@ export const QuarterFreeviewPage: React.FC = () => {
     quarterTypes: [],
     bhkConfigs: [],
     furnishingStatuses: [],
+    toiletTypes: [],
+    floorNumbers: [],
     availableOnly: false,
     minRent: 0,
     maxRent: 99999,
     sortOrder: 'default' as QuarterSortOrder,
   });
+
+  // Proximity search state
+  const [proximityEnabled, setProximityEnabled] = useState(false);
+  const [proximityCenter, setProximityCenter] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [proximityRadiusKm, setProximityRadiusKm] = useState(10);
+  const [proximityLoading, setProximityLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -275,8 +283,21 @@ export const QuarterFreeviewPage: React.FC = () => {
       if (sidebarFilters.quarterTypes.length > 0 && !sidebarFilters.quarterTypes.includes(quarter.quarter_type)) return false;
       if (sidebarFilters.bhkConfigs.length > 0 && !sidebarFilters.bhkConfigs.includes(quarter.bhk_config)) return false;
       if (sidebarFilters.furnishingStatuses.length > 0 && !sidebarFilters.furnishingStatuses.includes(quarter.furnishing_status)) return false;
+      if (sidebarFilters.toiletTypes.length > 0 && !sidebarFilters.toiletTypes.includes(quarter.toilet_type ?? 'Western')) return false;
+      if (sidebarFilters.floorNumbers.length > 0) {
+        const floorMatch = sidebarFilters.floorNumbers.some(f =>
+          f === 4 ? quarter.floor_number >= 4 : quarter.floor_number === f
+        );
+        if (!floorMatch) return false;
+      }
       if (sidebarFilters.availableOnly && quarter.occupancy_status !== 'AVAILABLE') return false;
       if (quarter.monthly_rent < sidebarFilters.minRent || quarter.monthly_rent > sidebarFilters.maxRent) return false;
+      if (proximityEnabled && proximityCenter) {
+        const lat = quarter.metadata?.latitude ? Number(quarter.metadata.latitude) : null;
+        const lng = quarter.metadata?.longitude ? Number(quarter.metadata.longitude) : null;
+        if (lat === null || lng === null) return false;
+        if (haversineKm(proximityCenter.lat, proximityCenter.lng, lat, lng) > proximityRadiusKm) return false;
+      }
       return true;
     });
     switch (sidebarFilters.sortOrder) {
@@ -285,7 +306,7 @@ export const QuarterFreeviewPage: React.FC = () => {
       case 'area_desc': result = result.slice().sort((a, b) => b.area_sqft - a.area_sqft); break;
     }
     return result;
-  }, [quarters, sidebarFilters]);
+  }, [quarters, sidebarFilters, proximityEnabled, proximityCenter, proximityRadiusKm]);
 
   const availableQuarterTypes = useMemo(() => (
     [...new Set(quarters.map(q => q.quarter_type).filter(Boolean))].sort()
@@ -300,6 +321,38 @@ export const QuarterFreeviewPage: React.FC = () => {
     if (!first) return null;
     return { lat: Number(first.metadata.latitude), lng: Number(first.metadata.longitude) };
   }, [quarters]);
+
+  function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      addToast('Geolocation is not supported by your browser', 'error');
+      return;
+    }
+    setProximityLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setProximityCenter({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          address: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
+        });
+        setProximityEnabled(true);
+        setProximityLoading(false);
+        addToast('Location set — showing quarters within radius', 'success');
+      },
+      () => {
+        addToast('Could not get your location', 'error');
+        setProximityLoading(false);
+      }
+    );
+  };
 
   const handleViewQuarter = (q: Quarter) => {
     setSelectedQuarterId(q.id);
@@ -321,11 +374,15 @@ export const QuarterFreeviewPage: React.FC = () => {
       quarterTypes: [],
       bhkConfigs: [],
       furnishingStatuses: [],
+      toiletTypes: [],
+      floorNumbers: [],
       availableOnly: false,
       minRent: rentRange.min,
       maxRent: rentRange.max,
       sortOrder: 'default' as QuarterSortOrder,
     });
+    setProximityEnabled(false);
+    setProximityCenter(null);
   };
 
   const activeFilterCount = useMemo(() => {
@@ -334,12 +391,15 @@ export const QuarterFreeviewPage: React.FC = () => {
     if (sidebarFilters.quarterTypes.length) n += sidebarFilters.quarterTypes.length;
     if (sidebarFilters.bhkConfigs.length) n += sidebarFilters.bhkConfigs.length;
     if (sidebarFilters.furnishingStatuses.length) n += sidebarFilters.furnishingStatuses.length;
+    if (sidebarFilters.toiletTypes.length) n += sidebarFilters.toiletTypes.length;
+    if (sidebarFilters.floorNumbers.length) n += sidebarFilters.floorNumbers.length;
     if (sidebarFilters.availableOnly) n++;
     if (rentRange.max > rentRange.min) {
       if (sidebarFilters.minRent > rentRange.min || sidebarFilters.maxRent < rentRange.max) n++;
     }
+    if (proximityEnabled && proximityCenter) n++;
     return n;
-  }, [sidebarFilters, rentRange]);
+  }, [sidebarFilters, rentRange, proximityEnabled, proximityCenter]);
 
   const welcomeInfo = (user?.role && QUARTERS_WELCOME[user.role]) ?? QUARTERS_WELCOME_DEFAULT;
 
@@ -456,15 +516,7 @@ export const QuarterFreeviewPage: React.FC = () => {
                   ],
                 },
               ]}
-              filterCount={(() => {
-                let n = 0;
-                if (sidebarFilters.quarterTypes.length) n++;
-                if (sidebarFilters.furnishingStatuses.length) n++;
-                if (sidebarFilters.sortOrder !== 'default') n++;
-                if (rentRange.max > rentRange.min &&
-                  (sidebarFilters.minRent > rentRange.min || sidebarFilters.maxRent < rentRange.max)) n++;
-                return n;
-              })()}
+              filterCount={activeFilterCount}
               onFilterOpen={() => setFilterDrawerOpen(true)}
             />
           </div>
@@ -476,25 +528,76 @@ export const QuarterFreeviewPage: React.FC = () => {
         isOpen={filterDrawerOpen}
         onClose={() => setFilterDrawerOpen(false)}
         title="Advanced Filters"
-        activeFilterCount={(() => {
-          let n = 0;
-          if (sidebarFilters.quarterTypes.length) n++;
-          if (sidebarFilters.furnishingStatuses.length) n++;
-          if (sidebarFilters.sortOrder !== 'default') n++;
-          if (rentRange.max > rentRange.min &&
-            (sidebarFilters.minRent > rentRange.min || sidebarFilters.maxRent < rentRange.max)) n++;
-          return n;
-        })()}
-        onClearAll={() => setSidebarFilters(prev => ({
-          ...prev,
-          quarterTypes: [],
-          furnishingStatuses: [],
-          sortOrder: 'default' as QuarterSortOrder,
-          minRent: rentRange.min,
-          maxRent: rentRange.max,
-        }))}
+        activeFilterCount={activeFilterCount}
+        onClearAll={() => {
+          setSidebarFilters(prev => ({
+            ...prev,
+            quarterTypes: [],
+            furnishingStatuses: [],
+            toiletTypes: [],
+            floorNumbers: [],
+            sortOrder: 'default' as QuarterSortOrder,
+            minRent: rentRange.min,
+            maxRent: rentRange.max,
+          }));
+          setProximityEnabled(false);
+          setProximityCenter(null);
+        }}
       >
         <div className="space-y-6">
+
+          {/* ── Proximity / Map Search ── */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <MapPin size={14} className="text-blue-500" /> Proximity Search
+            </label>
+            <div className={`rounded-xl border p-4 transition-all ${proximityEnabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+              {!proximityCenter ? (
+                <button
+                  onClick={handleUseMyLocation}
+                  disabled={proximityLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-all disabled:opacity-50"
+                >
+                  <Navigation size={14} className="text-blue-500" />
+                  {proximityLoading ? 'Getting location…' : 'Use My Location'}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <MapPin size={12} className="text-blue-500 flex-shrink-0" />
+                      <span className="truncate">{proximityCenter.address}</span>
+                    </div>
+                    <button
+                      onClick={() => { setProximityCenter(null); setProximityEnabled(false); }}
+                      className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1.5">Radius</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[5, 10, 20, 50].map(r => (
+                        <button
+                          key={r}
+                          onClick={() => setProximityRadiusKm(r)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                            proximityRadiusKm === r
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                          }`}
+                        >
+                          {r} km
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Quarter Type */}
           {availableQuarterTypes.length > 0 && (
             <div>
@@ -548,6 +651,62 @@ export const QuarterFreeviewPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Toilet Type */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {['Indian', 'Western', 'Both'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSidebarFilters(prev => ({
+                    ...prev,
+                    toiletTypes: prev.toiletTypes.includes(t)
+                      ? prev.toiletTypes.filter(v => v !== t)
+                      : [...prev.toiletTypes, t],
+                  }))}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    sidebarFilters.toiletTypes.includes(t)
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Floor Number */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Floor</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 0, label: 'Ground' },
+                { value: 1, label: '1st' },
+                { value: 2, label: '2nd' },
+                { value: 3, label: '3rd' },
+                { value: 4, label: '4th+' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setSidebarFilters(prev => ({
+                    ...prev,
+                    floorNumbers: prev.floorNumbers.includes(value)
+                      ? prev.floorNumbers.filter(v => v !== value)
+                      : [...prev.floorNumbers, value],
+                  }))}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    sidebarFilters.floorNumbers.includes(value)
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Sort */}
           <div>

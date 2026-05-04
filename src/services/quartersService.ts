@@ -11,6 +11,7 @@ export interface Quarter {
   monthly_rent: number;
   quarter_type: string;
   furnishing_status: string;
+  toilet_type: string;
   amenities: string[];
   images: string[];
   description: string;

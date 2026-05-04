@@ -20,6 +20,8 @@ export interface QuarterSidebarFilters {
   quarterTypes: string[];
   bhkConfigs: string[];
   furnishingStatuses: string[];
+  toiletTypes: string[];
+  floorNumbers: number[];
   availableOnly: boolean;
   minRent: number;
   maxRent: number;
@@ -112,6 +114,8 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
     if (filters.quarterTypes.length > 0) n += filters.quarterTypes.length;
     if (filters.bhkConfigs.length > 0) n += filters.bhkConfigs.length;
     if (filters.furnishingStatuses.length > 0) n += filters.furnishingStatuses.length;
+    if (filters.toiletTypes.length > 0) n += filters.toiletTypes.length;
+    if (filters.floorNumbers.length > 0) n += filters.floorNumbers.length;
     if (filters.availableOnly) n++;
     if (rentRange.max > rentRange.min) {
       if (filters.minRent > rentRange.min || filters.maxRent < rentRange.max) n++;
@@ -119,7 +123,7 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
     return n;
   }, [filters, rentRange]);
 
-  const toggleMulti = (key: keyof Pick<QuarterSidebarFilters, 'quarterTypes' | 'bhkConfigs' | 'furnishingStatuses'>, value: string) => {
+  const toggleMulti = (key: keyof Pick<QuarterSidebarFilters, 'quarterTypes' | 'bhkConfigs' | 'furnishingStatuses' | 'toiletTypes'>, value: string) => {
     const current = filters[key] as string[];
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     onChange({ [key]: next });
@@ -370,6 +374,65 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
                 count={countByFurnishing(allQuarters, f)}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Toilet Type */}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Toilet Type</label>
+          <div className="space-y-2">
+            {['Indian', 'Western', 'Both'].map((t) => (
+              <CheckboxRow
+                key={t}
+                checked={filters.toiletTypes.includes(t)}
+                onToggle={() => toggleMulti('toiletTypes', t)}
+                label={t}
+                count={allQuarters.filter(q => q.toilet_type === t).length}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Floor */}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Floor</label>
+          <div className="space-y-2">
+            {[
+              { value: 0, label: 'Ground Floor' },
+              { value: 1, label: '1st Floor' },
+              { value: 2, label: '2nd Floor' },
+              { value: 3, label: '3rd Floor' },
+              { value: 4, label: '4th Floor+' },
+            ].map(({ value, label }) => {
+              const count = value === 4
+                ? allQuarters.filter(q => q.floor_number >= 4).length
+                : allQuarters.filter(q => q.floor_number === value).length;
+              if (count === 0) return null;
+              const checked = filters.floorNumbers.includes(value);
+              return (
+                <label key={value} className="flex items-center gap-2.5 cursor-pointer group py-0.5"
+                  onClick={() => {
+                    const current = filters.floorNumbers;
+                    const next = current.includes(value)
+                      ? current.filter(v => v !== value)
+                      : [...current, value];
+                    onChange({ floorNumbers: next });
+                  }}
+                >
+                  <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all ${
+                    checked ? 'bg-blue-600 border-blue-600' : 'border-gray-300 group-hover:border-blue-400 bg-white'
+                  }`}>
+                    {checked && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700 flex-1">{label}</span>
+                  <span className="text-xs text-gray-400">{count}</span>
+                </label>
+              );
+            })}
           </div>
         </div>
 

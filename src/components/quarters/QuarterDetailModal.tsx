@@ -4,7 +4,7 @@ import {
   X, ArrowLeft, MapPin, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
   Zap, Droplets, Shield, FileText, AlertCircle, ExternalLink,
-  Images, Bed, Ruler, Layers,
+  Images, Bed, Ruler, Layers, FlaskConical,
 } from 'lucide-react';
 import { PhotoGallery, PhotoLightbox } from '../ui/PhotoGallery';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
@@ -422,11 +422,12 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                 >
                   <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
                     <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
                     <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
                     <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
+                    <SpecTile icon={<FlaskConical size={14} />} label="Toilet Type" value={quarter.toilet_type || 'Western'} />
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

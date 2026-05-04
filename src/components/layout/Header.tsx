@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Building2, Bell, LogOut, Search, UserCheck, Calendar, Settings,
+  Building2, Bell, LogOut, UserCheck, Calendar, Settings,
   Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
-  MapPin, LayoutDashboard, Home, FileText,
+  LayoutDashboard, Home, FileText,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
@@ -62,16 +62,12 @@ export const Header: React.FC = () => {
   };
 
   const baseNavItems: NavItem[] = [
-    { route: ROUTES.SEARCH, label: 'Search', icon: <Search size={17} /> },
-    { route: ROUTES.MAP_SEARCH, label: 'Map Search', icon: <MapPin size={17} /> },
     { route: ROUTES.BOOKINGS, label: 'Bookings', icon: <Calendar size={17} /> },
   ];
 
   const regularUserNavItems: NavItem[] = [
     { route: ROUTES.DASHBOARD, label: 'My Dashboard', icon: <LayoutDashboard size={17} /> },
     { route: ROUTES.BOOKINGS, label: 'My Bookings', icon: <Calendar size={17} /> },
-    { route: ROUTES.SEARCH, label: 'Search', icon: <Search size={17} /> },
-    { route: ROUTES.MAP_SEARCH, label: 'Map', icon: <MapPin size={17} /> },
   ];
 
   const managerNavItems: NavItem[] = [
