@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, ChevronRight, Plus, FileText, CheckCircle, Clock, XCircle,
+  Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
   ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
   MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
-  Images,
+  Images, Bell,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import { Modal } from '../components/ui/Modal';
@@ -22,6 +22,7 @@ import {
   QuarterRequest,
   QuarterAllotmentCycle,
   QuarterTenantRequest,
+  QuarterServiceChat,
   CreateTenantRequestInput,
 } from '../services/quartersService';
 import { useAuthStore } from '../stores/authStore';
@@ -263,6 +264,20 @@ export const QuarterRequestsPage: React.FC = () => {
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // Resizable split panel
+  const [splitPct, setSplitPct] = useState(() => { try { return Number(localStorage.getItem('qrSplit') || '38'); } catch { return 38; } });
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Service chats for occupied panel
+  const [serviceChats, setServiceChats] = useState<Record<string, QuarterServiceChat[]>>({});
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [servicesHistoryMode, setServicesHistoryMode] = useState(false);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatDocUrls, setChatDocUrls] = useState('');
+  const [chatSubmitting, setChatSubmitting] = useState(false);
+
   // Card-level dot-menu (per-card action dropdown)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -297,6 +312,65 @@ export const QuarterRequestsPage: React.FC = () => {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(''); setActionDate(''); setActionBhk('');
   }
+
+  // ─── drag-handle logic ──────────────────────────────────────────────────────
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const startX = e.clientX;
+    const startPct = splitPct;
+    const containerWidth = containerRef.current?.offsetWidth ?? 800;
+    const onMove = (me: MouseEvent) => {
+      const delta = ((me.clientX - startX) / containerWidth) * 100;
+      const next = Math.max(25, Math.min(70, startPct + delta));
+      setSplitPct(next);
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      try { localStorage.setItem('qrSplit', String(Math.round(startPct))); } catch {}
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  // ─── service chat handlers ──────────────────────────────────────────────────
+
+  const handleSendChat = async () => {
+    if (!user || !selectedServiceId || !chatMessage.trim()) return;
+    setChatSubmitting(true);
+    try {
+      const docUrls = chatDocUrls.split(',').map(s => s.trim()).filter(Boolean);
+      await quartersService.addServiceChat(selectedServiceId, user.id, 'EMPLOYEE', chatMessage, docUrls);
+      setChatMessage('');
+      setChatDocUrls('');
+      const chats = await quartersService.getServiceChats(selectedServiceId);
+      setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
+    } catch { addToast('Failed to send message', 'error'); } finally { setChatSubmitting(false); }
+  };
+
+  const handleCloseService = async () => {
+    if (!selectedServiceId || !selectedRequest) return;
+    if (!window.confirm('Close this service request?')) return;
+    const svc = tenantRequests.find(tr => tr.id === selectedServiceId);
+    if (!svc) return;
+    try {
+      await quartersService.closeService(selectedServiceId, selectedRequest.id, svc.service_type);
+      setSelectedServiceId(null);
+      addToast('Service closed', 'success');
+      loadData();
+    } catch { addToast('Failed to close service', 'error'); }
+  };
+
+  // Load chats when selectedServiceId changes
+  useEffect(() => {
+    if (!selectedServiceId) return;
+    quartersService.getServiceChats(selectedServiceId).then(chats => {
+      setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
+    }).catch(() => {});
+  }, [selectedServiceId]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
@@ -418,11 +492,14 @@ export const QuarterRequestsPage: React.FC = () => {
         );
       } else {
         const req = await quartersService.createRequest(user.id, {
-          ...form,
-          move_in_date: form.move_in_date || null,
-          preferred_location: form.preferred_location || '',
+          cycle_id: activeCycle?.id ?? null,
+          request_reason: form.request_reason,
           required_bhk_config: form.required_bhk_config || '',
+          preferred_location: form.preferred_location || '',
+          move_in_date: form.move_in_date || null,
+          family_member_count: form.family_member_count,
           employee_notes: form.employee_notes,
+          preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
         });
         await quartersService.updateRequestPreferences(
           req.id,
@@ -440,11 +517,14 @@ export const QuarterRequestsPage: React.FC = () => {
     setSubmitting(true);
     try {
       const req = await quartersService.createRequest(user.id, {
-        ...form,
-        move_in_date: form.move_in_date || null,
-        preferred_location: form.preferred_location || '',
+        cycle_id: activeCycle?.id ?? null,
+        request_reason: form.request_reason,
         required_bhk_config: form.required_bhk_config || '',
+        preferred_location: form.preferred_location || '',
+        move_in_date: form.move_in_date || null,
+        family_member_count: form.family_member_count,
         employee_notes: form.employee_notes,
+        preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
       });
       await quartersService.updateRequestPreferences(
         req.id,
@@ -676,16 +756,65 @@ export const QuarterRequestsPage: React.FC = () => {
     const q = allotment.quarter;
     const qImages = q ? resolveAllImages(q) : PLACEHOLDER_IMAGES;
 
+    // Local state for accept/decline forms
+    const [acceptOpen, setAcceptOpen] = useState(false);
+    const [acceptRemarks, setAcceptRemarks] = useState('');
+    const [acceptSubmitting, setAcceptSubmitting] = useState(false);
+    const [declineOpen, setDeclineOpen] = useState(false);
+    const [declineRemarks, setDeclineRemarks] = useState('');
+    const [declineDocUrl, setDeclineDocUrl] = useState('');
+    const [declineSubmitting, setDeclineSubmitting] = useState(false);
+
+    const handleAccept = async () => {
+      setAcceptSubmitting(true);
+      try {
+        await quartersService.acknowledgeAllotment(allotment.id, selectedRequest.id, acceptRemarks);
+        addToast('Allotment accepted', 'success');
+        setAcceptOpen(false);
+        setAcceptRemarks('');
+        loadData();
+      } catch { addToast('Failed to accept allotment', 'error'); } finally { setAcceptSubmitting(false); }
+    };
+
+    const handleDecline = async () => {
+      if (!declineRemarks.trim()) { addToast('Please provide decline remarks', 'warning'); return; }
+      if (!window.confirm('Are you sure you want to decline this allotment? Your request will return to Submitted status.')) return;
+      setDeclineSubmitting(true);
+      try {
+        await quartersService.declineAllotment(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl || undefined);
+        addToast('Allotment declined', 'success');
+        setDeclineOpen(false);
+        setDeclineRemarks('');
+        setDeclineDocUrl('');
+        loadData();
+        resetActionForm();
+      } catch { addToast('Failed to decline allotment', 'error'); } finally { setDeclineSubmitting(false); }
+    };
+
+    const handleDeclineAndCancel = async () => {
+      if (!declineRemarks.trim()) { addToast('Please provide decline remarks', 'warning'); return; }
+      if (!window.confirm('Are you sure? This will cancel your quarter request entirely.')) return;
+      setDeclineSubmitting(true);
+      try {
+        await quartersService.declineAndCancelRequest(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl || undefined);
+        addToast('Request cancelled', 'success');
+        setSelectedRequest(null);
+        loadData();
+      } catch { addToast('Failed to cancel request', 'error'); } finally { setDeclineSubmitting(false); }
+    };
+
     const approvalBadgeColor = allotment.approval_status === 'ACKNOWLEDGED'
       ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
       : allotment.approval_status === 'REJECTED'
       ? 'bg-red-100 text-red-800 border border-red-200'
       : 'bg-white/20 text-white';
 
+    const reqPrefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
+
     return (
       <>
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl">
+        <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl sticky top-0 z-10">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
             <CheckCircle size={18} className="text-white" />
           </div>
@@ -696,6 +825,13 @@ export const QuarterRequestsPage: React.FC = () => {
           <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${approvalBadgeColor}`}>
             {allotment.approval_status}
           </span>
+          <button
+            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
+            title="Close panel"
+          >
+            <X size={14} />
+          </button>
         </div>
 
         {/* Image tile strip + allotment details */}
@@ -826,62 +962,120 @@ export const QuarterRequestsPage: React.FC = () => {
           )}
         </div>
 
+        {/* Section A — Request Details (read-only) */}
+        <div className="p-5 border-b border-gray-100 space-y-3">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Request Details</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {selectedRequest.request_reason && (
+              <div className="col-span-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Request Reason</div>
+                <div className="font-semibold text-gray-800">{selectedRequest.request_reason}</div>
+              </div>
+            )}
+            {selectedRequest.required_bhk_config && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Required BHK Config</div>
+                <div className="font-semibold text-gray-800">{selectedRequest.required_bhk_config}</div>
+              </div>
+            )}
+            {selectedRequest.preferred_location && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Preferred Location</div>
+                <div className="font-semibold text-gray-800">{selectedRequest.preferred_location}</div>
+              </div>
+            )}
+            {selectedRequest.move_in_date && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Move-in Date</div>
+                <div className="font-semibold text-gray-800">{fmtDate(selectedRequest.move_in_date)}</div>
+              </div>
+            )}
+            {selectedRequest.family_member_count && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Family Members</div>
+                <div className="font-semibold text-gray-800">{selectedRequest.family_member_count}</div>
+              </div>
+            )}
+            {selectedRequest.employee_notes && (
+              <div className="col-span-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                <div className="text-gray-400 mb-0.5">Employee Notes</div>
+                <div className="font-semibold text-gray-800">{selectedRequest.employee_notes}</div>
+              </div>
+            )}
+          </div>
+          {reqPrefs.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Preferences</div>
+              <div className="space-y-1">
+                {reqPrefs.map(pref => {
+                  const pq = pref.quarter as Quarter | undefined;
+                  return (
+                    <div key={pref.id} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                      <span className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</span>
+                      <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
+                      {pq?.bhk_config && <span className="text-gray-500">{pq.bhk_config}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section B — Accept Allotment */}
+        <div className="p-5 border-b border-gray-100">
+          {!acceptOpen ? (
+            <button
+              onClick={() => setAcceptOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <ThumbsUp size={15} /> Accept Allotment
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><ThumbsUp size={14} /> Accept Allotment</span>
+                <button onClick={() => { setAcceptOpen(false); setAcceptRemarks(''); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Acceptance Remarks (optional)</label>
+                <textarea value={acceptRemarks} onChange={e => setAcceptRemarks(e.target.value)} rows={3} placeholder="Any remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none" />
+              </div>
+              <button onClick={handleAccept} disabled={acceptSubmitting} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                {acceptSubmitting ? 'Saving…' : 'Confirm Acceptance'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Section C — Decline Allotment (collapsible) */}
         <div className="p-5">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Action Required</div>
-
-          {rightAction === null && (
-            <div className="space-y-2">
-              <div className="flex gap-3">
-                <button onClick={() => setRightAction('acknowledge')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
-                  <ThumbsUp size={15} /> Acknowledge
-                </button>
-                <button onClick={() => setRightAction('reject')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors">
-                  <ThumbsDown size={15} /> Reject
-                </button>
-              </div>
-            </div>
-          )}
-
-          {rightAction === 'acknowledge' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><ThumbsUp size={14} /> Acknowledge Allotment</span>
-                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+          <button
+            onClick={() => setDeclineOpen(v => !v)}
+            className="w-full flex items-center justify-between py-2 px-3 rounded-lg border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-50 transition-colors"
+          >
+            <span className="flex items-center gap-2"><ThumbsDown size={14} /> Decline Allotment</span>
+            {declineOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {declineOpen && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Decline Remarks *</label>
+                <textarea value={declineRemarks} onChange={e => setDeclineRemarks(e.target.value)} rows={3} placeholder="State your reason for declining…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Remarks (optional)</label>
-                <textarea value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} rows={3} placeholder="Any remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={handleAcknowledge} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                  {actionSubmitting ? 'Saving…' : 'Confirm Acknowledgement'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {rightAction === 'reject' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-red-700 flex items-center gap-1.5"><ThumbsDown size={14} /> Reject Allotment</span>
-                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Rejection Reason *</label>
-                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={3} placeholder="State the reason…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Supporting Document URL (optional)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Supporting Document (URL)</label>
                 <div className="relative">
                   <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+                  <input value={declineDocUrl} onChange={e => setDeclineDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
                 </div>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={handleReject} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
-                  {actionSubmitting ? 'Saving…' : 'Confirm Rejection'}
+              <div className="flex gap-2">
+                <button onClick={handleDecline} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors">
+                  {declineSubmitting ? 'Saving…' : 'Decline'}
+                </button>
+                <button onClick={handleDeclineAndCancel} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  Decline & Cancel Request
                 </button>
               </div>
             </div>
@@ -896,9 +1090,100 @@ export const QuarterRequestsPage: React.FC = () => {
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
     const qImages = q ? resolveAllImages(q) : PLACEHOLDER_IMAGES;
+
+    // Active tenant requests (PENDING) for this allotment
+    const activeSvcRequests = tenantRequests.filter(tr => tr.allotment_id === allotment.id && tr.request_status === 'PENDING');
+    // All tenant requests for history mode
+    const allSvcRequests = tenantRequests.filter(tr => tr.allotment_id === allotment.id);
+    const [historySelectedId, setHistorySelectedId] = useState<string | null>(allSvcRequests[0]?.id ?? null);
+
+    const chatsForService = selectedServiceId ? (serviceChats[selectedServiceId] ?? []) : [];
+    const selectedSvc = selectedServiceId ? tenantRequests.find(tr => tr.id === selectedServiceId) : null;
+    const serviceTypeLabel = selectedSvc ? serviceTypeConfig(selectedSvc.service_type).label : '';
+
+    if (servicesHistoryMode) {
+      const historyChats = historySelectedId ? (serviceChats[historySelectedId] ?? []) : [];
+      const historySvc = historySelectedId ? allSvcRequests.find(tr => tr.id === historySelectedId) : null;
+      return (
+        <>
+          <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl sticky top-0 z-10">
+            <button onClick={() => setServicesHistoryMode(false)} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <div>
+              <div className="text-xs font-medium text-teal-100 uppercase tracking-wide">Service History</div>
+              <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+            </div>
+            <button
+              onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+              className="ml-auto p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex h-full" style={{ minHeight: 400 }}>
+            {/* Left sub-list */}
+            <div className="w-40 shrink-0 border-r border-gray-200 overflow-y-auto">
+              {allSvcRequests.length === 0 ? (
+                <div className="p-3 text-xs text-gray-400 text-center">No history</div>
+              ) : allSvcRequests.map(tr => {
+                const stc = serviceTypeConfig(tr.service_type);
+                const sc = tenantStatusConfig(tr.request_status);
+                return (
+                  <button
+                    key={tr.id}
+                    onClick={() => {
+                      setHistorySelectedId(tr.id);
+                      quartersService.getServiceChats(tr.id).then(chats => {
+                        setServiceChats(prev => ({ ...prev, [tr.id]: chats }));
+                      }).catch(() => {});
+                    }}
+                    className={`w-full text-left px-3 py-2.5 border-b border-gray-100 transition-colors ${historySelectedId === tr.id ? 'bg-teal-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <div className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${stc.cls} mb-1`}>{stc.icon}{stc.label}</div>
+                    <div className={`text-[10px] px-1.5 py-0.5 rounded-full border inline-block ${sc.cls}`}>{sc.label}</div>
+                    <div className="text-[10px] text-gray-400 mt-1">{fmtDate(tr.created_at)}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Right sub-detail: chats */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {historySvc && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${serviceTypeConfig(historySvc.service_type).cls}`}>
+                    {serviceTypeConfig(historySvc.service_type).icon}{serviceTypeConfig(historySvc.service_type).label}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full border ${tenantStatusConfig(historySvc.request_status).cls}`}>{tenantStatusConfig(historySvc.request_status).label}</span>
+                </div>
+              )}
+              {historyChats.length === 0 ? (
+                <div className="text-center text-xs text-gray-400 py-6">No messages for this service request.</div>
+              ) : [...historyChats].reverse().map(chat => (
+                <div key={chat.id} className={`flex gap-2 ${chat.author_role === 'EMPLOYEE' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${chat.author_role === 'EMPLOYEE' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                    <p>{chat.message}</p>
+                    {chat.document_urls.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {chat.document_urls.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-80">Document {i + 1}</a>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-[10px] mt-1 opacity-60">{fmtDate(chat.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
-        <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl sticky top-0 z-10">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
             <ThumbsUp size={18} className="text-white" />
           </div>
@@ -909,8 +1194,16 @@ export const QuarterRequestsPage: React.FC = () => {
           <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
             Since {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
           </span>
+          <button
+            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
+            title="Close panel"
+          >
+            <X size={14} />
+          </button>
         </div>
 
+        {/* Part A — Quarter info */}
         {q && (
           <div className="p-5 border-b border-gray-100 space-y-4">
             {/* Image tiles */}
@@ -974,113 +1267,221 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
-        <div className="p-5">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Tenant Services</div>
-
-          {rightAction === null && (
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { action: 'extend' as RightAction,  label: 'Extend Lease',    icon: <RefreshCw size={15} />,    cls: 'border-amber-200 text-amber-700 hover:bg-amber-50' },
-                { action: 'upgrade' as RightAction, label: 'Upgrade Quarter', icon: <ArrowRightCircle size={15} />, cls: 'border-sky-200 text-sky-700 hover:bg-sky-50' },
-                { action: 'vacate' as RightAction,  label: 'Vacate Quarter',  icon: <LogOut size={15} />,       cls: 'border-orange-200 text-orange-700 hover:bg-orange-50' },
-              ]).map(({ action, label, icon, cls }) => (
-                <button key={action as string} onClick={() => setRightAction(action)} className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-colors ${cls}`}>
-                  {icon}<span className="text-xs">{label}</span>
-                </button>
-              ))}
-              {/* Rent Details & Maintenance */}
-              <button
-                onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
-                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border border-teal-200 text-teal-700 hover:bg-teal-50 text-sm font-medium transition-colors"
-              >
-                <IndianRupee size={15} />
-                <span className="text-xs">Rent Details</span>
-              </button>
-              <button
-                onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
-                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors"
-              >
-                <Wrench size={15} />
-                <span className="text-xs">Maintenance</span>
+        {/* Part B — Active Services Tiles Row */}
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Active Services</span>
+              {activeSvcRequests.length > 0 && (
+                <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {activeSvcRequests.length}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setServicesHistoryMode(true)} className="text-xs text-gray-500 hover:text-gray-700 font-medium border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition-colors">History</button>
+              <button onClick={() => setServicesExpanded(v => !v)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                {servicesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
+          </div>
+          {activeSvcRequests.length === 0 ? (
+            <div className="text-xs text-gray-400 text-center py-2">No active service requests.</div>
+          ) : (
+            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+              {activeSvcRequests.map(tr => {
+                const stc = serviceTypeConfig(tr.service_type);
+                const isSelected = selectedServiceId === tr.id;
+                return (
+                  <button
+                    key={tr.id}
+                    onClick={() => setSelectedServiceId(isSelected ? null : tr.id)}
+                    className={`flex-shrink-0 flex flex-col gap-0.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${isSelected ? 'ring-2 ring-blue-400 shadow' : ''} ${stc.cls}`}
+                  >
+                    <span className="flex items-center gap-1">{stc.icon}{stc.label}</span>
+                    <span className="text-[10px] opacity-70">{fmtDate(tr.created_at)}</span>
+                  </button>
+                );
+              })}
+            </div>
           )}
+        </div>
 
-          {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
-            const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
-            const cfg = serviceTypeConfig(serviceType);
-            return (
+        {/* Part C — New Service Mini-Menu */}
+        {!selectedServiceId && (
+          <div className="px-5 py-3 border-b border-gray-100">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Raise New Service</div>
+
+            {rightAction === null && (
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-medium transition-colors">
+                  <Bell size={14} /><span>Notification</span>
+                </button>
+                <button onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors">
+                  <Wrench size={14} /><span>Maintenance</span>
+                </button>
+                <button onClick={() => setRightAction('extend')} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-200 text-amber-700 hover:bg-amber-50 text-xs font-medium transition-colors">
+                  <RefreshCw size={14} /><span>Extend</span>
+                </button>
+                <button onClick={() => setRightAction('upgrade')} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-medium transition-colors">
+                  <ArrowRightCircle size={14} /><span>Upgrade</span>
+                </button>
+                <button onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-200 text-orange-700 hover:bg-orange-50 text-xs font-medium transition-colors">
+                  <LogOut size={14} /><span>Vacate</span>
+                </button>
+                <button onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-200 text-teal-700 hover:bg-teal-50 text-xs font-medium transition-colors">
+                  <IndianRupee size={14} /><span>Rent</span>
+                </button>
+              </div>
+            )}
+
+            {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
+              const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
+              const cfg = serviceTypeConfig(serviceType);
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-semibold flex items-center gap-1.5 ${cfg.cls.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}>
+                      {cfg.icon} {cfg.label} Request
+                    </span>
+                    <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
+                    <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
+                    <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
+                    </label>
+                    <div className="relative">
+                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
+                    <div className="relative">
+                      <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                    <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                      {actionSubmitting ? 'Submitting…' : 'Submit Request'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {rightAction === 'upgrade' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm font-semibold flex items-center gap-1.5 ${cfg.cls.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}>
-                    {cfg.icon} {cfg.label} Request
-                  </span>
+                  <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
                   <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
+                  <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                  <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
-                  </label>
-                  <div className="relative">
-                    <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  </div>
+                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
                   <div className="relative">
                     <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                    {actionSubmitting ? 'Submitting…' : 'Submit Request'}
+                  <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
+                    {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
                   </button>
                 </div>
               </div>
-            );
-          })()}
+            )}
+          </div>
+        )}
 
-          {rightAction === 'upgrade' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
-                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
-                <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
-                <div className="relative">
-                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+        {/* Part D — Chat Interface */}
+        {selectedServiceId && (
+          <div className="flex flex-col" style={{ height: 'calc(100vh - 380px)', minHeight: '300px' }}>
+            {/* Breadcrumb */}
+            <div className="flex-none px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+              <button onClick={() => setSelectedServiceId(null)} className="text-blue-500 hover:text-blue-700">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-gray-500">{selectedRequest.request_number}</span>
+              <ChevronRight size={10} className="text-gray-400" />
+              <span className="text-xs font-medium text-gray-700">{serviceTypeLabel}</span>
+              <button onClick={() => setServicesHistoryMode(true)} className="ml-auto text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded px-1.5 py-0.5 transition-colors">History</button>
+            </div>
+
+            {/* Chat history (reverse chronological, scrollable) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse">
+              {chatsForService.map(chat => (
+                <div key={chat.id} className={`flex gap-2 ${chat.author_role === 'EMPLOYEE' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${chat.author_role === 'EMPLOYEE' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                    <p>{chat.message}</p>
+                    {chat.document_urls.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {chat.document_urls.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-80">Document {i + 1}</a>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-[10px] mt-1 opacity-60">{fmtDate(chat.created_at)}</div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
-                  {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
+              ))}
+              {chatsForService.length === 0 && (
+                <div className="text-center text-xs text-gray-400 py-4">No messages yet. Start the conversation below.</div>
+              )}
+            </div>
+
+            {/* Composer */}
+            <div className="flex-none border-t border-gray-200 p-4 space-y-2">
+              <textarea
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                rows={2}
+                placeholder="Type your message..."
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <input
+                value={chatDocUrls}
+                onChange={e => setChatDocUrls(e.target.value)}
+                placeholder="Document URLs (comma-separated)"
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSendChat}
+                  disabled={!chatMessage.trim() || chatSubmitting}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  <Send size={13} /> {chatSubmitting ? 'Sending…' : 'Send'}
+                </button>
+                <button
+                  onClick={handleCloseService}
+                  className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+                >
+                  Close Service
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </>
     );
   };
@@ -1156,6 +1557,161 @@ export const QuarterRequestsPage: React.FC = () => {
               Withdraw Request
             </button>
           )}
+        </div>
+      </>
+    );
+  };
+
+  const RightPanelDraft = () => {
+    if (!selectedRequest) return null;
+    const [draftForm, setDraftForm] = useState({
+      request_reason: selectedRequest.request_reason ?? '',
+      required_bhk_config: selectedRequest.required_bhk_config ?? '',
+      preferred_location: selectedRequest.preferred_location ?? '',
+      move_in_date: selectedRequest.move_in_date ?? '',
+      family_member_count: selectedRequest.family_member_count ?? 1,
+      employee_notes: selectedRequest.employee_notes ?? '',
+    });
+    const [draftSubmitting, setDraftSubmitting] = useState(false);
+
+    const handleUpdate = async () => {
+      setDraftSubmitting(true);
+      try {
+        await quartersService.updateRequestHeader(selectedRequest.id, {
+          request_reason: draftForm.request_reason,
+          required_bhk_config: draftForm.required_bhk_config,
+          preferred_location: draftForm.preferred_location,
+          move_in_date: draftForm.move_in_date || null,
+          family_member_count: draftForm.family_member_count,
+          employee_notes: draftForm.employee_notes,
+        });
+        addToast('Draft updated', 'success');
+        loadData();
+      } catch { addToast('Failed to update draft', 'error'); } finally { setDraftSubmitting(false); }
+    };
+
+    const handleSubmitDraft = async () => {
+      if (!window.confirm('Submit this request for allotment?')) return;
+      setDraftSubmitting(true);
+      try {
+        await quartersService.updateRequestHeader(selectedRequest.id, {
+          request_reason: draftForm.request_reason,
+          required_bhk_config: draftForm.required_bhk_config,
+          preferred_location: draftForm.preferred_location,
+          move_in_date: draftForm.move_in_date || null,
+          family_member_count: draftForm.family_member_count,
+          employee_notes: draftForm.employee_notes,
+        });
+        await quartersService.submitRequest(selectedRequest.id);
+        addToast('Request submitted successfully', 'success');
+        loadData();
+      } catch { addToast('Failed to submit request', 'error'); } finally { setDraftSubmitting(false); }
+    };
+
+    const handleCancelDraft = async () => {
+      if (!window.confirm('Cancel this draft request?')) return;
+      try {
+        await quartersService.cancelRequest(selectedRequest.id);
+        addToast('Request cancelled', 'success');
+        setSelectedRequest(null);
+        loadData();
+      } catch { addToast('Failed to cancel request', 'error'); }
+    };
+
+    const draftPrefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
+
+    return (
+      <>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-amber-500 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+            <FileText size={18} className="text-white" />
+          </div>
+          <div>
+            <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Edit Draft Request</div>
+            <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          </div>
+          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">Draft</span>
+          <button
+            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
+            title="Close panel"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Form fields */}
+        <div className="p-5 space-y-4 border-b border-gray-100">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason *</label>
+            <textarea value={draftForm.request_reason} onChange={e => setDraftForm(f => ({ ...f, request_reason: e.target.value }))} rows={3} placeholder="e.g. Transfer-in" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK Config</label>
+              <input value={draftForm.required_bhk_config} onChange={e => setDraftForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 2BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
+              <input value={draftForm.preferred_location} onChange={e => setDraftForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Move-in Date</label>
+              <input type="date" value={draftForm.move_in_date} onChange={e => setDraftForm(f => ({ ...f, move_in_date: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Family Member Count</label>
+              <input type="number" min={1} value={draftForm.family_member_count} onChange={e => setDraftForm(f => ({ ...f, family_member_count: Number(e.target.value) }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Employee Notes</label>
+            <textarea value={draftForm.employee_notes} onChange={e => setDraftForm(f => ({ ...f, employee_notes: e.target.value }))} rows={2} placeholder="Any additional notes" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+          </div>
+        </div>
+
+        {/* Preferences section */}
+        <div className="p-5 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preferences</div>
+            <button onClick={() => openNewModal(selectedRequest)} className="flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
+              <Plus size={12} /> Add / Reorder
+            </button>
+          </div>
+          {draftPrefs.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Star size={24} className="mx-auto mb-1 opacity-30" />
+              <p className="text-xs">No preferences added yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {draftPrefs.map(pref => {
+                const pq = pref.quarter as Quarter | undefined;
+                return (
+                  <div key={pref.id} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                    <span className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</span>
+                    <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
+                    {pq?.bhk_config && <span className="text-gray-500">{pq.bhk_config}</span>}
+                    {pq?.address && <span className="text-gray-400 truncate">{pq.address}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons row (sticky at bottom) */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-2">
+          <button onClick={handleUpdate} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors">
+            {draftSubmitting ? 'Saving…' : 'Update'}
+          </button>
+          <button onClick={handleSubmitDraft} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            <span className="flex items-center justify-center gap-1.5"><Send size={13} /> Submit</span>
+          </button>
+          <button onClick={handleCancelDraft} disabled={draftSubmitting} className="py-2 px-3 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors">
+            Cancel
+          </button>
         </div>
       </>
     );
@@ -1425,10 +1981,10 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>
 
             {/* ── LEFT: request list ──────────────────────────── */}
-            <div className="lg:col-span-2 space-y-3">
+            <div style={{ width: `${splitPct}%` }} className="flex-none overflow-y-auto space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <FileText size={15} />
@@ -1679,25 +2235,48 @@ export const QuarterRequestsPage: React.FC = () => {
               )}
             </div>
 
+            {/* ── DRAG HANDLE ───────────────────────────────────── */}
+            <div
+              onMouseDown={handleDragStart}
+              className="flex-none w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors flex items-center justify-center group relative"
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1" />
+              <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
+            </div>
+
             {/* ── RIGHT: detail panel ───────────────────────────── */}
-            <div className="lg:col-span-3">
-              <div className="bg-white rounded-xl border border-gray-200 min-h-[400px] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-                {isTenantView ? (
-                  <RightPanelTenantServices />
-                ) : selectedRequest ? (() => {
-                  const s = selectedRequest.request_status;
-                  if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
-                  if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
-                  return <RightPanelPreferences />;
-                })() : (
-                  <div className="flex items-center justify-center h-64 text-gray-400">
-                    <div className="text-center">
-                      <Star size={32} className="mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">Select a request to view details</p>
-                    </div>
+            <div style={{ width: `${100 - splitPct - 0.5}%` }} className="flex-none overflow-y-auto bg-white rounded-xl border border-gray-200">
+              {/* Sticky header with expand/contract buttons */}
+              {(selectedRequest || isTenantView) && (
+                <div className="sticky top-0 z-20 flex justify-end gap-1 px-3 py-1.5 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+                  <button
+                    onClick={() => { const next = Math.max(25, Math.min(70, splitPct - 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
+                    className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
+                    title="Expand right panel"
+                  ><ChevronLeft size={14} /></button>
+                  <button
+                    onClick={() => { const next = Math.max(25, Math.min(70, splitPct + 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
+                    className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
+                    title="Contract right panel"
+                  ><ChevronRight size={14} /></button>
+                </div>
+              )}
+              {isTenantView ? (
+                <RightPanelTenantServices />
+              ) : selectedRequest ? (() => {
+                const s = selectedRequest.request_status;
+                if (s === 'DRAFT') return <RightPanelDraft />;
+                if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
+                if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
+                return <RightPanelPreferences />;
+              })() : (
+                <div className="flex items-center justify-center h-64 text-gray-400">
+                  <div className="text-center">
+                    <Star size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Select a request to view details</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
           </div>

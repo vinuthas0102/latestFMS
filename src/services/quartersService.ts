@@ -35,12 +35,23 @@ export interface QuarterRequest {
   move_in_date: string | null;
   family_member_count: number;
   request_status: string;
+  sub_status: string | null;
   employee_notes: string;
   eo_notes: string;
   created_at: string;
   updated_at: string;
   preferences?: QuarterRequestPreference[];
   allotment?: QuarterAllotment | null;
+}
+
+export interface QuarterServiceChat {
+  id: string;
+  tenant_request_id: string;
+  author_id: string;
+  author_role: 'EMPLOYEE' | 'EO';
+  message: string;
+  document_urls: string[];
+  created_at: string;
 }
 
 export interface QuarterRequestPreference {
@@ -588,5 +599,136 @@ export const quartersService = {
       available: rows.filter(r => r.occupancy_status === 'AVAILABLE').length,
       occupied: rows.filter(r => r.occupancy_status === 'OCCUPIED').length,
     };
+  },
+
+  // ─── Decline allotment (employee declines, request goes back to SUBMITTED) ──
+  async declineAllotment(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: aErr } = await supabase
+      .from('quarter_allotments')
+      .update({ approval_status: 'DECLINED', rejection_reason: reason, rejection_doc_url: docUrl ?? '', rejected_at: now, updated_at: now })
+      .eq('id', allotmentId);
+    if (aErr) throw aErr;
+    const { error: rErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'SUBMITTED', sub_status: 'DECLINED', updated_at: now })
+      .eq('id', requestId);
+    if (rErr) throw rErr;
+  },
+
+  // ─── Decline & cancel request ────────────────────────────────────────────────
+  async declineAndCancelRequest(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error: aErr } = await supabase
+      .from('quarter_allotments')
+      .update({ approval_status: 'DECLINED', rejection_reason: reason, rejection_doc_url: docUrl ?? '', rejected_at: now, updated_at: now })
+      .eq('id', allotmentId);
+    if (aErr) throw aErr;
+    const { error: rErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'CANCELLED', sub_status: 'DECLINED', updated_at: now })
+      .eq('id', requestId);
+    if (rErr) throw rErr;
+  },
+
+  // ─── Update request header fields (for Draft inline editing) ────────────────
+  async updateRequestHeader(
+    requestId: string,
+    data: {
+      request_reason?: string;
+      required_bhk_config?: string;
+      preferred_location?: string;
+      move_in_date?: string | null;
+      family_member_count?: number;
+      employee_notes?: string;
+    }
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('quarter_requests')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('id', requestId);
+    if (error) throw error;
+  },
+
+  // ─── Cancel a draft request ──────────────────────────────────────────────────
+  async cancelRequest(requestId: string): Promise<void> {
+    const { error } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'CANCELLED', updated_at: new Date().toISOString() })
+      .eq('id', requestId);
+    if (error) throw error;
+  },
+
+  // ─── Service chats ───────────────────────────────────────────────────────────
+  async getServiceChats(tenantRequestId: string): Promise<QuarterServiceChat[]> {
+    const { data, error } = await supabase
+      .from('quarter_service_chats')
+      .select('*')
+      .eq('tenant_request_id', tenantRequestId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterServiceChat[];
+  },
+
+  async addServiceChat(
+    tenantRequestId: string,
+    authorId: string,
+    authorRole: 'EMPLOYEE' | 'EO',
+    message: string,
+    documentUrls: string[]
+  ): Promise<QuarterServiceChat> {
+    const { data, error } = await supabase
+      .from('quarter_service_chats')
+      .insert({
+        tenant_request_id: tenantRequestId,
+        author_id: authorId,
+        author_role: authorRole,
+        message,
+        document_urls: documentUrls,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as QuarterServiceChat;
+  },
+
+  async closeService(tenantRequestId: string, requestId: string, serviceType: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('quarter_tenant_requests')
+      .update({ request_status: 'WITHDRAWN', updated_at: now })
+      .eq('id', tenantRequestId);
+    if (error) throw error;
+    // Revert request status back to ACKNOWLEDGED if this was a pending service
+    const revertMap: Record<string, string> = {
+      EXTEND: 'ACKNOWLEDGED',
+      UPGRADE: 'ACKNOWLEDGED',
+      VACATE: 'ACKNOWLEDGED',
+      GRIEVANCE: 'ACKNOWLEDGED',
+      MAINTENANCE: 'ACKNOWLEDGED',
+    };
+    if (revertMap[serviceType] && requestId) {
+      await supabase
+        .from('quarter_requests')
+        .update({ request_status: revertMap[serviceType], updated_at: now })
+        .eq('id', requestId);
+    }
+  },
+
+  async getServiceChatsForAllotment(allotmentId: string): Promise<QuarterServiceChat[]> {
+    const { data: tenantReqs, error: tErr } = await supabase
+      .from('quarter_tenant_requests')
+      .select('id')
+      .eq('allotment_id', allotmentId);
+    if (tErr) throw tErr;
+    const ids = (tenantReqs ?? []).map((r: { id: string }) => r.id);
+    if (ids.length === 0) return [];
+    const { data, error } = await supabase
+      .from('quarter_service_chats')
+      .select('*')
+      .in('tenant_request_id', ids)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterServiceChat[];
   },
 };
