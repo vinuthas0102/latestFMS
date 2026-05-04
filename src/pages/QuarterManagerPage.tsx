@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
-import { Header } from '../components/layout/Header';
 import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import {
   quartersService,
@@ -366,8 +365,6 @@ export const QuarterManagerPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
         <div className="flex items-start justify-between mb-6 flex-wrap gap-4">

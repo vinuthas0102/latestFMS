@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Header } from '../components/layout/Header';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
@@ -271,6 +270,7 @@ const BookingCardList: React.FC<{ bookings: BookingDTO[]; navigate: (p: string) 
 
 export const BookingHistoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
@@ -286,6 +286,10 @@ export const BookingHistoryPage: React.FC = () => {
 
   useEffect(() => {
     loadBookings();
+    const status = searchParams.get('status');
+    if (status === 'upcoming') setStatusFilter(['ALLOCATED', 'PROVISIONED']);
+    else if (status === 'cancelled') setStatusFilter(['CANCELLED', 'REJECTED']);
+    else if (status === 'completed') setStatusFilter('CHECKED_OUT');
   }, []);
 
   useEffect(() => {
@@ -360,6 +364,7 @@ export const BookingHistoryPage: React.FC = () => {
   const handleStatCardClick = (filter: string | string[]) => setStatusFilter(filter);
   const handleClearFilters = () => { setStatusFilter('all'); setSearchQuery(''); setDateFrom(''); setDateTo(''); };
   const drawerActiveCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  const propertyNames = Array.from(new Set(bookings.map((b) => b.property?.name).filter(Boolean))) as string[];
   const activeFilterCount = (statusFilter !== 'all' && statusFilter.length > 0 ? 1 : 0) + (searchQuery ? 1 : 0) + drawerActiveCount;
 
   const isFilterActive = (filterValue: string | string[]) => {
@@ -376,8 +381,6 @@ export const BookingHistoryPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
-      <Header />
-
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
@@ -498,6 +501,21 @@ export const BookingHistoryPage: React.FC = () => {
         onClearAll={() => { setDateFrom(''); setDateTo(''); }}
       >
         <div className="space-y-6">
+          {propertyNames.length > 1 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Property</label>
+              <select
+                value={typeof searchQuery === 'string' && propertyNames.some(n => searchQuery === n) ? searchQuery : ''}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              >
+                <option value="">All Properties</option>
+                {propertyNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Check-in From</label>
             <input

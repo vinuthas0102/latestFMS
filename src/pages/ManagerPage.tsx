@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, Clock, XCircle, Users, ChevronDown, ChevronUp, Calendar, User, Home, DollarSign, Building2, MapPin, Images } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
@@ -200,8 +199,6 @@ export const ManagerPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-cyan-50/20">
-      <Header />
-
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

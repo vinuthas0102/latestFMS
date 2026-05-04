@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Header } from '../components/layout/Header';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -141,8 +140,6 @@ export const MapSearchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Map Search</h1>

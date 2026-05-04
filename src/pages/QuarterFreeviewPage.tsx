@@ -5,7 +5,6 @@ import {
   MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
   Layers, RotateCcw, Shield, History, Search, Navigation, X,
 } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { ViewMode } from '../components/ui/ViewSwitcher';
 import { QuarterListCard } from '../components/quarters/QuarterListCard';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
@@ -405,8 +404,6 @@ export const QuarterFreeviewPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
-      <Header />
-
       {/* ── Sticky header ─────────────────────────────────────── */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-3">

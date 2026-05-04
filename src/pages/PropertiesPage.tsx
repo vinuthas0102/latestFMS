@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search, Navigation, X } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
@@ -147,7 +146,6 @@ export const PropertiesPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-green-50/20">
-      <Header />
 
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">

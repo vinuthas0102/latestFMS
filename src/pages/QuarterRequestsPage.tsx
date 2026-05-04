@@ -7,7 +7,6 @@ import {
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
   MapPin, Layers, IndianRupee, Wrench, Filter,
 } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
@@ -1078,8 +1077,6 @@ export const QuarterRequestsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
         {/* ── Compact header ─────────────────────────────────────────── */}

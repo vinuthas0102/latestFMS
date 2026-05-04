@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Calendar, Building2, Map, List, Navigation, X } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -128,8 +127,6 @@ export const SearchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
       {/* Hero banner */}
       <div className="bg-gradient-to-br from-blue-600 to-teal-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

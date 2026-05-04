@@ -5,7 +5,6 @@ import {
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
   Zap, Droplets, Shield, FileText, AlertCircle, ChevronDown, Images,
 } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
@@ -269,8 +268,6 @@ export const QuarterDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header />
-
       {/* ── Sticky nav bar ────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

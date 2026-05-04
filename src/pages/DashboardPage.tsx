@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, CheckCircle, Clock, DollarSign, Plus, Search, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { MetricDetailDrawer } from '../components/dashboard/MetricDetailDrawer';
 import { ViewToggle } from '../components/dashboard/ViewToggle';
@@ -59,8 +58,6 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-teal-50/20">
-      <Header />
-
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">

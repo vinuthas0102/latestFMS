@@ -11,8 +11,9 @@ import {
   Users,
   Home,
   Search,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
-import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
@@ -25,6 +26,8 @@ import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { propertyService } from '../services/propertyService';
+import { bookingService } from '../services/bookingService';
+import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { PropertyDTO } from '../types';
@@ -147,6 +150,8 @@ export const UserDashboardPage: React.FC = () => {
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 99999 });
   const [filters, setFilters] = useState<FilterSidebarState>(() => defaultFilters(0, 99999));
+  const [bookingStats, setBookingStats] = useState({ total: 0, upcoming: 0, completed: 0, cancelled: 0 });
+  const [availableOnly, setAvailableOnly] = useState(false);
 
 
   const roleKey = user?.role || 'public';
@@ -154,8 +159,21 @@ export const UserDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadProperties();
+    if (user) loadBookingStats();
   }, [user]);
 
+
+  const loadBookingStats = async () => {
+    try {
+      const data = await bookingService.getBookings({ userId: user!.id });
+      setBookingStats({
+        total: data.length,
+        upcoming: data.filter((b) => ['ALLOCATED', 'PROVISIONED'].includes(b.status)).length,
+        completed: data.filter((b) => b.status === 'CHECKED_OUT').length,
+        cancelled: data.filter((b) => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
+      });
+    } catch { /* silently ignore */ }
+  };
 
   const loadProperties = async () => {
     setLoading(true);
@@ -216,9 +234,10 @@ export const UserDashboardPage: React.FC = () => {
         const price = p.minPrice ?? p.maxPrice;
         if (price != null && (price < filters.minPriceFilter || price > filters.maxPriceFilter)) return false;
       }
+      if (availableOnly && p.minPrice == null) return false;
       return true;
     });
-  }, [properties, filters, priceRange]);
+  }, [properties, filters, priceRange, availableOnly]);
 
   // ── Sorting ──────────────────────────────────────────────────
 
@@ -321,8 +340,6 @@ export const UserDashboardPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-white to-sky-50/30">
-      <Header />
-
       {/* ── Sticky header ────────────────────────────────────── */}
       <div className="flex-none z-20">
         {/* Banner */}
@@ -396,6 +413,59 @@ export const UserDashboardPage: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Booking stats cards ───────────────────────────── */}
+        {user && !loading && (
+          <div className="bg-white border-b border-gray-200/60 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <SummaryStatsCard
+                  label="Available Properties"
+                  value={properties.length}
+                  icon={Building2}
+                  gradient="bg-gradient-to-br from-blue-600 to-teal-500"
+                  delay={0}
+                  subtitle="Published &amp; active"
+                  secondaryValue={displayProperties.length}
+                  secondaryLabel="Matching"
+                />
+                <SummaryStatsCard
+                  label="My Bookings"
+                  value={bookingStats.total}
+                  icon={History}
+                  gradient="bg-gradient-to-br from-sky-500 to-blue-600"
+                  onClick={() => navigate('/bookings/history')}
+                  delay={80}
+                  subtitle="All time reservations"
+                  secondaryValue={bookingStats.upcoming}
+                  secondaryLabel="Active"
+                />
+                <SummaryStatsCard
+                  label="Upcoming"
+                  value={bookingStats.upcoming}
+                  icon={Calendar}
+                  gradient="bg-gradient-to-br from-emerald-500 to-cyan-500"
+                  onClick={() => navigate('/bookings/history?status=upcoming')}
+                  delay={160}
+                  subtitle="Confirmed &amp; allocated"
+                  secondaryValue={bookingStats.completed}
+                  secondaryLabel="Completed"
+                />
+                <SummaryStatsCard
+                  label="Cancelled"
+                  value={bookingStats.cancelled}
+                  icon={XCircle}
+                  gradient="bg-gradient-to-br from-rose-500 to-pink-500"
+                  onClick={() => navigate('/bookings/history?status=cancelled')}
+                  delay={240}
+                  subtitle="Cancelled &amp; rejected"
+                  secondaryValue={bookingStats.completed}
+                  secondaryLabel="Done"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Mandatory search bar */}
         <div className="bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
@@ -435,7 +505,7 @@ export const UserDashboardPage: React.FC = () => {
                   ],
                 },
               ]}
-              filterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length}
+              filterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0, availableOnly].filter(Boolean).length}
               onFilterOpen={() => setIsFilterOpen(true)}
             />
           </div>
@@ -447,7 +517,7 @@ export const UserDashboardPage: React.FC = () => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         title="Advanced Filters"
-        activeFilterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0].filter(Boolean).length}
+        activeFilterCount={[filters.cityFilter !== 'all', filters.sortOrder !== 'top_picks', filters.amenityFilters.length > 0, availableOnly].filter(Boolean).length}
         onClearAll={() => {
           setFilters((prev) => ({
             ...prev,
@@ -457,9 +527,28 @@ export const UserDashboardPage: React.FC = () => {
             minPriceFilter: priceRange.min,
             maxPriceFilter: priceRange.max,
           }));
+          setAvailableOnly(false);
         }}
       >
         <div className="space-y-6">
+          {/* Available Only toggle */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Availability</label>
+            <button
+              onClick={() => setAvailableOnly((v) => !v)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                availableOnly
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-sm font-medium">Show Available Only</span>
+              <div className={`w-10 h-5 rounded-full transition-all relative ${availableOnly ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${availableOnly ? 'left-5' : 'left-0.5'}`} />
+              </div>
+            </button>
+          </div>
+
           {/* Location */}
           {availableCities.length > 0 && (
             <div>

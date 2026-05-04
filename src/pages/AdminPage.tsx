@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Header } from '../components/layout/Header';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { HorizontalSlider } from '../components/ui/HorizontalSlider';
@@ -420,8 +419,6 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
-      <Header />
-
       {/* Frozen hero header */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
