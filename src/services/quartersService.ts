@@ -108,16 +108,6 @@ export interface QuarterTenantRequest {
   allotment?: QuarterAllotment;
 }
 
-export interface ServiceChat {
-  id: string;
-  tenant_request_id: string;
-  author_id: string;
-  author_role: 'employee' | 'eo' | 'system';
-  message: string;
-  document_urls: string[];
-  created_at: string;
-}
-
 export interface CreateTenantRequestInput {
   service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
   remarks: string;
@@ -589,56 +579,6 @@ export const quartersService = {
     if (updErr) throw updErr;
   },
 
-
-  async declineAllotment(
-    allotmentId: string,
-    requestId: string,
-    declineType: 'decline' | 'decline_cancel',
-    remarks: string,
-    docUrl?: string
-  ): Promise<void> {
-    const now = new Date().toISOString();
-    const subStatus = declineType === 'decline' ? 'DECLINED' : 'DECLINED_AND_CANCELLED';
-    const nextRequestStatus = declineType === 'decline' ? 'SUBMITTED' : 'WITHDRAWN';
-
-    const { error: aErr } = await supabase
-      .from('quarter_allotments')
-      .update({
-        approval_status: 'REJECTED',
-        sub_status: subStatus,
-        rejection_reason: remarks,
-        rejection_doc_url: docUrl ?? '',
-        rejected_at: now,
-        updated_at: now,
-      })
-      .eq('id', allotmentId);
-    if (aErr) throw aErr;
-
-    const { error: rErr } = await supabase
-      .from('quarter_requests')
-      .update({ request_status: nextRequestStatus, updated_at: now })
-      .eq('id', requestId);
-    if (rErr) throw rErr;
-  },
-
-  async updateRequestHeader(
-    requestId: string,
-    data: {
-      request_reason?: string;
-      required_bhk_config?: string;
-      preferred_location?: string;
-      move_in_date?: string | null;
-      family_member_count?: number;
-      employee_notes?: string;
-    }
-  ): Promise<void> {
-    const { error } = await supabase
-      .from('quarter_requests')
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq('id', requestId);
-    if (error) throw error;
-  },
-
   async getQuartersSummary(): Promise<{ total: number; available: number; occupied: number }> {
     const { data, error } = await supabase.from('quarters').select('occupancy_status').eq('is_active', true);
     if (error) throw error;
@@ -648,68 +588,5 @@ export const quartersService = {
       available: rows.filter(r => r.occupancy_status === 'AVAILABLE').length,
       occupied: rows.filter(r => r.occupancy_status === 'OCCUPIED').length,
     };
-  },
-
-  async getServiceChats(tenantRequestId: string): Promise<ServiceChat[]> {
-    const { data, error } = await supabase
-      .from('quarter_service_chats')
-      .select('*')
-      .eq('tenant_request_id', tenantRequestId)
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    return (data ?? []) as ServiceChat[];
-  },
-
-  async addServiceChat(
-    tenantRequestId: string,
-    authorId: string,
-    authorRole: 'employee' | 'eo' | 'system',
-    message: string,
-    documentUrls: string[] = [],
-  ): Promise<ServiceChat> {
-    const { data, error } = await supabase
-      .from('quarter_service_chats')
-      .insert({
-        tenant_request_id: tenantRequestId,
-        author_id: authorId,
-        author_role: authorRole,
-        message,
-        document_urls: documentUrls,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return data as ServiceChat;
-  },
-
-  async closeService(
-    tenantRequestId: string,
-    authorId: string,
-    closingMessage: string,
-  ): Promise<void> {
-    const now = new Date().toISOString();
-    const { error: tErr } = await supabase
-      .from('quarter_tenant_requests')
-      .update({ request_status: 'WITHDRAWN', updated_at: now })
-      .eq('id', tenantRequestId);
-    if (tErr) throw tErr;
-
-    await supabase.from('quarter_service_chats').insert({
-      tenant_request_id: tenantRequestId,
-      author_id: authorId,
-      author_role: 'system',
-      message: closingMessage || 'Service closed by employee.',
-      document_urls: [],
-    });
-  },
-
-  async getEODisplayName(userId: string): Promise<string> {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('full_name, email')
-      .eq('id', userId)
-      .maybeSingle();
-    if (data) return (data as { full_name?: string; email?: string }).full_name || (data as { full_name?: string; email?: string }).email || userId;
-    return userId;
   },
 };
