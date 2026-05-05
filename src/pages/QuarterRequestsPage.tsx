@@ -306,6 +306,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   // Lightbox for allotted panel image tiles
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -1004,9 +1005,6 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Unified request summary */}
-        <RequestSummaryBlock req={selectedRequest} />
-
         {/* Section B — Accept Allotment */}
         <div className="p-5 border-b border-gray-100">
           {!acceptOpen ? (
@@ -1187,17 +1185,11 @@ export const QuarterRequestsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Part A — Compact quarter identity row */}
-        {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
-
-        {/* Request summary */}
-        <RequestSummaryBlock req={selectedRequest} />
-
-        {/* Part B — Active Services Tiles Row */}
-        <div className="px-5 py-4 border-b border-gray-100">
+        {/* ── ACTIVE SERVICES — shown immediately after header ───────────── */}
+        <div className="px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Active Services</span>
+              <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">Active Services</span>
               {activeSvcRequests.length > 0 && (
                 <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1205,207 +1197,260 @@ export const QuarterRequestsPage: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setServicesHistoryMode(true)} className="text-xs text-gray-500 hover:text-gray-700 font-medium border border-gray-200 rounded-lg px-2.5 py-1 hover:bg-gray-50 transition-colors">History</button>
-              <button onClick={() => setServicesExpanded(v => !v)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                {servicesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            </div>
+            <button
+              onClick={() => setServicesHistoryMode(true)}
+              className="text-[11px] text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1 transition-colors"
+            >
+              <Clock size={11} /> View History
+            </button>
           </div>
+
           {activeSvcRequests.length === 0 ? (
-            <div className="text-xs text-gray-400 text-center py-2">No active service requests.</div>
+            <div className="flex flex-col items-center justify-center py-5 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                <CheckCircle size={16} className="text-gray-300" />
+              </div>
+              <div className="text-xs text-gray-400 font-medium">No active service requests</div>
+              <div className="text-[10px] text-gray-300 mt-0.5">All clear — raise a new service below if needed</div>
+            </div>
           ) : (
-            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+            <div className="space-y-2">
               {activeSvcRequests.map(tr => {
                 const stc = serviceTypeConfig(tr.service_type);
                 const isSelected = selectedServiceId === tr.id;
                 return (
-                  <button
-                    key={tr.id}
-                    onClick={() => setSelectedServiceId(isSelected ? null : tr.id)}
-                    className={`flex-shrink-0 flex flex-col gap-0.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${isSelected ? 'ring-2 ring-blue-400 shadow' : ''} ${stc.cls}`}
-                  >
-                    <span className="flex items-center gap-1">{stc.icon}{stc.label}</span>
-                    <span className="text-[10px] opacity-70">{fmtDate(tr.created_at)}</span>
-                  </button>
+                  <div key={tr.id} className={`rounded-xl border transition-all overflow-hidden ${isSelected ? 'ring-2 ring-blue-400 shadow-sm border-blue-300' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
+                    {/* Service row */}
+                    <button
+                      onClick={() => setSelectedServiceId(isSelected ? null : tr.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                    >
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${stc.cls}`}>{stc.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-gray-800">{stc.label}</div>
+                        <div className="text-[10px] text-gray-400">{fmtDate(tr.created_at)}</div>
+                      </div>
+                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold shrink-0">PENDING</span>
+                      <ChevronDown size={12} className={`text-gray-400 shrink-0 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Inline chat (expands when selected) */}
+                    {isSelected && (
+                      <div className="border-t border-gray-100">
+                        <div className="flex flex-col" style={{ height: 320 }}>
+                          <div className="flex-1 overflow-y-auto p-3 space-y-2 flex flex-col-reverse">
+                            {chatsForService.map(chat => (
+                              <div key={chat.id} className={`flex gap-2 ${chat.author_role === 'EMPLOYEE' ? 'flex-row-reverse' : ''}`}>
+                                <div className={`max-w-[82%] rounded-xl px-3 py-2 text-xs ${chat.author_role === 'EMPLOYEE' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                                  <p>{chat.message}</p>
+                                  {chat.document_urls.length > 0 && chat.document_urls.map((url, i) => (
+                                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block text-[10px] underline opacity-80 mt-0.5">Doc {i + 1}</a>
+                                  ))}
+                                  <div className="text-[9px] mt-1 opacity-60">{fmtDate(chat.created_at)}</div>
+                                </div>
+                              </div>
+                            ))}
+                            {chatsForService.length === 0 && (
+                              <div className="text-center text-xs text-gray-400 py-4">No messages yet.</div>
+                            )}
+                          </div>
+                          <div className="flex-none border-t border-gray-100 p-3 space-y-2 bg-gray-50">
+                            <textarea
+                              value={chatMessage}
+                              onChange={e => setChatMessage(e.target.value)}
+                              rows={2}
+                              placeholder="Type your message..."
+                              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleSendChat}
+                                disabled={!chatMessage.trim() || chatSubmitting}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                              >
+                                <Send size={11} /> {chatSubmitting ? 'Sending…' : 'Send'}
+                              </button>
+                              <button
+                                onClick={handleCloseService}
+                                className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Part C — New Service Mini-Menu */}
-        {!selectedServiceId && (
-          <div className="px-5 py-3 border-b border-gray-100">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Raise New Service</div>
+        {/* ── RAISE NEW SERVICE ───────────────────────────────────────────── */}
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="text-xs font-bold text-gray-800 uppercase tracking-wide mb-3">Raise New Service</div>
 
-            {rightAction === null && (
-              <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-medium transition-colors">
-                  <Bell size={14} /><span>Notification</span>
+          {rightAction === null && (
+            <>
+              {/* Support group */}
+              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Support</div>
+              <div className="space-y-1.5 mb-3">
+                <button
+                  onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 transition-all group"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center shrink-0 group-hover:bg-rose-200 transition-colors"><Bell size={14} className="text-rose-600" /></span>
+                  <div className="text-left">
+                    <div className="text-xs font-semibold text-gray-800">Grievance</div>
+                    <div className="text-[10px] text-gray-400">Raise a complaint or concern</div>
+                  </div>
+                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
                 </button>
-                <button onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors">
-                  <Wrench size={14} /><span>Maintenance</span>
-                </button>
-                <button onClick={() => setRightAction('extend')} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-200 text-amber-700 hover:bg-amber-50 text-xs font-medium transition-colors">
-                  <RefreshCw size={14} /><span>Extend</span>
-                </button>
-                <button onClick={() => setRightAction('upgrade')} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-medium transition-colors">
-                  <ArrowRightCircle size={14} /><span>Upgrade</span>
-                </button>
-                <button onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-200 text-orange-700 hover:bg-orange-50 text-xs font-medium transition-colors">
-                  <LogOut size={14} /><span>Vacate</span>
-                </button>
-                <button onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)} className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-200 text-teal-700 hover:bg-teal-50 text-xs font-medium transition-colors">
-                  <IndianRupee size={14} /><span>Rent</span>
+                <button
+                  onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors"><Wrench size={14} className="text-slate-600" /></span>
+                  <div className="text-left">
+                    <div className="text-xs font-semibold text-gray-800">Maintenance</div>
+                    <div className="text-[10px] text-gray-400">Request repairs or upkeep</div>
+                  </div>
+                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
                 </button>
               </div>
-            )}
 
-            {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
-              const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
-              const cfg = serviceTypeConfig(serviceType);
-              return (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-sm font-semibold flex items-center gap-1.5 ${cfg.cls.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}>
-                      {cfg.icon} {cfg.label} Request
-                    </span>
-                    <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              {/* Occupancy group */}
+              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Occupancy</div>
+              <div className="space-y-1.5 mb-3">
+                <button
+                  onClick={() => setRightAction('extend')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all group"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors"><RefreshCw size={14} className="text-amber-600" /></span>
+                  <div className="text-left">
+                    <div className="text-xs font-semibold text-gray-800">Extend Lease</div>
+                    <div className="text-[10px] text-gray-400">Request an extension period</div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                    <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
+                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
+                </button>
+                <button
+                  onClick={() => setRightAction('upgrade')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-sky-300 hover:bg-sky-50 transition-all group"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center shrink-0 group-hover:bg-sky-200 transition-colors"><ArrowRightCircle size={14} className="text-sky-600" /></span>
+                  <div className="text-left">
+                    <div className="text-xs font-semibold text-gray-800">Upgrade Quarter</div>
+                    <div className="text-[10px] text-gray-400">Request a larger/better unit</div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                    <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
+                </button>
+                <button
+                  onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all group"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0 group-hover:bg-orange-200 transition-colors"><LogOut size={14} className="text-orange-600" /></span>
+                  <div className="text-left">
+                    <div className="text-xs font-semibold text-gray-800">Vacate Quarter</div>
+                    <div className="text-[10px] text-gray-400">Initiate vacation process</div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
-                    </label>
-                    <div className="relative">
-                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
-                    <div className="relative">
-                      <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                    <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                      {actionSubmitting ? 'Submitting…' : 'Submit Request'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
+                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
+                </button>
+              </div>
 
-            {rightAction === 'upgrade' && (
+              {/* Rent link */}
+              <button
+                onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-dashed border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors text-xs font-medium"
+              >
+                <IndianRupee size={13} /> View Rent & Payment History
+                <ChevronRight size={12} className="ml-auto text-teal-400" />
+              </button>
+            </>
+          )}
+
+          {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
+            const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
+            const cfg = serviceTypeConfig(serviceType);
+            return (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
+                  <span className={`text-sm font-semibold flex items-center gap-1.5 ${cfg.cls.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}>
+                    {cfg.icon} {cfg.label} Request
+                  </span>
                   <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
-                  <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
+                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                  <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
+                  <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
+                  </label>
+                  <div className="relative">
+                    <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
                   <div className="relative">
                     <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
-                    {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
+                  <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                    {actionSubmitting ? 'Submitting…' : 'Submit Request'}
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            );
+          })()}
 
-        {/* Part D — Chat Interface */}
-        {selectedServiceId && (
-          <div className="flex flex-col" style={{ height: 'calc(100vh - 380px)', minHeight: '300px' }}>
-            {/* Breadcrumb */}
-            <div className="flex-none px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-              <button onClick={() => setSelectedServiceId(null)} className="text-blue-500 hover:text-blue-700">
-                <ChevronLeft size={14} />
-              </button>
-              <span className="text-xs text-gray-500">{selectedRequest.request_number}</span>
-              <ChevronRight size={10} className="text-gray-400" />
-              <span className="text-xs font-medium text-gray-700">{serviceTypeLabel}</span>
-              <button onClick={() => setServicesHistoryMode(true)} className="ml-auto text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded px-1.5 py-0.5 transition-colors">History</button>
-            </div>
-
-            {/* Chat history (reverse chronological, scrollable) */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse">
-              {chatsForService.map(chat => (
-                <div key={chat.id} className={`flex gap-2 ${chat.author_role === 'EMPLOYEE' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${chat.author_role === 'EMPLOYEE' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                    <p>{chat.message}</p>
-                    {chat.document_urls.length > 0 && (
-                      <div className="mt-1 space-y-0.5">
-                        {chat.document_urls.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-xs underline opacity-80">Document {i + 1}</a>
-                        ))}
-                      </div>
-                    )}
-                    <div className="text-[10px] mt-1 opacity-60">{fmtDate(chat.created_at)}</div>
-                  </div>
+          {rightAction === 'upgrade' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
+                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
+                <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
+                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
+                <div className="relative">
+                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
                 </div>
-              ))}
-              {chatsForService.length === 0 && (
-                <div className="text-center text-xs text-gray-400 py-4">No messages yet. Start the conversation below.</div>
-              )}
-            </div>
-
-            {/* Composer */}
-            <div className="flex-none border-t border-gray-200 p-4 space-y-2">
-              <textarea
-                value={chatMessage}
-                onChange={e => setChatMessage(e.target.value)}
-                rows={2}
-                placeholder="Type your message..."
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-              <input
-                value={chatDocUrls}
-                onChange={e => setChatDocUrls(e.target.value)}
-                placeholder="Document URLs (comma-separated)"
-                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSendChat}
-                  disabled={!chatMessage.trim() || chatSubmitting}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  <Send size={13} /> {chatSubmitting ? 'Sending…' : 'Send'}
-                </button>
-                <button
-                  onClick={handleCloseService}
-                  className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-                >
-                  Close Service
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
+                  {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
                 </button>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* ── QUARTER REFERENCE (bottom, informational) ───────────────────── */}
+        {q && (
+          <div className="px-5 py-3">
+            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Your Quarter</div>
+            <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />
           </div>
         )}
       </>
@@ -2108,6 +2153,13 @@ export const QuarterRequestsPage: React.FC = () => {
                               )}
                             </div>
                             <div className="text-[10px] text-gray-400 shrink-0">{fmtDate(req.created_at)}</div>
+                            {/* Show more toggle */}
+                            <button
+                              onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
+                              className="flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 font-medium shrink-0 transition-colors"
+                            >
+                              {expandedCardId === req.id ? <><ChevronUp size={11} />Less</> : <><ChevronDown size={11} />More</>}
+                            </button>
                             {/* Dot-menu */}
                             {!['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
@@ -2121,6 +2173,97 @@ export const QuarterRequestsPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Expand/collapse request details */}
+                      {expandedCardId === req.id && (
+                        <div
+                          className="border-t border-gray-100 bg-gray-50/80 px-4 py-3 space-y-3"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Requester + TP */}
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 flex items-center gap-2 bg-white rounded-lg border border-gray-100 px-3 py-2">
+                              <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                                {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-gray-800 leading-tight truncate">{user?.fullName ?? '—'}</div>
+                                <div className="text-[10px] text-gray-400">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
+                                {user?.govtDepartment && <div className="text-[10px] text-gray-400">{user.govtDepartment}</div>}
+                              </div>
+                            </div>
+                            {demoTP && (
+                              <div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg border border-slate-100 px-3 py-2">
+                                <div className="w-7 h-7 rounded-full bg-slate-400 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                                  {demoTP.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">TP</div>
+                                  <div className="text-xs font-semibold text-slate-700 truncate">{demoTP.name}</div>
+                                  <div className="text-[10px] text-slate-400">{demoTP.empId} · {demoTP.dept}</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Key fields grid */}
+                          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                            {req.request_reason && (
+                              <div className="col-span-2 bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Reason</div>
+                                <div className="font-semibold text-gray-800 leading-snug">{req.request_reason}</div>
+                              </div>
+                            )}
+                            {req.required_bhk_config && (
+                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">BHK</div>
+                                <div className="font-semibold text-gray-800">{req.required_bhk_config}</div>
+                              </div>
+                            )}
+                            {req.preferred_location && (
+                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Location</div>
+                                <div className="font-semibold text-gray-800 truncate">{req.preferred_location}</div>
+                              </div>
+                            )}
+                            {req.move_in_date && (
+                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Move-in</div>
+                                <div className="font-semibold text-gray-800">{fmtDate(req.move_in_date)}</div>
+                              </div>
+                            )}
+                            <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                              <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Family</div>
+                              <div className="font-semibold text-gray-800">{req.family_member_count ?? 1}</div>
+                            </div>
+                          </div>
+
+                          {req.employee_notes && (
+                            <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-[11px]">
+                              <div className="text-[9px] text-amber-500 font-bold uppercase tracking-wide mb-0.5">Notes</div>
+                              <div className="text-amber-900">{req.employee_notes}</div>
+                            </div>
+                          )}
+
+                          {/* Occupied: services shortcut */}
+                          {isOccupied && (
+                            <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold text-teal-700">Active Services</span>
+                                {activeSvcs.length > 0 && (
+                                  <span className="text-[10px] bg-teal-600 text-white font-bold px-1.5 py-0.5 rounded-full">{activeSvcs.length}</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => { setSelectedRequest(req); resetActionForm(); }}
+                                className="text-[10px] text-teal-600 font-semibold hover:underline"
+                              >
+                                View in panel →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })
