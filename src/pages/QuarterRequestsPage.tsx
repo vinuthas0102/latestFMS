@@ -29,6 +29,7 @@ import {
   QuarterServiceChat,
   CreateTenantRequestInput,
 } from '../services/quartersService';
+import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
@@ -360,7 +361,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [servicesHistoryMode, setServicesHistoryMode] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatDocUrls, setChatDocUrls] = useState('');
+  const [chatAttachFile, setChatAttachFile] = useState<File | null>(null);
   const [chatSubmitting, setChatSubmitting] = useState(false);
 
   // Card-level dot-menu (portal-based to avoid scroll clipping)
@@ -369,6 +370,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [expandedSvcsCardId, setExpandedSvcsCardId] = useState<string | null>(null);
+  const [expandedSvcDetailId, setExpandedSvcDetailId] = useState<string | null>(null);
 
   // Lightbox for allotted panel image tiles
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -422,10 +424,19 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user || !selectedServiceId || !chatMessage.trim()) return;
     setChatSubmitting(true);
     try {
-      const docUrls = chatDocUrls.split(',').map(s => s.trim()).filter(Boolean);
+      const docUrls: string[] = [];
+      if (chatAttachFile) {
+        const ext = chatAttachFile.name.split('.').pop() ?? 'bin';
+        const path = `service-chats/${selectedServiceId}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, chatAttachFile);
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
+          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
+        }
+      }
       await quartersService.addServiceChat(selectedServiceId, user.id, 'EMPLOYEE', chatMessage, docUrls);
       setChatMessage('');
-      setChatDocUrls('');
+      setChatAttachFile(null);
       const chats = await quartersService.getServiceChats(selectedServiceId);
       setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
     } catch { addToast('Failed to send message', 'error'); } finally { setChatSubmitting(false); }
@@ -1453,6 +1464,7 @@ export const QuarterRequestsPage: React.FC = () => {
       const stc = serviceTypeConfig(selectedSvc.service_type);
       const tsc = tenantStatusConfig(selectedSvc.request_status);
       const svcCtrlRef = `SVC-${selectedSvc.id.slice(-6).toUpperCase()}`;
+
       const svcAccentBg = {
         GRIEVANCE: 'bg-rose-600',
         MAINTENANCE: 'bg-slate-600',
@@ -1460,6 +1472,7 @@ export const QuarterRequestsPage: React.FC = () => {
         UPGRADE: 'bg-sky-600',
         VACATE: 'bg-orange-600',
       }[selectedSvc.service_type] ?? 'bg-gray-600';
+
       const svcBorderAccent = {
         GRIEVANCE: 'border-rose-200',
         MAINTENANCE: 'border-slate-200',
@@ -1467,6 +1480,7 @@ export const QuarterRequestsPage: React.FC = () => {
         UPGRADE: 'border-sky-200',
         VACATE: 'border-orange-200',
       }[selectedSvc.service_type] ?? 'border-gray-200';
+
       const svcBgLight = {
         GRIEVANCE: 'bg-rose-50',
         MAINTENANCE: 'bg-slate-50',
@@ -1474,154 +1488,238 @@ export const QuarterRequestsPage: React.FC = () => {
         UPGRADE: 'bg-sky-50',
         VACATE: 'bg-orange-50',
       }[selectedSvc.service_type] ?? 'bg-gray-50';
+
+      const svcDivider = {
+        GRIEVANCE: 'border-rose-100',
+        MAINTENANCE: 'border-slate-100',
+        EXTEND: 'border-amber-100',
+        UPGRADE: 'border-sky-100',
+        VACATE: 'border-orange-100',
+      }[selectedSvc.service_type] ?? 'border-gray-100';
+
       const hasSubjectInfo = (selectedSvc.service_type === 'GRIEVANCE' || selectedSvc.service_type === 'MAINTENANCE') && (selectedSvc.grievance_subject || selectedSvc.remarks);
       const mainTitle = (hasSubjectInfo ? selectedSvc.grievance_subject : selectedSvc.reason) || stc.label;
 
+      // Local state for expand/collapse of service detail card
+      const [svcDetailExpanded, setSvcDetailExpanded] = useState(false);
+      // File input ref for chat attachment
+      const chatFileRef = useRef<HTMLInputElement>(null);
+
       return (
         <div className="flex flex-col h-full">
-          {/* ── Header */}
-          <div className={`flex items-center gap-3 px-4 py-3.5 ${svcAccentBg} rounded-t-xl sticky top-0 z-10`}>
+
+          {/* ── Row 1: Quarter context strip (teal, always visible) */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10">
             <button
               onClick={() => setSelectedServiceId(null)}
               className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shrink-0"
-              title="Back to occupied panel"
+              title="Back"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-white/20`}>
-              <span className="text-white scale-110">{stc.icon}</span>
+            {q && (
+              <>
+                <img
+                  src={getImage(q, 0)}
+                  alt={q.quarter_number}
+                  className="w-9 h-9 rounded-lg object-cover border-2 border-white/30 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-white leading-tight truncate">{q.quarter_number} · {q.bhk_config}</div>
+                  <div className="text-[10px] text-teal-100 truncate">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</div>
+                </div>
+                <span className="text-[10px] font-semibold bg-white/20 text-white border border-white/30 px-2 py-0.5 rounded-full shrink-0">Occupied</span>
+              </>
+            )}
+            <button
+              onClick={() => { setSelectedServiceId(null); setSelectedRequest(null); }}
+              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shrink-0 ml-1"
+              title="Close panel"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          {/* ── Row 2: Service identity strip (type-colored) */}
+          <div className={`flex items-center gap-3 px-4 py-2.5 ${svcAccentBg} sticky top-[60px] z-10`}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/20 shrink-0">
+              <span className="text-white">{stc.icon}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-semibold text-white/70 uppercase tracking-wider">{stc.label} · {svcCtrlRef}</div>
-              <div className="text-sm font-bold text-white truncate leading-tight">{mainTitle}</div>
+              <div className="text-[10px] font-semibold text-white/70 uppercase tracking-wider leading-none">{stc.label} · {svcCtrlRef}</div>
+              <div className="text-sm font-bold text-white truncate leading-snug mt-0.5">{mainTitle}</div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30`}>{tsc.label}</span>
-              <button
-                onClick={() => { setSelectedServiceId(null); setSelectedRequest(null); }}
-                className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
-                title="Close panel"
-              >
-                <X size={14} />
-              </button>
-            </div>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30 shrink-0">{tsc.label}</span>
           </div>
 
           {/* ── Scrollable body */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-gray-50">
 
-            {/* Detail card */}
-            <div className="px-4 pt-4 pb-3">
+            {/* ── Compact service summary card with expand/collapse */}
+            <div className="px-4 pt-3 pb-2">
               <div className={`rounded-xl border ${svcBorderAccent} ${svcBgLight} overflow-hidden`}>
-                {/* Card header row */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-white/60">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stc.cls} shadow-sm shrink-0`}>
-                    <span className="scale-125">{stc.icon}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-gray-900 text-sm leading-tight">{mainTitle}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5">{stc.label} request · {fmtDate(selectedSvc.created_at)}</div>
-                  </div>
-                  <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border shrink-0 ${tsc.cls}`}>{tsc.label}</span>
-                </div>
 
-                {/* Fields grid */}
-                <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
-                  {/* Reason / Subject */}
-                  {selectedSvc.reason && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Reason</div>
-                      <div className="text-xs text-gray-800 leading-relaxed">{selectedSvc.reason}</div>
+                {/* Always-visible 2-row summary */}
+                <div className="px-4 py-3">
+                  {/* Row 1: icon + title + status */}
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${stc.cls} shadow-sm shrink-0`}>
+                      <span className="scale-110">{stc.icon}</span>
                     </div>
-                  )}
-                  {hasSubjectInfo && selectedSvc.grievance_subject && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Subject</div>
-                      <div className="text-xs text-gray-800 leading-relaxed">{selectedSvc.grievance_subject}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 text-[13px] leading-tight truncate">{mainTitle}</div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">{stc.label} · {fmtDate(selectedSvc.created_at)}</div>
                     </div>
-                  )}
-                  {selectedSvc.remarks && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Remarks</div>
-                      <div className="text-xs text-gray-700 leading-relaxed">{selectedSvc.remarks}</div>
-                    </div>
-                  )}
-                  {selectedSvc.urgency_level && selectedSvc.urgency_level !== 'NORMAL' && (
-                    <div>
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Urgency</div>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border inline-block ${selectedSvc.urgency_level === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' : selectedSvc.urgency_level === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${tsc.cls}`}>{tsc.label}</span>
+                  </div>
+
+                  {/* Row 2: meta chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold border flex items-center gap-0.5 ${stc.cls}`}>
+                      {stc.icon}<span className="ml-0.5">{stc.label}</span>
+                    </span>
+                    {selectedSvc.urgency_level && selectedSvc.urgency_level !== 'NORMAL' && selectedSvc.urgency_level !== 'LOW' && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold border ${selectedSvc.urgency_level === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' : selectedSvc.urgency_level === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                         {selectedSvc.urgency_level}
                       </span>
-                    </div>
-                  )}
-                  {selectedSvc.requested_date && (
-                    <div>
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
-                        {selectedSvc.service_type === 'EXTEND' ? 'Extension Until' : selectedSvc.service_type === 'VACATE' ? 'Vacate By' : 'Requested Date'}
-                      </div>
-                      <div className="text-xs text-gray-800 flex items-center gap-1"><CalendarDays size={11} className="text-gray-400" />{fmtDate(selectedSvc.requested_date)}</div>
-                    </div>
-                  )}
-                  {selectedSvc.required_bhk_config && (
-                    <div>
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Required BHK</div>
-                      <div className="text-xs text-gray-800 flex items-center gap-1"><Bed size={11} className="text-gray-400" />{selectedSvc.required_bhk_config}</div>
-                    </div>
-                  )}
-                  {selectedSvc.document_url && (
-                    <div>
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Document</div>
-                      <a href={selectedSvc.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 underline underline-offset-2">
-                        <ExternalLink size={10} />View Document
-                      </a>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Submitted</div>
-                    <div className="text-xs text-gray-800">{fmtDate(selectedSvc.created_at)}</div>
+                    )}
+                    {selectedSvc.requested_date && (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                        <CalendarDays size={9} />{fmtDate(selectedSvc.requested_date)}
+                      </span>
+                    )}
+                    {selectedSvc.document_url && (
+                      <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                        <Paperclip size={9} />Doc
+                      </span>
+                    )}
+                    {selectedSvc.required_bhk_config && (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                        <Bed size={9} />{selectedSvc.required_bhk_config}
+                      </span>
+                    )}
                   </div>
-                  {selectedSvc.eo_notes && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">EO Notes</div>
-                      <div className="text-xs text-gray-700 leading-relaxed bg-white/70 rounded-lg px-3 py-2 border border-white">{selectedSvc.eo_notes}</div>
-                    </div>
-                  )}
+
+                  {/* Expand / collapse toggle — bottom right */}
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={() => setSvcDetailExpanded(v => !v)}
+                      className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors ${svcDetailExpanded ? `${svcBgLight} ${svcBorderAccent} text-gray-700` : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 bg-white'}`}
+                      title={svcDetailExpanded ? 'Collapse details' : 'View full details'}
+                    >
+                      {svcDetailExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      {svcDetailExpanded ? 'Less' : 'Details'}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* History link */}
-              <button
-                onClick={() => setServicesHistoryMode(true)}
-                className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600 font-medium py-1.5 transition-colors"
-              >
-                <Clock size={11} /> View All Service History
-              </button>
-            </div>
-
-            {/* Chat section */}
-            <div className="px-4 pb-2">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>Messages</span>
-                {chatsForService.length > 0 && (
-                  <span className="bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 text-[9px] font-bold">{chatsForService.length}</span>
+                {/* Expanded detail fields */}
+                {svcDetailExpanded && (
+                  <div className={`border-t ${svcDivider} px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3`}>
+                    {selectedSvc.reason && (
+                      <div className="col-span-2">
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Reason</div>
+                        <div className="text-xs text-gray-800 leading-relaxed">{selectedSvc.reason}</div>
+                      </div>
+                    )}
+                    {hasSubjectInfo && selectedSvc.grievance_subject && (
+                      <div className="col-span-2">
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Subject</div>
+                        <div className="text-xs text-gray-800 leading-relaxed">{selectedSvc.grievance_subject}</div>
+                      </div>
+                    )}
+                    {selectedSvc.remarks && (
+                      <div className="col-span-2">
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Remarks</div>
+                        <div className="text-xs text-gray-700 leading-relaxed">{selectedSvc.remarks}</div>
+                      </div>
+                    )}
+                    {selectedSvc.urgency_level && selectedSvc.urgency_level !== 'NORMAL' && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Urgency</div>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border inline-block ${selectedSvc.urgency_level === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' : selectedSvc.urgency_level === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {selectedSvc.urgency_level}
+                        </span>
+                      </div>
+                    )}
+                    {selectedSvc.requested_date && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
+                          {selectedSvc.service_type === 'EXTEND' ? 'Extension Until' : selectedSvc.service_type === 'VACATE' ? 'Vacate By' : 'Requested Date'}
+                        </div>
+                        <div className="text-xs text-gray-800 flex items-center gap-1"><CalendarDays size={11} className="text-gray-400" />{fmtDate(selectedSvc.requested_date)}</div>
+                      </div>
+                    )}
+                    {selectedSvc.required_bhk_config && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Required BHK</div>
+                        <div className="text-xs text-gray-800 flex items-center gap-1"><Bed size={11} className="text-gray-400" />{selectedSvc.required_bhk_config}</div>
+                      </div>
+                    )}
+                    {selectedSvc.document_url && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Document</div>
+                        <a href={selectedSvc.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 underline underline-offset-2">
+                          <ExternalLink size={10} />View Document
+                        </a>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Submitted</div>
+                      <div className="text-xs text-gray-800">{fmtDate(selectedSvc.created_at)}</div>
+                    </div>
+                    {selectedSvc.eo_notes && (
+                      <div className="col-span-2">
+                        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">EO Notes</div>
+                        <div className="text-xs text-gray-700 leading-relaxed bg-white/70 rounded-lg px-3 py-2 border border-white">{selectedSvc.eo_notes}</div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
+            </div>
+
+            {/* ── Chat section */}
+            <div className="px-4 pb-4">
+              {/* Messages header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Messages</span>
+                  {chatsForService.length > 0 && (
+                    <span className="bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 text-[9px] font-bold">{chatsForService.length}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setServicesHistoryMode(true)}
+                  className="text-[10px] text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1 transition-colors"
+                >
+                  <Clock size={10} /> History
+                </button>
+              </div>
+
               <div className="space-y-2">
                 {[...chatsForService].reverse().map(chat => (
                   <div key={chat.id} className={`flex gap-2 ${chat.author_role === 'EMPLOYEE' ? 'flex-row-reverse' : ''}`}>
                     <div className={`max-w-[84%] rounded-xl px-3 py-2.5 text-xs shadow-sm ${chat.author_role === 'EMPLOYEE' ? 'bg-teal-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
                       <p className="leading-relaxed">{chat.message}</p>
-                      {chat.document_urls.length > 0 && chat.document_urls.map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block text-[10px] underline opacity-80 mt-1">Doc {i + 1}</a>
-                      ))}
+                      {chat.document_urls.length > 0 && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {chat.document_urls.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className={`flex items-center gap-1 text-[10px] underline opacity-80 ${chat.author_role === 'EMPLOYEE' ? 'text-teal-100' : 'text-blue-600'}`}>
+                              <Paperclip size={9} />Attachment {i + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       <div className="text-[9px] mt-1.5 opacity-60">{fmtDate(chat.created_at)}</div>
                     </div>
                   </div>
                 ))}
                 {chatsForService.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                      <Send size={14} className="text-gray-300" />
+                  <div className="flex flex-col items-center justify-center py-8 bg-white rounded-xl border border-dashed border-gray-200">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                      <Send size={15} className="text-gray-300" />
                     </div>
                     <div className="text-xs text-gray-400 font-medium">No messages yet</div>
                     <div className="text-[10px] text-gray-300 mt-0.5">Start the conversation below</div>
@@ -1631,32 +1729,64 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Pinned message input */}
-          <div className="flex-none border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-2">
-            <textarea
-              value={chatMessage}
-              onChange={e => setChatMessage(e.target.value)}
-              rows={2}
-              placeholder="Type your message…"
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 bg-white"
-            />
-            <div className="flex gap-2">
+          {/* ── Pinned input bar with file attachment */}
+          <div className="flex-none border-t border-gray-200 px-4 py-3 bg-white shadow-[0_-1px_6px_rgba(0,0,0,0.04)]">
+            {/* File attachment preview */}
+            {chatAttachFile && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+                <FileText size={13} className="text-blue-500 shrink-0" />
+                <span className="flex-1 min-w-0 text-[11px] font-medium text-blue-800 truncate">{chatAttachFile.name}</span>
+                <button type="button" onClick={() => setChatAttachFile(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-end gap-2">
+              {/* Attach button */}
+              <button
+                type="button"
+                onClick={() => chatFileRef.current?.click()}
+                className="flex-none p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors"
+                title="Attach file"
+              >
+                <Paperclip size={14} />
+              </button>
+              <input
+                ref={chatFileRef}
+                type="file"
+                accept="application/pdf,image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0] ?? null; setChatAttachFile(f); e.target.value = ''; }}
+              />
+
+              <textarea
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && chatMessage.trim()) { e.preventDefault(); handleSendChat(); } }}
+                rows={2}
+                placeholder="Type a message… (Enter to send)"
+                className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 bg-white"
+              />
+
               <button
                 onClick={handleSendChat}
                 disabled={!chatMessage.trim() || chatSubmitting}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors"
+                className="flex-none p-2.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                title="Send"
               >
-                <Send size={11} /> {chatSubmitting ? 'Sending…' : 'Send Message'}
+                <Send size={14} />
               </button>
-              {selectedSvc.request_status === 'PENDING' && (
-                <button
-                  onClick={handleCloseService}
-                  className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors"
-                >
-                  Close
-                </button>
-              )}
             </div>
+
+            {selectedSvc.request_status === 'PENDING' && (
+              <button
+                onClick={handleCloseService}
+                className="mt-2 w-full py-1.5 rounded-lg border border-red-200 text-red-600 text-[11px] font-semibold hover:bg-red-50 transition-colors"
+              >
+                Close Service Request
+              </button>
+            )}
           </div>
         </div>
       );
@@ -3110,7 +3240,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                         )}
                                       </div>
 
-                                      {/* Row 4: submitter + date strip */}
+                                      {/* Row 4: submitter + date + expand toggle */}
                                       <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
                                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                           <div className={`w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0 ${svcAccent}`}>
@@ -3123,9 +3253,74 @@ export const QuarterRequestsPage: React.FC = () => {
                                         <span className="text-[10px] text-gray-400 shrink-0 flex items-center gap-0.5">
                                           <Clock size={9} />{fmtDate(svc.created_at)}
                                         </span>
+                                        {/* Expand / collapse — same style as primary card */}
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setExpandedSvcDetailId(expandedSvcDetailId === svc.id ? null : svc.id); }}
+                                          className={`p-1 rounded-md border transition-colors shrink-0 ml-1 ${expandedSvcDetailId === svc.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                          title={expandedSvcDetailId === svc.id ? 'Collapse' : 'Expand details'}
+                                        >
+                                          {expandedSvcDetailId === svc.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
+
+                                  {/* Expanded detail panel */}
+                                  {expandedSvcDetailId === svc.id && (
+                                    <div
+                                      className="border-t border-gray-100 bg-gray-50/90 px-4 py-3 space-y-2.5"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {svc.reason && (
+                                        <div>
+                                          <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Reason</div>
+                                          <div className="text-[11px] text-gray-800 leading-relaxed">{svc.reason}</div>
+                                        </div>
+                                      )}
+                                      {hasSubject && svc.grievance_subject && (
+                                        <div>
+                                          <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Subject</div>
+                                          <div className="text-[11px] text-gray-800 leading-relaxed">{svc.grievance_subject}</div>
+                                        </div>
+                                      )}
+                                      {svc.remarks && (
+                                        <div>
+                                          <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Remarks</div>
+                                          <div className="text-[11px] text-gray-700 leading-relaxed">{svc.remarks}</div>
+                                        </div>
+                                      )}
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {svc.urgency_level && svc.urgency_level !== 'NORMAL' && (
+                                          <div>
+                                            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Urgency</div>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border inline-block ${svc.urgency_level === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{svc.urgency_level}</span>
+                                          </div>
+                                        )}
+                                        {svc.requested_date && (
+                                          <div>
+                                            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">
+                                              {svc.service_type === 'EXTEND' ? 'Extension Until' : svc.service_type === 'VACATE' ? 'Vacate By' : 'Requested Date'}
+                                            </div>
+                                            <div className="text-[11px] text-gray-800 flex items-center gap-0.5"><CalendarDays size={10} className="text-gray-400" />{fmtDate(svc.requested_date)}</div>
+                                          </div>
+                                        )}
+                                        {svc.required_bhk_config && (
+                                          <div>
+                                            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Required BHK</div>
+                                            <div className="text-[11px] text-gray-800 flex items-center gap-0.5"><Bed size={10} className="text-gray-400" />{svc.required_bhk_config}</div>
+                                          </div>
+                                        )}
+                                        {svc.document_url && (
+                                          <div>
+                                            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Document</div>
+                                            <a href={svc.document_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:text-blue-700 flex items-center gap-0.5 underline underline-offset-1">
+                                              <ExternalLink size={9} />View
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
