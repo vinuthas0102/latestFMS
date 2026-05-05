@@ -3092,144 +3092,122 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Body — 3 columns */}
-          <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3 min-h-0">
+          {/* Body */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
 
-            {/* ── Col 1: Request details form ── */}
-            <div className="flex flex-col overflow-y-auto border-r border-gray-200 bg-white">
-              <div className="px-6 py-5 space-y-4">
+            {/* ── Top: Request details form (horizontal band) ── */}
+            <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
-                  <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <FileText size={15} className="text-blue-600" />Request Details
-                  </h2>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
-                      <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in, New Appointment…"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK</label>
-                        <input value={form.required_bhk_config} onChange={e => setForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 3 BHK"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
-                        <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
-                      <input value={form.preferred_location} onChange={e => setForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A, Sector 5…"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
-                      <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
-                      <textarea value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional context…" rows={2}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                    </div>
-                  </div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
+                  <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
                 </div>
-
-                {/* Request For section — EO only */}
-                {(user?.role === 'manager' || user?.role === 'admin') && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <Users size={15} className="text-teal-600" />Request For
-                    </h2>
-                    {/* Segmented control */}
-                    <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 p-1 gap-1">
-                      {([
-                        { value: 'SELF', label: 'Self', icon: <User size={13} /> },
-                        { value: 'EMPLOYEE', label: 'Another Employee', icon: <UserCheck size={13} /> },
-                        { value: 'TP', label: 'Third Party', icon: <UserPlus size={13} /> },
-                      ] as { value: RequestForType; label: string; icon: React.ReactNode }[]).map(opt => (
-                        <button
-                          key={opt.value}
-                          onClick={() => {
-                            setRequestFor(opt.value);
-                            if (opt.value === 'EMPLOYEE') { setShowEmployeePicker(true); }
-                            if (opt.value === 'TP') { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }
-                          }}
-                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${requestFor === opt.value ? 'bg-white text-blue-700 shadow-sm border border-blue-200' : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                          {opt.icon}{opt.value === 'TP' ? 'Third Party' : opt.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Employee preview */}
-                    {requestFor === 'EMPLOYEE' && (
-                      <div className="mt-3">
-                        {selectedEmployee ? (
-                          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-                            <div className="w-9 h-9 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
-                              {selectedEmployee.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-blue-900">{selectedEmployee.name}</div>
-                              <div className="text-xs text-blue-600">{selectedEmployee.id} · {selectedEmployee.designation}</div>
-                              <div className="text-xs text-blue-500 truncate">{selectedEmployee.dept}</div>
-                            </div>
-                            <button onClick={() => setShowEmployeePicker(true)}
-                              className="text-xs text-blue-600 font-semibold hover:underline shrink-0">Change</button>
-                            <button onClick={() => { setSelectedEmployee(null); setRequestFor('SELF'); }}
-                              className="p-1 text-blue-400 hover:text-blue-600 rounded transition-colors"><X size={14} /></button>
-                          </div>
-                        ) : (
-                          <button onClick={() => setShowEmployeePicker(true)}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors">
-                            <UserCheck size={15} />Select Employee
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* TP preview */}
-                    {requestFor === 'TP' && (
-                      <div className="mt-3">
-                        {tpInfoConfirmed && tpInfo.name ? (
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center shrink-0">
-                                  {tpInfo.name.charAt(0)}
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold text-amber-900">{tpInfo.name}</div>
-                                  <div className="text-xs text-amber-600">{tpInfo.organization}</div>
-                                </div>
-                              </div>
-                              <button onClick={() => { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }}
-                                className="text-xs text-amber-700 font-semibold hover:underline">Edit</button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-1 text-xs text-amber-700">
-                              {tpInfo.mobile && <div className="flex items-center gap-1"><Phone size={10} />{tpInfo.mobile}</div>}
-                              {tpInfo.email && <div className="flex items-center gap-1 truncate"><Mail size={10} />{tpInfo.email}</div>}
-                              {tpInfo.pan && <div className="flex items-center gap-1"><CreditCard size={10} />PAN: {tpInfo.pan}</div>}
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setTpFormDraft({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' }); setShowTPForm(true); }}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-600 text-sm font-medium hover:bg-amber-50 transition-colors">
-                            <UserPlus size={15} />Enter Third Party Details
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK</label>
+                  <input value={form.required_bhk_config} onChange={e => setForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 3 BHK"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
+                  <input value={form.preferred_location} onChange={e => setForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
+                  <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
+                  <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
+                  <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional notes"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+                </div>
               </div>
+
+              {/* Request For strip — EO only */}
+              {(user?.role === 'manager' || user?.role === 'admin') && (
+                <div className="mt-4 flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Users size={13} className="text-teal-600" />
+                    <span className="text-xs font-bold text-gray-700">Request For</span>
+                  </div>
+                  {/* Segmented control */}
+                  <div className="flex rounded-xl border border-gray-200 bg-white p-1 gap-1 shrink-0">
+                    {([
+                      { value: 'SELF', label: 'Self', icon: <User size={12} /> },
+                      { value: 'EMPLOYEE', label: 'Another Employee', icon: <UserCheck size={12} /> },
+                      { value: 'TP', label: 'Third Party', icon: <UserPlus size={12} /> },
+                    ] as { value: RequestForType; label: string; icon: React.ReactNode }[]).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          setRequestFor(opt.value);
+                          if (opt.value === 'EMPLOYEE') { setShowEmployeePicker(true); }
+                          if (opt.value === 'TP') { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }
+                        }}
+                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${requestFor === opt.value ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {opt.icon}{opt.value === 'TP' ? 'Third Party' : opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Employee preview — inline */}
+                  {requestFor === 'EMPLOYEE' && (
+                    selectedEmployee ? (
+                      <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5">
+                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {selectedEmployee.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-blue-900 truncate">{selectedEmployee.name}</div>
+                          <div className="text-[10px] text-blue-500">{selectedEmployee.id} · {selectedEmployee.dept}</div>
+                        </div>
+                        <button onClick={() => setShowEmployeePicker(true)} className="text-[10px] text-blue-600 font-semibold hover:underline shrink-0">Change</button>
+                        <button onClick={() => { setSelectedEmployee(null); setRequestFor('SELF'); }} className="p-0.5 text-blue-400 hover:text-blue-600 transition-colors"><X size={12} /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowEmployeePicker(true)}
+                        className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 text-xs font-medium hover:bg-blue-50 transition-colors">
+                        <UserCheck size={13} />Select Employee
+                      </button>
+                    )
+                  )}
+
+                  {/* TP preview — inline */}
+                  {requestFor === 'TP' && (
+                    tpInfoConfirmed && tpInfo.name ? (
+                      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
+                        <div className="w-6 h-6 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {tpInfo.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-amber-900 truncate">{tpInfo.name}</div>
+                          <div className="text-[10px] text-amber-600 truncate">{tpInfo.organization}</div>
+                        </div>
+                        <button onClick={() => { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }} className="text-[10px] text-amber-700 font-semibold hover:underline shrink-0">Edit</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setTpFormDraft({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' }); setShowTPForm(true); }}
+                        className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-600 text-xs font-medium hover:bg-amber-50 transition-colors">
+                        <UserPlus size={13} />Enter Third Party Details
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* ── Col 2: Available quarters search ── */}
+            {/* ── Bottom: 2-column search + preferences ── */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2 min-h-0">
+
+            {/* ── Col A: Available quarters search ── */}
             <div className="flex flex-col border-r border-gray-200 min-h-0 bg-white">
               <div className="px-4 pt-4 pb-3 border-b border-gray-200 bg-white shrink-0">
                 <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -3276,7 +3254,7 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Col 3: My Preferences ── */}
+            {/* ── Col B: My Preferences ── */}
             <div className="flex flex-col min-h-0 bg-gray-50">
               <div className="px-4 pt-4 pb-3 border-b border-gray-200 bg-white shrink-0">
                 <div className="flex items-center justify-between">
@@ -3338,7 +3316,8 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>{/* end bottom 2-col grid */}
+          </div>{/* end body flex-col */}
 
           {/* ── Employee Picker popup ─────────────────────── */}
           {showEmployeePicker && (
