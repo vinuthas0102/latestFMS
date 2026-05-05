@@ -14,6 +14,7 @@ import { ROUTES } from '../constants/routes';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { PropertyDTO } from '../types';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
+import SplitLayout from '../components/ui/SplitLayout';
 
 export const SearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export const SearchPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [hasAutoSearched, setHasAutoSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [modalPropertyId, setModalPropertyId] = useState<string | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [amenityFilters, setAmenityFilters] = useState<string[]>([]);
   const [proximityCenter, setProximityCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [proximityRadiusKm, setProximityRadiusKm] = useState(10);
@@ -309,7 +310,7 @@ export const SearchPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col" style={{ minHeight: '60vh' }}>
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -323,7 +324,7 @@ export const SearchPage: React.FC = () => {
             <p className="text-gray-600">Try adjusting your search criteria or use More Filters</p>
           </div>
         ) : (
-          <div>
+          <div className="flex flex-col flex-1">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
                 {results.length} {results.length === 1 ? 'Property' : 'Properties'} Found
@@ -357,32 +358,52 @@ export const SearchPage: React.FC = () => {
             {viewMode === 'map' ? (
               <MapSearchView properties={results} checkIn={checkIn} checkOut={checkOut} />
             ) : (
-              <div className="space-y-4">
-                {results.map((property) => (
-                  <PropertyListCard
-                    key={property.id}
-                    property={property}
-                    checkIn={checkIn}
-                    checkOut={checkOut}
-                    isLoggedIn={!!user}
-                    onBookClick={handleBookNow}
-                    onCardClick={(p) => setModalPropertyId(p.id)}
-                    allAmenities={amenities}
-                  />
-                ))}
+              <div style={{ height: '70vh' }}>
+                <SplitLayout
+                  storageKey="searchSplit"
+                  defaultSplit={55}
+                  minLeft={35}
+                  maxLeft={75}
+                  onClose={() => setSelectedPropertyId(null)}
+                  right={selectedPropertyId ? (
+                    <PropertyDetailModal
+                      isOpen={true}
+                      onClose={() => setSelectedPropertyId(null)}
+                      propertyId={selectedPropertyId}
+                      inline
+                    />
+                  ) : (
+                    <div className="hidden lg:flex flex-col h-full bg-gray-50/60 items-center justify-center text-center p-8">
+                      <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
+                        <Building2 size={28} className="text-gray-300" />
+                      </div>
+                      <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
+                      <div className="text-xs text-gray-300">Click any result to view details here</div>
+                    </div>
+                  )}
+                  left={
+                    <div className="space-y-4 pr-1 overflow-y-auto h-full">
+                      {results.map((property) => (
+                        <PropertyListCard
+                          key={property.id}
+                          property={property}
+                          checkIn={checkIn}
+                          checkOut={checkOut}
+                          isLoggedIn={!!user}
+                          onBookClick={handleBookNow}
+                          onCardClick={(p) => setSelectedPropertyId(p.id)}
+                          allAmenities={amenities}
+                          isSelected={selectedPropertyId === property.id}
+                        />
+                      ))}
+                    </div>
+                  }
+                />
               </div>
             )}
           </div>
         )}
       </div>
-
-      {modalPropertyId && (
-        <PropertyDetailModal
-          isOpen={!!modalPropertyId}
-          onClose={() => setModalPropertyId(null)}
-          propertyId={modalPropertyId}
-        />
-      )}
     </div>
   );
 };

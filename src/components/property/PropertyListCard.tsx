@@ -24,6 +24,7 @@ interface PropertyListCardProps {
   onBookClick: (e: React.MouseEvent, property: PropertyDTO) => void;
   onCardClick?: (property: PropertyDTO) => void;
   allAmenities?: AmenityDTO[];
+  isSelected?: boolean;
 }
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -47,6 +48,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   onBookClick,
   onCardClick,
   allAmenities = [],
+  isSelected = false,
 }) => {
   const navigate = useNavigate();
   const [primaryImgError, setPrimaryImgError] = useState(false);
@@ -77,7 +79,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
 
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
+      className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row ${isSelected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}`}
       onClick={() => onCardClick ? onCardClick(property) : navigate(`/properties/${property.id}`)}
     >
       {/* ── Left: Gallery Image Section ─────────────────────────── */}

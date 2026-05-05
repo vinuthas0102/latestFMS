@@ -19,6 +19,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
 import { ROLE_LABELS } from '../constants/roles';
+import SplitLayout from '../components/ui/SplitLayout';
 import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 
 // ── Role-aware welcome banner config ────────────────────────────
@@ -126,10 +127,11 @@ interface QuarterCardProps {
   idx: number;
   onView: (q: Quarter) => void;
   onAddToRequest: (q: Quarter) => void;
+  isSelected?: boolean;
 }
 
-const QuarterCard: React.FC<QuarterCardProps> = ({ quarter, idx, onView, onAddToRequest }) => (
-  <article className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col group">
+const QuarterCard: React.FC<QuarterCardProps & { isSelected?: boolean }> = ({ quarter, idx, onView, onAddToRequest, isSelected }) => (
+  <article onClick={() => onView(quarter)} className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 flex flex-col group cursor-pointer ${isSelected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}`}>
     <div className="relative overflow-hidden aspect-[4/3]">
       <img
         src={resolveImage(quarter, idx)}
@@ -213,7 +215,6 @@ export const QuarterFreeviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('list');
   const [selectedQuarterId, setSelectedQuarterId] = useState<string | null>(null);
-  const [isQuarterModalOpen, setIsQuarterModalOpen] = useState(false);
 
   // Unified filter drawer state (used across all view modes)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -355,11 +356,9 @@ export const QuarterFreeviewPage: React.FC = () => {
 
   const handleViewQuarter = (q: Quarter) => {
     setSelectedQuarterId(q.id);
-    setIsQuarterModalOpen(true);
   };
 
-  const handleCloseQuarterModal = () => {
-    setIsQuarterModalOpen(false);
+  const handleCloseQuarterPanel = () => {
     setSelectedQuarterId(null);
   };
 
@@ -732,9 +731,33 @@ export const QuarterFreeviewPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
-      {/* ── Scrollable content area ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* ── Split content area ──────────────────────────────── */}
+      <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 py-4">
+        <SplitLayout
+          storageKey="qrFreeviewSplit"
+          defaultSplit={65}
+          minLeft={40}
+          maxLeft={80}
+          onClose={handleCloseQuarterPanel}
+          right={selectedQuarterId ? (
+            <QuarterDetailModal
+              isOpen={true}
+              onClose={handleCloseQuarterPanel}
+              quarterId={selectedQuarterId}
+              inline
+            />
+          ) : (
+            <div className="hidden lg:flex flex-col h-full bg-gray-50/60 items-center justify-center text-center p-8">
+              <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
+                <Building2 size={28} className="text-gray-300" />
+              </div>
+              <div className="text-sm font-semibold text-gray-400 mb-1">Select a quarter</div>
+              <div className="text-xs text-gray-300">Click any quarter on the left to view its details here</div>
+            </div>
+          )}
+          left={
+        <div className="overflow-y-auto h-full pr-1">
+        <div className="max-w-7xl mx-auto py-1">
 
               {/* Count row */}
               <div className="flex items-center justify-between mb-3 text-sm">
@@ -805,7 +828,7 @@ export const QuarterFreeviewPage: React.FC = () => {
               ) : view === 'card' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {displayQuarters.map((q, i) => (
-                    <QuarterCard key={q.id} quarter={q} idx={i} onView={handleViewQuarter} onAddToRequest={handleAddToRequest} />
+                    <QuarterCard key={q.id} quarter={q} idx={i} onView={handleViewQuarter} onAddToRequest={handleAddToRequest} isSelected={selectedQuarterId === q.id} />
                   ))}
                 </div>
               ) : (
@@ -821,7 +844,7 @@ export const QuarterFreeviewPage: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {displayQuarters.map((q) => (
-                          <tr key={q.id} className="hover:bg-gray-50 transition-colors">
+                          <tr key={q.id} onClick={() => handleViewQuarter(q)} className={`cursor-pointer transition-colors ${selectedQuarterId === q.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                             <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{q.quarter_number}</td>
                             <td className="px-4 py-3 text-gray-600">{q.quarter_type}</td>
                             <td className="px-4 py-3 text-gray-600">{q.bhk_config}</td>
@@ -852,15 +875,10 @@ export const QuarterFreeviewPage: React.FC = () => {
                 </div>
               )}
         </div>
-      </div>
-
-      {selectedQuarterId && (
-        <QuarterDetailModal
-          isOpen={isQuarterModalOpen}
-          onClose={handleCloseQuarterModal}
-          quarterId={selectedQuarterId}
+        </div>
+          }
         />
-      )}
+      </div>
     </div>
   );
 };

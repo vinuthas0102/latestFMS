@@ -104,12 +104,14 @@ interface PropertyDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   propertyId: string;
+  inline?: boolean;
 }
 
 export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   isOpen,
   onClose,
   propertyId,
+  inline = false,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -131,12 +133,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const scrollingRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen || !propertyId) return;
+    if ((!isOpen && !inline) || !propertyId) return;
     setLoading(true);
     setActiveSection('overview');
     setCheckIn('');
     setCheckOut('');
-    // Clear refs so spy re-attaches on fresh render
     sectionRefs.current = {};
 
     Promise.all([
@@ -151,10 +152,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [isOpen, propertyId]);
+  }, [isOpen, inline, propertyId]);
 
-  // Lock body scroll while open
+  // Lock body scroll while open (skip in inline mode)
   useEffect(() => {
+    if (inline) return;
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
@@ -231,7 +233,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     setTimeout(() => { scrollingRef.current = false; }, 800);
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen && !inline) return null;
 
   const canManage = user && property && canManageProperties(user.role);
   const isOtherFacilities = property?.module?.code === 'OTHER_FAC';
@@ -279,36 +281,39 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     </div>
   ) : null;
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-[800] bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Modal panel */}
-      <div className="fixed inset-x-0 bottom-0 top-6 z-[801] flex items-end sm:items-center justify-center px-0 sm:px-4 lg:px-8">
+  const panelContent = (
         <div
-          className="relative bg-gray-50 w-full max-w-5xl h-full sm:h-[94vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl"
+          className={inline ? "relative bg-gray-50 w-full h-full flex flex-col overflow-hidden" : "relative bg-gray-50 w-full max-w-5xl h-full sm:h-[94vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl"}
           onClick={(e) => e.stopPropagation()}
         >
           {/* ── Sticky modal header ─────────────────────────────── */}
           <div className="flex-none bg-white border-b border-gray-200">
             {/* Top bar: Close / Full Page / Edit / X */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <ArrowLeft size={15} /> Close
-              </button>
+              {!inline ? (
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <ArrowLeft size={15} /> Close
+                </button>
+              ) : (
+                <div className="flex flex-col items-start leading-tight">
+                  {property && <span className="font-bold text-gray-900 text-sm truncate max-w-[140px]">{property.name}</span>}
+                  {property?.minPrice && (
+                    <span className="text-xs text-gray-500">From <span className="font-semibold text-gray-900">₹{property.minPrice.toLocaleString('en-IN')}</span>/night</span>
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-2">
-                {property?.minPrice && (
+                {!inline && property?.minPrice && (
                   <span className="text-sm text-gray-500 hidden sm:block">
                     From <span className="font-bold text-gray-900">₹{property.minPrice.toLocaleString('en-IN')}</span>/night
                   </span>
                 )}
                 {property && (
                   <button
-                    onClick={() => { navigate(`/properties/${propertyId}`); onClose(); }}
+                    onClick={() => { navigate(`/properties/${propertyId}`); if (!inline) onClose(); }}
                     className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 border border-gray-200 hover:border-blue-200 transition-all"
                   >
                     <ExternalLink size={12} /> Full Page
@@ -316,18 +321,20 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 )}
                 {canManage && property && (
                   <button
-                    onClick={() => { navigate(`/properties/${propertyId}/edit`); onClose(); }}
+                    onClick={() => { navigate(`/properties/${propertyId}/edit`); if (!inline) onClose(); }}
                     className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all"
                   >
                     <EditIcon size={12} /> Edit
                   </button>
                 )}
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                >
-                  <X size={18} />
-                </button>
+                {!inline && (
+                  <button
+                    onClick={onClose}
+                    className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -676,6 +683,20 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
           )}
         </div>
+  );
+
+  if (inline) {
+    return panelContent;
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[800] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal panel */}
+      <div className="fixed inset-x-0 bottom-0 top-6 z-[801] flex items-end sm:items-center justify-center px-0 sm:px-4 lg:px-8">
+        {panelContent}
       </div>
     </>
   );
