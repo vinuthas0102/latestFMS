@@ -2519,19 +2519,16 @@ export const QuarterRequestsPage: React.FC = () => {
               if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
               if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
               return <RightPanelPreferences />;
-            })() : (
-              filteredRequests.length > 0 ? (
-                <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 h-full bg-gray-50/60 rounded-xl">
-                  <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
-                    <Star size={24} className="text-gray-300" />
-                  </div>
-                  <div className="text-sm font-semibold text-gray-400 mb-1">Select a request</div>
-                  <div className="text-xs text-gray-300">Click any request on the left to view its details here</div>
-                </div>
-              ) : null
-            )}
+            })() : null}
             left={
             <div className="space-y-3 pr-1">
+              {/* Hint strip — shown only on desktop when list has items and nothing is selected */}
+              {!selectedRequest && filteredRequests.length > 0 && (
+                <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
+                  <ArrowRightCircle size={13} className="shrink-0 opacity-70" />
+                  <span>Click any request to view its full details in the panel alongside</span>
+                </div>
+              )}
               {/* Quarter request cards */}
               {(
                 filteredRequests.length === 0 ? (

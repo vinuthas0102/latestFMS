@@ -751,6 +751,14 @@ export const QuarterFreeviewPage: React.FC = () => {
         <div className="overflow-y-auto h-full pr-1">
         <div className="max-w-7xl mx-auto py-1">
 
+              {/* Hint strip */}
+              {!selectedQuarterId && displayQuarters.length > 0 && (
+                <div className="hidden lg:flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
+                  <ChevronRight size={13} className="shrink-0 opacity-70" />
+                  <span>Click any quarter to view its full details alongside</span>
+                </div>
+              )}
+
               {/* Count row */}
               <div className="flex items-center justify-between mb-3 text-sm">
                 <span className="text-gray-500">

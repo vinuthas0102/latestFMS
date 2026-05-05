@@ -1018,19 +1018,16 @@ export const BookingHistoryPage: React.FC = () => {
                   onNavigate={(id) => navigate(`/bookings/${id}`)}
                   onServiceCountChange={(count) => setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))}
                 />
-              ) : (
-                filteredBookings.length > 0 ? (
-                  <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 h-full bg-gray-50/60 rounded-xl">
-                    <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
-                      <History size={24} className="text-gray-300" />
-                    </div>
-                    <div className="text-sm font-semibold text-gray-400 mb-1">Select a booking</div>
-                    <div className="text-xs text-gray-300">Click any booking on the left to view its details here</div>
-                  </div>
-                ) : null
-              )}
+              ) : null}
               left={
               <div className="pr-1">
+                {/* Hint strip — desktop only, shown when list has items and nothing is selected */}
+                {!selectedBooking && filteredBookings.length > 0 && (
+                  <div className="hidden lg:flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
+                    <ArrowRight size={13} className="shrink-0 opacity-70" />
+                    <span>Click any booking to view its full details alongside</span>
+                  </div>
+                )}
                 {filteredBookings.length === 0 ? (
                   <FadeIn delay={200}>
                     <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-sm">
