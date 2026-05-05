@@ -1839,7 +1839,7 @@ export const QuarterRequestsPage: React.FC = () => {
           <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>
 
             {/* ── LEFT: request list ──────────────────────────── */}
-            <div style={{ width: `${splitPct}%` }} className="flex-none overflow-y-auto space-y-3">
+            <div style={{ width: selectedRequest ? `${splitPct}%` : '100%' }} className="flex-none overflow-y-auto space-y-3 transition-[width] duration-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <FileText size={15} />
@@ -2245,19 +2245,21 @@ export const QuarterRequestsPage: React.FC = () => {
               );
             })()}
 
-            {/* ── DRAG HANDLE ───────────────────────────────────── */}
-            <div
-              onMouseDown={handleDragStart}
-              className="flex-none w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors flex items-center justify-center group relative"
-            >
-              <div className="absolute inset-y-0 -left-1 -right-1" />
-              <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
-            </div>
+            {/* ── DRAG HANDLE (only when request selected) ─────── */}
+            {selectedRequest && (
+              <div
+                onMouseDown={handleDragStart}
+                className="flex-none w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors flex items-center justify-center group relative"
+              >
+                <div className="absolute inset-y-0 -left-1 -right-1" />
+                <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
+              </div>
+            )}
 
-            {/* ── RIGHT: detail panel ───────────────────────────── */}
-            <div style={{ width: `${100 - splitPct - 0.5}%` }} className="flex-none overflow-y-auto bg-white rounded-xl border border-gray-200">
-              {/* Sticky header with expand/contract buttons */}
-              {selectedRequest && (
+            {/* ── RIGHT: detail panel (only when request selected) ── */}
+            {selectedRequest && (
+              <div style={{ width: `${100 - splitPct - 0.5}%` }} className="flex-none overflow-y-auto bg-white rounded-xl border border-gray-200">
+                {/* Expand/contract nudge buttons */}
                 <div className="sticky top-0 z-20 flex justify-end gap-1 px-3 py-1.5 bg-white/90 backdrop-blur-sm border-b border-gray-100">
                   <button
                     onClick={() => { const next = Math.max(25, Math.min(70, splitPct - 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
@@ -2270,22 +2272,26 @@ export const QuarterRequestsPage: React.FC = () => {
                     title="Contract right panel"
                   ><ChevronRight size={14} /></button>
                 </div>
-              )}
-              {selectedRequest ? (() => {
-                const s = selectedRequest.request_status;
-                if (s === 'DRAFT') return <RightPanelDraft />;
-                if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
-                if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
-                return <RightPanelPreferences />;
-              })() : (
-                <div className="flex items-center justify-center h-64 text-gray-400">
-                  <div className="text-center">
-                    <Star size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Select a request to view details</p>
-                  </div>
+                {(() => {
+                  const s = selectedRequest.request_status;
+                  if (s === 'DRAFT') return <RightPanelDraft />;
+                  if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
+                  if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
+                  return <RightPanelPreferences />;
+                })()}
+              </div>
+            )}
+
+            {/* Placeholder when no request selected */}
+            {!selectedRequest && filteredRequests.length > 0 && (
+              <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 w-[62%] ml-2 bg-gray-50/60 rounded-xl border border-gray-200">
+                <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
+                  <Star size={24} className="text-gray-300" />
                 </div>
-              )}
-            </div>
+                <div className="text-sm font-semibold text-gray-400 mb-1">Select a request</div>
+                <div className="text-xs text-gray-300">Click any request on the left to view its details here</div>
+              </div>
+            )}
 
           </div>
           </>

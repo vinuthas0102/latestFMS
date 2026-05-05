@@ -135,3 +135,43 @@ export interface AvailabilityResultDTO {
   availableRooms: RoomDTO[];
   totalAvailable: number;
 }
+
+export type BookingServiceType = 'GRIEVANCE' | 'MAINTENANCE' | 'EXTENSION' | 'CANCELLATION_REQUEST' | 'GENERAL';
+export type BookingServiceStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type BookingServiceUrgency = 'LOW' | 'MEDIUM' | 'HIGH';
+export type BookingServiceAuthorRole = 'employee' | 'manager' | 'system';
+
+export interface BookingServiceRequestDTO {
+  id: string;
+  bookingId: string;
+  employeeId: string;
+  serviceType: BookingServiceType;
+  requestStatus: BookingServiceStatus;
+  subject: string;
+  remarks: string;
+  urgencyLevel: BookingServiceUrgency;
+  eoNotes: string;
+  documentUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  chats?: BookingServiceChatDTO[];
+}
+
+export interface BookingServiceChatDTO {
+  id: string;
+  serviceRequestId: string;
+  authorId: string;
+  authorRole: BookingServiceAuthorRole;
+  message: string;
+  documentUrls: string[];
+  createdAt: string;
+}
+
+export interface CreateBookingServiceRequestDTO {
+  bookingId: string;
+  serviceType: BookingServiceType;
+  subject: string;
+  remarks: string;
+  urgencyLevel?: BookingServiceUrgency;
+  documentUrl?: string;
+}
