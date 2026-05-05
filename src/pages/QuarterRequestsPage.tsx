@@ -780,23 +780,157 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // Compact quarter identity row (replaces the full property card in all DPs)
   const CompactQuarterRow = ({ q, accentCls }: { q: Quarter; accentCls: string }) => (
-    <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/70`}>
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/70">
       <img
         src={getImage(q, 0)}
         alt={q.quarter_number}
-        className="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0"
+        className="w-16 h-16 rounded-xl object-cover border border-gray-200 shrink-0 shadow-sm"
       />
       <div className="flex-1 min-w-0">
         <div className="font-bold text-gray-900 text-sm truncate">{q.quarter_number}</div>
         <div className="text-xs text-gray-500 truncate">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</div>
-        <div className="text-[10px] text-gray-400 mt-0.5">{q.bhk_config} · {q.area_sqft} sq.ft · {q.furnishing_status}</div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">{q.bhk_config}</span>
+          <span className="text-[10px] text-gray-500">{q.area_sqft} sq.ft</span>
+          <span className="text-[10px] text-gray-500">{q.furnishing_status}</span>
+          {q.quarter_type && <span className="text-[10px] text-gray-500">{q.quarter_type}</span>}
+        </div>
       </div>
       <div className="text-right shrink-0">
         <div className={`text-xs font-bold px-2 py-0.5 rounded-full border mb-1 ${accentCls}`}>{q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status === 'AVAILABLE' ? 'Available' : q.occupancy_status}</div>
-        <div className="text-xs font-semibold text-gray-800">{fmtINR(q.monthly_rent)}<span className="font-normal text-gray-400">/mo</span></div>
+        <div className="text-sm font-bold text-gray-900">{fmtINR(q.monthly_rent)}<span className="font-normal text-gray-400 text-xs">/mo</span></div>
       </div>
     </div>
   );
+
+  const QuarterSummaryPanel = ({ q }: { q: Quarter }) => {
+    const [expanded, setExpanded] = useState(false);
+
+    const boolChip = (val: boolean, label: string, trueColor: string, falseColor: string) =>
+      val ? (
+        <span key={label} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${trueColor}`}>
+          <CheckCircle size={9} /> {label}
+        </span>
+      ) : (
+        <span key={label} className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${falseColor}`}>
+          <XCircle size={9} /> {label}
+        </span>
+      );
+
+    const fieldRow = (label: string, value: string | number | null | undefined) => {
+      if (!value && value !== 0) return null;
+      return (
+        <div key={label} className="flex flex-col">
+          <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide leading-tight">{label}</span>
+          <span className="text-xs font-semibold text-gray-800 mt-0.5 leading-snug">{value}</span>
+        </div>
+      );
+    };
+
+    return (
+      <div className="px-4 py-3 border-b border-gray-100 bg-white">
+        {/* Always-visible primary grid */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {fieldRow('Unit No.', q.unit_number || q.quarter_number)}
+          {fieldRow('Quarter Type', q.quarter_type)}
+          {fieldRow('Block', q.block_name)}
+          {fieldRow('Floor', q.floor_number > 0 ? `${q.floor_number}${q.total_floors > 0 ? ` of ${q.total_floors}` : ''}` : null)}
+          {fieldRow('BHK Config', q.bhk_config)}
+          {fieldRow('Housing Style', q.housing_style)}
+        </div>
+
+        {/* Location strip */}
+        {(q.location_area || q.region || q.district) && (
+          <div className="flex items-start gap-1.5 text-xs text-gray-500 mb-3 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+            <MapPin size={11} className="text-gray-400 shrink-0 mt-0.5" />
+            <span className="leading-snug">
+              {[q.location_area, q.district, q.region, q.pin_code].filter(Boolean).join(', ')}
+            </span>
+          </div>
+        )}
+
+        {/* Financial row */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="col-span-1 bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+            <div className="text-[10px] text-blue-500 font-medium uppercase tracking-wide">Monthly Rent</div>
+            <div className="text-sm font-bold text-blue-900 mt-0.5">{fmtINR(q.monthly_rent)}</div>
+          </div>
+          {q.electricity_rate > 0 && (
+            <div className="bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+              <div className="text-[10px] text-amber-500 font-medium uppercase tracking-wide">Elect. Rate</div>
+              <div className="text-xs font-bold text-amber-900 mt-0.5">₹{q.electricity_rate}/unit</div>
+            </div>
+          )}
+          {q.water_charges > 0 && (
+            <div className="bg-cyan-50 rounded-lg px-3 py-2 border border-cyan-100">
+              <div className="text-[10px] text-cyan-500 font-medium uppercase tracking-wide">Water</div>
+              <div className="text-xs font-bold text-cyan-900 mt-0.5">{fmtINR(q.water_charges)}/mo</div>
+            </div>
+          )}
+        </div>
+
+        {/* Feature boolean chips */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {boolChip(q.balcony, 'Balcony', 'bg-green-50 text-green-700 border-green-200', 'bg-gray-50 text-gray-400 border-gray-200')}
+          {boolChip(q.pooja_room, 'Pooja Room', 'bg-orange-50 text-orange-700 border-orange-200', 'bg-gray-50 text-gray-400 border-gray-200')}
+          {boolChip(q.lift_access, 'Lift Access', 'bg-teal-50 text-teal-700 border-teal-200', 'bg-gray-50 text-gray-400 border-gray-200')}
+          {boolChip(q.power_backup, 'Power Backup', 'bg-yellow-50 text-yellow-700 border-yellow-200', 'bg-gray-50 text-gray-400 border-gray-200')}
+          {boolChip(q.kitchen_exhaust, 'Kitchen Exhaust', 'bg-slate-50 text-slate-700 border-slate-200', 'bg-gray-50 text-gray-400 border-gray-200')}
+          {q.toilet_western && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">
+              <CheckCircle size={9} /> Western Toilet
+            </span>
+          )}
+          {q.toilet_indian && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">
+              <CheckCircle size={9} /> Indian Toilet
+            </span>
+          )}
+        </div>
+
+        {/* Expandable extra details */}
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="w-full flex items-center justify-between text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors py-1"
+        >
+          <span>{expanded ? 'Show less' : 'Show all details'}</span>
+          <ChevronDown size={13} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+
+        {expanded && (
+          <div className="mt-3 space-y-3">
+            {/* Additional identity/location fields */}
+            <div className="grid grid-cols-2 gap-2">
+              {fieldRow('Quota', q.quota)}
+              {fieldRow('Counter No.', q.counter_no)}
+              {fieldRow('Resident Type', q.resident_type)}
+              {fieldRow('Facing', q.facing)}
+              {fieldRow('Total Area', q.total_area_sqft > 0 ? `${q.total_area_sqft} sq.ft` : null)}
+              {fieldRow('Unit Area', `${q.area_sqft} sq.ft`)}
+              {fieldRow('Water Heating', q.water_heating)}
+              {fieldRow('Renovation', q.renovation_status)}
+              {fieldRow('Elec. Fixtures', q.electrical_fixtures)}
+              {fieldRow('Avail. Status', q.current_availability_status || q.occupancy_status)}
+            </div>
+
+            {q.parking_details && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100">
+                <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-1">Parking</div>
+                <div className="text-xs text-gray-700 leading-relaxed">{q.parking_details}</div>
+              </div>
+            )}
+
+            {q.penalty_terms && (
+              <div className="bg-red-50 rounded-lg px-3 py-2.5 border border-red-100">
+                <div className="text-[10px] text-red-400 font-medium uppercase tracking-wide mb-1">Penalty Terms</div>
+                <div className="text-xs text-red-800 leading-relaxed">{q.penalty_terms}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Unified request summary block shown in all DPs
   const RequestSummaryBlock = ({ req }: { req: QuarterRequest }) => {
@@ -970,6 +1104,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* Compact allotted quarter identity row */}
         {q && <CompactQuarterRow q={q} accentCls="bg-emerald-50 text-emerald-700 border-emerald-200" />}
+        {q && <QuarterSummaryPanel q={q} />}
         {!q && (
           <div className="px-5 py-3 border-b border-gray-100 bg-emerald-50">
             <div className="text-xs text-emerald-700 font-medium">Allotted on {fmtDate(allotment.allotment_date)}</div>
@@ -1174,6 +1309,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* Quarter identity strip */}
         {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
+        {q && <QuarterSummaryPanel q={q} />}
 
         {/* ── ACTIVE SERVICES — shown immediately after header ───────────── */}
         <div className="px-5 pt-4 pb-3 border-b border-gray-100">
@@ -1208,6 +1344,9 @@ export const QuarterRequestsPage: React.FC = () => {
               {activeSvcRequests.map(tr => {
                 const stc = serviceTypeConfig(tr.service_type);
                 const isSelected = selectedServiceId === tr.id;
+                const hasSubjectInfo = (tr.service_type === 'GRIEVANCE' || tr.service_type === 'MAINTENANCE') && (tr.grievance_subject || tr.remarks);
+                const subjectText = tr.grievance_subject || tr.remarks || '';
+                const ctrlRef = `#${tr.id.slice(-6).toUpperCase()}`;
                 return (
                   <div key={tr.id} className={`rounded-xl border transition-all overflow-hidden ${isSelected ? 'ring-2 ring-blue-400 shadow-sm border-blue-300' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
                     {/* Service row */}
@@ -1217,8 +1356,26 @@ export const QuarterRequestsPage: React.FC = () => {
                     >
                       <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${stc.cls}`}>{stc.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-800">{stc.label}</div>
-                        <div className="text-[10px] text-gray-400">{fmtDate(tr.created_at)}</div>
+                        <div className="text-xs font-bold text-gray-800 truncate">{hasSubjectInfo ? subjectText : stc.label}</div>
+                        {hasSubjectInfo ? (
+                          <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                            <span className="text-[10px] font-mono text-gray-400 shrink-0">{ctrlRef}</span>
+                            <span className="text-gray-300 text-[10px]">·</span>
+                            <span className="text-[10px] text-gray-400 shrink-0">{stc.label}</span>
+                            <span className="text-gray-300 text-[10px]">·</span>
+                            <span className="text-[10px] text-gray-400 shrink-0">{fmtDate(tr.created_at)}</span>
+                            {tr.urgency_level && tr.urgency_level !== 'LOW' && tr.urgency_level !== 'NORMAL' && (
+                              <>
+                                <span className="text-gray-300 text-[10px]">·</span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${tr.urgency_level === 'HIGH' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                                  {tr.urgency_level}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-gray-400">{fmtDate(tr.created_at)}</div>
+                        )}
                       </div>
                       <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold shrink-0">PENDING</span>
                       <ChevronDown size={12} className={`text-gray-400 shrink-0 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
@@ -1683,6 +1840,59 @@ export const QuarterRequestsPage: React.FC = () => {
       </div>
     </>
   );
+
+  const RightPanelSubmitted = () => {
+    if (!selectedRequest) return null;
+    return (
+      <>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 bg-blue-600 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+            <Send size={16} className="text-white" />
+          </div>
+          <div>
+            <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
+            <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          </div>
+          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
+            Submitted {fmtDate(selectedRequest.created_at)}
+          </span>
+          <button
+            onClick={() => setSelectedRequest(null)}
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
+            title="Close panel"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Status banner */}
+        <div className="mx-5 mt-4 mb-1 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <div className="text-xs font-semibold text-blue-800">Request under review</div>
+            <div className="text-[11px] text-blue-600 mt-0.5 leading-relaxed">
+              Your request has been submitted and is pending review by the Estate Officer. You will be notified once a decision is made.
+            </div>
+          </div>
+        </div>
+
+        {/* Request summary */}
+        <RequestSummaryBlock req={selectedRequest} />
+
+        {/* Withdraw action */}
+        <div className="px-5 py-4">
+          <button
+            onClick={() => handleWithdraw(selectedRequest.id)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+          >
+            <XCircle size={15} /> Withdraw Request
+          </button>
+          <p className="text-[10px] text-gray-400 text-center mt-2">Withdrawing will permanently cancel this request.</p>
+        </div>
+      </>
+    );
+  };
 
   // ─── render ──────────────────────────────────────────────────────────────────
 
@@ -2275,6 +2485,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 {(() => {
                   const s = selectedRequest.request_status;
                   if (s === 'DRAFT') return <RightPanelDraft />;
+                  if (s === 'SUBMITTED') return <RightPanelSubmitted />;
                   if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
                   if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
                   return <RightPanelPreferences />;

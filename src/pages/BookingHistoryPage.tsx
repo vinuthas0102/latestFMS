@@ -378,6 +378,8 @@ const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({ booking, userId
     const cfg = SERVICE_CONFIGS[svc.serviceType];
     const SvcIcon = cfg.icon;
     const isExpanded = expandedServiceId === svc.id;
+    const showDetailRow = (svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (svc.subject || svc.urgencyLevel);
+    const ctrlRef = `#${svc.id.slice(-6).toUpperCase()}`;
     return (
       <div key={svc.id} className={`rounded-xl border ${cfg.border} overflow-hidden`}>
         <div
@@ -387,7 +389,23 @@ const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({ booking, userId
           <SvcIcon size={13} className={cfg.color} />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-semibold text-gray-900 truncate">{svc.subject || cfg.label}</div>
-            <div className="text-[10px] text-gray-400">{cfg.label}</div>
+            {showDetailRow ? (
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <span className="text-[10px] font-mono text-gray-400 shrink-0">{ctrlRef}</span>
+                <span className="text-gray-300 text-[10px]">·</span>
+                <span className="text-[10px] text-gray-400 truncate">{cfg.label}</span>
+                {svc.urgencyLevel && svc.urgencyLevel !== 'LOW' && (
+                  <>
+                    <span className="text-gray-300 text-[10px]">·</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${svc.urgencyLevel === 'HIGH' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                      {svc.urgencyLevel}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="text-[10px] text-gray-400">{cfg.label}</div>
+            )}
           </div>
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${SERVICE_STATUS_BADGE[svc.requestStatus]}`}>
             {svc.requestStatus.replace('_', ' ')}

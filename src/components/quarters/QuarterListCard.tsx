@@ -10,6 +10,10 @@ import {
   ChevronRight,
   CheckCircle,
   Images,
+  Compass,
+  Zap,
+  Droplets,
+  LayoutDashboard,
 } from 'lucide-react';
 import { Quarter } from '../../services/quartersService';
 
@@ -187,7 +191,7 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
           )}
 
           {/* Specs */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600 mb-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600 mb-2">
             <span className="flex items-center gap-1.5">
               <Bed size={13} className="text-gray-400" />{quarter.bhk_config}
             </span>
@@ -199,8 +203,47 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
             </span>
             <span className="text-gray-400 font-mono text-[11px]">
               Blk {quarter.block_name || '—'} · Fl {quarter.floor_number}
+              {quarter.total_floors > 0 ? `/${quarter.total_floors}` : ''}
             </span>
+            {quarter.facing && (
+              <span className="flex items-center gap-1 text-gray-500">
+                <Compass size={11} className="text-gray-400" />{quarter.facing}-facing
+              </span>
+            )}
           </div>
+
+          {/* Extended feature chips */}
+          {(quarter.balcony || quarter.pooja_room || quarter.lift_access || quarter.power_backup || quarter.location_area || quarter.resident_type || quarter.renovation_status) && (
+            <div className="flex flex-wrap gap-1 mb-2.5">
+              {quarter.resident_type && (
+                <span className="text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded-full">{quarter.resident_type}</span>
+              )}
+              {quarter.renovation_status && (
+                <span className="text-[10px] font-medium bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full">{quarter.renovation_status}</span>
+              )}
+              {quarter.balcony && (
+                <span className="text-[10px] font-medium bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                  <LayoutDashboard size={8} />Balcony
+                </span>
+              )}
+              {quarter.pooja_room && (
+                <span className="text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded-full">Pooja Room</span>
+              )}
+              {quarter.lift_access && (
+                <span className="text-[10px] font-medium bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-full">Lift</span>
+              )}
+              {quarter.power_backup && (
+                <span className="text-[10px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Zap size={8} />Power Backup
+                </span>
+              )}
+              {quarter.water_charges > 0 && (
+                <span className="text-[10px] font-medium bg-cyan-50 text-cyan-700 border border-cyan-200 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Droplets size={8} />Water ₹{quarter.water_charges}/mo
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Amenities */}
           {quarter.amenities?.length > 0 && (
@@ -246,7 +289,7 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-end gap-1">
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Monthly Rent</p>
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Monthly Rent (HRA)</p>
           <p className="text-2xl font-bold text-gray-900 leading-none tracking-tight">
             {fmtINR(quarter.monthly_rent)}
           </p>
@@ -258,6 +301,11 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
             <Bed size={11} className="text-gray-400" />
             <span>{quarter.bhk_config}</span>
           </div>
+          {quarter.quota && (
+            <div className="mt-1.5 text-[10px] text-center text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
+              {quarter.quota} Quota
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-2">

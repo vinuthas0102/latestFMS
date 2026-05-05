@@ -21,6 +21,34 @@ export interface Quarter {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  // Extended fields
+  region: string;
+  district: string;
+  pin_code: string;
+  unit_number: string;
+  quota: string;
+  counter_no: string;
+  location_area: string;
+  facing: string;
+  total_floors: number;
+  total_area_sqft: number;
+  toilet_western: boolean;
+  toilet_indian: boolean;
+  parking_details: string;
+  electricity_rate: number;
+  water_charges: number;
+  penalty_terms: string;
+  pooja_room: boolean;
+  electrical_fixtures: string;
+  power_backup: boolean;
+  water_heating: string;
+  lift_access: boolean;
+  kitchen_exhaust: boolean;
+  housing_style: string;
+  balcony: boolean;
+  renovation_status: string;
+  resident_type: string;
+  current_availability_status: string;
 }
 
 export interface QuarterRequest {
