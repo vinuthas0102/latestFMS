@@ -2619,10 +2619,10 @@ export const QuarterRequestsPage: React.FC = () => {
         document.body
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col" style={{ height: '100vh' }}>
 
         {/* ── Compact header ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
+        <div className="flex-none bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="min-w-0">
               {/* Breadcrumb */}
@@ -2671,7 +2671,7 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
 
         {/* ── Status summary cards (SummaryStatsCard, matches QuarterManagerPage) ── */}
-        <div className="mb-4">
+        <div className="flex-none mb-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {STATUS_CARDS.map((card, idx) => (
               <SummaryStatsCard
@@ -2721,7 +2721,7 @@ export const QuarterRequestsPage: React.FC = () => {
         ) : (
           <>
             {/* ── Search / Filter / Count — single row ── */}
-            <div className="mb-3 flex items-center gap-2">
+            <div className="flex-none mb-3 flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <MandatorySearchBar
                   fields={[
@@ -2766,6 +2766,7 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             </div>
 
+          <div className="flex-1 min-h-0 overflow-hidden">
           <SplitLayout
             storageKey="qrSplit"
             defaultSplit={65}
@@ -2781,7 +2782,7 @@ export const QuarterRequestsPage: React.FC = () => {
               return <RightPanelPreferences />;
             })() : null}
             left={
-            <div className="space-y-3 pr-1">
+            <div className="space-y-3 pr-1 pb-6">
               {/* Hint strip — shown only on desktop when list has items and nothing is selected */}
               {!selectedRequest && filteredRequests.length > 0 && (
                 <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
@@ -3336,6 +3337,7 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
             }
           />
+          </div>
 
             {/* ── Portal action menu (renders at fixed viewport coords to avoid clipping) */}
             {openMenuId && menuPos && (() => {

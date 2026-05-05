@@ -86,7 +86,7 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
       {/* Left panel */}
       <div
         style={{ width: right ? `${splitPct}%` : '100%' }}
-        className="flex-none overflow-y-auto transition-[width] duration-200"
+        className="flex-none h-full overflow-y-auto transition-[width] duration-200"
       >
         {left}
       </div>
