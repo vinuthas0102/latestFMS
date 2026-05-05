@@ -300,6 +300,12 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalSearch, setModalSearch] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Available quarters filters
+  const [modalFilterOpen, setModalFilterOpen] = useState(false);
+  const [modalBhk, setModalBhk] = useState('');
+  const [modalFurnishing, setModalFurnishing] = useState('');
+  const [modalSortBy, setModalSortBy] = useState('');
+  const modalFilterRef = useRef<HTMLDivElement>(null);
 
   // Decline allotment modal (card-level)
   const [declineModalReqId, setDeclineModalReqId] = useState<string | null>(null);
@@ -497,21 +503,41 @@ export const QuarterRequestsPage: React.FC = () => {
   const loadModalQuarters = useCallback(async () => {
     setModalLoading(true);
     try {
-      const data = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE', search: modalSearch || undefined });
-      setModalQuarters(data.filter(q => !prefs.find(p => p.quarter.id === q.id)));
+      const data = await quartersService.getQuarters({
+        occupancy_status: 'AVAILABLE',
+        search: modalSearch || undefined,
+        bhk_config: modalBhk || undefined,
+        furnishing_status: modalFurnishing || undefined,
+      });
+      let filtered = data.filter(q => !prefs.find(p => p.quarter.id === q.id));
+      if (modalSortBy === 'rent_asc') filtered = [...filtered].sort((a, b) => a.monthly_rent - b.monthly_rent);
+      else if (modalSortBy === 'rent_desc') filtered = [...filtered].sort((a, b) => b.monthly_rent - a.monthly_rent);
+      setModalQuarters(filtered);
     } catch {
       addToast('Failed to load quarters', 'error');
     } finally {
       setModalLoading(false);
     }
-  }, [modalSearch, prefs, addToast]);
+  }, [modalSearch, modalBhk, modalFurnishing, modalSortBy, prefs, addToast]);
 
   useEffect(() => {
     if (showNewModal) {
       const t = setTimeout(loadModalQuarters, 300);
       return () => clearTimeout(t);
     }
-  }, [showNewModal, modalSearch, loadModalQuarters]);
+  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy, loadModalQuarters]);
+
+  // Close filter popup on outside click
+  useEffect(() => {
+    if (!modalFilterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (modalFilterRef.current && !modalFilterRef.current.contains(e.target as Node)) {
+        setModalFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [modalFilterOpen]);
 
   // ─── pref list helpers ──────────────────────────────────────────────────────
 
@@ -571,6 +597,11 @@ export const QuarterRequestsPage: React.FC = () => {
       setTpInfoConfirmed(false);
     }
     setEmployeeSearch('');
+    setModalSearch('');
+    setModalBhk('');
+    setModalFurnishing('');
+    setModalSortBy('');
+    setModalFilterOpen(false);
     setShowNewModal(true);
   };
 
@@ -3279,16 +3310,105 @@ export const QuarterRequestsPage: React.FC = () => {
             {/* ── Col A: Available quarters search ── */}
             <div className="flex flex-col border-r border-gray-200 min-h-0 bg-white">
               <div className="px-4 pt-4 pb-3 border-b border-gray-200 bg-white shrink-0">
-                <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <Search size={15} className="text-gray-500" />Available Quarters
-                </h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                    <Search size={15} className="text-gray-500" />Available Quarters
+                    <span className="text-xs font-normal text-gray-400">({modalQuarters.length})</span>
+                  </h2>
+                  {/* Filter icon + popup */}
+                  <div className="relative" ref={modalFilterRef}>
+                    <button
+                      onClick={() => setModalFilterOpen(v => !v)}
+                      className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                        (modalBhk || modalFurnishing || modalSortBy)
+                          ? 'bg-blue-50 border-blue-200 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Filter size={13} />
+                      Filters
+                      {(modalBhk || modalFurnishing || modalSortBy) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 absolute -top-0.5 -right-0.5" />
+                      )}
+                    </button>
+
+                    {modalFilterOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl border border-gray-200 shadow-xl z-50 p-4 space-y-4">
+                        {/* BHK */}
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">BHK</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['', '1 BHK', '2 BHK', '4 BHK'].map(v => (
+                              <button key={v} onClick={() => setModalBhk(v)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                  modalBhk === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                }`}>
+                                {v || 'Any'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Furnishing */}
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Furnishing</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['', 'Furnished', 'Semi-Furnished', 'Unfurnished'].map(v => (
+                              <button key={v} onClick={() => setModalFurnishing(v)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                  modalFurnishing === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                }`}>
+                                {v || 'Any'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Sort */}
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sort by</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { value: '', label: 'Default' },
+                              { value: 'rent_asc', label: 'Rent ↑' },
+                              { value: 'rent_desc', label: 'Rent ↓' },
+                            ].map(({ value, label }) => (
+                              <button key={value} onClick={() => setModalSortBy(value)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                  modalSortBy === value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                }`}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                          <button onClick={() => { setModalBhk(''); setModalFurnishing(''); setModalSortBy(''); }}
+                            className="text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                            Clear all
+                          </button>
+                          <button onClick={() => setModalFilterOpen(false)}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search by number, block, address…"
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  <span className="font-medium text-gray-700">{modalQuarters.length}</span> available · click <span className="font-medium text-blue-700">Add</span> to add preference
+                  click <span className="font-medium text-blue-700">Add</span> to add preference
+                  {(modalBhk || modalFurnishing || modalSortBy) && (
+                    <span className="ml-2 text-blue-600 font-medium">· filters active</span>
+                  )}
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
