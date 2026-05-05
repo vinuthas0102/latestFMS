@@ -11,6 +11,7 @@ import {
   ArrowLeft, ExternalLink,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
+import SplitLayout from '../components/ui/SplitLayout';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { ImageCarousel } from '../components/ui/ImageCarousel';
@@ -347,10 +348,6 @@ export const QuarterRequestsPage: React.FC = () => {
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  // Resizable split panel
-  const [splitPct, setSplitPct] = useState(() => { try { return Number(localStorage.getItem('qrSplit') || '38'); } catch { return 38; } });
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Service chats for occupied panel
   const [serviceChats, setServiceChats] = useState<Record<string, QuarterServiceChat[]>>({});
@@ -411,29 +408,6 @@ export const QuarterRequestsPage: React.FC = () => {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
-
-  // ─── drag-handle logic ──────────────────────────────────────────────────────
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    const startX = e.clientX;
-    const startPct = splitPct;
-    const containerWidth = containerRef.current?.offsetWidth ?? 800;
-    const onMove = (me: MouseEvent) => {
-      const delta = ((me.clientX - startX) / containerWidth) * 100;
-      const next = Math.max(25, Math.min(70, startPct + delta));
-      setSplitPct(next);
-    };
-    const onUp = () => {
-      setIsDragging(false);
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      try { localStorage.setItem('qrSplit', String(Math.round(startPct))); } catch {}
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
 
   // ─── service chat handlers ──────────────────────────────────────────────────
 
@@ -2532,10 +2506,32 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             </div>
 
-          <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>
-
-            {/* ── LEFT: request list ──────────────────────────── */}
-            <div style={{ width: selectedRequest ? `${splitPct}%` : '100%' }} className="flex-none overflow-y-auto space-y-3 transition-[width] duration-200">
+          <SplitLayout
+            storageKey="qrSplit"
+            defaultSplit={65}
+            minLeft={40}
+            maxLeft={80}
+            onClose={() => setSelectedRequest(null)}
+            right={selectedRequest ? (() => {
+              const s = selectedRequest.request_status;
+              if (s === 'DRAFT') return <RightPanelDraft />;
+              if (s === 'SUBMITTED') return <RightPanelSubmitted />;
+              if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
+              if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
+              return <RightPanelPreferences />;
+            })() : (
+              filteredRequests.length > 0 ? (
+                <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 h-full bg-gray-50/60 rounded-xl">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
+                    <Star size={24} className="text-gray-300" />
+                  </div>
+                  <div className="text-sm font-semibold text-gray-400 mb-1">Select a request</div>
+                  <div className="text-xs text-gray-300">Click any request on the left to view its details here</div>
+                </div>
+              ) : null
+            )}
+            left={
+            <div className="space-y-3 pr-1">
               {/* Quarter request cards */}
               {(
                 filteredRequests.length === 0 ? (
@@ -2868,6 +2864,8 @@ export const QuarterRequestsPage: React.FC = () => {
                 })
               )}
             </div>
+            }
+          />
 
             {/* ── Portal action menu (renders at fixed viewport coords to avoid clipping) */}
             {openMenuId && menuPos && (() => {
@@ -2990,56 +2988,6 @@ export const QuarterRequestsPage: React.FC = () => {
               );
             })()}
 
-            {/* ── DRAG HANDLE (only when request selected) ─────── */}
-            {selectedRequest && (
-              <div
-                onMouseDown={handleDragStart}
-                className="flex-none w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors flex items-center justify-center group relative"
-              >
-                <div className="absolute inset-y-0 -left-1 -right-1" />
-                <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
-              </div>
-            )}
-
-            {/* ── RIGHT: detail panel (only when request selected) ── */}
-            {selectedRequest && (
-              <div style={{ width: `${100 - splitPct - 0.5}%` }} className="flex-none overflow-y-auto bg-white rounded-xl border border-gray-200">
-                {/* Expand/contract nudge buttons */}
-                <div className="sticky top-0 z-20 flex justify-end gap-1 px-3 py-1.5 bg-white/90 backdrop-blur-sm border-b border-gray-100">
-                  <button
-                    onClick={() => { const next = Math.max(25, Math.min(70, splitPct - 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
-                    className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
-                    title="Expand right panel"
-                  ><ChevronLeft size={14} /></button>
-                  <button
-                    onClick={() => { const next = Math.max(25, Math.min(70, splitPct + 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
-                    className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
-                    title="Contract right panel"
-                  ><ChevronRight size={14} /></button>
-                </div>
-                {(() => {
-                  const s = selectedRequest.request_status;
-                  if (s === 'DRAFT') return <RightPanelDraft />;
-                  if (s === 'SUBMITTED') return <RightPanelSubmitted />;
-                  if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
-                  if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
-                  return <RightPanelPreferences />;
-                })()}
-              </div>
-            )}
-
-            {/* Placeholder when no request selected */}
-            {!selectedRequest && filteredRequests.length > 0 && (
-              <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 w-[62%] ml-2 bg-gray-50/60 rounded-xl border border-gray-200">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
-                  <Star size={24} className="text-gray-300" />
-                </div>
-                <div className="text-sm font-semibold text-gray-400 mb-1">Select a request</div>
-                <div className="text-xs text-gray-300">Click any request on the left to view its details here</div>
-              </div>
-            )}
-
-          </div>
           </>
         )}
       </main>

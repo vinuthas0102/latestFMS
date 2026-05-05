@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
@@ -8,6 +8,7 @@ import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DataTable } from '../components/ui/DataTable';
 import { ListView, ListViewItem } from '../components/ui/ListView';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
+import SplitLayout from '../components/ui/SplitLayout';
 import {
   Calendar, Eye, History, CheckCircle, Clock, XCircle,
   Home, MapPin, ArrowRight, CreditCard, Users,
@@ -810,33 +811,6 @@ export const BookingHistoryPage: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
 
-  // Resizable split panel
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [splitPct, setSplitPct] = useState(() => {
-    try { return Number(localStorage.getItem('bhSplit') || '38'); } catch { return 38; }
-  });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-    const startX = e.clientX;
-    const startPct = splitPct;
-    const containerWidth = containerRef.current?.offsetWidth ?? 800;
-    const onMove = (me: MouseEvent) => {
-      const delta = ((me.clientX - startX) / containerWidth) * 100;
-      const next = Math.max(25, Math.min(70, startPct + delta));
-      setSplitPct(next);
-    };
-    const onUp = () => {
-      setIsDragging(false);
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      try { localStorage.setItem('bhSplit', String(Math.round(splitPct))); } catch {}
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
 
   useEffect(() => {
     loadBookings();
@@ -1030,16 +1004,33 @@ export const BookingHistoryPage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div
-              ref={containerRef}
-              className="flex gap-0 h-full"
-              style={{ userSelect: isDragging ? 'none' : undefined }}
-            >
-              {/* Left panel */}
-              <div
-                style={{ width: selectedBooking ? `${splitPct}%` : '100%' }}
-                className="flex-none overflow-y-auto transition-[width] duration-200"
-              >
+            <SplitLayout
+              storageKey="bhSplit"
+              defaultSplit={65}
+              minLeft={40}
+              maxLeft={80}
+              onClose={() => setSelectedBooking(null)}
+              right={selectedBooking ? (
+                <BookingDetailPanel
+                  booking={selectedBooking}
+                  userId={user!.id}
+                  onClose={() => setSelectedBooking(null)}
+                  onNavigate={(id) => navigate(`/bookings/${id}`)}
+                  onServiceCountChange={(count) => setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))}
+                />
+              ) : (
+                filteredBookings.length > 0 ? (
+                  <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 h-full bg-gray-50/60 rounded-xl">
+                    <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
+                      <History size={24} className="text-gray-300" />
+                    </div>
+                    <div className="text-sm font-semibold text-gray-400 mb-1">Select a booking</div>
+                    <div className="text-xs text-gray-300">Click any booking on the left to view its details here</div>
+                  </div>
+                ) : null
+              )}
+              left={
+              <div className="pr-1">
                 {filteredBookings.length === 0 ? (
                   <FadeIn delay={200}>
                     <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-sm">
@@ -1116,54 +1107,8 @@ export const BookingHistoryPage: React.FC = () => {
                   </FadeIn>
                 )}
               </div>
-
-              {/* Drag handle */}
-              {selectedBooking && (
-                <div
-                  onMouseDown={handleDragStart}
-                  className="flex-none w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors flex items-center justify-center group relative mx-1"
-                >
-                  <div className="absolute inset-y-0 -left-1 -right-1" />
-                  <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
-                </div>
-              )}
-
-              {/* Right panel */}
-              {selectedBooking && (
-                <div
-                  style={{ width: `${100 - splitPct - 1}%` }}
-                  className="flex-none bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"
-                >
-                  {/* Nudge controls */}
-                  <div className="absolute right-4 top-1 flex gap-1 z-20 hidden lg:flex">
-                    <button onClick={() => setSplitPct(p => Math.max(25, p - 5))} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Expand right panel">
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button onClick={() => setSplitPct(p => Math.min(70, p + 5))} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Expand left panel">
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                  <BookingDetailPanel
-                    booking={selectedBooking}
-                    userId={user!.id}
-                    onClose={() => setSelectedBooking(null)}
-                    onNavigate={(id) => navigate(`/bookings/${id}`)}
-                    onServiceCountChange={(count) => setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))}
-                  />
-                </div>
-              )}
-
-              {/* Placeholder when nothing selected */}
-              {!selectedBooking && filteredBookings.length > 0 && (
-                <div className="hidden lg:flex flex-col items-center justify-center text-center p-8 w-[62%] ml-2 bg-gray-50/60 rounded-xl border border-gray-200">
-                  <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-3">
-                    <History size={24} className="text-gray-300" />
-                  </div>
-                  <div className="text-sm font-semibold text-gray-400 mb-1">Select a booking</div>
-                  <div className="text-xs text-gray-300">Click any booking on the left to view its details here</div>
-                </div>
-              )}
-            </div>
+              }
+            />
           )}
         </div>
       </div>

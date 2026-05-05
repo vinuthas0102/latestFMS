@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, MapPin, Calendar, Camera, CheckCircle, Clock, Layers, Search, Navigation, X, Home, ChevronRight, ExternalLink, Images, Bed, Users, Wifi, Star } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -11,6 +11,7 @@ import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DataTable } from '../components/ui/DataTable';
 import { PropertyListCard } from '../components/property/PropertyListCard';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
+import SplitLayout from '../components/ui/SplitLayout';
 import { usePropertyStore } from '../stores/propertyStore';
 import { useAuthStore } from '../stores/authStore';
 import { canManageProperties } from '../utils/permissions';
@@ -440,10 +441,127 @@ export const PropertiesPage: React.FC = () => {
       </FilterDrawer>
 
       {/* Split-screen data area */}
-      <div className="flex-1 overflow-hidden flex">
-        {/* Left panel: property list */}
-        <div className={`flex flex-col overflow-y-auto transition-all duration-300 ${selectedProperty ? 'hidden lg:flex lg:w-2/5 xl:w-[38%]' : 'w-full'}`}>
-          <div className="px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 py-4">
+        <SplitLayout
+          storageKey="propSplit"
+          defaultSplit={65}
+          minLeft={40}
+          maxLeft={80}
+          onClose={() => setSelectedProperty(null)}
+          right={selectedProperty ? (
+            <div className="flex flex-col">
+              {/* Image tiles */}
+              <div className="flex-none px-5 pt-4">
+                {selectedProperty.images.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {selectedProperty.images.slice(0, 5).map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setLightboxImages(selectedProperty.images); setLightboxIndex(i); setLightboxOpen(true); }}
+                        className="relative flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md group"
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                        {i === 4 && selectedProperty.images.length > 5 && (
+                          <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-0.5">
+                            <Images size={14} className="text-white" />
+                            <span className="text-white text-xs font-bold">+{selectedProperty.images.length - 5}</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-16 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center">
+                    <Building2 size={28} className="text-gray-300" />
+                  </div>
+                )}
+              </div>
+
+              {/* Property info */}
+              <div className="flex-1 px-5 py-4 space-y-4">
+                {/* Name + location */}
+                <div>
+                  <div className="text-xs text-gray-400 truncate">{selectedProperty.estate?.name || selectedProperty.address}</div>
+                  <h2 className="text-base font-bold text-gray-900 truncate">{selectedProperty.name}</h2>
+                </div>
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant={selectedProperty.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">{selectedProperty.status}</Badge>
+                  {selectedProperty.module && <Badge variant="default" className="text-xs">{selectedProperty.module.name}</Badge>}
+                  {selectedProperty.propertyType && <Badge variant="success" className="text-xs">{selectedProperty.propertyType.name}</Badge>}
+                  {getModuleBadgeText(selectedProperty.module?.code) && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
+                      {getModuleBadgeText(selectedProperty.module?.code)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                {selectedProperty.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed">{selectedProperty.description}</p>
+                )}
+
+                {/* Key specs grid */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { icon: <MapPin size={13} />, label: 'Location', value: selectedProperty.estate?.city || selectedProperty.address || '—', color: 'text-blue-500' },
+                    { icon: <Layers size={13} />, label: 'Total Rooms', value: selectedProperty.totalRooms ? `${selectedProperty.totalRooms} rooms` : '—', color: 'text-teal-500' },
+                    { icon: <Building2 size={13} />, label: 'Estate', value: selectedProperty.estate?.name || '—', color: 'text-gray-500' },
+                    { icon: <Calendar size={13} />, label: 'Bookable', value: requiresLoginForBooking(selectedProperty.module?.code) ? 'Login required' : 'Open booking', color: 'text-green-500' },
+                  ].map(item => (
+                    <div key={item.label} className="bg-gray-50 rounded-xl px-3.5 py-2.5 border border-gray-100">
+                      <div className={`flex items-center gap-1.5 ${item.color} mb-1`}>
+                        {item.icon}
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{item.label}</span>
+                      </div>
+                      <div className="text-sm font-semibold text-gray-800 truncate">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Amenities */}
+                {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedProperty.amenities.map((a: string) => (
+                        <span key={a} className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-xs font-medium">{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CTA buttons */}
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    onClick={(e) => handleBookingClick(e as any, selectedProperty)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                  >
+                    <Calendar size={15} />
+                    {requiresLoginForBooking(selectedProperty.module?.code) && !user ? 'Login to Book' : 'Book Now'}
+                  </button>
+                  <button
+                    onClick={() => navigate(`/properties/${selectedProperty.id}`)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <ExternalLink size={14} />
+                    Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="hidden lg:flex flex-col h-full bg-gray-50/60 items-center justify-center text-center p-8">
+              <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
+                <Building2 size={28} className="text-gray-300" />
+              </div>
+              <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
+              <div className="text-xs text-gray-300">Click any property on the left to view its details here</div>
+            </div>
+          )}
+          left={
+          <div>
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
@@ -572,143 +690,8 @@ export const PropertiesPage: React.FC = () => {
               </FadeIn>
             )}
           </div>
-        </div>
-
-        {/* Right panel: property detail */}
-        {selectedProperty ? (
-          <div className="flex flex-col w-full lg:w-3/5 xl:w-[62%] border-l border-gray-200 bg-white overflow-y-auto">
-            {/* Panel header */}
-            <div className="flex-none sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-5 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <button
-                  onClick={handleClosePanel}
-                  className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
-                >
-                  <ChevronRight size={16} className="rotate-180" />
-                </button>
-                <div className="min-w-0">
-                  <div className="text-xs text-gray-400 truncate">{selectedProperty.estate?.name || selectedProperty.address}</div>
-                  <h2 className="text-sm font-bold text-gray-900 truncate">{selectedProperty.name}</h2>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => navigate(`/properties/${selectedProperty.id}`)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-all border border-blue-200"
-                >
-                  <ExternalLink size={12} />
-                  Full Page
-                </button>
-                <button onClick={handleClosePanel} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Image tiles */}
-            <div className="flex-none px-5 pt-4">
-              {selectedProperty.images.length > 0 ? (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {selectedProperty.images.slice(0, 5).map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { setLightboxImages(selectedProperty.images); setLightboxIndex(i); setLightboxOpen(true); }}
-                      className="relative flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md group"
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                      {i === 4 && selectedProperty.images.length > 5 && (
-                        <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-0.5">
-                          <Images size={14} className="text-white" />
-                          <span className="text-white text-xs font-bold">+{selectedProperty.images.length - 5}</span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-16 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center">
-                  <Building2 size={28} className="text-gray-300" />
-                </div>
-              )}
-            </div>
-
-            {/* Property info */}
-            <div className="flex-1 px-5 py-4 space-y-4">
-              {/* Badges */}
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant={selectedProperty.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">{selectedProperty.status}</Badge>
-                {selectedProperty.module && <Badge variant="default" className="text-xs">{selectedProperty.module.name}</Badge>}
-                {selectedProperty.propertyType && <Badge variant="success" className="text-xs">{selectedProperty.propertyType.name}</Badge>}
-                {getModuleBadgeText(selectedProperty.module?.code) && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getModuleBadgeStyles(selectedProperty.module?.code)}`}>
-                    {getModuleBadgeText(selectedProperty.module?.code)}
-                  </span>
-                )}
-              </div>
-
-              {/* Description */}
-              {selectedProperty.description && (
-                <p className="text-sm text-gray-600 leading-relaxed">{selectedProperty.description}</p>
-              )}
-
-              {/* Key specs grid */}
-              <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  { icon: <MapPin size={13} />, label: 'Location', value: selectedProperty.estate?.city || selectedProperty.address || '—', color: 'text-blue-500' },
-                  { icon: <Layers size={13} />, label: 'Total Rooms', value: selectedProperty.totalRooms ? `${selectedProperty.totalRooms} rooms` : '—', color: 'text-teal-500' },
-                  { icon: <Building2 size={13} />, label: 'Estate', value: selectedProperty.estate?.name || '—', color: 'text-gray-500' },
-                  { icon: <Calendar size={13} />, label: 'Bookable', value: requiresLoginForBooking(selectedProperty.module?.code) ? 'Login required' : 'Open booking', color: 'text-green-500' },
-                ].map(item => (
-                  <div key={item.label} className="bg-gray-50 rounded-xl px-3.5 py-2.5 border border-gray-100">
-                    <div className={`flex items-center gap-1.5 ${item.color} mb-1`}>
-                      {item.icon}
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{item.label}</span>
-                    </div>
-                    <div className="text-sm font-semibold text-gray-800 truncate">{item.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Amenities */}
-              {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedProperty.amenities.map((a: string) => (
-                      <span key={a} className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-xs font-medium">{a}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* CTA buttons */}
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  onClick={(e) => handleBookingClick(e as any, selectedProperty)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-                >
-                  <Calendar size={15} />
-                  {requiresLoginForBooking(selectedProperty.module?.code) && !user ? 'Login to Book' : 'Book Now'}
-                </button>
-                <button
-                  onClick={() => navigate(`/properties/${selectedProperty.id}`)}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all duration-200"
-                >
-                  <ExternalLink size={14} />
-                  Details
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="hidden lg:flex flex-col w-3/5 xl:w-[62%] border-l border-gray-200 bg-gray-50/60 items-center justify-center text-center p-8">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
-              <Building2 size={28} className="text-gray-300" />
-            </div>
-            <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
-            <div className="text-xs text-gray-300">Click any property on the left to view its details here</div>
-          </div>
-        )}
+          }
+        />
       </div>
 
       {lightboxOpen && (
