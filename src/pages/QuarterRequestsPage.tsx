@@ -2547,7 +2547,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   onFilterOpen={() => setFilterDrawerOpen(true)}
                 />
               </div>
-              <span className="text-xs text-gray-500 shrink-0 whitespace-nowrap">{filteredRequests.length} of {requests.length} requests</span>
             </div>
 
           <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>

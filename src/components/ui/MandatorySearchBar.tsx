@@ -43,7 +43,7 @@ export const MandatorySearchBar: React.FC<MandatorySearchBarProps> = ({
                 <span className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold leading-none">
                   {field.label}
                 </span>
-                <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex items-center gap-1 flex-nowrap overflow-x-auto">
                   {(field.options || []).map((opt) => (
                     <button
                       key={opt.value}

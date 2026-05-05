@@ -1177,9 +1177,6 @@ export const QuarterManagerPage: React.FC = () => {
                   ]}
                   className="mb-0"
                 />
-                <div className="flex justify-end mt-1.5">
-                  <span className="text-xs text-gray-500">{filteredAllRequests.length} of {allRequests.length} requests</span>
-                </div>
 
                 {loadingAll ? (
                   <div className="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-400 text-sm">Loading…</div>
@@ -1308,9 +1305,6 @@ export const QuarterManagerPage: React.FC = () => {
                   ]}
                   className="mb-0"
                 />
-                <div className="flex justify-end mt-1.5">
-                  <span className="text-xs text-gray-500">{filteredTenantRequests.length} of {allTenantRequests.length} requests</span>
-                </div>
 
                 {loadingTenant ? (
                   <div className="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-400 text-sm">Loading…</div>
