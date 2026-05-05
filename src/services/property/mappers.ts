@@ -10,6 +10,7 @@ import {
   AmenityDTO,
   BlockDTO,
   FloorDTO,
+  DEFAULT_ROOM_FEATURES,
 } from '../../types';
 
 export function mapRegionFromDb(dbRegion: any): RegionDTO {
@@ -139,6 +140,10 @@ export function mapRoomFromDb(dbRoom: any): RoomDTO {
     basePrice: dbRoom.base_price,
     amenities: dbRoom.amenities || [],
     isSmokingAllowed: dbRoom.is_smoking_allowed,
+    features: { ...DEFAULT_ROOM_FEATURES, ...(dbRoom.features || {}) },
+    viewType: dbRoom.view_type || '',
+    bedCount: dbRoom.bed_count || 0,
+    bedType: dbRoom.bed_type || '',
     metadata: dbRoom.metadata || {},
     status: dbRoom.status,
     isActive: dbRoom.is_active,
@@ -153,8 +158,9 @@ export function mapAmenityFromDb(dbAmenity: any): AmenityDTO {
   return {
     id: dbAmenity.id,
     name: dbAmenity.name,
-    icon: dbAmenity.icon,
+    icon: dbAmenity.icon || 'star',
     category: dbAmenity.category,
+    sortOrder: dbAmenity.sort_order ?? 0,
     isActive: dbAmenity.is_active,
     createdAt: dbAmenity.created_at,
   };

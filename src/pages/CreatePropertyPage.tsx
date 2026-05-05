@@ -44,6 +44,10 @@ interface PropertyFormData {
     basePrice: number;
     amenities: string[];
     isSmokingAllowed: boolean;
+    features?: import('../types').RoomFeatures;
+    viewType?: string;
+    bedCount?: number;
+    bedType?: string;
   }>;
   images: string[];
   description: string;
@@ -323,26 +327,23 @@ export const CreatePropertyPage: React.FC = () => {
             continue;
           }
 
+          const roomPayload = {
+            floorId: floor.id,
+            roomTypeId: room.roomTypeId,
+            roomNumber: room.roomNumber,
+            capacity: room.capacity,
+            basePrice: room.basePrice,
+            amenities: room.amenities,
+            isSmokingAllowed: room.isSmokingAllowed,
+            features: room.features,
+            viewType: room.viewType,
+            bedCount: room.bedCount,
+            bedType: room.bedType,
+          };
           if (room.id) {
-            await propertyService.updateRoom(room.id, {
-              floorId: floor.id,
-              roomTypeId: room.roomTypeId,
-              roomNumber: room.roomNumber,
-              capacity: room.capacity,
-              basePrice: room.basePrice,
-              amenities: room.amenities,
-              isSmokingAllowed: room.isSmokingAllowed,
-            });
+            await propertyService.updateRoom(room.id, roomPayload);
           } else {
-            await propertyService.createRoom({
-              floorId: floor.id,
-              roomTypeId: room.roomTypeId,
-              roomNumber: room.roomNumber,
-              capacity: room.capacity,
-              basePrice: room.basePrice,
-              amenities: room.amenities,
-              isSmokingAllowed: room.isSmokingAllowed,
-            });
+            await propertyService.createRoom(roomPayload);
           }
           successfulRooms++;
         } catch (roomError: any) {

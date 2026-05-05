@@ -5,6 +5,8 @@ import {
   BarChart3, Building2, Star, CheckCircle, Bed, Users, ExternalLink,
   CreditCard as EditIcon, ChevronDown,
 } from 'lucide-react';
+import { RoomDisplayCard } from '../rooms/RoomDisplayCard';
+import { getCategoryTheme, getAmenityIcon } from '../../utils/amenityIcons';
 import { PhotoGallery } from '../ui/PhotoGallery';
 import { Badge } from '../ui/Badge';
 import { BookingFormSection } from './BookingFormSection';
@@ -81,45 +83,7 @@ const ReviewsPanel: React.FC<{ name: string }> = ({ name }) => (
   </div>
 );
 
-// ── Room card ──────────────────────────────────────────────────────
-
-const RoomCard: React.FC<{ room: RoomDTO; onBook: () => void }> = ({ room, onBook }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 hover:shadow-md transition-shadow">
-    <div className="w-28 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0">
-      <Bed size={26} className="text-gray-400" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div>
-          <h4 className="font-bold text-gray-900 text-sm">{room.roomType?.name || 'Standard Room'} #{room.roomNumber}</h4>
-          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-            <Users size={10} /><span>Sleeps {room.capacity}</span>
-          </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-lg font-black text-gray-900">₹{room.basePrice.toLocaleString('en-IN')}</div>
-          <div className="text-[10px] text-gray-400">per night</div>
-        </div>
-      </div>
-      {room.amenities.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {room.amenities.slice(0, 3).map(a => (
-            <span key={a} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{a}</span>
-          ))}
-          {room.amenities.length > 3 && (
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">+{room.amenities.length - 3}</span>
-          )}
-        </div>
-      )}
-      <button
-        onClick={onBook}
-        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
-      >
-        <Calendar size={10} /> Book
-      </button>
-    </div>
-  </div>
-);
+// RoomCard is now handled by the shared RoomDisplayCard component
 
 // ── Section heading ────────────────────────────────────────────────
 
@@ -149,7 +113,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { roomTypes } = usePropertyStore();
+  const { roomTypes, amenities } = usePropertyStore();
 
   const [property, setProperty] = useState<PropertyDTO | null>(null);
   const [blocks, setBlocks] = useState<BlockDTO[]>([]);
@@ -471,20 +435,46 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     <BasicInfoDisplay property={property} />
                   </div>
 
-                  {property.amenities?.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                      <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <CheckCircle size={13} className="text-emerald-500" /> What's included
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {property.amenities.map((a) => (
-                          <span key={a} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
-                            <CheckCircle size={11} />{a}
-                          </span>
-                        ))}
+                  {(() => {
+                    const propertyAmenityIds = property.amenities || [];
+                    const resolvedAmenities = propertyAmenityIds
+                      .map((id: string) => amenities.find(a => a.id === id))
+                      .filter(Boolean) as typeof amenities;
+                    const displayAmenities = resolvedAmenities.length > 0 ? resolvedAmenities : [];
+                    if (displayAmenities.length === 0) return null;
+                    const grouped = displayAmenities.reduce((acc: Record<string, typeof amenities>, a) => {
+                      if (!acc[a.category]) acc[a.category] = [];
+                      acc[a.category].push(a);
+                      return acc;
+                    }, {});
+                    return (
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                          <CheckCircle size={13} className="text-emerald-500" /> Amenities & Features
+                          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{displayAmenities.length}</span>
+                        </h4>
+                        <div className="space-y-3">
+                          {Object.entries(grouped).map(([category, items]) => (
+                            <div key={category}>
+                              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{category}</div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {(items as typeof amenities).map(amenity => {
+                                  const theme = getCategoryTheme(amenity.category);
+                                  const Icon = getAmenityIcon(amenity.icon);
+                                  return (
+                                    <div key={amenity.id} className={`flex items-center gap-2 p-2 rounded-lg border ${theme.border} ${theme.bg}`}>
+                                      <Icon size={12} className={`flex-shrink-0 ${theme.text}`} />
+                                      <span className={`text-[11px] font-medium truncate ${theme.text}`}>{amenity.name}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -526,7 +516,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   ) : (
                     <div className="space-y-3">
                       {rooms.map((room) => (
-                        <RoomCard key={room.id} room={room} onBook={() => scrollToSection('book')} />
+                        <RoomDisplayCard key={room.id} room={room} allAmenities={amenities} onBook={() => scrollToSection('book')} />
                       ))}
                     </div>
                   )}

@@ -4,20 +4,16 @@ import {
   MapPin,
   Calendar,
   Building2,
-  Wifi,
-  Car,
-  Utensils,
-  Waves,
-  Wind,
   CheckCircle,
   ChevronRight,
   Users,
   BedDouble,
   Images,
 } from 'lucide-react';
-import { PropertyDTO } from '../../types';
+import { PropertyDTO, AmenityDTO } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { requiresLoginForBooking, getModuleBadgeText, getModuleBadgeStyles } from '../../utils/moduleHelpers';
+import { getAmenityIcon } from '../../utils/amenityIcons';
 
 interface PropertyListCardProps {
   property: PropertyDTO;
@@ -27,6 +23,7 @@ interface PropertyListCardProps {
   isLoggedIn: boolean;
   onBookClick: (e: React.MouseEvent, property: PropertyDTO) => void;
   onCardClick?: (property: PropertyDTO) => void;
+  allAmenities?: AmenityDTO[];
 }
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -34,37 +31,6 @@ const CATEGORY_STYLES: Record<string, string> = {
   B: 'bg-blue-100 text-blue-800 border-blue-200',
   C: 'bg-gray-100 text-gray-700 border-gray-200',
 };
-
-const AMENITY_ICONS: Record<string, React.ReactNode> = {
-  wifi: <Wifi size={13} />,
-  parking: <Car size={13} />,
-  breakfast: <Utensils size={13} />,
-  pool: <Waves size={13} />,
-  ac: <Wind size={13} />,
-};
-
-const AMENITY_KEYWORDS: Record<string, string[]> = {
-  wifi: ['wifi', 'wi-fi', 'internet', 'wireless'],
-  parking: ['parking', 'car park', 'garage'],
-  breakfast: ['breakfast', 'dining', 'restaurant', 'food'],
-  pool: ['pool', 'swimming'],
-  ac: ['ac', 'air condition', 'cooling', 'hvac'],
-};
-
-function matchAmenity(amenityStr: string, keywords: string[]): boolean {
-  const lower = amenityStr.toLowerCase();
-  return keywords.some((kw) => lower.includes(kw));
-}
-
-function detectAmenities(amenities: string[]): string[] {
-  const detected: string[] = [];
-  for (const [key, keywords] of Object.entries(AMENITY_KEYWORDS)) {
-    if (amenities.some((a) => matchAmenity(a, keywords))) {
-      detected.push(key);
-    }
-  }
-  return detected;
-}
 
 function isQuartersProperty(property: PropertyDTO): boolean {
   const name = property.module?.name?.toLowerCase() || '';
@@ -80,6 +46,7 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   isLoggedIn,
   onBookClick,
   onCardClick,
+  allAmenities = [],
 }) => {
   const navigate = useNavigate();
   const [primaryImgError, setPrimaryImgError] = useState(false);
@@ -90,8 +57,13 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
   const moduleBadgeText = getModuleBadgeText(property.module?.code);
   const moduleBadgeStyles = getModuleBadgeStyles(property.module?.code);
   const needsLogin = requiresLoginForBooking(property.module?.code) && !isLoggedIn;
-  const detectedAmenities = detectAmenities(property.amenities || []);
   const showDatesGuests = !isQuartersProperty(property);
+
+  // Resolve property amenity IDs → AmenityDTO objects for icon display
+  const resolvedAmenities = (property.amenities || [])
+    .map(id => allAmenities.find(a => a.id === id))
+    .filter(Boolean) as AmenityDTO[];
+  const shownAmenities = resolvedAmenities.slice(0, 5);
 
   const nightCount = checkIn && checkOut
     ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
@@ -209,14 +181,20 @@ export const PropertyListCard: React.FC<PropertyListCardProps> = ({
             <span className="truncate">{property.estate?.city || property.address || 'Location not specified'}</span>
           </div>
 
-          {detectedAmenities.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3 mb-2.5">
-              {detectedAmenities.map((key) => (
-                <div key={key} className="flex items-center gap-1 text-gray-500 text-xs">
-                  <span className="text-gray-400">{AMENITY_ICONS[key]}</span>
-                  <span className="capitalize">{key === 'ac' ? 'Air conditioning' : key}</span>
-                </div>
-              ))}
+          {shownAmenities.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+              {shownAmenities.map(amenity => {
+                const Icon = getAmenityIcon(amenity.icon);
+                return (
+                  <span key={amenity.id} className="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
+                    <Icon size={11} className="text-gray-400 flex-shrink-0" />
+                    {amenity.name}
+                  </span>
+                );
+              })}
+              {resolvedAmenities.length > 5 && (
+                <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">+{resolvedAmenities.length - 5}</span>
+              )}
             </div>
           )}
 

@@ -26,7 +26,7 @@ import { useViewPreference } from '../hooks/useViewPreference';
 export const PropertiesPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { properties, loading, fetchProperties } = usePropertyStore();
+  const { properties, loading, fetchProperties, amenities, fetchAmenities } = usePropertyStore();
   const [selectedProperty, setSelectedProperty] = useState<PropertyDTO | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,6 +48,7 @@ export const PropertiesPage: React.FC = () => {
 
   useEffect(() => {
     fetchProperties();
+    fetchAmenities();
   }, []);
 
   const canManage = user && canManageProperties(user.role);
@@ -562,6 +563,7 @@ export const PropertiesPage: React.FC = () => {
                           property={property}
                           isLoggedIn={!!user}
                           onBookClick={handleBookingClick}
+                          allAmenities={amenities}
                         />
                       </div>
                     );

@@ -77,6 +77,10 @@ export async function createRoom(room: CreateRoomDTO): Promise<RoomDTO> {
         base_price: room.basePrice,
         amenities: room.amenities,
         is_smoking_allowed: room.isSmokingAllowed,
+        features: room.features || {},
+        view_type: room.viewType || '',
+        bed_count: room.bedCount || 0,
+        bed_type: room.bedType || '',
         metadata: room.metadata || {},
       },
     ])
@@ -96,6 +100,10 @@ export async function updateRoom(id: string, updates: Partial<CreateRoomDTO>): P
   if (updates.basePrice !== undefined) updateData.base_price = updates.basePrice;
   if (updates.amenities !== undefined) updateData.amenities = updates.amenities;
   if (updates.isSmokingAllowed !== undefined) updateData.is_smoking_allowed = updates.isSmokingAllowed;
+  if (updates.features !== undefined) updateData.features = updates.features;
+  if (updates.viewType !== undefined) updateData.view_type = updates.viewType;
+  if (updates.bedCount !== undefined) updateData.bed_count = updates.bedCount;
+  if (updates.bedType !== undefined) updateData.bed_type = updates.bedType;
   if (updates.metadata !== undefined) updateData.metadata = updates.metadata;
 
   const { data, error } = await supabase

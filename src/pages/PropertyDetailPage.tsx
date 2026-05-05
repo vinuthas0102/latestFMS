@@ -6,6 +6,8 @@ import {
   CheckCircle, Bed, Users, ChevronDown,
   CreditCard as EditIcon,
 } from 'lucide-react';
+import { RoomDisplayCard } from '../components/rooms/RoomDisplayCard';
+import { getCategoryTheme, getAmenityIcon } from '../utils/amenityIcons';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { PhotoGallery } from '../components/ui/PhotoGallery';
@@ -87,51 +89,7 @@ const ReviewsSection: React.FC<{ propertyName: string }> = ({ propertyName }) =>
   </div>
 );
 
-// ── Room card ──────────────────────────────────────────────────────
-
-interface RoomCardProps {
-  room: { id: string; roomNumber: string; capacity: number; basePrice: number; amenities: string[]; roomType?: { name: string }; status: string };
-  onBook: () => void;
-}
-
-const RoomCard: React.FC<RoomCardProps> = ({ room, onBook }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row gap-4 hover:shadow-md transition-shadow">
-    <div className="sm:w-36 h-24 sm:h-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0">
-      <Bed size={32} className="text-gray-400" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div>
-          <h4 className="font-bold text-gray-900 text-sm">{room.roomType?.name || 'Standard Room'} — #{room.roomNumber}</h4>
-          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-            <Users size={11} />
-            <span>Sleeps {room.capacity}</span>
-          </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-xl font-black text-gray-900 leading-none">₹{room.basePrice.toLocaleString('en-IN')}</div>
-          <div className="text-xs text-gray-400">per night</div>
-        </div>
-      </div>
-      {room.amenities.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {room.amenities.slice(0, 4).map(a => (
-            <span key={a} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{a}</span>
-          ))}
-          {room.amenities.length > 4 && (
-            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">+{room.amenities.length - 4}</span>
-          )}
-        </div>
-      )}
-      <button
-        onClick={onBook}
-        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
-      >
-        <Calendar size={11} /> Book This Room
-      </button>
-    </div>
-  </div>
-);
+// RoomCard is handled by shared RoomDisplayCard component
 
 // ── Section wrapper ────────────────────────────────────────────────
 
@@ -423,41 +381,57 @@ export const PropertyDetailPage: React.FC = () => {
               <BasicInfoDisplay property={currentProperty} />
             </div>
 
-            {amenities.length > 0 && (
-              <div>
-                <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <CheckCircle size={16} className="text-emerald-500" />
-                  Amenities & Facilities
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {amenities.map((amenity) => (
-                    <div
-                      key={amenity.id}
-                      className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-blue-200 hover:shadow-md transition-all"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <Wifi size={15} className="text-blue-500" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 leading-tight">{amenity.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* ── Unified Amenities & Features ─────────────────── */}
+            {(() => {
+              // Resolve property-level amenity IDs → objects
+              const propertyAmenityIds = currentProperty.amenities || [];
+              const resolvedPropertyAmenities = propertyAmenityIds
+                .map((id: string) => amenities.find(a => a.id === id))
+                .filter(Boolean) as typeof amenities;
+              // All amenity objects from store also usable (covers edge case where store pre-loaded all)
+              const displayAmenities = resolvedPropertyAmenities.length > 0 ? resolvedPropertyAmenities : amenities;
+              if (displayAmenities.length === 0) return null;
 
-            {currentProperty.amenities?.length > 0 && (
-              <div>
-                <h3 className="text-base font-bold text-gray-900 mb-3">What's included</h3>
-                <div className="flex flex-wrap gap-2">
-                  {currentProperty.amenities.map((a) => (
-                    <span key={a} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">
-                      <CheckCircle size={13} />
-                      {a}
-                    </span>
-                  ))}
+              // Group by category
+              const grouped = displayAmenities.reduce((acc, a) => {
+                if (!acc[a.category]) acc[a.category] = [];
+                acc[a.category].push(a);
+                return acc;
+              }, {} as Record<string, typeof amenities>);
+
+              return (
+                <div>
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-1 h-6 bg-emerald-500 rounded-full" />
+                    <h3 className="text-base font-bold text-gray-900">Amenities & Features</h3>
+                    <span className="ml-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{displayAmenities.length}</span>
+                  </div>
+                  <div className="space-y-4">
+                    {Object.entries(grouped).map(([category, items]) => {
+                      return (
+                        <div key={category}>
+                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{category}</div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {(items as typeof amenities).map(amenity => {
+                              const theme = getCategoryTheme(amenity.category);
+                              const Icon = getAmenityIcon(amenity.icon);
+                              return (
+                                <div key={amenity.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${theme.border} ${theme.bg} hover:shadow-sm transition-all`}>
+                                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-white/60">
+                                    <Icon size={14} className={theme.text} />
+                                  </div>
+                                  <span className={`text-xs font-medium leading-tight ${theme.text}`}>{amenity.name}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -498,7 +472,7 @@ export const PropertyDetailPage: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {rooms.map((room) => (
-                  <RoomCard key={room.id} room={room} onBook={() => scrollToSection('book')} />
+                  <RoomDisplayCard key={room.id} room={room} allAmenities={amenities} onBook={() => scrollToSection('book')} />
                 ))}
               </div>
             )}

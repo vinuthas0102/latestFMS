@@ -29,6 +29,7 @@ import { propertyService } from '../services/propertyService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
+import { usePropertyStore } from '../stores/propertyStore';
 import { PropertyDTO } from '../types';
 import { ROUTES } from '../constants/routes';
 import { ROLE_LABELS } from '../constants/roles';
@@ -139,6 +140,7 @@ export const UserDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
+  const { amenities, fetchAmenities } = usePropertyStore();
   const [properties, setProperties] = useState<PropertyDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -157,6 +159,7 @@ export const UserDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadProperties();
+    fetchAmenities();
   }, [user]);
 
   const loadProperties = async () => {
@@ -615,6 +618,7 @@ export const UserDashboardPage: React.FC = () => {
                       isLoggedIn={!!user}
                       onBookClick={handleBookClick}
                       onCardClick={(p) => setModalPropertyId(p.id)}
+                      allAmenities={amenities}
                     />
                   ))}
                 </div>

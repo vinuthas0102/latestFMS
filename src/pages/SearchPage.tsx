@@ -20,7 +20,7 @@ export const SearchPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { results, loading, setFilters, search } = useSearchStore();
-  const { modules, propertyTypes, roomTypes, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
+  const { modules, propertyTypes, roomTypes, amenities, fetchModules, fetchPropertyTypes, fetchRoomTypes, fetchAmenities } = usePropertyStore();
 
   const [location, setLocation] = useState('');
   const [checkIn, setCheckIn] = useState('');
@@ -367,6 +367,7 @@ export const SearchPage: React.FC = () => {
                     isLoggedIn={!!user}
                     onBookClick={handleBookNow}
                     onCardClick={(p) => setModalPropertyId(p.id)}
+                    allAmenities={amenities}
                   />
                 ))}
               </div>

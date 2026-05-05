@@ -134,6 +134,10 @@ export interface RoomDTO {
   basePrice: number;
   amenities: string[];
   isSmokingAllowed: boolean;
+  features: RoomFeatures;
+  viewType: string;
+  bedCount: number;
+  bedType: string;
   metadata: Record<string, any>;
   status: RoomStatus;
   isActive: boolean;
@@ -148,9 +152,32 @@ export interface AmenityDTO {
   name: string;
   icon: string;
   category: string;
+  sortOrder: number;
   isActive: boolean;
   createdAt: string;
 }
+
+export interface RoomFeatures {
+  hasBalcony: boolean;
+  hasAC: boolean;
+  hasKitchen: boolean;
+  hasLivingRoom: boolean;
+  hasFridge: boolean;
+  isKidsFriendly: boolean;
+  isPetFriendly: boolean;
+  isWheelchairAccessible: boolean;
+}
+
+export const DEFAULT_ROOM_FEATURES: RoomFeatures = {
+  hasBalcony: false,
+  hasAC: false,
+  hasKitchen: false,
+  hasLivingRoom: false,
+  hasFridge: false,
+  isKidsFriendly: false,
+  isPetFriendly: false,
+  isWheelchairAccessible: false,
+};
 
 export interface CreatePropertyDTO {
   estateId: string | null;
@@ -182,6 +209,10 @@ export interface CreateRoomDTO {
   basePrice: number;
   amenities: string[];
   isSmokingAllowed: boolean;
+  features?: RoomFeatures;
+  viewType?: string;
+  bedCount?: number;
+  bedType?: string;
   metadata?: Record<string, any>;
 }
 
