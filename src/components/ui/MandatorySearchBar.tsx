@@ -120,10 +120,10 @@ export const MandatorySearchBar: React.FC<MandatorySearchBarProps> = ({
               type="button"
               onClick={onFilterOpen}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all text-sm font-medium"
-              title="More Filters"
+              title="Filters"
             >
               <SlidersHorizontal size={15} />
-              <span className="hidden sm:inline text-xs">More</span>
+              <span className="hidden sm:inline text-xs">Filter</span>
               {filterCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 w-[18px] h-[18px] flex items-center justify-center shadow-sm">
                   {filterCount}

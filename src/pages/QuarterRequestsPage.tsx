@@ -17,6 +17,7 @@ import { ImageCarousel } from '../components/ui/ImageCarousel';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
+import { DocUpload } from '../components/ui/DocUpload';
 import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import {
   quartersService,
@@ -302,7 +303,7 @@ export const QuarterRequestsPage: React.FC = () => {
   // Decline allotment modal (card-level)
   const [declineModalReqId, setDeclineModalReqId] = useState<string | null>(null);
   const [declineModalRemarks, setDeclineModalRemarks] = useState('');
-  const [declineModalDocUrl, setDeclineModalDocUrl] = useState('');
+  const [declineModalDocUrl, setDeclineModalDocUrl] = useState<File | null>(null);
   const [declineModalSubmitting, setDeclineModalSubmitting] = useState(false);
 
   // Request-For state (for new request form)
@@ -337,7 +338,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [rightAction, setRightAction] = useState<RightAction>(null);
   const [actionRemarks, setActionRemarks] = useState('');
   const [actionReason, setActionReason] = useState('');
-  const [actionDocUrl, setActionDocUrl] = useState('');
+  const [actionDocUrl, setActionDocUrl] = useState<File | null>(null);
   const [actionDate, setActionDate] = useState('');
   const [actionBhk, setActionBhk] = useState('');
   const [actionSubmitting, setActionSubmitting] = useState(false);
@@ -400,7 +401,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [actionPopup, setActionPopup] = useState<ActionPopupState>({ type: null, requestId: '', allotmentId: '' });
   const [popupReason, setPopupReason] = useState('');
   const [popupRemarks, setPopupRemarks] = useState('');
-  const [popupDocUrl, setPopupDocUrl] = useState('');
+  const [popupDocUrl, setPopupDocUrl] = useState<File | null>(null);
   const [popupDate, setPopupDate] = useState('');
   const [popupSubject, setPopupSubject] = useState('');
   const [popupUrgency, setPopupUrgency] = useState('NORMAL');
@@ -408,7 +409,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
   function resetActionForm() {
     setRightAction(null); setActionRemarks(''); setActionReason('');
-    setActionDocUrl(''); setActionDate(''); setActionBhk('');
+    setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
 
   // ─── drag-handle logic ──────────────────────────────────────────────────────
@@ -472,7 +473,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
-    setPopupReason(''); setPopupRemarks(''); setPopupDocUrl('');
+    setPopupReason(''); setPopupRemarks(''); setPopupDocUrl(null);
     setPopupDate(''); setPopupSubject(''); setPopupUrgency('NORMAL');
   }
 
@@ -700,7 +701,7 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!selectedRequest?.allotment || !actionReason.trim()) { addToast('Please provide a reason', 'warning'); return; }
     setActionSubmitting(true);
     try {
-      await quartersService.rejectAllotment(selectedRequest.allotment.id, selectedRequest.id, actionReason, actionDocUrl || undefined);
+      await quartersService.rejectAllotment(selectedRequest.allotment.id, selectedRequest.id, actionReason, actionDocUrl?.name || undefined);
       addToast('Allotment rejected', 'success');
       resetActionForm();
       loadData();
@@ -714,7 +715,7 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       const input: CreateTenantRequestInput = {
         service_type: serviceType, remarks: actionRemarks, reason: actionReason,
-        document_url: actionDocUrl || undefined, requested_date: actionDate || null,
+        document_url: actionDocUrl?.name || undefined, requested_date: actionDate || null,
         required_bhk_config: actionBhk || undefined,
       };
       await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, input);
@@ -751,15 +752,15 @@ export const QuarterRequestsPage: React.FC = () => {
     setDeclineModalSubmitting(true);
     try {
       if (andCancel) {
-        await quartersService.declineAndCancelRequest(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl || undefined);
+        await quartersService.declineAndCancelRequest(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl?.name || undefined);
         addToast('Request cancelled', 'success');
       } else {
-        await quartersService.declineAllotment(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl || undefined);
+        await quartersService.declineAllotment(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl?.name || undefined);
         addToast('Allotment declined', 'success');
       }
       setDeclineModalReqId(null);
       setDeclineModalRemarks('');
-      setDeclineModalDocUrl('');
+      setDeclineModalDocUrl(null);
       loadData();
     } catch { addToast('Failed to decline allotment', 'error'); } finally { setDeclineModalSubmitting(false); }
   };
@@ -788,7 +789,7 @@ export const QuarterRequestsPage: React.FC = () => {
         service_type: actionPopup.type,
         reason: popupReason,
         remarks: popupRemarks,
-        document_url: popupDocUrl || undefined,
+        document_url: popupDocUrl?.name || undefined,
         requested_date: popupDate || null,
         grievance_subject: popupSubject || undefined,
         urgency_level: popupUrgency,
@@ -1194,7 +1195,7 @@ export const QuarterRequestsPage: React.FC = () => {
     const [acceptSubmitting, setAcceptSubmitting] = useState(false);
     const [declineOpen, setDeclineOpen] = useState(false);
     const [declineRemarks, setDeclineRemarks] = useState('');
-    const [declineDocUrl, setDeclineDocUrl] = useState('');
+    const [declineDocUrl, setDeclineDocUrl] = useState<File | null>(null);
     const [declineSubmitting, setDeclineSubmitting] = useState(false);
 
     const handleAccept = async () => {
@@ -1213,7 +1214,7 @@ export const QuarterRequestsPage: React.FC = () => {
       if (!window.confirm('Are you sure you want to decline this allotment? Your request will return to Submitted status.')) return;
       setDeclineSubmitting(true);
       try {
-        await quartersService.declineAllotment(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl || undefined);
+        await quartersService.declineAllotment(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl?.name || undefined);
         addToast('Allotment declined', 'success');
         setDeclineOpen(false);
         setDeclineRemarks('');
@@ -1228,7 +1229,7 @@ export const QuarterRequestsPage: React.FC = () => {
       if (!window.confirm('Are you sure? This will cancel your quarter request entirely.')) return;
       setDeclineSubmitting(true);
       try {
-        await quartersService.declineAndCancelRequest(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl || undefined);
+        await quartersService.declineAndCancelRequest(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl?.name || undefined);
         addToast('Request cancelled', 'success');
         setSelectedRequest(null);
         loadData();
@@ -1331,13 +1332,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Decline Remarks *</label>
                 <textarea value={declineRemarks} onChange={e => setDeclineRemarks(e.target.value)} rows={3} placeholder="State your reason for declining…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Supporting Document (URL)</label>
-                <div className="relative">
-                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={declineDocUrl} onChange={e => setDeclineDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-                </div>
-              </div>
+              <DocUpload value={declineDocUrl} onChange={setDeclineDocUrl} label="Supporting Document" optional />
               <div className="flex gap-2">
                 <button onClick={handleDecline} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors">
                   {declineSubmitting ? 'Saving…' : 'Decline'}
@@ -1687,13 +1682,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
-                  <div className="relative">
-                    <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  </div>
-                </div>
+                <DocUpload value={actionDocUrl} onChange={setActionDocUrl} label="Document" optional />
                 <div className="flex gap-2 pt-1">
                   <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                   <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
@@ -1718,13 +1707,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
                 <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Document URL (optional)</label>
-                <div className="relative">
-                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={actionDocUrl} onChange={e => setActionDocUrl(e.target.value)} placeholder="https://…" className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
-                </div>
-              </div>
+              <DocUpload value={actionDocUrl} onChange={setActionDocUrl} label="Document" optional />
               <div className="flex gap-2 pt-1">
                 <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
                 <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
@@ -2846,6 +2829,37 @@ export const QuarterRequestsPage: React.FC = () => {
                               </button>
                             </div>
                           )}
+
+                          {/* Preference quarters list */}
+                          {!isOccupied && (req.preferences ?? []).length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <Star size={11} className="text-amber-500" />
+                                <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Preferred Quarters</span>
+                                <span className="text-[9px] text-gray-400">({(req.preferences ?? []).length})</span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {(req.preferences ?? [])
+                                  .slice()
+                                  .sort((a, b) => a.preference_rank - b.preference_rank)
+                                  .map((pref) => {
+                                    const pq = pref.quarter as Quarter | undefined;
+                                    if (!pq) return null;
+                                    return (
+                                      <div key={pref.id} className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-2.5 py-1.5">
+                                        <div className="w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</div>
+                                        <div className="flex-1 min-w-0">
+                                          <span className="text-[11px] font-semibold text-gray-800">{pq.quarter_number}</span>
+                                          <span className="text-[10px] text-gray-400 ml-1.5">{pq.bhk_config}</span>
+                                          {pq.address && <div className="text-[10px] text-gray-400 truncate">{pq.address}</div>}
+                                        </div>
+                                        <span className="text-[10px] font-semibold text-gray-600 shrink-0">{fmtINR(pq.monthly_rent)}/mo</span>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -3075,20 +3089,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   autoFocus
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Supporting Document URL <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <div className="relative">
-                  <ExternalLink size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    value={declineModalDocUrl}
-                    onChange={e => setDeclineModalDocUrl(e.target.value)}
-                    placeholder="https://…"
-                    className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20"
-                  />
-                </div>
-              </div>
+              <DocUpload value={declineModalDocUrl} onChange={setDeclineModalDocUrl} label="Supporting Document" optional />
             </div>
 
             {/* Footer */}
@@ -3429,23 +3430,6 @@ export const QuarterRequestsPage: React.FC = () => {
                     </div>
                   ))
                 )}
-              </div>
-              <div className="p-4 border-t border-gray-200 bg-white space-y-2 shrink-0">
-                {prefs.length === 0 && (
-                  <p className="text-[11px] text-amber-600 text-center bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Add at least one preference to submit the request
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <button onClick={handleSaveDraft} disabled={submitting}
-                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                    Save Draft
-                  </button>
-                  <button onClick={handleSubmit} disabled={submitting || prefs.length === 0}
-                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5">
-                    <Send size={14} />Submit
-                  </button>
-                </div>
               </div>
             </div>
             </div>{/* end bottom 2-col grid */}
@@ -3810,14 +3794,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Document URL (optional)</label>
-                <div className="relative">
-                  <Upload size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={popupDocUrl} onChange={e => setPopupDocUrl(e.target.value)} placeholder="https://…"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-              </div>
+              <DocUpload value={popupDocUrl} onChange={setPopupDocUrl} label="Document" optional />
 
               <div className="flex gap-3 pt-1">
                 <button onClick={closeActionPopup} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
