@@ -66,6 +66,17 @@ export interface QuarterRequest {
   sub_status: string | null;
   employee_notes: string;
   eo_notes: string;
+  // Request-for fields
+  request_for: 'SELF' | 'EMPLOYEE' | 'TP';
+  on_behalf_employee_id: string | null;
+  on_behalf_employee_name: string | null;
+  on_behalf_employee_dept: string | null;
+  tp_name: string | null;
+  tp_organization: string | null;
+  tp_mobile: string | null;
+  tp_email: string | null;
+  tp_pan: string | null;
+  tp_notes: string | null;
   created_at: string;
   updated_at: string;
   preferences?: QuarterRequestPreference[];
@@ -177,6 +188,17 @@ export interface CreateQuarterRequestInput {
   family_member_count: number;
   employee_notes: string;
   preferences: { quarter_id: string; preference_rank: number }[];
+  // Request-for
+  request_for?: 'SELF' | 'EMPLOYEE' | 'TP';
+  on_behalf_employee_id?: string | null;
+  on_behalf_employee_name?: string | null;
+  on_behalf_employee_dept?: string | null;
+  tp_name?: string | null;
+  tp_organization?: string | null;
+  tp_mobile?: string | null;
+  tp_email?: string | null;
+  tp_pan?: string | null;
+  tp_notes?: string | null;
 }
 
 export interface OverrideInput {
@@ -341,6 +363,16 @@ export const quartersService = {
         family_member_count: input.family_member_count,
         employee_notes: input.employee_notes,
         request_status: 'DRAFT',
+        request_for: input.request_for ?? 'SELF',
+        on_behalf_employee_id: input.on_behalf_employee_id ?? null,
+        on_behalf_employee_name: input.on_behalf_employee_name ?? null,
+        on_behalf_employee_dept: input.on_behalf_employee_dept ?? null,
+        tp_name: input.tp_name ?? null,
+        tp_organization: input.tp_organization ?? null,
+        tp_mobile: input.tp_mobile ?? null,
+        tp_email: input.tp_email ?? null,
+        tp_pan: input.tp_pan ?? null,
+        tp_notes: input.tp_notes ?? null,
       })
       .select()
       .single();

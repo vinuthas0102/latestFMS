@@ -7,7 +7,8 @@ import {
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
   MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
-  Images, Bell, Users, Paperclip, User,
+  Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
+  ArrowLeft, ExternalLink,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import { Modal } from '../components/ui/Modal';
@@ -32,18 +33,21 @@ import { ROUTES } from '../constants/routes';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-const DEMO_TP_PROFILES = [
-  { id: 'TP-001', name: 'Rajesh Kumar',   dept: 'MoF',   empId: 'EMP-4521' },
-  { id: 'TP-002', name: 'Sunita Sharma',  dept: 'DoT',   empId: 'EMP-3817' },
-  { id: 'TP-003', name: 'Anil Verma',     dept: 'MoD',   empId: 'EMP-2293' },
-  { id: 'TP-004', name: 'Priya Nair',     dept: 'MoHA',  empId: 'EMP-5104' },
-  { id: 'TP-005', name: 'Vikram Singh',   dept: 'MoRD',  empId: 'EMP-6678' },
+// Demo employee list for EO "Another Employee" picker
+const DEMO_EMPLOYEES = [
+  { id: 'EMP-1001', name: 'Rajesh Kumar',     dept: 'Ministry of Finance',    email: 'rajesh.kumar@mof.gov.in',    designation: 'Under Secretary' },
+  { id: 'EMP-1002', name: 'Sunita Sharma',    dept: 'Dept. of Telecom',        email: 'sunita.sharma@dot.gov.in',   designation: 'Section Officer' },
+  { id: 'EMP-1003', name: 'Anil Verma',       dept: 'Ministry of Defence',     email: 'anil.verma@mod.gov.in',      designation: 'Deputy Secretary' },
+  { id: 'EMP-1004', name: 'Priya Nair',       dept: 'Ministry of Home Affairs', email: 'priya.nair@mha.gov.in',     designation: 'Assistant Director' },
+  { id: 'EMP-1005', name: 'Vikram Singh',     dept: 'Ministry of Rural Dev.',  email: 'vikram.singh@mord.gov.in',   designation: 'Director' },
+  { id: 'EMP-1006', name: 'Meera Pillai',     dept: 'Ministry of Commerce',    email: 'meera.pillai@commerce.gov.in', designation: 'Joint Secretary' },
+  { id: 'EMP-1007', name: 'Suresh Babu',      dept: 'DOPT',                    email: 'suresh.babu@dopt.gov.in',    designation: 'Section Officer' },
+  { id: 'EMP-1008', name: 'Anita Desai',      dept: 'Ministry of Health',      email: 'anita.desai@mohfw.gov.in',   designation: 'Under Secretary' },
+  { id: 'EMP-1009', name: 'Ramesh Gupta',     dept: 'NIC',                     email: 'ramesh.gupta@nic.in',        designation: 'Senior Technical Director' },
+  { id: 'EMP-1010', name: 'Kavitha Reddy',    dept: 'Ministry of Education',   email: 'kavitha.reddy@education.gov.in', designation: 'Deputy Director' },
+  { id: 'EMP-1011', name: 'Dinesh Patel',     dept: 'Ministry of Railways',    email: 'dinesh.patel@railways.gov.in', designation: 'Assistant Secretary' },
+  { id: 'EMP-1012', name: 'Lalitha Menon',    dept: 'Ministry of Agriculture', email: 'lalitha.menon@agri.gov.in',  designation: 'Senior Analyst' },
 ];
-
-function getDemoTP(req: QuarterRequest) {
-  const idx = req.request_number ? parseInt(req.request_number.replace(/\D/g, '').slice(-2) || '0', 10) : 0;
-  return idx % 3 === 0 ? DEMO_TP_PROFILES[idx % DEMO_TP_PROFILES.length] : null;
-}
 
 function statusAccentColor(status: string): string {
   if (status === 'DRAFT') return 'bg-amber-400';
@@ -236,6 +240,27 @@ interface ActionPopupState {
   allotmentId: string;
 }
 
+// ─── Request-For types ─────────────────────────────────────────────────────────
+
+type RequestForType = 'SELF' | 'EMPLOYEE' | 'TP';
+
+interface DemoEmployee {
+  id: string;
+  name: string;
+  dept: string;
+  email: string;
+  designation: string;
+}
+
+interface TPInfo {
+  name: string;
+  organization: string;
+  mobile: string;
+  email: string;
+  pan: string;
+  notes: string;
+}
+
 // ─── component ────────────────────────────────────────────────────────────────
 
 export const QuarterRequestsPage: React.FC = () => {
@@ -253,7 +278,7 @@ export const QuarterRequestsPage: React.FC = () => {
   // Dashboard filter — default to 'allotted' per spec
   const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
 
-  // New-request modal
+  // New-request full-screen
   const [showNewModal, setShowNewModal] = useState(false);
   const [form, setForm] = useState<NewRequestForm>(DEFAULT_FORM);
   const [prefs, setPrefs] = useState<PrefItem[]>([]);
@@ -261,6 +286,20 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalSearch, setModalSearch] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Request-For state (for new request form)
+  const [requestFor, setRequestFor] = useState<RequestForType>('SELF');
+  const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
+  const [tpInfo, setTpInfo] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
+  const [tpInfoConfirmed, setTpInfoConfirmed] = useState(false);
+  const [showEmployeePicker, setShowEmployeePicker] = useState(false);
+  const [showTPForm, setShowTPForm] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [tpFormDraft, setTpFormDraft] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
+
+  // Full-screen request detail view
+  const [detailRequest, setDetailRequest] = useState<QuarterRequest | null>(null);
+  const [detailReturnFilter, setDetailReturnFilter] = useState<DPFilter>('allotted');
 
   // List filters
   const [reqSearch, setReqSearch] = useState('');
@@ -510,14 +549,60 @@ export const QuarterRequestsPage: React.FC = () => {
       });
       const existing = req.preferences?.map(p => ({ quarter: p.quarter as Quarter, rank: p.preference_rank })) ?? [];
       setPrefs(existing.sort((a, b) => a.rank - b.rank));
+      // Restore request_for state from existing request
+      const rf = (req.request_for ?? 'SELF') as RequestForType;
+      setRequestFor(rf);
+      if (rf === 'EMPLOYEE' && req.on_behalf_employee_id) {
+        const emp = DEMO_EMPLOYEES.find(e => e.id === req.on_behalf_employee_id);
+        setSelectedEmployee(emp ?? { id: req.on_behalf_employee_id, name: req.on_behalf_employee_name ?? '', dept: req.on_behalf_employee_dept ?? '', email: '', designation: '' });
+      } else {
+        setSelectedEmployee(null);
+      }
+      if (rf === 'TP') {
+        const tp: TPInfo = { name: req.tp_name ?? '', organization: req.tp_organization ?? '', mobile: req.tp_mobile ?? '', email: req.tp_email ?? '', pan: req.tp_pan ?? '', notes: req.tp_notes ?? '' };
+        setTpInfo(tp);
+        setTpFormDraft(tp);
+        setTpInfoConfirmed(true);
+      } else {
+        setTpInfo({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
+        setTpInfoConfirmed(false);
+      }
     } else {
       setForm(DEFAULT_FORM);
       setPrefs([]);
+      setRequestFor('SELF');
+      setSelectedEmployee(null);
+      setTpInfo({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
+      setTpInfoConfirmed(false);
     }
+    setEmployeeSearch('');
     setShowNewModal(true);
   };
 
   // ─── submit handlers ────────────────────────────────────────────────────────
+
+  function buildRequestForPayload() {
+    if (requestFor === 'EMPLOYEE' && selectedEmployee) {
+      return {
+        request_for: 'EMPLOYEE' as const,
+        on_behalf_employee_id: selectedEmployee.id,
+        on_behalf_employee_name: selectedEmployee.name,
+        on_behalf_employee_dept: selectedEmployee.dept,
+      };
+    }
+    if (requestFor === 'TP' && tpInfoConfirmed) {
+      return {
+        request_for: 'TP' as const,
+        tp_name: tpInfo.name,
+        tp_organization: tpInfo.organization,
+        tp_mobile: tpInfo.mobile,
+        tp_email: tpInfo.email,
+        tp_pan: tpInfo.pan || null,
+        tp_notes: tpInfo.notes || null,
+      };
+    }
+    return { request_for: 'SELF' as const };
+  }
 
   const handleSaveDraft = async () => {
     if (!user) return;
@@ -539,6 +624,7 @@ export const QuarterRequestsPage: React.FC = () => {
           family_member_count: form.family_member_count,
           employee_notes: form.employee_notes,
           preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
+          ...buildRequestForPayload(),
         });
         await quartersService.updateRequestPreferences(
           req.id,
@@ -553,6 +639,8 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!user || !form.request_reason.trim()) { addToast('Please provide a request reason', 'warning'); return; }
+    if (requestFor === 'TP' && !tpInfoConfirmed) { addToast('Please complete Third Party information', 'warning'); return; }
+    if (requestFor === 'EMPLOYEE' && !selectedEmployee) { addToast('Please select an employee', 'warning'); return; }
     setSubmitting(true);
     try {
       const req = await quartersService.createRequest(user.id, {
@@ -564,6 +652,7 @@ export const QuarterRequestsPage: React.FC = () => {
         family_member_count: form.family_member_count,
         employee_notes: form.employee_notes,
         preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
+        ...buildRequestForPayload(),
       });
       await quartersService.updateRequestPreferences(
         req.id,
@@ -934,41 +1023,65 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // Unified request summary block shown in all DPs
   const RequestSummaryBlock = ({ req }: { req: QuarterRequest }) => {
-    const demoTP = getDemoTP(req);
-    const prefs = req.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
+    const reqPrefs = req.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
+    const rf = req.request_for ?? 'SELF';
     return (
       <div className="px-5 py-4 border-b border-gray-100 space-y-3">
         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Request Summary</div>
 
-        {/* Requester + TP row */}
-        <div className="flex items-start gap-3">
-          <div className="flex-1 bg-gray-50 rounded-xl border border-gray-100 px-3 py-2.5">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-6 h-6 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
+        {/* Requester row */}
+        <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-2.5">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-6 h-6 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+              {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-gray-800 leading-tight">{user?.fullName ?? '—'}</div>
+              <div className="text-[10px] text-gray-400">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
+            </div>
+            <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${rf === 'SELF' ? 'bg-teal-50 text-teal-700' : rf === 'EMPLOYEE' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+              {rf === 'SELF' ? 'Self' : rf === 'EMPLOYEE' ? 'On Behalf' : 'Third Party'}
+            </span>
+          </div>
+          {user?.govtDepartment && <div className="text-[10px] text-gray-500">{user.govtDepartment}</div>}
+        </div>
+
+        {/* On-behalf employee info */}
+        {rf === 'EMPLOYEE' && req.on_behalf_employee_name && (
+          <div className="bg-blue-50 rounded-xl border border-blue-100 px-3 py-2.5">
+            <div className="text-[9px] font-bold text-blue-400 uppercase tracking-wider mb-1.5 flex items-center gap-1"><UserCheck size={10} />Requested For (Employee)</div>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                {req.on_behalf_employee_name.charAt(0)}
               </div>
               <div>
-                <div className="text-xs font-semibold text-gray-800 leading-tight">{user?.fullName ?? '—'}</div>
-                <div className="text-[10px] text-gray-400">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
+                <div className="text-xs font-semibold text-blue-900">{req.on_behalf_employee_name}</div>
+                <div className="text-[10px] text-blue-500">{req.on_behalf_employee_id}{req.on_behalf_employee_dept ? ` · ${req.on_behalf_employee_dept}` : ''}</div>
               </div>
             </div>
-            {user?.govtDepartment && <div className="text-[10px] text-gray-500 mt-1">{user.govtDepartment}</div>}
           </div>
-          {demoTP && (
-            <div className="flex-1 bg-slate-50 rounded-xl border border-slate-100 px-3 py-2.5">
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Third Party (TP)</div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                  {demoTP.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-700">{demoTP.name}</div>
-                  <div className="text-[10px] text-slate-400">{demoTP.empId} · {demoTP.dept}</div>
-                </div>
+        )}
+
+        {/* TP info */}
+        {rf === 'TP' && req.tp_name && (
+          <div className="bg-amber-50 rounded-xl border border-amber-100 px-3 py-2.5 space-y-1.5">
+            <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1"><UserPlus size={10} />Third Party Beneficiary</div>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                {req.tp_name.charAt(0)}
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-amber-900">{req.tp_name}</div>
+                {req.tp_organization && <div className="text-[10px] text-amber-600">{req.tp_organization}</div>}
               </div>
             </div>
-          )}
-        </div>
+            <div className="grid grid-cols-2 gap-1 mt-1">
+              {req.tp_mobile && <div className="flex items-center gap-1 text-[10px] text-amber-700"><Phone size={9} />{req.tp_mobile}</div>}
+              {req.tp_email && <div className="flex items-center gap-1 text-[10px] text-amber-700 truncate"><Mail size={9} />{req.tp_email}</div>}
+              {req.tp_pan && <div className="flex items-center gap-1 text-[10px] text-amber-700"><CreditCard size={9} />PAN: {req.tp_pan}</div>}
+            </div>
+          </div>
+        )}
 
         {/* Request fields grid */}
         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1000,7 +1113,7 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
           <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
             <div className="text-[10px] text-gray-400 mb-0.5">Preferences</div>
-            <div className="font-semibold text-gray-800">{prefs.length} submitted</div>
+            <div className="font-semibold text-gray-800">{reqPrefs.length} submitted</div>
           </div>
           {req.sub_status && (
             <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100 col-span-2">
@@ -1896,6 +2009,348 @@ export const QuarterRequestsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* ── Full-Screen Request Detail View ──────────────────────────────── */}
+      {detailRequest && createPortal(
+        <div className="fixed inset-0 z-[900] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
+          {(() => {
+            const req = detailRequest;
+            const allotment = req.allotment;
+            const q = allotment?.quarter as Quarter | undefined;
+            const reqPrefs = (req.preferences ?? []).sort((a, b) => a.preference_rank - b.preference_rank);
+            const sc = statusConfig(req.request_status);
+            const rf = req.request_for ?? 'SELF';
+            const hasRightData = true; // always true
+
+            // Determine primary action button
+            const primaryAction = (() => {
+              const s = req.request_status;
+              if (s === 'ALLOTTED') return { label: 'Accept Allotment', color: 'bg-emerald-600 hover:bg-emerald-700', icon: <ThumbsUp size={14} /> };
+              if (s === 'SUBMITTED') return { label: 'Withdraw', color: 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100', icon: <XCircle size={14} />, outline: true };
+              if (s === 'DRAFT') return { label: 'Submit Request', color: 'bg-blue-600 hover:bg-blue-700', icon: <Send size={14} /> };
+              return null;
+            })();
+
+            return (
+              <>
+                {/* Header */}
+                <div className="flex items-center gap-4 px-6 py-3.5 bg-white border-b border-gray-200 shadow-sm shrink-0">
+                  <button
+                    onClick={() => { setDetailRequest(null); setDpFilter(detailReturnFilter); }}
+                    className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                  >
+                    <ArrowLeft size={16} /><span>Back</span>
+                  </button>
+                  <div className="h-5 w-px bg-gray-200" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+                    <span className="font-mono text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-lg">{req.request_number}</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
+                    {req.sub_status === 'DECLINED' && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">Declined</span>}
+                    {/* Request-for badge */}
+                    {rf === 'EMPLOYEE' && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1"><UserCheck size={11} />On Behalf</span>}
+                    {rf === 'TP' && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1"><UserPlus size={11} />Third Party</span>}
+                    <span className="text-xs text-gray-400 ml-auto">{fmtDate(req.created_at)}</span>
+                  </div>
+                  {primaryAction && (
+                    <button
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold shrink-0 transition-colors ${primaryAction.color} ${!(primaryAction as { outline?: boolean }).outline ? 'text-white' : ''}`}
+                      onClick={() => {
+                        setDetailRequest(null);
+                        setDpFilter(detailReturnFilter);
+                        setSelectedRequest(req);
+                        resetActionForm();
+                      }}
+                    >
+                      {primaryAction.icon}{primaryAction.label}
+                    </button>
+                  )}
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-hidden flex gap-0 min-h-0">
+                  {/* ── Left: Property / Preferences ── */}
+                  <div className="w-[45%] flex flex-col border-r border-gray-200 overflow-y-auto bg-white">
+                    {q ? (
+                      <div className="flex flex-col">
+                        {/* Image carousel */}
+                        <div className="relative bg-gray-900">
+                          <ImageCarousel images={resolveAllImages(q)} className="h-64" />
+                          <div className="absolute bottom-3 left-3">
+                            <span className="bg-black/60 text-white text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-sm">Allotted Quarter</span>
+                          </div>
+                        </div>
+                        {/* Quarter identity */}
+                        <div className="px-6 py-4 border-b border-gray-100">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="text-xl font-bold text-gray-900">{q.quarter_number}</div>
+                              <div className="text-sm text-gray-500 mt-0.5">{q.block_name} Block · Floor {q.floor_number ?? '—'}</div>
+                              {q.address && <div className="text-xs text-gray-400 mt-1 flex items-center gap-1"><MapPin size={11} />{q.address}</div>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xl font-bold text-gray-900">{fmtINR(q.monthly_rent)}</div>
+                              <div className="text-xs text-gray-400">/month</div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Specs strip */}
+                        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50/60">
+                          {[
+                            { icon: <Bed size={16} className="text-blue-500" />, label: 'Config', value: q.bhk_config },
+                            { icon: <Ruler size={16} className="text-teal-500" />, label: 'Area', value: `${q.area_sqft} sq.ft` },
+                            { icon: <Layers size={16} className="text-gray-500" />, label: 'Floor', value: q.floor_number !== null ? `Floor ${q.floor_number}` : '—' },
+                          ].map(({ icon, label, value }) => (
+                            <div key={label} className="flex flex-col items-center gap-1 py-3 px-2">
+                              {icon}
+                              <div className="text-xs text-gray-400">{label}</div>
+                              <div className="text-sm font-semibold text-gray-800">{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Feature chips */}
+                        {(q.balcony || q.pooja_room || q.lift_access || q.power_backup || q.water_heating || q.kitchen_exhaust) && (
+                          <div className="px-6 py-3 border-b border-gray-100">
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-2">Features</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {q.balcony && <span className="text-[11px] bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium">Balcony</span>}
+                              {q.pooja_room && <span className="text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full font-medium">Pooja Room</span>}
+                              {q.lift_access && <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">Lift</span>}
+                              {q.power_backup && <span className="text-[11px] bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full font-medium">Power Backup</span>}
+                              {q.water_heating && <span className="text-[11px] bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full font-medium">Geyser</span>}
+                              {q.kitchen_exhaust && <span className="text-[11px] bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full font-medium">Kitchen Exhaust</span>}
+                            </div>
+                          </div>
+                        )}
+                        {/* Location details */}
+                        {(q.region || q.district || q.pin_code) && (
+                          <div className="px-6 py-3 border-b border-gray-100">
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-2">Location</div>
+                            <div className="space-y-1 text-xs text-gray-600">
+                              {q.region && <div className="flex items-center gap-1.5"><MapPin size={11} className="text-gray-400 shrink-0" />{q.region}</div>}
+                              {q.district && <div className="pl-4 text-gray-500">{q.district}{q.pin_code ? ` · PIN ${q.pin_code}` : ''}</div>}
+                            </div>
+                          </div>
+                        )}
+                        {/* Amenities */}
+                        {q.amenities && q.amenities.length > 0 && (
+                          <div className="px-6 py-3">
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-2">Amenities</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {q.amenities.map(a => <span key={a} className="text-[11px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{a}</span>)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* No allotment — show preference list */
+                      <div className="flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                          <div className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-1">
+                            <Star size={15} className="text-amber-500" />Preference List
+                          </div>
+                          <div className="text-xs text-gray-500">{reqPrefs.length} of 5 quarters selected</div>
+                        </div>
+                        {reqPrefs.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                            <Star size={36} className="mb-3 opacity-20" />
+                            <div className="text-sm font-medium">No preferences added</div>
+                            <div className="text-xs mt-1">Add preferences to your request</div>
+                          </div>
+                        ) : (
+                          <div className="p-4 space-y-3">
+                            {reqPrefs.map((pref, pi) => {
+                              const pq = pref.quarter as Quarter | undefined;
+                              if (!pq) return null;
+                              return (
+                                <div key={pref.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 hover:shadow-sm transition-all">
+                                  <div className="relative shrink-0">
+                                    <img src={getImage(pq, pi)} alt="" className="w-16 h-16 rounded-lg object-cover" />
+                                    <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center shadow">{pref.preference_rank}</div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-gray-900 text-sm">{pq.quarter_number}</div>
+                                    {pq.address && <div className="text-xs text-gray-500 truncate">{pq.address}</div>}
+                                    <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                                      <span className="flex items-center gap-0.5"><Bed size={10} />{pq.bhk_config}</span>
+                                      <span>{pq.area_sqft} sq.ft</span>
+                                      <span className="font-semibold text-gray-800">{fmtINR(pq.monthly_rent)}</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => { setPreviewQuarterId(pq.id); setIsPreviewOpen(true); }}
+                                    className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                                  ><Eye size={13} /></button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Right: Request & Allotment details (always shown) ── */}
+                  {hasRightData && (
+                    <div className="flex-1 overflow-y-auto bg-white">
+                      {/* Requester section */}
+                      <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Requester</div>
+                        <div className="flex items-center gap-3 bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                          <div className="w-10 h-10 rounded-full bg-teal-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                            {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold text-gray-900">{user?.fullName ?? '—'}</div>
+                            <div className="text-xs text-gray-500">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
+                            {user?.govtDepartment && <div className="text-xs text-gray-400">{user.govtDepartment}</div>}
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rf === 'SELF' ? 'bg-teal-50 text-teal-700' : rf === 'EMPLOYEE' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                            {rf === 'SELF' ? 'Self' : rf === 'EMPLOYEE' ? 'On Behalf' : 'Third Party'}
+                          </span>
+                        </div>
+
+                        {/* On-behalf employee */}
+                        {rf === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                          <div className="mt-3 flex items-center gap-3 bg-blue-50 rounded-xl border border-blue-100 px-4 py-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                              {req.on_behalf_employee_name.charAt(0)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wide mb-0.5">Requested For (Employee)</div>
+                              <div className="text-sm font-semibold text-blue-900">{req.on_behalf_employee_name}</div>
+                              <div className="text-xs text-blue-600">{req.on_behalf_employee_id}{req.on_behalf_employee_dept ? ` · ${req.on_behalf_employee_dept}` : ''}</div>
+                            </div>
+                            <UserCheck size={18} className="text-blue-400 shrink-0" />
+                          </div>
+                        )}
+
+                        {/* TP info */}
+                        {rf === 'TP' && req.tp_name && (
+                          <div className="mt-3 bg-amber-50 rounded-xl border border-amber-100 px-4 py-3 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                                {req.tp_name.charAt(0)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-[10px] font-bold text-amber-500 uppercase tracking-wide mb-0.5">Third Party Beneficiary</div>
+                                <div className="text-sm font-semibold text-amber-900">{req.tp_name}</div>
+                                {req.tp_organization && <div className="text-xs text-amber-600">{req.tp_organization}</div>}
+                              </div>
+                              <UserPlus size={18} className="text-amber-400 shrink-0" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {req.tp_mobile && (
+                                <div className="flex items-center gap-1.5 text-amber-700"><Phone size={11} />{req.tp_mobile}</div>
+                              )}
+                              {req.tp_email && (
+                                <div className="flex items-center gap-1.5 text-amber-700 truncate"><Mail size={11} />{req.tp_email}</div>
+                              )}
+                              {req.tp_pan && (
+                                <div className="flex items-center gap-1.5 text-amber-700 col-span-2"><CreditCard size={11} />PAN: {req.tp_pan}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Request details */}
+                      <div className="px-6 py-4 border-b border-gray-100">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Request Details</div>
+                        <div className="grid grid-cols-2 gap-2.5 text-xs">
+                          <div className="col-span-2 bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Request Reason</div>
+                            <div className="font-semibold text-gray-800 text-sm">{req.request_reason || '—'}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">BHK Required</div>
+                            <div className="font-semibold text-gray-800">{req.required_bhk_config || '—'}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Pref. Location</div>
+                            <div className="font-semibold text-gray-800 truncate">{req.preferred_location || '—'}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Family Members</div>
+                            <div className="font-semibold text-gray-800">{req.family_member_count ?? 1}</div>
+                          </div>
+                          {req.move_in_date && (
+                            <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                              <div className="text-[10px] text-gray-400 mb-0.5">Move-in Date</div>
+                              <div className="font-semibold text-gray-800">{fmtDate(req.move_in_date)}</div>
+                            </div>
+                          )}
+                          <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Requested On</div>
+                            <div className="font-semibold text-gray-800">{fmtDate(req.created_at)}</div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Preferences</div>
+                            <div className="font-semibold text-gray-800">{reqPrefs.length} submitted</div>
+                          </div>
+                        </div>
+                        {req.employee_notes && (
+                          <div className="mt-2.5 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs">
+                            <div className="text-[10px] text-amber-500 font-bold uppercase tracking-wide mb-0.5 flex items-center gap-1"><Paperclip size={9} />Employee Notes</div>
+                            <div className="text-amber-900">{req.employee_notes}</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Allotment details */}
+                      {allotment && (
+                        <div className="px-6 py-4 border-b border-gray-100">
+                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Allotment Details</div>
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div className="bg-emerald-50 rounded-xl border border-emerald-100 px-4 py-3">
+                              <div className="text-[10px] text-emerald-500 mb-0.5">Allotment Date</div>
+                              <div className="font-semibold text-emerald-900">{fmtDate(allotment.allotment_date)}</div>
+                            </div>
+                            <div className="bg-emerald-50 rounded-xl border border-emerald-100 px-4 py-3">
+                              <div className="text-[10px] text-emerald-500 mb-0.5">Approval Status</div>
+                              <div className="font-semibold text-emerald-900">{allotment.approval_status}</div>
+                            </div>
+                            {allotment.allotment_conditions && (
+                              <div className="col-span-2 bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
+                                <div className="text-[10px] text-gray-400 mb-0.5">Allotment Conditions</div>
+                                <div className="font-medium text-gray-800">{allotment.allotment_conditions}</div>
+                              </div>
+                            )}
+                            {allotment.acknowledgement_remarks && (
+                              <div className="col-span-2 bg-teal-50 rounded-xl border border-teal-100 px-4 py-3">
+                                <div className="text-[10px] text-teal-500 mb-0.5">Acknowledgement Remarks</div>
+                                <div className="font-medium text-teal-800">{allotment.acknowledgement_remarks}</div>
+                              </div>
+                            )}
+                            {req.eo_notes && (
+                              <div className="col-span-2 bg-blue-50 rounded-xl border border-blue-100 px-4 py-3">
+                                <div className="text-[10px] text-blue-500 mb-0.5">EO Notes</div>
+                                <div className="font-medium text-blue-800">{req.eo_notes}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions strip */}
+                      <div className="px-6 py-4">
+                        <button
+                          onClick={() => { setDetailRequest(null); setDpFilter(detailReturnFilter); setSelectedRequest(req); resetActionForm(); }}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors"
+                        >
+                          <ExternalLink size={15} />Open in Action Panel
+                        </button>
+                        <p className="text-[10px] text-gray-400 text-center mt-2">Opens the request in the split-panel view for actions</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
         {/* ── Compact header ─────────────────────────────────────────── */}
@@ -2089,8 +2544,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   const allottedQ = req.allotment?.quarter as Quarter | undefined;
                   const prefQ = req.preferences?.[0]?.quarter as Quarter | undefined;
                   const thumbQ = allottedQ ?? prefQ;
-                  const demoTP = getDemoTP(req);
                   const accentColor = statusAccentColor(req.request_status);
+                  const reqFor = req.request_for ?? 'SELF';
                   const activeSvcs = tenantRequests.filter(tr => tr.allotment_id === req.allotment?.id && tr.request_status === 'PENDING');
 
                   // Sub-group label: show "Services" divider before first EXTEND/VACATE card when in occupied filter
@@ -2198,13 +2653,26 @@ export const QuarterRequestsPage: React.FC = () => {
                               <span className="text-[10px] text-gray-500 font-medium truncate">
                                 {user?.fullName ?? 'Me'}{user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
                               </span>
-                              {demoTP && (
-                                <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
-                                  <User size={8} />TP: {demoTP.name}
+                              {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                  <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
+                                </span>
+                              )}
+                              {reqFor === 'TP' && req.tp_name && (
+                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                  <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
                                 </span>
                               )}
                             </div>
                             <div className="text-[10px] text-gray-400 shrink-0">{fmtDate(req.created_at)}</div>
+                            {/* View detail */}
+                            <button
+                              onClick={e => { e.stopPropagation(); setDetailReturnFilter(dpFilter); setDetailRequest(req); }}
+                              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 shrink-0 transition-colors"
+                              title="View full details"
+                            >
+                              <ExternalLink size={12} />
+                            </button>
                             {/* Show more toggle */}
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
@@ -2232,7 +2700,7 @@ export const QuarterRequestsPage: React.FC = () => {
                           className="border-t border-gray-100 bg-gray-50/80 px-4 py-3 space-y-3"
                           onClick={e => e.stopPropagation()}
                         >
-                          {/* Requester + TP */}
+                          {/* Requester + on-behalf info */}
                           <div className="flex items-start gap-2">
                             <div className="flex-1 flex items-center gap-2 bg-white rounded-lg border border-gray-100 px-3 py-2">
                               <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
@@ -2244,15 +2712,27 @@ export const QuarterRequestsPage: React.FC = () => {
                                 {user?.govtDepartment && <div className="text-[10px] text-gray-400">{user.govtDepartment}</div>}
                               </div>
                             </div>
-                            {demoTP && (
-                              <div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg border border-slate-100 px-3 py-2">
-                                <div className="w-7 h-7 rounded-full bg-slate-400 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                                  {demoTP.name.charAt(0)}
+                            {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                              <div className="flex-1 flex items-center gap-2 bg-blue-50 rounded-lg border border-blue-100 px-3 py-2">
+                                <div className="w-7 h-7 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                                  {req.on_behalf_employee_name.charAt(0)}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">TP</div>
-                                  <div className="text-xs font-semibold text-slate-700 truncate">{demoTP.name}</div>
-                                  <div className="text-[10px] text-slate-400">{demoTP.empId} · {demoTP.dept}</div>
+                                  <div className="text-[9px] font-bold text-blue-400 uppercase tracking-wide">On Behalf</div>
+                                  <div className="text-xs font-semibold text-blue-900 truncate">{req.on_behalf_employee_name}</div>
+                                  <div className="text-[10px] text-blue-500">{req.on_behalf_employee_id}</div>
+                                </div>
+                              </div>
+                            )}
+                            {reqFor === 'TP' && req.tp_name && (
+                              <div className="flex-1 flex items-center gap-2 bg-amber-50 rounded-lg border border-amber-100 px-3 py-2">
+                                <div className="w-7 h-7 rounded-full bg-amber-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                                  {req.tp_name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wide">Third Party</div>
+                                  <div className="text-xs font-semibold text-amber-900 truncate">{req.tp_name}</div>
+                                  <div className="text-[10px] text-amber-600 truncate">{req.tp_organization}</div>
                                 </div>
                               </div>
                             )}
@@ -2581,84 +3061,214 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
-      {/* ── New/Modify Request Modal ──────────────────────────────────────── */}
-      <Modal isOpen={showNewModal} onClose={() => setShowNewModal(false)} size="2xl" noPadding>
-        <div className="flex flex-col max-h-[90vh]">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white rounded-t-xl">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">New Allotment Request</h2>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {activeCycle ? `Cycle ${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle — will be saved as draft'}
-              </div>
-            </div>
-            <button onClick={() => setShowNewModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
-              <X size={20} />
+      {/* ── New/Modify Request — Full Screen ─────────────────────────────── */}
+      {showNewModal && createPortal(
+        <div className="fixed inset-0 z-[1000] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
+          {/* Header bar */}
+          <div className="flex items-center gap-4 px-6 py-3.5 bg-white border-b border-gray-200 shadow-sm shrink-0">
+            <button
+              onClick={() => setShowNewModal(false)}
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+            >
+              <ArrowLeft size={16} />
+              <span>Back</span>
             </button>
-          </div>
-
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Request Reason *', key: 'request_reason' as const, placeholder: 'e.g. Transfer-in' },
-                { label: 'Required BHK Config', key: 'required_bhk_config' as const, placeholder: 'e.g. 3 BHK' },
-                { label: 'Preferred Location', key: 'preferred_location' as const, placeholder: 'e.g. Block A' },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key}>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-                  <input value={form[key] as string} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
-                <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            <div className="h-5 w-px bg-gray-200" />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base font-bold text-gray-900">New Allotment Request</h1>
+              <div className="text-xs text-gray-500">
+                {activeCycle ? `Cycle: ${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle — will be saved as draft'}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
-                <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
-                <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional notes"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={handleSaveDraft} disabled={submitting}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                Save Draft
+              </button>
+              <button onClick={handleSubmit} disabled={submitting || prefs.length === 0}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+                <Send size={14} />Submit Request
+              </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-2 min-h-0">
-            <div className="flex flex-col border-r border-gray-100 min-h-0">
-              <div className="px-4 pt-4 pb-3 border-b border-gray-100 bg-white">
+          {/* Body — 3 columns */}
+          <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3 min-h-0">
+
+            {/* ── Col 1: Request details form ── */}
+            <div className="flex flex-col overflow-y-auto border-r border-gray-200 bg-white">
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <FileText size={15} className="text-blue-600" />Request Details
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
+                      <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in, New Appointment…"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK</label>
+                        <input value={form.required_bhk_config} onChange={e => setForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 3 BHK"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
+                        <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
+                      <input value={form.preferred_location} onChange={e => setForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A, Sector 5…"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
+                      <input type="date" value={form.move_in_date} onChange={e => setForm(f => ({ ...f, move_in_date: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
+                      <textarea value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional context…" rows={2}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Request For section — EO only */}
+                {(user?.role === 'manager' || user?.role === 'admin') && (
+                  <div className="pt-4 border-t border-gray-100">
+                    <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <Users size={15} className="text-teal-600" />Request For
+                    </h2>
+                    {/* Segmented control */}
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-gray-50 p-1 gap-1">
+                      {([
+                        { value: 'SELF', label: 'Self', icon: <User size={13} /> },
+                        { value: 'EMPLOYEE', label: 'Another Employee', icon: <UserCheck size={13} /> },
+                        { value: 'TP', label: 'Third Party', icon: <UserPlus size={13} /> },
+                      ] as { value: RequestForType; label: string; icon: React.ReactNode }[]).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setRequestFor(opt.value);
+                            if (opt.value === 'EMPLOYEE') { setShowEmployeePicker(true); }
+                            if (opt.value === 'TP') { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${requestFor === opt.value ? 'bg-white text-blue-700 shadow-sm border border-blue-200' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          {opt.icon}{opt.value === 'TP' ? 'Third Party' : opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Employee preview */}
+                    {requestFor === 'EMPLOYEE' && (
+                      <div className="mt-3">
+                        {selectedEmployee ? (
+                          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                            <div className="w-9 h-9 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                              {selectedEmployee.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold text-blue-900">{selectedEmployee.name}</div>
+                              <div className="text-xs text-blue-600">{selectedEmployee.id} · {selectedEmployee.designation}</div>
+                              <div className="text-xs text-blue-500 truncate">{selectedEmployee.dept}</div>
+                            </div>
+                            <button onClick={() => setShowEmployeePicker(true)}
+                              className="text-xs text-blue-600 font-semibold hover:underline shrink-0">Change</button>
+                            <button onClick={() => { setSelectedEmployee(null); setRequestFor('SELF'); }}
+                              className="p-1 text-blue-400 hover:text-blue-600 rounded transition-colors"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setShowEmployeePicker(true)}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors">
+                            <UserCheck size={15} />Select Employee
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TP preview */}
+                    {requestFor === 'TP' && (
+                      <div className="mt-3">
+                        {tpInfoConfirmed && tpInfo.name ? (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                                  {tpInfo.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-semibold text-amber-900">{tpInfo.name}</div>
+                                  <div className="text-xs text-amber-600">{tpInfo.organization}</div>
+                                </div>
+                              </div>
+                              <button onClick={() => { setTpFormDraft({ ...tpInfo }); setShowTPForm(true); }}
+                                className="text-xs text-amber-700 font-semibold hover:underline">Edit</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1 text-xs text-amber-700">
+                              {tpInfo.mobile && <div className="flex items-center gap-1"><Phone size={10} />{tpInfo.mobile}</div>}
+                              {tpInfo.email && <div className="flex items-center gap-1 truncate"><Mail size={10} />{tpInfo.email}</div>}
+                              {tpInfo.pan && <div className="flex items-center gap-1"><CreditCard size={10} />PAN: {tpInfo.pan}</div>}
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setTpFormDraft({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' }); setShowTPForm(true); }}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-600 text-sm font-medium hover:bg-amber-50 transition-colors">
+                            <UserPlus size={15} />Enter Third Party Details
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Col 2: Available quarters search ── */}
+            <div className="flex flex-col border-r border-gray-200 min-h-0 bg-white">
+              <div className="px-4 pt-4 pb-3 border-b border-gray-200 bg-white shrink-0">
+                <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Search size={15} className="text-gray-500" />Available Quarters
+                </h2>
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search available quarters…"
+                  <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search by number, block, address…"
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  <span className="font-medium text-gray-700">{modalQuarters.length}</span> available · click <span className="font-medium text-blue-700">Add</span> to push to preferences
+                  <span className="font-medium text-gray-700">{modalQuarters.length}</span> available · click <span className="font-medium text-blue-700">Add</span> to add preference
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {modalLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)
+                  Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)
                 ) : modalQuarters.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400 text-sm">No available quarters found</div>
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 py-16">
+                    <Building2 size={32} className="mb-2 opacity-30" />
+                    <p className="text-sm">No available quarters found</p>
+                    <p className="text-xs mt-1">Try adjusting your search</p>
+                  </div>
                 ) : (
                   modalQuarters.map((q, i) => (
-                    <div key={q.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3 hover:bg-white hover:border-gray-200 transition-all">
+                    <div key={q.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all">
                       <img src={getImage(q, i)} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
                         <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name} Block`}</div>
-                        <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
-                          <span>{q.bhk_config}</span><span>{q.area_sqft} sq.ft</span>
-                          <span className="font-medium text-gray-800">{fmtINR(q.monthly_rent)}</span>
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                          <span className="flex items-center gap-0.5"><Bed size={10} />{q.bhk_config}</span>
+                          <span><Ruler size={10} className="inline mr-0.5" />{q.area_sqft} sq.ft</span>
+                          <span className="font-semibold text-gray-800">{fmtINR(q.monthly_rent)}</span>
                         </div>
                       </div>
                       <button onClick={() => addPref(q)} disabled={prefs.length >= 5 || !!prefs.find(p => p.quarter.id === q.id)}
                         className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0">
-                        <Plus size={12} className="inline" /> Add
+                        {prefs.find(p => p.quarter.id === q.id) ? 'Added' : <><Plus size={11} className="inline" /> Add</>}
                       </button>
                     </div>
                   ))
@@ -2666,49 +3276,194 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col min-h-0 bg-gray-50/50">
-              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+            {/* ── Col 3: My Preferences ── */}
+            <div className="flex flex-col min-h-0 bg-gray-50">
+              <div className="px-4 pt-4 pb-3 border-b border-gray-200 bg-white shrink-0">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><Star size={14} className="text-amber-500" /> Your Preferences</h3>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${prefs.length >= 5 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{prefs.length} / 5</span>
+                  <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                    <Star size={15} className="text-amber-500" />My Preferences
+                  </h2>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${prefs.length >= 5 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                    {prefs.length} / 5
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Reorder with arrows · Remove with trash · Order = priority</p>
+                <p className="text-xs text-gray-500 mt-1">Reorder using arrows · Priority = rank order</p>
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {prefs.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400 text-sm">
-                    <Star size={28} className="mx-auto mb-2 opacity-30" />
-                    <p>No preferences selected.</p>
-                    <p>Pick from the left panel.</p>
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 py-16">
+                    <Star size={32} className="mb-2 opacity-20" />
+                    <p className="text-sm font-medium">No preferences yet</p>
+                    <p className="text-xs mt-1">Add quarters from the middle panel</p>
                   </div>
                 ) : (
                   prefs.map((p, i) => (
-                    <div key={p.quarter.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                    <div key={p.quarter.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
                       <div className="relative shrink-0">
                         <img src={getImage(p.quarter, i)} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                        <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">{p.rank}</div>
+                        <div className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-slate-800 text-white text-[10px] font-bold flex items-center justify-center shadow">{p.rank}</div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900 text-sm">{p.quarter.quarter_number}</div>
-                        <div className="text-xs text-gray-500">{p.quarter.bhk_config} · {fmtINR(p.quarter.monthly_rent)}/mo</div>
+                        <div className="font-semibold text-gray-900 text-sm truncate">{p.quarter.quarter_number}</div>
+                        <div className="text-xs text-gray-500 truncate">{p.quarter.bhk_config} · {fmtINR(p.quarter.monthly_rent)}/mo</div>
+                        {p.quarter.address && <div className="text-[10px] text-gray-400 truncate">{p.quarter.address}</div>}
                       </div>
                       <div className="flex flex-col gap-0.5 shrink-0">
-                        <button onClick={() => movePref(i, 'up')} disabled={i === 0} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors"><ArrowUp size={12} /></button>
-                        <button onClick={() => movePref(i, 'down')} disabled={i === prefs.length - 1} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded transition-colors"><ArrowDown size={12} /></button>
-                        <button onClick={() => removePref(p.quarter.id)} className="p-1 text-red-400 hover:text-red-600 rounded transition-colors"><Trash2 size={12} /></button>
+                        <button onClick={() => movePref(i, 'up')} disabled={i === 0}
+                          className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded hover:bg-gray-100 transition-colors"><ArrowUp size={12} /></button>
+                        <button onClick={() => movePref(i, 'down')} disabled={i === prefs.length - 1}
+                          className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 rounded hover:bg-gray-100 transition-colors"><ArrowDown size={12} /></button>
+                        <button onClick={() => removePref(p.quarter.id)}
+                          className="p-1 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"><Trash2 size={12} /></button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              <div className="p-4 border-t border-gray-200 flex gap-2">
-                <button onClick={handleSaveDraft} disabled={submitting} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">Save as Draft</button>
-                <button onClick={handleSubmit} disabled={submitting || prefs.length === 0} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">Submit Request</button>
+              <div className="p-4 border-t border-gray-200 bg-white space-y-2 shrink-0">
+                {prefs.length === 0 && (
+                  <p className="text-[11px] text-amber-600 text-center bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Add at least one preference to submit the request
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={handleSaveDraft} disabled={submitting}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                    Save Draft
+                  </button>
+                  <button onClick={handleSubmit} disabled={submitting || prefs.length === 0}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5">
+                    <Send size={14} />Submit
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </Modal>
+
+          {/* ── Employee Picker popup ─────────────────────── */}
+          {showEmployeePicker && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[80vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Select Employee</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Choose the employee this request is for</p>
+                  </div>
+                  <button onClick={() => setShowEmployeePicker(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"><X size={18} /></button>
+                </div>
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)} placeholder="Search by name or ID…"
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" autoFocus />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto py-2">
+                  {DEMO_EMPLOYEES.filter(e =>
+                    !employeeSearch.trim() ||
+                    e.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                    e.id.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                    e.dept.toLowerCase().includes(employeeSearch.toLowerCase())
+                  ).map(emp => (
+                    <button
+                      key={emp.id}
+                      onClick={() => { setSelectedEmployee(emp); setRequestFor('EMPLOYEE'); setShowEmployeePicker(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left ${selectedEmployee?.id === emp.id ? 'bg-blue-50' : ''}`}
+                    >
+                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                        {emp.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-900">{emp.name}</div>
+                        <div className="text-xs text-gray-500">{emp.id} · {emp.designation}</div>
+                        <div className="text-xs text-gray-400 truncate">{emp.dept}</div>
+                      </div>
+                      {selectedEmployee?.id === emp.id && <CheckCircle size={16} className="text-blue-600 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TP Info form popup ─────────────────────────── */}
+          {showTPForm && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Third Party Details</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Enter beneficiary's information</p>
+                  </div>
+                  <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"><X size={18} /></button>
+                </div>
+                <div className="px-6 py-5 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name <span className="text-red-500">*</span></label>
+                      <input value={tpFormDraft.name} onChange={e => setTpFormDraft(d => ({ ...d, name: e.target.value }))} placeholder="Enter full name"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" autoFocus />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Organization <span className="text-red-500">*</span></label>
+                      <input value={tpFormDraft.organization} onChange={e => setTpFormDraft(d => ({ ...d, organization: e.target.value }))} placeholder="Organization / Ministry / Company"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Mobile <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input value={tpFormDraft.mobile} onChange={e => setTpFormDraft(d => ({ ...d, mobile: e.target.value }))} placeholder="10-digit mobile"
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">PAN # (optional)</label>
+                      <div className="relative">
+                        <CreditCard size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input value={tpFormDraft.pan} onChange={e => setTpFormDraft(d => ({ ...d, pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F"
+                          maxLength={10}
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 uppercase" />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input type="email" value={tpFormDraft.email} onChange={e => setTpFormDraft(d => ({ ...d, email: e.target.value }))} placeholder="email@example.com"
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
+                      <textarea value={tpFormDraft.notes} onChange={e => setTpFormDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Any additional info…" rows={2}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 px-6 pb-6">
+                  <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button
+                    onClick={() => {
+                      if (!tpFormDraft.name.trim() || !tpFormDraft.organization.trim() || !tpFormDraft.mobile.trim() || !tpFormDraft.email.trim()) {
+                        addToast('Please fill in all required fields', 'warning'); return;
+                      }
+                      setTpInfo({ ...tpFormDraft });
+                      setTpInfoConfirmed(true);
+                      setRequestFor('TP');
+                      setShowTPForm(false);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors">
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* ── Inline Action Popup (Extension / Vacate / Grievance / Maintenance) ── */}
       <Modal
