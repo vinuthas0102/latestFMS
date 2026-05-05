@@ -477,6 +477,7 @@ export const BookingHistoryPage: React.FC = () => {
   const stats = {
     total: bookings.length,
     upcoming: bookings.filter(b => ['ALLOCATED', 'PROVISIONED'].includes(b.status)).length,
+    checkedIn: bookings.filter(b => b.status === 'CHECKED_IN').length,
     completed: bookings.filter(b => b.status === 'CHECKED_OUT').length,
     cancelled: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
   };
@@ -496,6 +497,7 @@ export const BookingHistoryPage: React.FC = () => {
       if (statusFilter.includes('CANCELLED')) return 'Cancelled';
       return null;
     }
+    if (statusFilter === 'CHECKED_IN') return 'Checked In';
     return getStatusConfig(statusFilter as BookingStatus).label;
   })();
 
@@ -506,9 +508,9 @@ export const BookingHistoryPage: React.FC = () => {
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
-            <Home size={11} />
+            <button onClick={() => navigate('/dashboard')} className="hover:text-blue-600 transition-colors"><Home size={11} /></button>
             <ChevronRight size={10} />
-            <span>My Workspace</span>
+            <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-blue-600 transition-colors">My Workspace</button>
             <ChevronRight size={10} />
             <button onClick={() => { setSelectedBooking(null); setStatusFilter('all'); }} className="text-gray-600 font-medium hover:text-blue-600 transition-colors">
               My Bookings
@@ -571,11 +573,12 @@ export const BookingHistoryPage: React.FC = () => {
             className="mb-3"
           />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <SummaryStatsCard label="Total Bookings" value={stats.total} icon={History} gradient="bg-gradient-to-br from-blue-600 to-teal-500" onClick={() => { setStatusFilter('all'); setSelectedBooking(null); }} isActive={statusFilter === 'all'} delay={100} subtitle="All time" secondaryValue={stats.upcoming} secondaryLabel="Active" />
-            <SummaryStatsCard label="Upcoming" value={stats.upcoming} icon={Calendar} gradient="bg-gradient-to-br from-sky-500 to-blue-600" onClick={() => { setStatusFilter(['ALLOCATED', 'PROVISIONED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED')} delay={150} subtitle="Confirmed & allocated" secondaryValue={bookings.filter(b => b.status === 'PROVISIONED').length} secondaryLabel="Pending" />
-            <SummaryStatsCard label="Completed" value={stats.completed} icon={CheckCircle} gradient="bg-gradient-to-br from-emerald-500 to-cyan-500" onClick={() => { setStatusFilter('CHECKED_OUT'); setSelectedBooking(null); }} isActive={statusFilter === 'CHECKED_OUT'} delay={200} subtitle={`${completionRate}% completion`} trend={completionRate > 50 ? completionRate - 50 : -(50 - completionRate)} />
-            <SummaryStatsCard label="Cancelled" value={stats.cancelled} icon={XCircle} gradient="bg-gradient-to-br from-rose-500 to-pink-500" onClick={() => { setStatusFilter(['CANCELLED', 'REJECTED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED')} delay={250} subtitle={`${cancellationRate}% of total`} secondaryValue={bookings.filter(b => b.status === 'REJECTED').length} secondaryLabel="Rejected" />
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <SummaryStatsCard label="My Bookings" value={stats.total} icon={History} gradient="bg-gradient-to-br from-blue-600 to-teal-500" onClick={() => { setStatusFilter('all'); setSelectedBooking(null); }} isActive={statusFilter === 'all'} delay={100} subtitle="All time" secondaryValue={stats.upcoming} secondaryLabel="Active" />
+            <SummaryStatsCard label="Upcoming" value={stats.upcoming} icon={Calendar} gradient="bg-gradient-to-br from-sky-500 to-blue-600" onClick={() => { setStatusFilter(['ALLOCATED', 'PROVISIONED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED')} delay={130} subtitle="Confirmed & allocated" secondaryValue={bookings.filter(b => b.status === 'PROVISIONED').length} secondaryLabel="Pending" />
+            <SummaryStatsCard label="Checked In" value={stats.checkedIn} icon={CheckCircle} gradient="bg-gradient-to-br from-amber-500 to-orange-500" onClick={() => { setStatusFilter('CHECKED_IN'); setSelectedBooking(null); }} isActive={statusFilter === 'CHECKED_IN'} delay={160} subtitle="Currently staying" />
+            <SummaryStatsCard label="Completed" value={stats.completed} icon={CheckCircle} gradient="bg-gradient-to-br from-emerald-500 to-cyan-500" onClick={() => { setStatusFilter('CHECKED_OUT'); setSelectedBooking(null); }} isActive={statusFilter === 'CHECKED_OUT'} delay={190} subtitle={`${completionRate}% completion`} trend={completionRate > 50 ? completionRate - 50 : -(50 - completionRate)} />
+            <SummaryStatsCard label="Cancelled" value={stats.cancelled} icon={XCircle} gradient="bg-gradient-to-br from-rose-500 to-pink-500" onClick={() => { setStatusFilter(['CANCELLED', 'REJECTED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED')} delay={220} subtitle={`${cancellationRate}% of total`} secondaryValue={bookings.filter(b => b.status === 'REJECTED').length} secondaryLabel="Rejected" />
           </div>
         </div>
       </div>

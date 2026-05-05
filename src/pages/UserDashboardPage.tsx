@@ -26,7 +26,6 @@ import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { propertyService } from '../services/propertyService';
-import { bookingService } from '../services/bookingService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
@@ -150,7 +149,6 @@ export const UserDashboardPage: React.FC = () => {
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 99999 });
   const [filters, setFilters] = useState<FilterSidebarState>(() => defaultFilters(0, 99999));
-  const [bookingStats, setBookingStats] = useState({ total: 0, upcoming: 0, completed: 0, cancelled: 0 });
   const [availableOnly, setAvailableOnly] = useState(false);
 
 
@@ -159,21 +157,7 @@ export const UserDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadProperties();
-    if (user) loadBookingStats();
   }, [user]);
-
-
-  const loadBookingStats = async () => {
-    try {
-      const data = await bookingService.getBookings({ userId: user!.id });
-      setBookingStats({
-        total: data.length,
-        upcoming: data.filter((b) => ['ALLOCATED', 'PROVISIONED'].includes(b.status)).length,
-        completed: data.filter((b) => b.status === 'CHECKED_OUT').length,
-        cancelled: data.filter((b) => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
-      });
-    } catch { /* silently ignore */ }
-  };
 
   const loadProperties = async () => {
     setLoading(true);
@@ -413,13 +397,13 @@ export const UserDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Booking stats cards ───────────────────────────── */}
-        {user && !loading && (
+        {/* ── Facility stats cards ──────────────────────────── */}
+        {!loading && (
           <div className="bg-white border-b border-gray-200/60 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <SummaryStatsCard
-                  label="Available Properties"
+                  label="All Available"
                   value={properties.length}
                   icon={Building2}
                   gradient="bg-gradient-to-br from-blue-600 to-teal-500"
@@ -429,37 +413,32 @@ export const UserDashboardPage: React.FC = () => {
                   secondaryLabel="Matching"
                 />
                 <SummaryStatsCard
-                  label="My Bookings"
-                  value={bookingStats.total}
-                  icon={History}
+                  label="Govt Facilities"
+                  value={properties.filter(p => p.module?.code === 'GOVT_FAC').length}
+                  icon={Shield}
                   gradient="bg-gradient-to-br from-sky-500 to-blue-600"
-                  onClick={() => navigate('/bookings/history')}
                   delay={80}
-                  subtitle="All time reservations"
-                  secondaryValue={bookingStats.upcoming}
-                  secondaryLabel="Active"
+                  subtitle="Government facilities"
+                  secondaryValue={properties.filter(p => p.module?.code === 'GOVT_FAC' && p.assetType?.category === 'A').length}
+                  secondaryLabel="Cat A"
                 />
                 <SummaryStatsCard
-                  label="Upcoming"
-                  value={bookingStats.upcoming}
-                  icon={Calendar}
+                  label="Other Facilities"
+                  value={properties.filter(p => p.module?.code === 'OTHER_FAC').length}
+                  icon={Home}
                   gradient="bg-gradient-to-br from-emerald-500 to-cyan-500"
-                  onClick={() => navigate('/bookings/history?status=upcoming')}
                   delay={160}
-                  subtitle="Confirmed &amp; allocated"
-                  secondaryValue={bookingStats.completed}
-                  secondaryLabel="Completed"
+                  subtitle="Open &amp; public facilities"
                 />
                 <SummaryStatsCard
-                  label="Cancelled"
-                  value={bookingStats.cancelled}
-                  icon={XCircle}
-                  gradient="bg-gradient-to-br from-rose-500 to-pink-500"
-                  onClick={() => navigate('/bookings/history?status=cancelled')}
+                  label="Total Rooms"
+                  value={properties.reduce((sum, p) => sum + (p.totalRooms || 0), 0)}
+                  icon={Users}
+                  gradient="bg-gradient-to-br from-amber-500 to-orange-500"
                   delay={240}
-                  subtitle="Cancelled &amp; rejected"
-                  secondaryValue={bookingStats.completed}
-                  secondaryLabel="Done"
+                  subtitle="Across all facilities"
+                  secondaryValue={properties.length > 0 ? Math.round(properties.reduce((s, p) => s + (p.totalRooms || 0), 0) / properties.length) : 0}
+                  secondaryLabel="Avg/facility"
                 />
               </div>
             </div>

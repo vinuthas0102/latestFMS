@@ -166,9 +166,9 @@ export const PropertiesPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
-            <Home size={11} />
+            <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-blue-600 transition-colors"><Home size={11} /></button>
             <ChevronRight size={10} />
-            <span>My Workspace</span>
+            <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-blue-600 transition-colors">My Workspace</button>
             <ChevronRight size={10} />
             <button
               onClick={() => { handleClosePanel(); setFilterStatus('all'); }}

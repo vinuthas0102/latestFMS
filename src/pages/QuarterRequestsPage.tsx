@@ -1696,9 +1696,9 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="min-w-0">
               {/* Breadcrumb */}
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1 flex-wrap">
-                <Home size={11} />
+                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-blue-600 transition-colors"><Home size={11} /></button>
                 <ChevronRight size={10} />
-                <span>My Workspace</span>
+                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-blue-600 transition-colors">My Workspace</button>
                 <ChevronRight size={10} />
                 <button
                   onClick={() => { setSelectedRequest(null); setDpFilter('allotted'); resetActionForm(); }}
