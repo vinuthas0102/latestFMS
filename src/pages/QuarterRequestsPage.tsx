@@ -368,6 +368,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [expandedSvcsCardId, setExpandedSvcsCardId] = useState<string | null>(null);
 
   // Lightbox for allotted panel image tiles
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -2611,7 +2612,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       </div>
                     )}
                     <div
-                      onClick={() => { setSelectedRequest(req); resetActionForm(); }}
+                      onClick={() => { setSelectedRequest(req); setSelectedServiceId(null); resetActionForm(); }}
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <div className="flex min-h-[116px]">
@@ -2684,10 +2685,18 @@ export const QuarterRequestsPage: React.FC = () => {
                               </span>
                             )}
                             {activeSvcs.length > 0 && (
-                              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
+                                }}
+                                className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
+                              >
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                                 {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
-                              </span>
+                                {expandedSvcsCardId === req.id ? <ChevronUp size={9} className="ml-0.5" /> : <ChevronDown size={9} className="ml-0.5" />}
+                              </button>
                             )}
                           </div>
 
@@ -2887,6 +2896,63 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* ── Indented service tiles — shown when svcs badge is toggled ── */}
+                    {expandedSvcsCardId === req.id && activeSvcs.length > 0 && (
+                      <div className="relative ml-6 mt-0.5 mb-1">
+                        {/* Vertical connector line */}
+                        <div className="absolute left-0 top-0 bottom-0 w-px bg-teal-200" />
+                        <div className="space-y-1 pl-4">
+                          {activeSvcs.map((svc, svcIdx) => {
+                            const stc = serviceTypeConfig(svc.service_type);
+                            const isSvcSelected = selectedServiceId === svc.id && isSelected;
+                            const hasSubject = (svc.service_type === 'GRIEVANCE' || svc.service_type === 'MAINTENANCE') && (svc.grievance_subject || svc.remarks);
+                            const titleText = hasSubject ? (svc.grievance_subject || svc.remarks) : stc.label;
+                            const ctrlRef = `#${svc.id.slice(-6).toUpperCase()}`;
+                            const isLast = svcIdx === activeSvcs.length - 1;
+                            return (
+                              <div key={svc.id} className="relative">
+                                {/* Horizontal nub */}
+                                <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-3 h-px bg-teal-200" />
+                                {/* Junction dot */}
+                                <div className={`absolute -left-[18px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border ${isSvcSelected ? 'bg-teal-600 border-teal-600' : 'bg-white border-teal-300'}`} />
+                                {isLast && (
+                                  <div className="absolute -left-px top-1/2 bottom-0 w-px bg-white" />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setSelectedRequest(req);
+                                    setSelectedServiceId(svc.id);
+                                    resetActionForm();
+                                  }}
+                                  className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] transition-all ${isSvcSelected ? 'bg-teal-50 border-teal-300 shadow-sm' : 'bg-white border-gray-200 hover:border-teal-200 hover:bg-teal-50/40'}`}
+                                >
+                                  <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${stc.cls}`} style={{ fontSize: 10 }}>{stc.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-gray-800 truncate leading-tight">{titleText}</div>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <span className="font-mono text-gray-400 text-[9px]">{ctrlRef}</span>
+                                      {hasSubject && (
+                                        <>
+                                          <span className="text-gray-300 text-[9px]">·</span>
+                                          <span className="text-gray-400 text-[9px]">{stc.label}</span>
+                                        </>
+                                      )}
+                                      <span className="text-gray-300 text-[9px]">·</span>
+                                      <span className="text-gray-400 text-[9px]">{fmtDate(svc.created_at)}</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-semibold shrink-0">PENDING</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     </React.Fragment>
                   );
                 })
