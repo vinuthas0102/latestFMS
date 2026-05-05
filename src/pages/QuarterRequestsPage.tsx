@@ -247,7 +247,6 @@ export const QuarterRequestsPage: React.FC = () => {
   const [requests, setRequests] = useState<QuarterRequest[]>([]);
   const [tenantRequests, setTenantRequests] = useState<QuarterTenantRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<QuarterRequest | null>(null);
-  const [selectedTenantReq, setSelectedTenantReq] = useState<QuarterTenantRequest | null>(null);
   const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -296,7 +295,6 @@ export const QuarterRequestsPage: React.FC = () => {
   // Service chats for occupied panel
   const [serviceChats, setServiceChats] = useState<Record<string, QuarterServiceChat[]>>({});
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [servicesExpanded, setServicesExpanded] = useState(false);
   const [servicesHistoryMode, setServicesHistoryMode] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [chatDocUrls, setChatDocUrls] = useState('');
@@ -665,12 +663,11 @@ export const QuarterRequestsPage: React.FC = () => {
   // ─── derived counts ─────────────────────────────────────────────────────────
 
   const statCounts = {
-    draft:          requests.filter(r => r.request_status === 'DRAFT').length,
-    submitted:      requests.filter(r => r.request_status === 'SUBMITTED').length,
-    allotted:       requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
-    occupied:       requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
-    tenantServices: requests.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
-    vacated:        requests.filter(r => r.request_status === 'VACATED').length,
+    draft:     requests.filter(r => r.request_status === 'DRAFT').length,
+    submitted: requests.filter(r => r.request_status === 'SUBMITTED').length,
+    allotted:  requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
+    occupied:  requests.filter(r => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
+    vacated:   requests.filter(r => r.request_status === 'VACATED').length,
   };
 
   const STATUS_CARDS: StatusCard[] = [
@@ -696,18 +693,11 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <CheckCircle size={20} className="text-emerald-600" />,
     },
     {
-      key: 'occupied', label: 'Occupied', description: 'Currently occupying',
+      key: 'occupied', label: 'Occupied', description: 'Occupying / Service active',
       count: statCounts.occupied,
       gradient: 'from-teal-500 to-cyan-400',
       iconBg: 'bg-teal-100', textColor: 'text-teal-700', countColor: 'text-teal-900',
       icon: <Home size={20} className="text-teal-600" />,
-    },
-    {
-      key: 'tenantServices', label: 'Tenant Services', description: 'Ext / Vacate in progress',
-      count: statCounts.tenantServices,
-      gradient: 'from-orange-500 to-amber-400',
-      iconBg: 'bg-orange-100', textColor: 'text-orange-700', countColor: 'text-orange-900',
-      icon: <RefreshCw size={20} className="text-orange-600" />,
     },
     {
       key: 'vacated', label: 'Vacated', description: 'Historical records',
@@ -726,8 +716,7 @@ export const QuarterRequestsPage: React.FC = () => {
     if (dpFilter === 'draft') result = result.filter(r => r.request_status === 'DRAFT');
     else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
     else if (dpFilter === 'allotted') result = result.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
-    else if (dpFilter === 'occupied') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
-    else if (dpFilter === 'tenantServices') result = result.filter(r => ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
+    else if (dpFilter === 'occupied') result = result.filter(r => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
     else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
     if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
@@ -765,13 +754,6 @@ export const QuarterRequestsPage: React.FC = () => {
     return result;
   }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter]);
 
-  const filteredTenantRequests = React.useMemo(() => {
-    return [...tenantRequests].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-  }, [tenantRequests]);
-
-  const isTenantView = dpFilter === 'tenantServices';
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
   const activeFilterCount = [
@@ -973,7 +955,7 @@ export const QuarterRequestsPage: React.FC = () => {
             {allotment.approval_status}
           </span>
           <button
-            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            onClick={() => setSelectedRequest(null)}
             className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
             title="Close panel"
           >
@@ -1097,7 +1079,7 @@ export const QuarterRequestsPage: React.FC = () => {
               <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
             </div>
             <button
-              onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+              onClick={() => setSelectedRequest(null)}
               className="ml-auto p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
             >
               <X size={14} />
@@ -1177,13 +1159,16 @@ export const QuarterRequestsPage: React.FC = () => {
             Since {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
           </span>
           <button
-            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            onClick={() => setSelectedRequest(null)}
             className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
             title="Close panel"
           >
             <X size={14} />
           </button>
         </div>
+
+        {/* Quarter identity strip */}
+        {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
 
         {/* ── ACTIVE SERVICES — shown immediately after header ───────────── */}
         <div className="px-5 pt-4 pb-3 border-b border-gray-100">
@@ -1293,81 +1278,44 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="text-xs font-bold text-gray-800 uppercase tracking-wide mb-3">Raise New Service</div>
 
           {rightAction === null && (
-            <>
-              {/* Support group */}
-              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Support</div>
-              <div className="space-y-1.5 mb-3">
-                <button
-                  onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 transition-all group"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center shrink-0 group-hover:bg-rose-200 transition-colors"><Bell size={14} className="text-rose-600" /></span>
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-gray-800">Grievance</div>
-                    <div className="text-[10px] text-gray-400">Raise a complaint or concern</div>
-                  </div>
-                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
-                </button>
-                <button
-                  onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors"><Wrench size={14} className="text-slate-600" /></span>
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-gray-800">Maintenance</div>
-                    <div className="text-[10px] text-gray-400">Request repairs or upkeep</div>
-                  </div>
-                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
-                </button>
-              </div>
-
-              {/* Occupancy group */}
-              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">Occupancy</div>
-              <div className="space-y-1.5 mb-3">
-                <button
-                  onClick={() => setRightAction('extend')}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all group"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors"><RefreshCw size={14} className="text-amber-600" /></span>
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-gray-800">Extend Lease</div>
-                    <div className="text-[10px] text-gray-400">Request an extension period</div>
-                  </div>
-                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
-                </button>
-                <button
-                  onClick={() => setRightAction('upgrade')}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-sky-300 hover:bg-sky-50 transition-all group"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center shrink-0 group-hover:bg-sky-200 transition-colors"><ArrowRightCircle size={14} className="text-sky-600" /></span>
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-gray-800">Upgrade Quarter</div>
-                    <div className="text-[10px] text-gray-400">Request a larger/better unit</div>
-                  </div>
-                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
-                </button>
-                <button
-                  onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all group"
-                >
-                  <span className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0 group-hover:bg-orange-200 transition-colors"><LogOut size={14} className="text-orange-600" /></span>
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-gray-800">Vacate Quarter</div>
-                    <div className="text-[10px] text-gray-400">Initiate vacation process</div>
-                  </div>
-                  <ChevronRight size={12} className="text-gray-300 ml-auto" />
-                </button>
-              </div>
-
-              {/* Rent link */}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-100 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-medium transition-colors"
+              >
+                <Bell size={14} /><span>Grievance</span>
+              </button>
+              <button
+                onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-medium transition-colors"
+              >
+                <Wrench size={14} /><span>Maintenance</span>
+              </button>
+              <button
+                onClick={() => setRightAction('extend')}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-100 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-medium transition-colors"
+              >
+                <RefreshCw size={14} /><span>Extend</span>
+              </button>
+              <button
+                onClick={() => setRightAction('upgrade')}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
+              >
+                <ArrowRightCircle size={14} /><span>Upgrade</span>
+              </button>
+              <button
+                onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 text-orange-700 text-[11px] font-medium transition-colors"
+              >
+                <LogOut size={14} /><span>Vacate</span>
+              </button>
               <button
                 onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-dashed border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors text-xs font-medium"
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
               >
-                <IndianRupee size={13} /> View Rent & Payment History
-                <ChevronRight size={12} className="ml-auto text-teal-400" />
+                <IndianRupee size={14} /><span>Rent</span>
               </button>
-            </>
+            </div>
           )}
 
           {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
@@ -1446,94 +1394,6 @@ export const QuarterRequestsPage: React.FC = () => {
           )}
         </div>
 
-        {/* ── QUARTER REFERENCE (bottom, informational) ───────────────────── */}
-        {q && (
-          <div className="px-5 py-3">
-            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Your Quarter</div>
-            <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />
-          </div>
-        )}
-      </>
-    );
-  };
-
-  const RightPanelTenantServices = () => {
-    const tr = selectedTenantReq;
-    if (!tr) {
-      return (
-        <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
-          Select a request from the left to view details
-        </div>
-      );
-    }
-    const q = tr.allotment?.quarter;
-    const sc = tenantStatusConfig(tr.request_status);
-    const stc = serviceTypeConfig(tr.service_type);
-    return (
-      <>
-        <div className="flex items-center gap-3 px-5 py-4 bg-orange-600 rounded-t-xl sticky top-0 z-10">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
-            <RefreshCw size={18} className="text-white" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-orange-100 uppercase tracking-wide">Tenant Service</div>
-            <div className="text-sm font-semibold text-white">{tr.id.slice(0, 8).toUpperCase()}</div>
-          </div>
-          <div className="ml-auto flex gap-2">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${stc.cls}`}>{stc.icon}{stc.label}</span>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${sc.cls}`}>{sc.label}</span>
-          </div>
-          <button onClick={() => { setSelectedTenantReq(null); }} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"><X size={14} /></button>
-        </div>
-        {q && <CompactQuarterRow q={q} accentCls="bg-orange-50 text-orange-700 border-orange-200" />}
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {tr.reason && (
-              <div className="col-span-2">
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Reason</div>
-                <div className="text-gray-800">{tr.reason}</div>
-              </div>
-            )}
-            {tr.remarks && (
-              <div className="col-span-2">
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Remarks</div>
-                <div className="text-gray-700 text-xs">{tr.remarks}</div>
-              </div>
-            )}
-            {tr.requested_date && (
-              <div>
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Requested Date</div>
-                <div className="text-gray-800 text-xs flex items-center gap-1"><CalendarDays size={11} />{fmtDate(tr.requested_date)}</div>
-              </div>
-            )}
-            {tr.required_bhk_config && (
-              <div>
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Required BHK</div>
-                <div className="text-gray-800 text-xs">{tr.required_bhk_config}</div>
-              </div>
-            )}
-            {tr.document_url && (
-              <div className="col-span-2">
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Document</div>
-                <a href={tr.document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block">{tr.document_url}</a>
-              </div>
-            )}
-            <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Submitted</div>
-              <div className="text-gray-700 text-xs">{fmtDate(tr.created_at)}</div>
-            </div>
-          </div>
-          {tr.eo_notes && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800">
-              <span className="font-semibold">Officer Notes: </span>{tr.eo_notes}
-            </div>
-          )}
-          {tr.request_status === 'PENDING' && (
-            <button onClick={() => handleWithdrawTenantReq(tr.id)} className="w-full py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-              Withdraw Request
-            </button>
-          )}
-        </div>
       </>
     );
   };
@@ -1609,7 +1469,7 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
           <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">Draft</span>
           <button
-            onClick={() => { setSelectedRequest(null); setSelectedTenantReq(null); }}
+            onClick={() => setSelectedRequest(null)}
             className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
             title="Close panel"
           >
@@ -1885,7 +1745,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   setDpFilter(card.key);
                   setSelectedRequest(null);
                   resetActionForm();
-                  setSelectedTenantReq(null);
                   setReqSearch('');
                   setReqBhkFilter('ALL');
                 }}
@@ -1899,7 +1758,7 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[1, 2].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />)}
           </div>
-        ) : !isTenantView && filteredRequests.length === 0 && requests.length === 0 ? (
+        ) : filteredRequests.length === 0 && requests.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 py-20 text-center">
             <FileText size={40} className="mx-auto text-gray-300 mb-3" />
             <h3 className="text-base font-semibold text-gray-700 mb-1">No quarter requests yet</h3>
@@ -1908,54 +1767,52 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ── MandatorySearchBar (matches QuarterManagerPage filter style) ── */}
-            {!isTenantView && (
-              <div className="mb-3 space-y-2">
-                <MandatorySearchBar
-                  fields={[
-                    {
-                      key: 'search',
-                      label: 'Search',
-                      type: 'text',
-                      placeholder: 'Request no., BHK, location…',
-                      value: reqSearch,
-                      onChange: setReqSearch,
-                      icon: <Search size={14} />,
-                    },
-                    {
-                      key: 'bhk',
-                      label: 'BHK Config',
-                      type: 'chips',
-                      value: reqBhkFilter,
-                      onChange: setReqBhkFilter,
-                      options: [
-                        { value: 'ALL', label: 'Any' },
-                        { value: '1BHK', label: '1 BHK' },
-                        { value: '2BHK', label: '2 BHK' },
-                        { value: '3BHK', label: '3 BHK' },
-                        { value: '4BHK', label: '4 BHK' },
-                      ],
-                    },
-                    {
-                      key: 'sort',
-                      label: 'Sort By',
-                      type: 'chips',
-                      value: reqSort,
-                      onChange: v => setReqSort(v as 'newest' | 'oldest'),
-                      options: [
-                        { value: 'newest', label: 'Newest' },
-                        { value: 'oldest', label: 'Oldest' },
-                      ],
-                    },
-                  ]}
-                  filterCount={reqToiletFilter.length + reqFloorFilter.length}
-                  onFilterOpen={() => setFilterDrawerOpen(true)}
-                />
-                <div className="flex justify-end">
-                  <span className="text-xs text-gray-500">{filteredRequests.length} of {requests.length} requests</span>
-                </div>
+            {/* ── MandatorySearchBar ── */}
+            <div className="mb-3 space-y-2">
+              <MandatorySearchBar
+                fields={[
+                  {
+                    key: 'search',
+                    label: 'Search',
+                    type: 'text',
+                    placeholder: 'Request no., BHK, location…',
+                    value: reqSearch,
+                    onChange: setReqSearch,
+                    icon: <Search size={14} />,
+                  },
+                  {
+                    key: 'bhk',
+                    label: 'BHK Config',
+                    type: 'chips',
+                    value: reqBhkFilter,
+                    onChange: setReqBhkFilter,
+                    options: [
+                      { value: 'ALL', label: 'Any' },
+                      { value: '1BHK', label: '1 BHK' },
+                      { value: '2BHK', label: '2 BHK' },
+                      { value: '3BHK', label: '3 BHK' },
+                      { value: '4BHK', label: '4 BHK' },
+                    ],
+                  },
+                  {
+                    key: 'sort',
+                    label: 'Sort By',
+                    type: 'chips',
+                    value: reqSort,
+                    onChange: v => setReqSort(v as 'newest' | 'oldest'),
+                    options: [
+                      { value: 'newest', label: 'Newest' },
+                      { value: 'oldest', label: 'Oldest' },
+                    ],
+                  },
+                ]}
+                filterCount={reqToiletFilter.length + reqFloorFilter.length}
+                onFilterOpen={() => setFilterDrawerOpen(true)}
+              />
+              <div className="flex justify-end">
+                <span className="text-xs text-gray-500">{filteredRequests.length} of {requests.length} requests</span>
               </div>
-            )}
+            </div>
 
           <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>
 
@@ -1964,64 +1821,15 @@ export const QuarterRequestsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <FileText size={15} />
-                  {isTenantView ? 'Tenant Service Requests' : 'My Requests'}
+                  My Requests
                   <span className="text-xs text-gray-400 font-normal">
-                    ({isTenantView ? filteredTenantRequests.length : filteredRequests.length})
+                    ({filteredRequests.length})
                   </span>
                 </h2>
-                {isTenantView && (
-                  <button
-                    onClick={() => setFilterDrawerOpen(true)}
-                    className={`lg:hidden relative flex items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
-                      activeFilterCount > 0 ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Filter size={14} />
-                    {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />}
-                  </button>
-                )}
               </div>
 
-              {/* Tenant service request cards */}
-              {isTenantView && (
-                filteredTenantRequests.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-gray-200 py-10 text-center">
-                    <Building2 size={28} className="mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">No tenant service requests yet.</p>
-                    <p className="text-xs text-gray-400 mt-1">Go to Occupied to raise Extend / Upgrade / Vacate requests.</p>
-                  </div>
-                ) : filteredTenantRequests.map(tr => {
-                  const stc = serviceTypeConfig(tr.service_type);
-                  const sc = tenantStatusConfig(tr.request_status);
-                  const isSelected = selectedTenantReq?.id === tr.id;
-                  const q = tr.allotment?.quarter;
-                  return (
-                    <div
-                      key={tr.id}
-                      onClick={() => setSelectedTenantReq(tr)}
-                      className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-md ring-2 ring-blue-100' : 'border-gray-200'}`}
-                    >
-                      <div className="flex">
-                        <div className="w-32 shrink-0">
-                          {q && <img src={getImage(q, 0)} alt="" className="w-full h-full object-cover" style={{ minHeight: 104 }} />}
-                          {!q && <div className="w-full h-full bg-gray-100 flex items-center justify-center" style={{ minHeight: 104 }}><Building2 size={24} className="text-gray-300" /></div>}
-                        </div>
-                        <div className="flex-1 p-4 min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${stc.cls}`}>{stc.icon}{stc.label}</span>
-                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${sc.cls}`}>{sc.label}</span>
-                          </div>
-                          {q && <div className="font-bold text-gray-900 text-sm truncate mb-1">{q.quarter_number} · {q.bhk_config}</div>}
-                          <div className="text-xs text-gray-400">{fmtDate(tr.created_at)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-
               {/* Quarter request cards */}
-              {!isTenantView && (
+              {(
                 filteredRequests.length === 0 ? (
                   dpFilter === 'allotted' ? (
                     <div className="bg-white rounded-xl border border-gray-200 py-14 text-center px-6">
@@ -2047,6 +1855,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   const sc = statusConfig(req.request_status);
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
+                  const isServiceInProgress = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
                   const allottedQ = req.allotment?.quarter as Quarter | undefined;
                   const prefQ = req.preferences?.[0]?.quarter as Quarter | undefined;
                   const thumbQ = allottedQ ?? prefQ;
@@ -2054,9 +1863,22 @@ export const QuarterRequestsPage: React.FC = () => {
                   const accentColor = statusAccentColor(req.request_status);
                   const activeSvcs = tenantRequests.filter(tr => tr.allotment_id === req.allotment?.id && tr.request_status === 'PENDING');
 
+                  // Sub-group label: show "Services" divider before first EXTEND/VACATE card when in occupied filter
+                  const showServicesDivider = dpFilter === 'occupied' && isServiceInProgress &&
+                    (reqIdx === 0 || !['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(filteredRequests[reqIdx - 1].request_status));
+
                   return (
+                    <React.Fragment key={req.id}>
+                    {showServicesDivider && (
+                      <div className="flex items-center gap-2 pt-1 pb-0.5">
+                        <div className="flex-1 h-px bg-orange-100" />
+                        <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest flex items-center gap-1">
+                          <RefreshCw size={9} /> Services in Progress
+                        </span>
+                        <div className="flex-1 h-px bg-orange-100" />
+                      </div>
+                    )}
                     <div
-                      key={req.id}
                       onClick={() => { setSelectedRequest(req); resetActionForm(); }}
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                     >
@@ -2265,6 +2087,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    </React.Fragment>
                   );
                 })
               )}
@@ -2405,7 +2228,7 @@ export const QuarterRequestsPage: React.FC = () => {
             {/* ── RIGHT: detail panel ───────────────────────────── */}
             <div style={{ width: `${100 - splitPct - 0.5}%` }} className="flex-none overflow-y-auto bg-white rounded-xl border border-gray-200">
               {/* Sticky header with expand/contract buttons */}
-              {(selectedRequest || isTenantView) && (
+              {selectedRequest && (
                 <div className="sticky top-0 z-20 flex justify-end gap-1 px-3 py-1.5 bg-white/90 backdrop-blur-sm border-b border-gray-100">
                   <button
                     onClick={() => { const next = Math.max(25, Math.min(70, splitPct - 5)); setSplitPct(next); try { localStorage.setItem('qrSplit', String(Math.round(next))); } catch {} }}
@@ -2419,9 +2242,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   ><ChevronRight size={14} /></button>
                 </div>
               )}
-              {isTenantView ? (
-                <RightPanelTenantServices />
-              ) : selectedRequest ? (() => {
+              {selectedRequest ? (() => {
                 const s = selectedRequest.request_status;
                 if (s === 'DRAFT') return <RightPanelDraft />;
                 if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
