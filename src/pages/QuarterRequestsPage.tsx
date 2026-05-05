@@ -2881,12 +2881,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   className="bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
                   onClick={e => e.stopPropagation()}
                 >
-                  {/* Menu header */}
-                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Actions</div>
-                    <div className="text-xs font-mono text-gray-600 font-medium">{req.request_number}</div>
-                  </div>
-
                   <div className="py-1">
                     {req.request_status === 'DRAFT' && (
                       <button
@@ -2938,9 +2932,9 @@ export const QuarterRequestsPage: React.FC = () => {
                       const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
                       return (
                         <>
-                          {!menuHasActiveSvc && (
+                          <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Services</span></div>
+                          {!menuHasActiveSvc ? (
                             <>
-                              <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Occupancy Services</span></div>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
@@ -2963,12 +2957,9 @@ export const QuarterRequestsPage: React.FC = () => {
                                 Vacate Quarter
                               </button>
                             </>
-                          )}
-                          {menuHasActiveSvc && (
+                          ) : (
                             <div className="px-4 py-2 text-[10px] text-orange-600 italic">Extend / Upgrade / Vacate pending EO review</div>
                           )}
-                          <div className="my-1 mx-4 border-t border-gray-100" />
-                          <div className="px-4 pt-1 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Requests</span></div>
                           <button
                             onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"

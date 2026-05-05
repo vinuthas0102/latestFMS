@@ -220,11 +220,22 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
 }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxStart, setLightboxStart] = useState(0);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const openLightbox = useCallback((idx: number) => {
     setLightboxStart(idx);
     setLightboxOpen(true);
   }, []);
+
+  const heroPrev = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHeroIndex(i => (i - 1 + images.length) % images.length);
+  }, [images.length]);
+
+  const heroNext = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHeroIndex(i => (i + 1) % images.length);
+  }, [images.length]);
 
   const src = (i: number) => images[i] ?? FALLBACK;
   const count = images.length;
@@ -257,22 +268,49 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
             {/* Main large image */}
             <div
               className="relative flex-[3] overflow-hidden cursor-pointer group"
-              onClick={() => openLightbox(0)}
+              onClick={() => openLightbox(heroIndex)}
             >
               <img
-                src={src(0)}
+                key={heroIndex}
+                src={src(heroIndex)}
                 alt={alt}
                 className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
+                style={{ transition: 'opacity 0.2s ease' }}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
               />
-              <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <div className="p-2 rounded-full text-white" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}>
+              <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={heroPrev}
+                  className="p-2 rounded-full text-white hover:scale-110 transition-transform"
+                  style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
+                  aria-label="Previous photo"
+                >
                   <ChevronLeft size={18} />
-                </div>
-                <div className="p-2 rounded-full text-white" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}>
+                </button>
+                <button
+                  onClick={heroNext}
+                  className="p-2 rounded-full text-white hover:scale-110 transition-transform"
+                  style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
+                  aria-label="Next photo"
+                >
                   <ChevronRight size={18} />
-                </div>
+                </button>
               </div>
+              {count > 1 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
+                  {images.map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-full transition-all duration-200"
+                      style={{
+                        width: i === heroIndex ? 16 : 6,
+                        height: 6,
+                        background: i === heroIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Right 2x2 grid */}
