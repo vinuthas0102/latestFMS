@@ -1104,7 +1104,6 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* Compact allotted quarter identity row */}
         {q && <CompactQuarterRow q={q} accentCls="bg-emerald-50 text-emerald-700 border-emerald-200" />}
-        {q && <QuarterSummaryPanel q={q} />}
         {!q && (
           <div className="px-5 py-3 border-b border-gray-100 bg-emerald-50">
             <div className="text-xs text-emerald-700 font-medium">Allotted on {fmtDate(allotment.allotment_date)}</div>
@@ -1309,7 +1308,6 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* Quarter identity strip */}
         {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
-        {q && <QuarterSummaryPanel q={q} />}
 
         {/* ── ACTIVE SERVICES — shown immediately after header ───────────── */}
         <div className="px-5 pt-4 pb-3 border-b border-gray-100">
