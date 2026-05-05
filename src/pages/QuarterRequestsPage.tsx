@@ -49,6 +49,18 @@ const DEMO_EMPLOYEES = [
   { id: 'EMP-1012', name: 'Lalitha Menon',    dept: 'Ministry of Agriculture', email: 'lalitha.menon@agri.gov.in',  designation: 'Senior Analyst' },
 ];
 
+// Demo TP profiles for quick-fill in the Third Party picker
+const DEMO_TP_PROFILES = [
+  { id: 'TP-001', name: 'Arjun Mehta',       organization: 'Tata Consultancy Services',   mobile: '9810001001', email: 'arjun.mehta@tcs.com',          pan: 'ARJPM1234A', type: 'Consultant' },
+  { id: 'TP-002', name: 'Divya Krishnan',    organization: 'Infosys Ltd.',                mobile: '9820002002', email: 'divya.k@infosys.com',           pan: 'DIVKR5678B', type: 'Contractor' },
+  { id: 'TP-003', name: 'Sanjay Bose',       organization: 'NASSCOM Foundation',          mobile: '9830003003', email: 's.bose@nasscom.org',            pan: 'SNJBS9012C', type: 'NGO' },
+  { id: 'TP-004', name: 'Nisha Agarwal',     organization: 'World Bank India',            mobile: '9840004004', email: 'n.agarwal@worldbank.org',       pan: 'NSHAG3456D', type: 'Guest' },
+  { id: 'TP-005', name: 'Karan Malhotra',    organization: 'L&T Infrastructure',         mobile: '9850005005', email: 'k.malhotra@lnt.com',            pan: 'KRNML7890E', type: 'Contractor' },
+  { id: 'TP-006', name: 'Rekha Venkatesh',   organization: 'UNICEF India',               mobile: '9860006006', email: 'r.venkatesh@unicef.org',        pan: 'RKHVN2345F', type: 'NGO' },
+  { id: 'TP-007', name: 'Amit Joshi',        organization: 'Ernst & Young LLP',          mobile: '9870007007', email: 'a.joshi@ey.com',                pan: 'AMTJS6789G', type: 'Consultant' },
+  { id: 'TP-008', name: 'Sunaina Kapoor',    organization: 'FICCI',                      mobile: '9880008008', email: 's.kapoor@ficci.in',             pan: 'SNKPR1230H', type: 'Guest' },
+];
+
 function statusAccentColor(status: string): string {
   if (status === 'DRAFT') return 'bg-amber-400';
   if (status === 'SUBMITTED') return 'bg-blue-500';
@@ -294,7 +306,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [tpInfoConfirmed, setTpInfoConfirmed] = useState(false);
   const [showEmployeePicker, setShowEmployeePicker] = useState(false);
   const [showTPForm, setShowTPForm] = useState(false);
+  const [tpPopupTab, setTpPopupTab] = useState<'quick' | 'manual'>('quick');
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeeDeptFilter, setEmployeeDeptFilter] = useState('');
   const [tpFormDraft, setTpFormDraft] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
 
   // Full-screen request detail view
@@ -3320,122 +3334,276 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>{/* end body flex-col */}
 
           {/* ── Employee Picker popup ─────────────────────── */}
-          {showEmployeePicker && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[80vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900">Select Employee</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Choose the employee this request is for</p>
+          {showEmployeePicker && (() => {
+            const depts = Array.from(new Set(DEMO_EMPLOYEES.map(e => e.dept)));
+            const filtered = DEMO_EMPLOYEES.filter(e => {
+              const matchDept = !employeeDeptFilter || e.dept === employeeDeptFilter;
+              const q = employeeSearch.trim().toLowerCase();
+              const matchSearch = !q || e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q) || e.designation.toLowerCase().includes(q);
+              return matchDept && matchSearch;
+            });
+            return (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+                  {/* Header */}
+                  <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                      <UserCheck size={18} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-gray-900">Select Employee</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Request will be raised on behalf of selected employee</p>
+                    </div>
+                    <button onClick={() => { setShowEmployeePicker(false); setEmployeeSearch(''); setEmployeeDeptFilter(''); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
                   </div>
-                  <button onClick={() => setShowEmployeePicker(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"><X size={18} /></button>
-                </div>
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)} placeholder="Search by name or ID…"
-                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" autoFocus />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto py-2">
-                  {DEMO_EMPLOYEES.filter(e =>
-                    !employeeSearch.trim() ||
-                    e.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                    e.id.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                    e.dept.toLowerCase().includes(employeeSearch.toLowerCase())
-                  ).map(emp => (
-                    <button
-                      key={emp.id}
-                      onClick={() => { setSelectedEmployee(emp); setRequestFor('EMPLOYEE'); setShowEmployeePicker(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left ${selectedEmployee?.id === emp.id ? 'bg-blue-50' : ''}`}
-                    >
-                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
-                        {emp.name.charAt(0)}
-                      </div>
+
+                  {/* Currently selected banner */}
+                  {selectedEmployee && (
+                    <div className="mx-4 mt-3 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{selectedEmployee.name.charAt(0)}</div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-900">{emp.name}</div>
-                        <div className="text-xs text-gray-500">{emp.id} · {emp.designation}</div>
-                        <div className="text-xs text-gray-400 truncate">{emp.dept}</div>
+                        <div className="text-xs font-semibold text-blue-900">{selectedEmployee.name}</div>
+                        <div className="text-[10px] text-blue-500">{selectedEmployee.id} · {selectedEmployee.dept}</div>
                       </div>
-                      {selectedEmployee?.id === emp.id && <CheckCircle size={16} className="text-blue-600 shrink-0" />}
-                    </button>
-                  ))}
+                      <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full shrink-0">Selected</span>
+                    </div>
+                  )}
+
+                  {/* Search bar */}
+                  <div className="px-4 pt-3 pb-2">
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)}
+                        placeholder="Search by name, ID, or designation…"
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" autoFocus />
+                    </div>
+                  </div>
+
+                  {/* Dept filter chips */}
+                  <div className="px-4 pb-2 flex gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => setEmployeeDeptFilter('')}
+                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${!employeeDeptFilter ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}
+                    >All</button>
+                    {depts.map(d => (
+                      <button key={d} onClick={() => setEmployeeDeptFilter(d === employeeDeptFilter ? '' : d)}
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${employeeDeptFilter === d ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}
+                      >{d.replace('Ministry of ', 'Min. ')}</button>
+                    ))}
+                  </div>
+
+                  {/* Count */}
+                  <div className="px-4 pb-1.5">
+                    <span className="text-[10px] text-gray-400 font-medium">{filtered.length} employee{filtered.length !== 1 ? 's' : ''} found</span>
+                  </div>
+
+                  {/* Employee list */}
+                  <div className="flex-1 overflow-y-auto border-t border-gray-100 divide-y divide-gray-50">
+                    {filtered.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                        <Search size={24} className="mb-2 opacity-30" />
+                        <p className="text-sm">No employees match your search</p>
+                      </div>
+                    ) : filtered.map(emp => (
+                      <button
+                        key={emp.id}
+                        onClick={() => { setSelectedEmployee(emp); setRequestFor('EMPLOYEE'); setShowEmployeePicker(false); setEmployeeSearch(''); setEmployeeDeptFilter(''); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left group ${selectedEmployee?.id === emp.id ? 'bg-blue-50' : ''}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl text-white text-sm font-bold flex items-center justify-center shrink-0 transition-colors ${selectedEmployee?.id === emp.id ? 'bg-blue-600' : 'bg-gray-200 text-gray-600 group-hover:bg-blue-500 group-hover:text-white'}`}>
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">{emp.name}</span>
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{emp.id}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">{emp.designation}</div>
+                          <div className="text-[10px] text-gray-400 truncate">{emp.dept} · {emp.email}</div>
+                        </div>
+                        {selectedEmployee?.id === emp.id
+                          ? <CheckCircle size={16} className="text-blue-600 shrink-0" />
+                          : <div className="w-4 h-4 rounded-full border-2 border-gray-200 group-hover:border-blue-400 transition-colors shrink-0" />
+                        }
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50 rounded-b-2xl">
+                    <span className="text-xs text-gray-400">Only one employee can be selected</span>
+                    <button onClick={() => { setShowEmployeePicker(false); setEmployeeSearch(''); setEmployeeDeptFilter(''); }}
+                      className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40"
+                      disabled={!selectedEmployee}>Done</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── TP Info form popup ─────────────────────────── */}
           {showTPForm && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900">Third Party Details</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Enter beneficiary's information</p>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: '90vh' }}>
+                {/* Header */}
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                    <UserPlus size={18} className="text-amber-600" />
                   </div>
-                  <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"><X size={18} /></button>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-gray-900">Third Party Beneficiary</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Pick from the list or enter details manually</p>
+                  </div>
+                  <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
                 </div>
-                <div className="px-6 py-5 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name <span className="text-red-500">*</span></label>
-                      <input value={tpFormDraft.name} onChange={e => setTpFormDraft(d => ({ ...d, name: e.target.value }))} placeholder="Enter full name"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" autoFocus />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Organization <span className="text-red-500">*</span></label>
-                      <input value={tpFormDraft.organization} onChange={e => setTpFormDraft(d => ({ ...d, organization: e.target.value }))} placeholder="Organization / Ministry / Company"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Mobile <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input value={tpFormDraft.mobile} onChange={e => setTpFormDraft(d => ({ ...d, mobile: e.target.value }))} placeholder="10-digit mobile"
-                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">PAN # (optional)</label>
-                      <div className="relative">
-                        <CreditCard size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input value={tpFormDraft.pan} onChange={e => setTpFormDraft(d => ({ ...d, pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F"
-                          maxLength={10}
-                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 uppercase" />
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="email" value={tpFormDraft.email} onChange={e => setTpFormDraft(d => ({ ...d, email: e.target.value }))} placeholder="email@example.com"
-                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
-                      <textarea value={tpFormDraft.notes} onChange={e => setTpFormDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Any additional info…" rows={2}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
-                    </div>
+
+                {/* Tabs */}
+                <div className="px-5 pt-4 shrink-0">
+                  <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
+                    <button
+                      onClick={() => setTpPopupTab('quick')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${tpPopupTab === 'quick' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      <Users size={13} />Quick Select
+                    </button>
+                    <button
+                      onClick={() => setTpPopupTab('manual')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${tpPopupTab === 'manual' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      <FileText size={13} />Enter Manually
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-3 px-6 pb-6">
+
+                {/* Quick Select grid */}
+                {tpPopupTab === 'quick' && (
+                  <div className="flex-1 overflow-y-auto px-5 pt-3 pb-4 min-h-0">
+                    <p className="text-[10px] text-gray-400 mb-3 font-medium uppercase tracking-wide">Select a third-party profile — fields will be pre-filled and can be edited</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {DEMO_TP_PROFILES.map(tp => {
+                        const isSelected = tpFormDraft.name === tp.name && tpFormDraft.email === tp.email;
+                        const typeColors: Record<string, string> = {
+                          Consultant: 'bg-blue-50 text-blue-700 border-blue-200',
+                          Contractor: 'bg-green-50 text-green-700 border-green-200',
+                          NGO: 'bg-teal-50 text-teal-700 border-teal-200',
+                          Guest: 'bg-amber-50 text-amber-700 border-amber-200',
+                        };
+                        return (
+                          <button
+                            key={tp.id}
+                            onClick={() => {
+                              setTpFormDraft({ name: tp.name, organization: tp.organization, mobile: tp.mobile, email: tp.email, pan: tp.pan, notes: '' });
+                              setTpPopupTab('manual');
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all hover:shadow-sm ${isSelected ? 'border-amber-300 bg-amber-50' : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/40'}`}
+                          >
+                            <div className={`w-10 h-10 rounded-xl text-sm font-bold flex items-center justify-center shrink-0 ${isSelected ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                              {tp.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-sm font-semibold text-gray-900">{tp.name}</span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${typeColors[tp.type] ?? 'bg-gray-50 text-gray-500 border-gray-200'}`}>{tp.type}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">{tp.organization}</div>
+                              <div className="flex items-center gap-3 mt-0.5 text-[10px] text-gray-400">
+                                <span className="flex items-center gap-0.5"><Phone size={9} />{tp.mobile}</span>
+                                <span className="flex items-center gap-0.5 truncate"><Mail size={9} />{tp.email}</span>
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-amber-500 bg-amber-500' : 'border-gray-200'}`}>
+                              {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-3 text-center">Click any profile to pre-fill the form, then review and confirm</p>
+                  </div>
+                )}
+
+                {/* Manual entry form */}
+                {tpPopupTab === 'manual' && (
+                  <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2 min-h-0">
+                    {tpFormDraft.name && (
+                      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4">
+                        <div className="w-7 h-7 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">{tpFormDraft.name.charAt(0)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-amber-900">{tpFormDraft.name}</div>
+                          <div className="text-[10px] text-amber-600 truncate">{tpFormDraft.organization}</div>
+                        </div>
+                        <button onClick={() => setTpFormDraft({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' })} className="p-0.5 text-amber-400 hover:text-amber-600 transition-colors"><X size={12} /></button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name <span className="text-red-500">*</span></label>
+                        <input value={tpFormDraft.name} onChange={e => setTpFormDraft(d => ({ ...d, name: e.target.value }))} placeholder="Enter full name"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Organization <span className="text-red-500">*</span></label>
+                        <input value={tpFormDraft.organization} onChange={e => setTpFormDraft(d => ({ ...d, organization: e.target.value }))} placeholder="Organization / Ministry / Company"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Mobile <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <Phone size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input value={tpFormDraft.mobile} onChange={e => setTpFormDraft(d => ({ ...d, mobile: e.target.value }))} placeholder="10-digit mobile"
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">PAN # <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <div className="relative">
+                          <CreditCard size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input value={tpFormDraft.pan} onChange={e => setTpFormDraft(d => ({ ...d, pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F"
+                            maxLength={10}
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 uppercase" />
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input type="email" value={tpFormDraft.email} onChange={e => setTpFormDraft(d => ({ ...d, email: e.target.value }))} placeholder="email@example.com"
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <textarea value={tpFormDraft.notes} onChange={e => setTpFormDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Any additional info about this third party…" rows={2}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer actions */}
+                <div className="flex gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl shrink-0">
                   <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }}
-                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button
-                    onClick={() => {
-                      if (!tpFormDraft.name.trim() || !tpFormDraft.organization.trim() || !tpFormDraft.mobile.trim() || !tpFormDraft.email.trim()) {
-                        addToast('Please fill in all required fields', 'warning'); return;
-                      }
-                      setTpInfo({ ...tpFormDraft });
-                      setTpInfoConfirmed(true);
-                      setRequestFor('TP');
-                      setShowTPForm(false);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors">
-                    Confirm
-                  </button>
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-white transition-colors">Cancel</button>
+                  {tpPopupTab === 'quick' ? (
+                    <button onClick={() => setTpPopupTab('manual')}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors flex items-center justify-center gap-1.5">
+                      <FileText size={14} />Enter Manually
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!tpFormDraft.name.trim() || !tpFormDraft.organization.trim() || !tpFormDraft.mobile.trim() || !tpFormDraft.email.trim()) {
+                          addToast('Please fill in all required fields', 'warning'); return;
+                        }
+                        setTpInfo({ ...tpFormDraft });
+                        setTpInfoConfirmed(true);
+                        setRequestFor('TP');
+                        setShowTPForm(false);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors flex items-center justify-center gap-1.5">
+                      <CheckCircle size={14} />Confirm Details
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

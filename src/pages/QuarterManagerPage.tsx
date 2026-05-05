@@ -5,6 +5,7 @@ import {
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
+  UserCheck, UserPlus, Phone, Mail, CreditCard,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -934,18 +935,39 @@ export const QuarterManagerPage: React.FC = () => {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
-                            {['Sl. No.', 'Request No.', 'Reason', 'BHK Required', 'Preferred Location', 'Preferences', 'Move-in', ''].map(h => (
+                            {['Sl. No.', 'Request No.', 'Requested For', 'Reason', 'BHK Required', 'Preferred Location', 'Preferences', 'Move-in', ''].map(h => (
                               <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {visibleCycleReqs.length === 0 ? (
-                            <tr><td colSpan={8} className="text-center py-12 text-gray-400 text-sm">No submitted requests for this cycle</td></tr>
+                            <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">No submitted requests for this cycle</td></tr>
                           ) : visibleCycleReqs.map((req, idx) => (
                             <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-xs text-gray-500 font-medium">{idx + 1}</td>
                               <td className="px-4 py-3 font-mono text-xs text-gray-700">{req.request_number}</td>
+                              <td className="px-4 py-3">
+                                {req.request_for === 'EMPLOYEE' && req.on_behalf_employee_name ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{req.on_behalf_employee_name.charAt(0)}</div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-semibold text-blue-900 truncate max-w-[100px]">{req.on_behalf_employee_name}</div>
+                                      <div className="text-[10px] text-blue-500">{req.on_behalf_employee_id}</div>
+                                    </div>
+                                  </div>
+                                ) : req.request_for === 'TP' && req.tp_name ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-6 h-6 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{req.tp_name.charAt(0)}</div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-semibold text-amber-900 truncate max-w-[100px]">{req.tp_name}</div>
+                                      <div className="text-[10px] text-amber-600 truncate max-w-[100px]">{req.tp_organization}</div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">Self</span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-gray-600 max-w-[150px] truncate">{req.request_reason || '—'}</td>
                               <td className="px-4 py-3 text-gray-600">{req.required_bhk_config || '—'}</td>
                               <td className="px-4 py-3 text-gray-600">{req.preferred_location || '—'}</td>
