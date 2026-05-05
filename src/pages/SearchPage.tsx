@@ -372,15 +372,7 @@ export const SearchPage: React.FC = () => {
                       propertyId={selectedPropertyId}
                       inline
                     />
-                  ) : (
-                    <div className="hidden lg:flex flex-col h-full bg-gray-50/60 items-center justify-center text-center p-8">
-                      <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
-                        <Building2 size={28} className="text-gray-300" />
-                      </div>
-                      <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
-                      <div className="text-xs text-gray-300">Click any result to view details here</div>
-                    </div>
-                  )}
+                  ) : null}
                   left={
                     <div className="space-y-4 pr-1 overflow-y-auto h-full">
                       {results.map((property) => (
