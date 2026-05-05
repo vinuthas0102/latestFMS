@@ -748,6 +748,11 @@ export const QuarterRequestsPage: React.FC = () => {
     }
 
     result.sort((a, b) => {
+      if (dpFilter === 'occupied') {
+        const rankA = a.request_status === 'ACKNOWLEDGED' ? 0 : 1;
+        const rankB = b.request_status === 'ACKNOWLEDGED' ? 0 : 1;
+        if (rankA !== rankB) return rankA - rankB;
+      }
       const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       return reqSort === 'newest' ? diff : -diff;
     });
@@ -1277,46 +1282,63 @@ export const QuarterRequestsPage: React.FC = () => {
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-xs font-bold text-gray-800 uppercase tracking-wide mb-3">Raise New Service</div>
 
-          {rightAction === null && (
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-100 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-medium transition-colors"
-              >
-                <Bell size={14} /><span>Grievance</span>
-              </button>
-              <button
-                onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-medium transition-colors"
-              >
-                <Wrench size={14} /><span>Maintenance</span>
-              </button>
-              <button
-                onClick={() => setRightAction('extend')}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-100 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-medium transition-colors"
-              >
-                <RefreshCw size={14} /><span>Extend</span>
-              </button>
-              <button
-                onClick={() => setRightAction('upgrade')}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
-              >
-                <ArrowRightCircle size={14} /><span>Upgrade</span>
-              </button>
-              <button
-                onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 text-orange-700 text-[11px] font-medium transition-colors"
-              >
-                <LogOut size={14} /><span>Vacate</span>
-              </button>
-              <button
-                onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
-                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
-              >
-                <IndianRupee size={14} /><span>Rent</span>
-              </button>
-            </div>
-          )}
+          {rightAction === null && (() => {
+            const hasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(selectedRequest.request_status);
+            return (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-100 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-medium transition-colors"
+                  >
+                    <Bell size={14} /><span>Grievance</span>
+                  </button>
+                  <button
+                    onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-medium transition-colors"
+                  >
+                    <Wrench size={14} /><span>Maintenance</span>
+                  </button>
+                  {!hasActiveSvc && (
+                    <button
+                      onClick={() => setRightAction('extend')}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-100 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-medium transition-colors"
+                    >
+                      <RefreshCw size={14} /><span>Extend</span>
+                    </button>
+                  )}
+                  {!hasActiveSvc && (
+                    <button
+                      onClick={() => setRightAction('upgrade')}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
+                    >
+                      <ArrowRightCircle size={14} /><span>Upgrade</span>
+                    </button>
+                  )}
+                  {!hasActiveSvc && (
+                    <button
+                      onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 text-orange-700 text-[11px] font-medium transition-colors"
+                    >
+                      <LogOut size={14} /><span>Vacate</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
+                  >
+                    <IndianRupee size={14} /><span>Rent</span>
+                  </button>
+                </div>
+                {hasActiveSvc && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-orange-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                    <AlertCircle size={11} />
+                    Extend / Upgrade / Vacate unavailable — a request is pending EO review.
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
             const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
@@ -2158,58 +2180,65 @@ export const QuarterRequestsPage: React.FC = () => {
                         </button>
                       </>
                     )}
-                    {isOccupied && req.allotment && (
-                      <>
-                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Occupancy Services</span></div>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
-                          Extend Lease
-                        </button>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
-                          Upgrade Quarter
-                        </button>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center shrink-0"><LogOut size={12} className="text-orange-600" /></span>
-                          Vacate Quarter
-                        </button>
-                        <div className="my-1 mx-4 border-t border-gray-100" />
-                        <div className="px-4 pt-1 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Requests</span></div>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center shrink-0"><AlertCircle size={12} className="text-rose-600" /></span>
-                          Raise Grievance
-                        </button>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('MAINTENANCE', req.id, req.allotment!.id); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><Wrench size={12} className="text-slate-600" /></span>
-                          Maintenance
-                        </button>
-                        <button
-                          onClick={() => { setOpenMenuId(null); setMenuPos(null); navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${req.allotment!.id}`); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
-                        >
-                          <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><IndianRupee size={12} className="text-teal-600" /></span>
-                          Rent Details
-                        </button>
-                      </>
-                    )}
-                    {['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status) && (
-                      <div className="px-4 py-3 text-xs text-gray-400 italic text-center">Request pending EO review</div>
-                    )}
+                    {isOccupied && req.allotment && (() => {
+                      const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
+                      return (
+                        <>
+                          {!menuHasActiveSvc && (
+                            <>
+                              <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Occupancy Services</span></div>
+                              <button
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('EXTEND', req.id, req.allotment!.id); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
+                                Extend Lease
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
+                                Upgrade Quarter
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center shrink-0"><LogOut size={12} className="text-orange-600" /></span>
+                                Vacate Quarter
+                              </button>
+                            </>
+                          )}
+                          {menuHasActiveSvc && (
+                            <div className="px-4 py-2 text-[10px] text-orange-600 italic">Extend / Upgrade / Vacate pending EO review</div>
+                          )}
+                          <div className="my-1 mx-4 border-t border-gray-100" />
+                          <div className="px-4 pt-1 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Requests</span></div>
+                          <button
+                            onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('GRIEVANCE', req.id, req.allotment!.id); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                          >
+                            <span className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center shrink-0"><AlertCircle size={12} className="text-rose-600" /></span>
+                            Raise Grievance
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('MAINTENANCE', req.id, req.allotment!.id); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                          >
+                            <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><Wrench size={12} className="text-slate-600" /></span>
+                            Maintenance
+                          </button>
+                          <button
+                            onClick={() => { setOpenMenuId(null); setMenuPos(null); navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${req.allotment!.id}`); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                          >
+                            <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><IndianRupee size={12} className="text-teal-600" /></span>
+                            Rent Details
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>,
                 document.body
