@@ -299,6 +299,12 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Decline allotment modal (card-level)
+  const [declineModalReqId, setDeclineModalReqId] = useState<string | null>(null);
+  const [declineModalRemarks, setDeclineModalRemarks] = useState('');
+  const [declineModalDocUrl, setDeclineModalDocUrl] = useState('');
+  const [declineModalSubmitting, setDeclineModalSubmitting] = useState(false);
+
   // Request-For state (for new request form)
   const [requestFor, setRequestFor] = useState<RequestForType>('SELF');
   const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
@@ -725,6 +731,37 @@ export const QuarterRequestsPage: React.FC = () => {
       setSelectedRequest(null);
       loadData();
     } catch { addToast('Failed to withdraw', 'error'); }
+  };
+
+  const handleAcceptAllotment = async (req: QuarterRequest) => {
+    if (!req.allotment) return;
+    try {
+      await quartersService.acknowledgeAllotment(req.allotment.id, req.id, '');
+      addToast('Allotment accepted', 'success');
+      loadData();
+    } catch { addToast('Failed to accept allotment', 'error'); }
+  };
+
+  const handleDeclineModalSubmit = async (andCancel: boolean) => {
+    if (!declineModalReqId || !declineModalRemarks.trim()) {
+      addToast('Please provide decline remarks', 'warning'); return;
+    }
+    const req = requests.find(r => r.id === declineModalReqId);
+    if (!req?.allotment) return;
+    setDeclineModalSubmitting(true);
+    try {
+      if (andCancel) {
+        await quartersService.declineAndCancelRequest(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl || undefined);
+        addToast('Request cancelled', 'success');
+      } else {
+        await quartersService.declineAllotment(req.allotment.id, req.id, declineModalRemarks, declineModalDocUrl || undefined);
+        addToast('Allotment declined', 'success');
+      }
+      setDeclineModalReqId(null);
+      setDeclineModalRemarks('');
+      setDeclineModalDocUrl('');
+      loadData();
+    } catch { addToast('Failed to decline allotment', 'error'); } finally { setDeclineModalSubmitting(false); }
   };
 
   const handleWithdrawTenantReq = async (id: string) => {
@@ -2466,67 +2503,57 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ── MandatorySearchBar ── */}
-            <div className="mb-3 space-y-2">
-              <MandatorySearchBar
-                fields={[
-                  {
-                    key: 'search',
-                    label: 'Search',
-                    type: 'text',
-                    placeholder: 'Request no., BHK, location…',
-                    value: reqSearch,
-                    onChange: setReqSearch,
-                    icon: <Search size={14} />,
-                  },
-                  {
-                    key: 'bhk',
-                    label: 'BHK Config',
-                    type: 'chips',
-                    value: reqBhkFilter,
-                    onChange: setReqBhkFilter,
-                    options: [
-                      { value: 'ALL', label: 'Any' },
-                      { value: '1BHK', label: '1 BHK' },
-                      { value: '2BHK', label: '2 BHK' },
-                      { value: '3BHK', label: '3 BHK' },
-                      { value: '4BHK', label: '4 BHK' },
-                    ],
-                  },
-                  {
-                    key: 'sort',
-                    label: 'Sort By',
-                    type: 'chips',
-                    value: reqSort,
-                    onChange: v => setReqSort(v as 'newest' | 'oldest'),
-                    options: [
-                      { value: 'newest', label: 'Newest' },
-                      { value: 'oldest', label: 'Oldest' },
-                    ],
-                  },
-                ]}
-                filterCount={reqToiletFilter.length + reqFloorFilter.length}
-                onFilterOpen={() => setFilterDrawerOpen(true)}
-              />
-              <div className="flex justify-end">
-                <span className="text-xs text-gray-500">{filteredRequests.length} of {requests.length} requests</span>
+            {/* ── Search / Filter / Count — single row ── */}
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <MandatorySearchBar
+                  fields={[
+                    {
+                      key: 'search',
+                      label: 'Search',
+                      type: 'text',
+                      placeholder: 'Request no., BHK, location…',
+                      value: reqSearch,
+                      onChange: setReqSearch,
+                      icon: <Search size={14} />,
+                    },
+                    {
+                      key: 'bhk',
+                      label: 'BHK Config',
+                      type: 'chips',
+                      value: reqBhkFilter,
+                      onChange: setReqBhkFilter,
+                      options: [
+                        { value: 'ALL', label: 'Any' },
+                        { value: '1BHK', label: '1 BHK' },
+                        { value: '2BHK', label: '2 BHK' },
+                        { value: '3BHK', label: '3 BHK' },
+                        { value: '4BHK', label: '4 BHK' },
+                      ],
+                    },
+                    {
+                      key: 'sort',
+                      label: 'Sort By',
+                      type: 'chips',
+                      value: reqSort,
+                      onChange: v => setReqSort(v as 'newest' | 'oldest'),
+                      options: [
+                        { value: 'newest', label: 'Newest' },
+                        { value: 'oldest', label: 'Oldest' },
+                      ],
+                    },
+                  ]}
+                  filterCount={reqToiletFilter.length + reqFloorFilter.length}
+                  onFilterOpen={() => setFilterDrawerOpen(true)}
+                />
               </div>
+              <span className="text-xs text-gray-500 shrink-0 whitespace-nowrap">{filteredRequests.length} of {requests.length} requests</span>
             </div>
 
           <div ref={containerRef} className="flex gap-0 h-full" style={{ userSelect: isDragging ? 'none' : undefined }}>
 
             {/* ── LEFT: request list ──────────────────────────── */}
             <div style={{ width: selectedRequest ? `${splitPct}%` : '100%' }} className="flex-none overflow-y-auto space-y-3 transition-[width] duration-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText size={15} />
-                  My Requests
-                  <span className="text-xs text-gray-400 font-normal">
-                    ({filteredRequests.length})
-                  </span>
-                </h2>
-              </div>
-
               {/* Quarter request cards */}
               {(
                 filteredRequests.length === 0 ? (
@@ -2678,24 +2705,36 @@ export const QuarterRequestsPage: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] text-gray-400 shrink-0">{fmtDate(req.created_at)}</div>
-                            {/* View detail */}
-                            <button
-                              onClick={e => { e.stopPropagation(); setDetailReturnFilter(dpFilter); setDetailRequest(req); }}
-                              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 shrink-0 transition-colors"
-                              title="View full details"
-                            >
-                              <ExternalLink size={12} />
-                            </button>
-                            {/* Show more toggle */}
+
+                            {/* ALLOTTED: inline Accept / Decline buttons */}
+                            {req.request_status === 'ALLOTTED' && req.allotment && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={e => { e.stopPropagation(); handleAcceptAllotment(req); }}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors"
+                                >
+                                  <ThumbsUp size={11} />Accept
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); setDeclineModalReqId(req.id); }}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-100 transition-colors"
+                                >
+                                  <ThumbsDown size={11} />Decline
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Expand / collapse icon */}
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
-                              className="flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 font-medium shrink-0 transition-colors"
+                              className={`p-1.5 rounded-lg border transition-colors shrink-0 ${expandedCardId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                              title={expandedCardId === req.id ? 'Collapse' : 'Expand'}
                             >
-                              {expandedCardId === req.id ? <><ChevronUp size={11} />Less</> : <><ChevronDown size={11} />More</>}
+                              {expandedCardId === req.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
-                            {/* Dot-menu */}
-                            {!['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
+
+                            {/* Action menu — hidden for ALLOTTED (handled inline) and terminal statuses */}
+                            {!['ALLOTTED', 'VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
                                 onClick={e => openMenu(e, req.id)}
                                 className={`p-1.5 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
@@ -2863,7 +2902,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         Withdraw Request
                       </button>
                     )}
-                    {(req.request_status === 'ALLOTTED' || req.request_status === 'UPGRADE_REQUESTED') && req.allotment && (
+                    {req.request_status === 'UPGRADE_REQUESTED' && req.allotment && (
                       <>
                         <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Allotment</span></div>
                         <button
@@ -2871,14 +2910,14 @@ export const QuarterRequestsPage: React.FC = () => {
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
                         >
                           <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><ThumbsUp size={12} className="text-emerald-600" /></span>
-                          Accept Allotment
+                          Accept Upgrade
                         </button>
                         <button
                           onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                         >
                           <span className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center shrink-0"><ThumbsDown size={12} className="text-red-500" /></span>
-                          Decline Allotment
+                          Decline Upgrade
                         </button>
                       </>
                     )}
@@ -3000,6 +3039,86 @@ export const QuarterRequestsPage: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
+      {declineModalReqId && createPortal(
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                <ThumbsDown size={18} className="text-red-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-gray-900">Decline Allotment</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Your request will return to Submitted status</p>
+              </div>
+              <button
+                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(''); }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Decline Remarks <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={declineModalRemarks}
+                  onChange={e => setDeclineModalRemarks(e.target.value)}
+                  rows={4}
+                  placeholder="Please state your reason for declining this allotment…"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Supporting Document URL <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <div className="relative">
+                  <ExternalLink size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={declineModalDocUrl}
+                    onChange={e => setDeclineModalDocUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-2.5">
+              <button
+                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeclineModalSubmit(false)}
+                disabled={declineModalSubmitting}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
+              >
+                {declineModalSubmitting ? 'Saving…' : 'Decline'}
+              </button>
+              <button
+                onClick={() => handleDeclineModalSubmit(true)}
+                disabled={declineModalSubmitting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {declineModalSubmitting ? '…' : 'Decline & Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Mobile filter drawer ──────────────────────────────────────── */}
       <FilterDrawer
