@@ -292,12 +292,19 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
               >
                 <ArrowLeft size={15} /> Close
               </button>
-              <div className="flex items-center gap-2">
-                {quarter && (
-                  <span className="text-sm text-gray-500 hidden sm:block">
-                    <span className="font-bold text-gray-900">{fmtINR(quarter.monthly_rent)}</span>/month
+
+              {/* Quarter identity — center */}
+              {quarter && (
+                <div className="hidden sm:flex flex-col items-center leading-tight">
+                  <span className="font-bold text-gray-900 text-sm">{quarter.quarter_number}</span>
+                  <span className="text-xs text-gray-500">
+                    <span className="font-semibold text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>
+                    /month · {quarter.bhk_config}
                   </span>
-                )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
                 {quarter && (
                   <button
                     onClick={() => { navigate(`/quarters/${quarterId}`); onClose(); }}
@@ -312,6 +319,14 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                     className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all"
                   >
                     <Settings size={12} /> Manager
+                  </button>
+                )}
+                {isGovtOfficial && quarter && isAvailable && (
+                  <button
+                    onClick={() => scrollToSection('action')}
+                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition-all"
+                  >
+                    <Plus size={12} /> Add to Request
                   </button>
                 )}
                 <button
@@ -366,7 +381,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                 <button onClick={onClose} className="text-sm text-blue-600 hover:underline">Close</button>
               </div>
             ) : (
-              <div className="p-5 pb-24 space-y-8">
+              <div className="p-5 pb-8 space-y-8">
 
                 {/* Photo gallery */}
                 <PhotoGallery
@@ -375,45 +390,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                   heroHeight="360px"
                   lightboxInfo={lightboxInfo}
                 />
-
-                {/* Title / rent strip */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-                        {isAvailable ? 'Available' : 'Occupied'}
-                      </span>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                        {quarter.quarter_type}
-                      </span>
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                        {quarter.bhk_config}
-                      </span>
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900">{quarter.quarter_number}</h2>
-                    {quarter.address && (
-                      <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
-                        <MapPin size={13} className="flex-shrink-0" />
-                        <span>{quarter.address}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-xs text-gray-400">Monthly Rent</div>
-                    <div className="text-2xl font-black text-emerald-700 leading-none">
-                      {fmtINR(quarter.monthly_rent)}
-                    </div>
-                    <div className="text-xs text-gray-400">per month</div>
-                    {isGovtOfficial && isAvailable && (
-                      <button
-                        onClick={() => scrollToSection('action')}
-                        className="mt-1.5 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
-                      >
-                        Request Quarter
-                      </button>
-                    )}
-                  </div>
-                </div>
 
                 {/* ── OVERVIEW ─────────────────────────────────── */}
                 <section
@@ -803,23 +779,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
             )}
           </div>
 
-          {/* ── Sticky bottom bar for govt officials ─────────── */}
-          {quarter && isGovtOfficial && isAvailable && activeSection !== 'action' && (
-            <div className="flex-none bg-white border-t border-gray-200 px-5 py-3 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-gray-900 text-sm">{quarter.quarter_number}</div>
-                <div className="text-xs text-gray-500">
-                  <span className="font-semibold text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>/month · {quarter.bhk_config}
-                </div>
-              </div>
-              <button
-                onClick={() => scrollToSection('action')}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-sm transition-all"
-              >
-                <Plus size={13} /> Add to Request
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronLeft, ChevronRight, Grid3x3 as Grid3X3, ZoomIn, Maximize2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Grid3x3 as Grid3X3, Maximize2 } from 'lucide-react';
 
 interface PhotoGalleryProps {
   images: string[];
@@ -264,82 +264,50 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
             </div>
           </div>
         ) : (
-          <div className="flex h-full gap-1">
-            {/* Main large image */}
-            <div
-              className="relative flex-[3] overflow-hidden cursor-pointer group"
-              onClick={() => openLightbox(heroIndex)}
-            >
-              <img
-                key={heroIndex}
-                src={src(heroIndex)}
-                alt={alt}
-                className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
-                style={{ transition: 'opacity 0.2s ease' }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
-              />
-              <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={heroPrev}
-                  className="p-2 rounded-full text-white hover:scale-110 transition-transform"
-                  style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
-                  aria-label="Previous photo"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  onClick={heroNext}
-                  className="p-2 rounded-full text-white hover:scale-110 transition-transform"
-                  style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
-                  aria-label="Next photo"
-                >
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-              {count > 1 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
-                  {images.map((_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-200"
-                      style={{
-                        width: i === heroIndex ? 16 : 6,
-                        height: 6,
-                        background: i === heroIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+          <div
+            className="relative w-full h-full cursor-pointer group"
+            onClick={() => openLightbox(heroIndex)}
+          >
+            <img
+              key={heroIndex}
+              src={src(heroIndex)}
+              alt={alt}
+              className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
+              style={{ transition: 'opacity 0.2s ease' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
+            />
+            {/* Prev / next arrows */}
+            <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={heroPrev}
+                className="p-2 rounded-full text-white hover:scale-110 transition-transform"
+                style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
+                aria-label="Previous photo"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={heroNext}
+                className="p-2 rounded-full text-white hover:scale-110 transition-transform"
+                style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)' }}
+                aria-label="Next photo"
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
-
-            {/* Right 2x2 grid */}
-            <div className="flex-[2] grid grid-rows-2 grid-cols-2 gap-1">
-              {[1, 2, 3, 4].map((offset) => {
-                const imgIdx = offset;
-                const isLast = offset === 4;
-                const remaining = count - 4;
-                return (
-                  <div
-                    key={offset}
-                    className="relative overflow-hidden cursor-pointer group"
-                    onClick={() => openLightbox(imgIdx < count ? imgIdx : 0)}
-                  >
-                    <img
-                      src={imgIdx < count ? src(imgIdx) : src(0)}
-                      alt={`${alt} ${offset + 1}`}
-                      className="w-full h-full object-cover group-hover:brightness-90 transition-all duration-300"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
-                    />
-                    {isLast && remaining > 0 && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5" style={{ background: 'rgba(0,0,0,0.55)' }}>
-                        <ZoomIn size={22} className="text-white" />
-                        <span className="text-white font-bold text-sm">+{remaining} more</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Dot indicators */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
+              {images.map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-full transition-all duration-200"
+                  style={{
+                    width: i === heroIndex ? 16 : 6,
+                    height: 6,
+                    background: i === heroIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)',
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}

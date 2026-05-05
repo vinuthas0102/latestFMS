@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Bed, Ruler, Layers, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
-  Zap, Droplets, Shield, FileText, AlertCircle, ChevronDown, Images,
+  Zap, Droplets, Shield, FileText, AlertCircle, Images,
 } from 'lucide-react';
 import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
@@ -269,7 +269,7 @@ export const QuarterDetailPage: React.FC = () => {
       {/* ── Sticky nav bar ────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Back / Action row */}
+          {/* Back / Identity / Action row */}
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <button
               onClick={() => navigate(-1)}
@@ -277,6 +277,18 @@ export const QuarterDetailPage: React.FC = () => {
             >
               <ArrowLeft size={16} /> Back
             </button>
+
+            {/* Quarter identity — center */}
+            {quarter && (
+              <div className="hidden sm:flex flex-col items-center leading-tight">
+                <span className="font-bold text-gray-900 text-sm">{quarter.quarter_number}</span>
+                <span className="text-xs text-gray-500">
+                  <span className="font-semibold text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>
+                  /month · {quarter.bhk_config}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               {canManage && (
                 <button
@@ -327,7 +339,7 @@ export const QuarterDetailPage: React.FC = () => {
       </div>
 
       {/* ── Main content ──────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-10 space-y-10">
 
         {/* Photo gallery — always at top */}
         <PhotoGallery
@@ -336,45 +348,6 @@ export const QuarterDetailPage: React.FC = () => {
           heroHeight="400px"
           lightboxInfo={lightboxInfoPanel}
         />
-
-        {/* Quarter title strip */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-                {isAvailable ? 'Available' : 'Occupied'}
-              </span>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                {quarter.quarter_type}
-              </span>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                {quarter.bhk_config}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{quarter.quarter_number}</h1>
-            {quarter.address && (
-              <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
-                <MapPin size={13} className="flex-shrink-0" />
-                <span>{quarter.address}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-shrink-0 text-right">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">Monthly Rent</div>
-            <div className="text-3xl font-black text-emerald-700 leading-none">
-              {fmtINR(quarter.monthly_rent)}
-            </div>
-            <div className="text-sm text-gray-400">per month</div>
-            {isGovtOfficial && isAvailable && (
-              <button
-                onClick={() => scrollToSection('action')}
-                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
-              >
-                Request Quarter <ChevronDown size={13} />
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* ── OVERVIEW ────────────────────────────────────────── */}
         <section
@@ -763,25 +736,6 @@ export const QuarterDetailPage: React.FC = () => {
         />
       )}
 
-      {/* Sticky rent bar for govt officials when not scrolled to action section */}
-      {isGovtOfficial && isAvailable && activeSection !== 'action' && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-2xl">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-            <div>
-              <div className="font-bold text-gray-900">{quarter.quarter_number}</div>
-              <div className="text-sm text-gray-500">
-                <span className="font-semibold text-emerald-700">{fmtINR(quarter.monthly_rent)}</span> /month · {quarter.bhk_config}
-              </div>
-            </div>
-            <button
-              onClick={() => scrollToSection('action')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all"
-            >
-              <Plus size={14} /> Add to Request
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
