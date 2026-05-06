@@ -7,7 +7,8 @@ export default defineConfig({
     target: 'es2020',
   },
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    include: ['lucide-react'],
+    esbuildOptions: { target: 'es2020' },
   },
   build: {
     chunkSizeWarningLimit: 1000,
