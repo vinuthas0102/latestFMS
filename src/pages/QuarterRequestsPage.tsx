@@ -1245,56 +1245,10 @@ export const QuarterRequestsPage: React.FC = () => {
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
 
-    // Local state for accept/decline modals
-    const [acceptOpen, setAcceptOpen] = useState(false);
-    const [acceptRemarks, setAcceptRemarks] = useState('');
-    const [acceptSubmitting, setAcceptSubmitting] = useState(false);
-    const [declineOpen, setDeclineOpen] = useState(false);
-    const [declineRemarks, setDeclineRemarks] = useState('');
-    const [declineDocUrl, setDeclineDocUrl] = useState<File | null>(null);
-    const [declineSubmitting, setDeclineSubmitting] = useState(false);
-
     const allotmentChatFileRef = useRef<HTMLInputElement>(null);
     const chatScrollRef = useRef<HTMLDivElement>(null);
     const chats = allotmentChats[allotment.id] ?? [];
 
-    const handleAccept = async () => {
-      setAcceptSubmitting(true);
-      try {
-        await quartersService.acknowledgeAllotment(allotment.id, selectedRequest.id, acceptRemarks);
-        addToast('Allotment accepted', 'success');
-        setAcceptOpen(false);
-        setAcceptRemarks('');
-        loadData();
-      } catch { addToast('Failed to accept allotment', 'error'); } finally { setAcceptSubmitting(false); }
-    };
-
-    const handleDecline = async () => {
-      if (!declineRemarks.trim()) { addToast('Please provide decline remarks', 'warning'); return; }
-      if (!window.confirm('Are you sure you want to decline this allotment? Your request will return to Submitted status.')) return;
-      setDeclineSubmitting(true);
-      try {
-        await quartersService.declineAllotment(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl?.name || undefined);
-        addToast('Allotment declined', 'success');
-        setDeclineOpen(false);
-        setDeclineRemarks('');
-        setDeclineDocUrl(null);
-        loadData();
-        resetActionForm();
-      } catch { addToast('Failed to decline allotment', 'error'); } finally { setDeclineSubmitting(false); }
-    };
-
-    const handleDeclineAndCancel = async () => {
-      if (!declineRemarks.trim()) { addToast('Please provide decline remarks', 'warning'); return; }
-      if (!window.confirm('Are you sure? This will cancel your quarter request entirely.')) return;
-      setDeclineSubmitting(true);
-      try {
-        await quartersService.declineAndCancelRequest(allotment.id, selectedRequest.id, declineRemarks, declineDocUrl?.name || undefined);
-        addToast('Request cancelled', 'success');
-        setSelectedRequest(null);
-        loadData();
-      } catch { addToast('Failed to cancel request', 'error'); } finally { setDeclineSubmitting(false); }
-    };
 
     const approvalBadgeColor = allotment.approval_status === 'ACKNOWLEDGED'
       ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
@@ -1424,67 +1378,6 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer: Accept / Decline actions */}
-        <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white flex gap-2">
-          <button
-            onClick={() => { setDeclineOpen(false); setAcceptOpen(v => !v); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
-          >
-            <ThumbsUp size={14} /> Accept
-          </button>
-          <button
-            onClick={() => { setAcceptOpen(false); setDeclineOpen(v => !v); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-          >
-            <ThumbsDown size={14} /> Decline
-          </button>
-        </div>
-
-        {/* Accept modal */}
-        {acceptOpen && (
-          <div className="shrink-0 border-t border-gray-100 px-4 py-4 bg-emerald-50 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><ThumbsUp size={14} /> Accept Allotment</span>
-              <button onClick={() => { setAcceptOpen(false); setAcceptRemarks(''); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-            </div>
-            <textarea
-              value={acceptRemarks}
-              onChange={e => setAcceptRemarks(e.target.value)}
-              rows={2}
-              placeholder="Acceptance remarks (optional)…"
-              className="w-full px-3 py-2 text-sm border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none bg-white"
-            />
-            <button onClick={handleAccept} disabled={acceptSubmitting} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-              {acceptSubmitting ? 'Saving…' : 'Confirm Acceptance'}
-            </button>
-          </div>
-        )}
-
-        {/* Decline modal */}
-        {declineOpen && (
-          <div className="shrink-0 border-t border-gray-100 px-4 py-4 bg-red-50 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-red-700 flex items-center gap-1.5"><ThumbsDown size={14} /> Decline Allotment</span>
-              <button onClick={() => { setDeclineOpen(false); setDeclineRemarks(''); setDeclineDocUrl(null); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-            </div>
-            <textarea
-              value={declineRemarks}
-              onChange={e => setDeclineRemarks(e.target.value)}
-              rows={2}
-              placeholder="State your reason for declining… *"
-              className="w-full px-3 py-2 text-sm border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none bg-white"
-            />
-            <DocUpload value={declineDocUrl} onChange={setDeclineDocUrl} label="Supporting Document" optional />
-            <div className="flex gap-2">
-              <button onClick={handleDecline} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors">
-                {declineSubmitting ? 'Saving…' : 'Decline'}
-              </button>
-              <button onClick={handleDeclineAndCancel} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
-                Decline & Cancel
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -3039,23 +2932,6 @@ export const QuarterRequestsPage: React.FC = () => {
                               )}
                             </div>
 
-                            {/* ALLOTTED: inline Accept / Decline buttons */}
-                            {req.request_status === 'ALLOTTED' && req.allotment && (
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  onClick={e => { e.stopPropagation(); handleAcceptAllotment(req); }}
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors"
-                                >
-                                  <ThumbsUp size={11} />Accept
-                                </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); setDeclineModalReqId(req.id); }}
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-100 transition-colors"
-                                >
-                                  <ThumbsDown size={11} />Decline
-                                </button>
-                              </div>
-                            )}
 
                             {/* Expand / collapse icon */}
                             <button
