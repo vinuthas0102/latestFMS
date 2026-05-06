@@ -28,6 +28,22 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
         },
       ];
 
+    case 'govt_official':
+      return [
+        {
+          title: 'Facilities',
+          iconName: 'Building2',
+          route: ROUTES.DASHBOARD,
+          activePrefix: '/dashboard',
+        },
+        {
+          title: 'Quarters',
+          iconName: 'Home',
+          route: ROUTES.QUARTERS_FREEVIEW,
+          activePrefix: '/quarters',
+        },
+      ];
+
     case 'dept_user':
     case 'public':
     default:
