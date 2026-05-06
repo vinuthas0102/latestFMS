@@ -1448,28 +1448,17 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // ─── right panel sections ────────────────────────────────────────────────────
 
-  // Compact quarter identity row (replaces the full property card in all DPs)
+  // Compact quarter identity row — single line, no image
   const CompactQuarterRow = ({ q, accentCls }: { q: Quarter; accentCls: string }) => (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/70">
-      <img
-        src={getImage(q, 0)}
-        alt={q.quarter_number}
-        className="w-16 h-16 rounded-xl object-cover border border-gray-200 shrink-0 shadow-sm"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="font-bold text-gray-900 text-sm truncate">{q.quarter_number}</div>
-        <div className="text-xs text-gray-500 truncate">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</div>
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">{q.bhk_config}</span>
-          <span className="text-[10px] text-gray-500">{q.area_sqft} sq.ft</span>
-          <span className="text-[10px] text-gray-500">{q.furnishing_status}</span>
-          {q.quarter_type && <span className="text-[10px] text-gray-500">{q.quarter_type}</span>}
-        </div>
-      </div>
-      <div className="text-right shrink-0">
-        <div className={`text-xs font-bold px-2 py-0.5 rounded-full border mb-1 ${accentCls}`}>{q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status === 'AVAILABLE' ? 'Available' : q.occupancy_status}</div>
-        <div className="text-sm font-bold text-gray-900">{fmtINR(q.monthly_rent)}<span className="font-normal text-gray-400 text-xs">/mo</span></div>
-      </div>
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-gray-50/70">
+      <span className="font-bold text-gray-900 text-xs shrink-0">{q.quarter_number}</span>
+      <span className="text-gray-300 text-xs">·</span>
+      <span className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded shrink-0">{q.bhk_config}</span>
+      <span className="text-[10px] text-gray-500 truncate flex-1 min-w-0">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</span>
+      <span className="text-[10px] text-gray-400 shrink-0 hidden sm:inline">{q.area_sqft} sq.ft</span>
+      {q.furnishing_status && <span className="text-[10px] text-gray-400 shrink-0 hidden md:inline">{q.furnishing_status}</span>}
+      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${accentCls}`}>{q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status === 'AVAILABLE' ? 'Available' : q.occupancy_status}</span>
+      <span className="text-xs font-bold text-gray-900 shrink-0">{fmtINR(q.monthly_rent)}<span className="font-normal text-gray-400 text-[10px]">/mo</span></span>
     </div>
   );
 
@@ -2768,39 +2757,31 @@ export const QuarterRequestsPage: React.FC = () => {
     ] as TabEntry[]).filter(t => t.show);
 
     return (
-      <div className="h-full overflow-y-auto flex flex-col bg-white">
-        {/* ── Header ── */}
-        <div className={`flex items-center gap-3 px-4 py-3 sticky top-0 z-10 rounded-t-xl ${headerColor}`}>
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
-            <UserCog size={16} className="text-white" />
+      <div className="h-full flex flex-col bg-white">
+        {/* ── Header (merged with requester info) ── */}
+        <div className={`flex items-center gap-2 px-3 py-2.5 sticky top-0 z-10 rounded-t-xl ${headerColor}`}>
+          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white/20 shrink-0">
+            <UserCog size={13} className="text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-medium text-white/60 uppercase tracking-wider">EO Review</div>
-            <div className="text-sm font-semibold text-white truncate">{req.request_number}</div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="text-xs font-semibold text-white truncate">{req.request_number}</span>
+            <span className="text-white/40 text-xs">·</span>
+            <span className="text-xs font-semibold text-white/90 truncate">
+              {req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_name : req.request_for === 'TP' ? req.tp_name : 'Self'}
+            </span>
+            {(() => {
+              const sub = req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_dept : req.request_for === 'TP' ? req.tp_organization : req.required_bhk_config;
+              return sub ? <span className="text-[10px] text-white/60 truncate hidden sm:inline">{sub}</span> : null;
+            })()}
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${req.request_for === 'TP' ? 'bg-amber-400/30 text-amber-100' : req.request_for === 'EMPLOYEE' ? 'bg-blue-400/30 text-blue-100' : 'bg-white/20 text-white'}`}>
+              {req.request_for ?? 'SELF'}
+            </span>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/20 text-white shrink-0">{statusConfig(s).label}</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white shrink-0">{statusConfig(s).label}</span>
           {panelControls}
         </div>
 
-        {/* ── Requester strip ── */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/60">
-          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
-            {(req.on_behalf_employee_name ?? req.tp_name ?? 'E').charAt(0)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-gray-900 truncate">
-              {req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_name : req.request_for === 'TP' ? req.tp_name : 'Self'}
-            </div>
-            <div className="text-[10px] text-gray-500 truncate">
-              {req.request_for === 'EMPLOYEE' ? (req.on_behalf_employee_dept ?? '') : req.request_for === 'TP' ? (req.tp_organization ?? '') : (req.required_bhk_config ?? '')}
-            </div>
-          </div>
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${req.request_for === 'TP' ? 'bg-amber-100 text-amber-700' : req.request_for === 'EMPLOYEE' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
-            {req.request_for ?? 'SELF'}
-          </span>
-        </div>
-
-        {/* ── Quarter thumbnail if allotted ── */}
+        {/* ── Quarter row if allotted (no image, single line) ── */}
         {allottedQ && <CompactQuarterRow q={allottedQ} accentCls={accentCls} />}
 
         {/* ── Sub-nav tabs ── */}
