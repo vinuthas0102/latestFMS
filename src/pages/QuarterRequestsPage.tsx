@@ -307,9 +307,6 @@ export const QuarterRequestsPage: React.FC = () => {
   const isEO = user?.role === 'manager';
   const [eoMode, setEOMode] = useState<EOMode>(null);
 
-  // EO Employee mode: employee search filter
-  const [empModeSearch, setEmpModeSearch] = useState('');
-
   // EO My Allotment mode: Allot Now state
   const [allotNowQuarterId, setAllotNowQuarterId] = useState<string | null>(null);
   const [allotNowQuarter, setAllotNowQuarter] = useState<Quarter | null>(null);
@@ -1413,19 +1410,10 @@ export const QuarterRequestsPage: React.FC = () => {
       result = result.filter(r =>
         r.request_number?.toLowerCase().includes(q) ||
         r.required_bhk_config?.toLowerCase().includes(q) ||
-        r.preferred_location?.toLowerCase().includes(q)
-      );
-    }
-
-    // EO employee mode: filter by employee search (name / dept / request no.)
-    if (isEO && eoMode === 'employee' && empModeSearch.trim()) {
-      const q = empModeSearch.toLowerCase();
-      result = result.filter(r =>
-        r.request_number?.toLowerCase().includes(q) ||
+        r.preferred_location?.toLowerCase().includes(q) ||
         r.on_behalf_employee_name?.toLowerCase().includes(q) ||
         r.on_behalf_employee_dept?.toLowerCase().includes(q) ||
-        r.tp_name?.toLowerCase().includes(q) ||
-        r.preferred_location?.toLowerCase().includes(q)
+        r.tp_name?.toLowerCase().includes(q)
       );
     }
 
@@ -1439,7 +1427,7 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter, isEO, eoMode, empModeSearch]);
+  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter, isEO, eoMode]);
 
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
@@ -3870,26 +3858,6 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
 
         {/* ── Main content ──────────────────────────────────────────────── */}
-        {/* EO employee mode: employee search bar */}
-        {isEO && eoMode === 'employee' && (
-          <div className="flex-none mb-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={empModeSearch}
-                onChange={e => setEmpModeSearch(e.target.value)}
-                placeholder="Search by employee name, department, request no.…"
-                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-              />
-              {empModeSearch && (
-                <button onClick={() => setEmpModeSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[1, 2].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />)}
