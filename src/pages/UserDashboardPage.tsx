@@ -64,14 +64,14 @@ const ROLE_WELCOME: Record<string, {
   dept_user: {
     title: 'Department User Portal',
     icon: <Users className="w-5 h-5 text-white" />,
-    gradient: 'bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500',
-    iconBg: 'bg-gradient-to-br from-teal-700 to-emerald-600',
+    gradient: 'bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800',
+    iconBg: 'bg-gradient-to-br from-blue-950 to-blue-800',
   },
   public: {
     title: 'Community Facilities',
     icon: <Home className="w-5 h-5 text-white" />,
-    gradient: 'bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-500',
-    iconBg: 'bg-gradient-to-br from-sky-600 to-blue-600',
+    gradient: 'bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800',
+    iconBg: 'bg-gradient-to-br from-blue-950 to-blue-800',
   },
 };
 
