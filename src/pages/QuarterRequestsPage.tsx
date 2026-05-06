@@ -1201,7 +1201,7 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelAllotted = () => {
+  const RightPanelAllotted = ({ panelControls }: { panelControls?: React.ReactNode }) => {
     if (!selectedRequest?.allotment) return null;
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
@@ -1264,24 +1264,18 @@ export const QuarterRequestsPage: React.FC = () => {
     return (
       <>
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-emerald-600 rounded-t-xl sticky top-0 z-10">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <CheckCircle size={18} className="text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Quarter Allotted</div>
             <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
           </div>
-          <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${approvalBadgeColor}`}>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${approvalBadgeColor}`}>
             {allotment.approval_status}
           </span>
-          <button
-            onClick={() => setSelectedRequest(null)}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
-            title="Close panel"
-          >
-            <X size={14} />
-          </button>
+          {panelControls}
         </div>
 
         {/* Compact allotted quarter identity row */}
@@ -1365,7 +1359,7 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelOccupied = () => {
+  const RightPanelOccupied = ({ panelControls }: { panelControls?: React.ReactNode }) => {
     if (!selectedRequest?.allotment) return null;
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
@@ -1385,20 +1379,15 @@ export const QuarterRequestsPage: React.FC = () => {
       const historySvc = historySelectedId ? allSvcRequests.find(tr => tr.id === historySelectedId) : null;
       return (
         <>
-          <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl sticky top-0 z-10">
-            <button onClick={() => setServicesHistoryMode(false)} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
+          <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10">
+            <button onClick={() => setServicesHistoryMode(false)} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors shrink-0">
               <ChevronLeft size={16} />
             </button>
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-teal-100 uppercase tracking-wide">Service History</div>
               <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
             </div>
-            <button
-              onClick={() => setSelectedRequest(null)}
-              className="ml-auto p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
-            >
-              <X size={14} />
-            </button>
+            {panelControls}
           </div>
           <div className="flex h-full" style={{ minHeight: 400 }}>
             {/* Left sub-list */}
@@ -1532,6 +1521,11 @@ export const QuarterRequestsPage: React.FC = () => {
             )}
 
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${tsc.cls}`}>{tsc.label}</span>
+            {panelControls && (
+              <div className="flex items-center gap-0.5 shrink-0 ml-1 [&_button]:text-gray-400 [&_button]:hover:text-gray-700 [&_button]:hover:bg-gray-100 [&_div]:bg-gray-200">
+                {panelControls}
+              </div>
+            )}
           </div>
 
           {/* ── Quarter context sub-row ── */}
@@ -1780,24 +1774,18 @@ export const QuarterRequestsPage: React.FC = () => {
     return (
       <>
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-teal-600 rounded-t-xl sticky top-0 z-10">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+        <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <ThumbsUp size={18} className="text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-teal-100 uppercase tracking-wide">Currently Occupied</div>
             <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
           </div>
-          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
+          <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
             Since {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
           </span>
-          <button
-            onClick={() => setSelectedRequest(null)}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
-            title="Close panel"
-          >
-            <X size={14} />
-          </button>
+          {panelControls}
         </div>
 
         {/* Quarter identity strip */}
@@ -1941,7 +1929,7 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelDraft = () => {
+  const RightPanelDraft = ({ panelControls }: { panelControls?: React.ReactNode }) => {
     if (!selectedRequest) return null;
     const [draftForm, setDraftForm] = useState({
       request_reason: selectedRequest.request_reason ?? '',
@@ -2002,22 +1990,16 @@ export const QuarterRequestsPage: React.FC = () => {
     return (
       <>
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-amber-500 rounded-t-xl sticky top-0 z-10">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-500 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <FileText size={18} className="text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Edit Draft Request</div>
             <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
           </div>
-          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">Draft</span>
-          <button
-            onClick={() => setSelectedRequest(null)}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
-            title="Close panel"
-          >
-            <X size={14} />
-          </button>
+          <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">Draft</span>
+          {panelControls}
         </div>
 
         {/* Form fields */}
@@ -2096,12 +2078,12 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
-  const RightPanelPreferences = () => (
+  const RightPanelPreferences = ({ panelControls }: { panelControls?: React.ReactNode }) => (
     <>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <Star size={16} className="text-amber-500" /> Preference List
+      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-200 rounded-t-xl sticky top-0 z-10">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <Star size={14} className="text-amber-500 shrink-0" /> Preference List
           </h2>
           <div className="text-xs text-gray-500 mt-0.5">
             For <span className="font-mono text-gray-700">{selectedRequest?.request_number}</span> ·{' '}
@@ -2111,10 +2093,15 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         </div>
         {selectedRequest && (
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 ${statusConfig(selectedRequest.request_status).cls}`}>
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 ${statusConfig(selectedRequest.request_status).cls}`}>
             {statusConfig(selectedRequest.request_status).icon}
             {statusConfig(selectedRequest.request_status).label}
           </span>
+        )}
+        {panelControls && (
+          <div className="flex items-center gap-0.5 shrink-0 [&_button]:text-gray-400 [&_button]:hover:text-gray-700 [&_button]:hover:bg-gray-200 [&_div]:bg-gray-300">
+            {panelControls}
+          </div>
         )}
       </div>
 
@@ -2205,29 +2192,23 @@ export const QuarterRequestsPage: React.FC = () => {
     </>
   );
 
-  const RightPanelSubmitted = () => {
+  const RightPanelSubmitted = ({ panelControls }: { panelControls?: React.ReactNode }) => {
     if (!selectedRequest) return null;
     return (
       <>
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 bg-blue-600 rounded-t-xl sticky top-0 z-10">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20">
+        <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <Send size={16} className="text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
             <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
           </div>
-          <span className="ml-auto text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
+          <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
             Submitted {fmtDate(selectedRequest.created_at)}
           </span>
-          <button
-            onClick={() => setSelectedRequest(null)}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors ml-1"
-            title="Close panel"
-          >
-            <X size={14} />
-          </button>
+          {panelControls}
         </div>
 
         {/* Status banner */}
@@ -2758,14 +2739,14 @@ export const QuarterRequestsPage: React.FC = () => {
             minLeft={40}
             maxLeft={80}
             onClose={() => setSelectedRequest(null)}
-            right={selectedRequest ? (() => {
+            renderRight={selectedRequest ? (controls) => {
               const s = selectedRequest.request_status;
-              if (s === 'DRAFT') return <RightPanelDraft />;
-              if (s === 'SUBMITTED') return <RightPanelSubmitted />;
-              if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted />;
-              if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied />;
-              return <RightPanelPreferences />;
-            })() : null}
+              if (s === 'DRAFT') return <RightPanelDraft panelControls={controls} />;
+              if (s === 'SUBMITTED') return <RightPanelSubmitted panelControls={controls} />;
+              if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted panelControls={controls} />;
+              if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied panelControls={controls} />;
+              return <RightPanelPreferences panelControls={controls} />;
+            } : undefined}
             left={
             <div className="space-y-3 pr-1 pb-6">
               {/* Hint strip — shown only on desktop when list has items and nothing is selected */}

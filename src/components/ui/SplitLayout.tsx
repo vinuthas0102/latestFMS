@@ -3,7 +3,12 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 interface SplitLayoutProps {
   left: React.ReactNode;
-  right: React.ReactNode | null;
+  /** Static right content — uses the standalone control bar above it. */
+  right?: React.ReactNode | null;
+  /** Render-prop alternative to `right`. Receives the pre-built controls node
+   *  so the caller can embed < > X into its own header row, eliminating the
+   *  standalone control bar and reclaiming that row's height. */
+  renderRight?: (controls: React.ReactNode) => React.ReactNode;
   storageKey: string;
   defaultSplit?: number;
   minLeft?: number;
@@ -15,6 +20,7 @@ interface SplitLayoutProps {
 const SplitLayout: React.FC<SplitLayoutProps> = ({
   left,
   right,
+  renderRight,
   storageKey,
   defaultSplit = 65,
   minLeft = 40,
@@ -75,6 +81,34 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
     });
   };
 
+  const controlsNode = (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <button
+        onClick={() => nudge(-5)}
+        className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
+        title="Expand right panel"
+      >
+        <ChevronLeft size={14} />
+      </button>
+      <button
+        onClick={() => nudge(5)}
+        className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
+        title="Expand left panel"
+      >
+        <ChevronRight size={14} />
+      </button>
+      <div className="w-px h-4 bg-white/30 mx-0.5" />
+      <button
+        onClick={onClose}
+        className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
+        title="Close panel"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+
+  const hasRight = renderRight ? true : !!right;
   const rightWidth = 100 - splitPct - 0.3;
 
   return (
@@ -85,34 +119,43 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
     >
       {/* Left panel */}
       <div
-        style={{ width: right ? `${splitPct}%` : '100%' }}
+        style={{ width: hasRight ? `${splitPct}%` : '100%' }}
         className="flex-none h-full overflow-y-auto transition-[width] duration-200"
       >
         {left}
       </div>
 
       {/* Drag handle */}
-      {right && (
+      {hasRight && (
         <div
           onMouseDown={handleDragStart}
           className={`flex-none w-1 cursor-col-resize flex items-center justify-center group relative transition-colors ${isDragging ? 'bg-blue-400' : 'bg-gray-200 hover:bg-blue-400'}`}
         >
-          {/* Hit area expansion */}
           <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
-          {/* Grip dots */}
           <div className="flex flex-col items-center gap-1 pointer-events-none">
             <div className={`w-0.5 h-6 rounded-full transition-colors ${isDragging ? 'bg-blue-500' : 'bg-gray-400 group-hover:bg-blue-500'}`} />
           </div>
         </div>
       )}
 
-      {/* Right panel */}
-      {right && (
+      {/* Right panel — render-prop mode (no standalone control bar) */}
+      {hasRight && renderRight && (
         <div
           style={{ width: `${rightWidth}%` }}
           className="flex-none flex flex-col overflow-hidden bg-white rounded-xl border border-gray-200 shadow-sm"
         >
-          {/* Sticky header with controls */}
+          <div className="flex-1 overflow-y-auto">
+            {renderRight(controlsNode)}
+          </div>
+        </div>
+      )}
+
+      {/* Right panel — static mode (standalone control bar) */}
+      {hasRight && !renderRight && right && (
+        <div
+          style={{ width: `${rightWidth}%` }}
+          className="flex-none flex flex-col overflow-hidden bg-white rounded-xl border border-gray-200 shadow-sm"
+        >
           <div className="flex-none flex items-center justify-between gap-1 px-3 py-1.5 bg-white/95 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-20">
             {rightHeader ? (
               <div className="flex-1 min-w-0">{rightHeader}</div>
@@ -144,8 +187,6 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
               </button>
             </div>
           </div>
-
-          {/* Scrollable right content */}
           <div className="flex-1 overflow-y-auto">
             {right}
           </div>
