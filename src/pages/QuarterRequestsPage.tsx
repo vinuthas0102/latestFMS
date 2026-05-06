@@ -3852,7 +3852,12 @@ export const QuarterRequestsPage: React.FC = () => {
                 ) : (
                   modalQuarters.map((q, i) => (
                     <div key={q.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all">
-                      <img src={getImage(q, i)} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      <img
+                        src={getImage(q, i)} alt=""
+                        className="w-14 h-14 rounded-lg object-cover shrink-0 cursor-pointer hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all"
+                        title="View quarter details"
+                        onClick={e => { e.stopPropagation(); setPreviewQuarterId(q.id); setIsPreviewOpen(true); }}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
                         <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name} Block`}</div>
@@ -3896,7 +3901,12 @@ export const QuarterRequestsPage: React.FC = () => {
                   prefs.map((p, i) => (
                     <div key={p.quarter.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all">
                       <div className="relative shrink-0">
-                        <img src={getImage(p.quarter, i)} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                        <img
+                          src={getImage(p.quarter, i)} alt=""
+                          className="w-12 h-12 rounded-lg object-cover cursor-pointer hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all"
+                          title="View quarter details"
+                          onClick={e => { e.stopPropagation(); setPreviewQuarterId(p.quarter.id); setIsPreviewOpen(true); }}
+                        />
                         <div className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-slate-800 text-white text-[10px] font-bold flex items-center justify-center shadow">{p.rank}</div>
                       </div>
                       <div className="flex-1 min-w-0">
