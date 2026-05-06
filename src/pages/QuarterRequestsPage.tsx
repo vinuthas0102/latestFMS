@@ -2749,13 +2749,6 @@ export const QuarterRequestsPage: React.FC = () => {
             } : undefined}
             left={
             <div className="space-y-3 pr-1 pb-6">
-              {/* Hint strip — shown only on desktop when list has items and nothing is selected */}
-              {!selectedRequest && filteredRequests.length > 0 && (
-                <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
-                  <ArrowRightCircle size={13} className="shrink-0 opacity-70" />
-                  <span>Click any request to view its full details in the panel alongside</span>
-                </div>
-              )}
               {/* Quarter request cards */}
               {(
                 filteredRequests.length === 0 ? (
@@ -4096,7 +4089,6 @@ export const QuarterRequestsPage: React.FC = () => {
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-3 text-center">Click any profile to pre-fill the form, then review and confirm</p>
                   </div>
                 )}
 

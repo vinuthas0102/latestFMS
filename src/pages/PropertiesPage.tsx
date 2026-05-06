@@ -557,7 +557,6 @@ export const PropertiesPage: React.FC = () => {
                 <Building2 size={28} className="text-gray-300" />
               </div>
               <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
-              <div className="text-xs text-gray-300">Click any property on the left to view its details here</div>
             </div>
           )}
           left={

@@ -1021,13 +1021,6 @@ export const BookingHistoryPage: React.FC = () => {
               ) : null}
               left={
               <div className="pr-1">
-                {/* Hint strip — desktop only, shown when list has items and nothing is selected */}
-                {!selectedBooking && filteredBookings.length > 0 && (
-                  <div className="hidden lg:flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 text-xs font-medium">
-                    <ArrowRight size={13} className="shrink-0 opacity-70" />
-                    <span>Click any booking to view its full details alongside</span>
-                  </div>
-                )}
                 {filteredBookings.length === 0 ? (
                   <FadeIn delay={200}>
                     <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-sm">
