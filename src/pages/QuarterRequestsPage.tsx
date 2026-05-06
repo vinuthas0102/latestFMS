@@ -8,7 +8,7 @@ import {
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
   MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
-  ArrowLeft, ExternalLink,
+  ArrowLeft, ExternalLink, Zap, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -20,6 +20,7 @@ import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DocUpload } from '../components/ui/DocUpload';
 import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
+import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import {
   quartersService,
   Quarter,
@@ -291,6 +292,41 @@ export const QuarterRequestsPage: React.FC = () => {
   const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // EO mode selection — null means show mode-selection screen every visit
+  type EOMode = 'self' | 'employee' | null;
+  const isEO = user?.role === 'govt_official';
+  const [eoMode, setEOMode] = useState<EOMode>(null);
+
+  // EO Employee mode: employee search filter
+  const [empModeSearch, setEmpModeSearch] = useState('');
+
+  // EO My Allotment mode: Allot Now state
+  const [allotNowQuarterId, setAllotNowQuarterId] = useState<string | null>(null);
+  const [allotNowQuarter, setAllotNowQuarter] = useState<Quarter | null>(null);
+  const [allotNowSubmitting, setAllotNowSubmitting] = useState(false);
+  const [showAllotNowPicker, setShowAllotNowPicker] = useState(false);
+  const [allotNowSearch, setAllotNowSearch] = useState('');
+  const [allotNowQuarters, setAllotNowQuarters] = useState<Quarter[]>([]);
+  const [allotNowLoading, setAllotNowLoading] = useState(false);
+
+  // EO Employee mode: override modal
+  const [overrideAllotment, setOverrideAllotment] = useState<QuarterAllotment | null>(null);
+  const [overrideRequest, setOverrideRequest] = useState<QuarterRequest | null>(null);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+
+  // EO Employee mode: manual allot quarter picker
+  const [manualAllotPickerOpen, setManualAllotPickerOpen] = useState(false);
+  const [manualAllotSearch, setManualAllotSearch] = useState('');
+  const [manualAllotQuarters, setManualAllotQuarters] = useState<Quarter[]>([]);
+  const [manualAllotLoading, setManualAllotLoading] = useState(false);
+  const [manualAllotSubmitting, setManualAllotSubmitting] = useState(false);
+
+  // EO Employee mode: approve/reject tenant request panel
+  const [eoTrId, setEoTrId] = useState<string | null>(null);
+  const [eoTrAction, setEoTrAction] = useState<'approve' | 'reject' | null>(null);
+  const [eoTrNotes, setEoTrNotes] = useState('');
+  const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
+
   // Dashboard filter — default to 'allotted' per spec
   const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
 
@@ -516,20 +552,33 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
+      const isEmployeeMode = isEO && eoMode === 'employee';
       const [reqs, cycle, tReqs] = await Promise.all([
-        quartersService.getMyRequests(user.id),
+        isEmployeeMode ? quartersService.getAllRequests() : quartersService.getMyRequests(user.id),
         quartersService.getActiveCycle(),
-        quartersService.getMyTenantRequests(user.id),
+        isEmployeeMode ? quartersService.getAllTenantRequests() : quartersService.getMyTenantRequests(user.id),
       ]);
-      setRequests(reqs);
+      const normalised = reqs.map((r: any) => ({
+        ...r,
+        allotment: Array.isArray(r.allotment) ? (r.allotment[0] ?? null) : r.allotment,
+      }));
+      setRequests(normalised as QuarterRequest[]);
       setActiveCycle(cycle);
       setTenantRequests(tReqs);
+
+      // Auto-select default tab for EO employee mode per priority: Occupied > Allotted > Submitted
+      if (isEmployeeMode) {
+        const hasOccupied = normalised.some((r: any) => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
+        const hasAllotted = normalised.some((r: any) => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
+        const hasSubmitted = normalised.some((r: any) => r.request_status === 'SUBMITTED');
+        setDpFilter(hasOccupied ? 'occupied' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
+      }
     } catch {
       addToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
-  }, [user, addToast]);
+  }, [user, addToast, isEO, eoMode]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -829,6 +878,107 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to withdraw', 'error'); }
   };
 
+  // ─── EO: Allot Now (create request + immediately allot) ─────────────────────
+  const handleAllotNow = async () => {
+    if (!user || !allotNowQuarterId) { addToast('Please select a quarter to allot', 'warning'); return; }
+    if (!form.request_reason.trim()) { addToast('Please provide a request reason', 'warning'); return; }
+    setAllotNowSubmitting(true);
+    try {
+      await quartersService.createAndAllotNow(user.id, {
+        cycle_id: activeCycle?.id ?? null,
+        request_reason: form.request_reason,
+        required_bhk_config: form.required_bhk_config || '',
+        preferred_location: form.preferred_location || '',
+        move_in_date: form.move_in_date || null,
+        family_member_count: form.family_member_count,
+        employee_notes: form.employee_notes,
+        preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
+        ...buildRequestForPayload(),
+      }, allotNowQuarterId);
+      addToast('Quarter allotted immediately', 'success');
+      setShowNewModal(false);
+      setAllotNowQuarterId(null);
+      setAllotNowQuarter(null);
+      loadData();
+    } catch { addToast('Allot Now failed', 'error'); } finally { setAllotNowSubmitting(false); }
+  };
+
+  // Load Allot Now picker quarters
+  const loadAllotNowQuarters = useCallback(async () => {
+    if (!showAllotNowPicker) return;
+    setAllotNowLoading(true);
+    try {
+      const data = await quartersService.getQuarters({
+        occupancy_status: 'AVAILABLE',
+        search: allotNowSearch || undefined,
+        bhk_config: (user?.bhkEntitlement || form.required_bhk_config) || undefined,
+      });
+      setAllotNowQuarters(data);
+    } catch { addToast('Failed to load quarters', 'error'); } finally { setAllotNowLoading(false); }
+  }, [showAllotNowPicker, allotNowSearch, user?.bhkEntitlement, form.required_bhk_config, addToast]);
+
+  useEffect(() => {
+    if (showAllotNowPicker) {
+      const t = setTimeout(loadAllotNowQuarters, 300);
+      return () => clearTimeout(t);
+    }
+  }, [showAllotNowPicker, allotNowSearch, loadAllotNowQuarters]);
+
+  // ─── EO Employee mode: manual allot ────────────────────────────────────────
+  const loadManualAllotQuarters = useCallback(async () => {
+    if (!manualAllotPickerOpen) return;
+    setManualAllotLoading(true);
+    try {
+      const data = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE', search: manualAllotSearch || undefined });
+      setManualAllotQuarters(data);
+    } catch { addToast('Failed to load quarters', 'error'); } finally { setManualAllotLoading(false); }
+  }, [manualAllotPickerOpen, manualAllotSearch, addToast]);
+
+  useEffect(() => {
+    if (manualAllotPickerOpen) {
+      const t = setTimeout(loadManualAllotQuarters, 300);
+      return () => clearTimeout(t);
+    }
+  }, [manualAllotPickerOpen, manualAllotSearch, loadManualAllotQuarters]);
+
+  const handleManualAllot = async (quarterId: string) => {
+    if (!user || !selectedRequest) return;
+    setManualAllotSubmitting(true);
+    try {
+      await quartersService.manualAllotRequest(selectedRequest.id, quarterId, user.id);
+      addToast('Quarter allotted successfully', 'success');
+      setManualAllotPickerOpen(false);
+      loadData();
+    } catch { addToast('Failed to allot quarter', 'error'); } finally { setManualAllotSubmitting(false); }
+  };
+
+  // ─── EO Employee mode: approve/reject tenant request ───────────────────────
+  const handleEOApproveTR = async () => {
+    if (!eoTrId || !selectedRequest) return;
+    const tr = tenantRequests.find(t => t.id === eoTrId);
+    if (!tr) return;
+    setEoTrSubmitting(true);
+    try {
+      await quartersService.approveTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
+      addToast('Request approved', 'success');
+      setEoTrId(null); setEoTrAction(null); setEoTrNotes('');
+      loadData();
+    } catch { addToast('Failed to approve', 'error'); } finally { setEoTrSubmitting(false); }
+  };
+
+  const handleEORejectTR = async () => {
+    if (!eoTrId || !selectedRequest || !eoTrNotes.trim()) { addToast('Please provide rejection notes', 'warning'); return; }
+    const tr = tenantRequests.find(t => t.id === eoTrId);
+    if (!tr) return;
+    setEoTrSubmitting(true);
+    try {
+      await quartersService.rejectTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
+      addToast('Request rejected', 'success');
+      setEoTrId(null); setEoTrAction(null); setEoTrNotes('');
+      loadData();
+    } catch { addToast('Failed to reject', 'error'); } finally { setEoTrSubmitting(false); }
+  };
+
   // ─── inline action popup submit ────────────────────────────────────────────
 
   const handlePopupSubmit = async () => {
@@ -867,7 +1017,7 @@ export const QuarterRequestsPage: React.FC = () => {
     vacated:   requests.filter(r => r.request_status === 'VACATED').length,
   };
 
-  const STATUS_CARDS: StatusCard[] = [
+  const ALL_STATUS_CARDS: StatusCard[] = [
     {
       key: 'draft', label: 'Draft Requests', description: 'Not yet submitted',
       count: statCounts.draft,
@@ -904,6 +1054,11 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <Building2 size={20} className="text-slate-500" />,
     },
   ];
+
+  // Hide Draft tab in EO employee mode
+  const STATUS_CARDS = (isEO && eoMode === 'employee')
+    ? ALL_STATUS_CARDS.filter(c => c.key !== 'draft')
+    : ALL_STATUS_CARDS;
 
   // ─── filtered request lists ─────────────────────────────────────────────────
 
@@ -944,6 +1099,18 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
 
+    // EO employee mode: filter by employee search (name / dept / request no.)
+    if (isEO && eoMode === 'employee' && empModeSearch.trim()) {
+      const q = empModeSearch.toLowerCase();
+      result = result.filter(r =>
+        r.request_number?.toLowerCase().includes(q) ||
+        r.on_behalf_employee_name?.toLowerCase().includes(q) ||
+        r.on_behalf_employee_dept?.toLowerCase().includes(q) ||
+        r.tp_name?.toLowerCase().includes(q) ||
+        r.preferred_location?.toLowerCase().includes(q)
+      );
+    }
+
     result.sort((a, b) => {
       if (dpFilter === 'occupied') {
         const rankA = a.request_status === 'ACKNOWLEDGED' ? 0 : 1;
@@ -954,7 +1121,7 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter]);
+  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter, isEO, eoMode, empModeSearch]);
 
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
@@ -2262,7 +2429,288 @@ export const QuarterRequestsPage: React.FC = () => {
     );
   };
 
+  // ─── EO Employee Mode Right Panel ────────────────────────────────────────────
+
+  const EOEmployeeRightPanel = ({ panelControls }: { panelControls?: React.ReactNode }) => {
+    if (!selectedRequest) return null;
+    const req = selectedRequest;
+    const allotment = req.allotment as QuarterAllotment | null;
+    const allottedQ = allotment?.quarter as Quarter | undefined;
+    const s = req.request_status;
+    const isSubmitted = s === 'SUBMITTED';
+    const isAllotted = s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED';
+    const isOccupied = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s);
+    const activeTRs = tenantRequests.filter(tr => tr.allotment_id === allotment?.id && tr.request_status === 'PENDING');
+    const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
+
+    return (
+      <div className="h-full overflow-y-auto flex flex-col">
+        {/* Header */}
+        <div className={`flex items-center gap-3 px-4 py-3 sticky top-0 z-10 rounded-t-xl ${isSubmitted ? 'bg-blue-600' : isAllotted ? 'bg-emerald-600' : isOccupied ? 'bg-teal-600' : 'bg-gray-600'}`}>
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+            <UserCog size={16} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-white/70 uppercase tracking-wide">EO Review</div>
+            <div className="text-sm font-semibold text-white truncate">{req.request_number}</div>
+          </div>
+          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/20 text-white shrink-0`}>{statusConfig(s).label}</span>
+          {panelControls}
+        </div>
+
+        {/* Requester identity block */}
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Requester</div>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-teal-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+              {(req.on_behalf_employee_name ?? req.tp_name ?? 'E').charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 truncate">
+                {req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_name
+                  : req.request_for === 'TP' ? req.tp_name
+                  : 'Self'}
+              </div>
+              <div className="text-[10px] text-gray-500 truncate">
+                {req.request_for === 'EMPLOYEE' ? (req.on_behalf_employee_dept ?? req.on_behalf_employee_id ?? '')
+                  : req.request_for === 'TP' ? (req.tp_organization ?? req.tp_mobile ?? '')
+                  : req.required_bhk_config ?? ''}
+              </div>
+            </div>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${req.request_for === 'TP' ? 'bg-amber-100 text-amber-700' : req.request_for === 'EMPLOYEE' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
+              {req.request_for ?? 'SELF'}
+            </span>
+          </div>
+        </div>
+
+        {/* Quarter info if allotted/occupied */}
+        {allottedQ && (
+          <CompactQuarterRow q={allottedQ} accentCls={accentCls} />
+        )}
+
+        {/* Request summary */}
+        <RequestSummaryBlock req={req} />
+
+        {/* ── EO Actions by status ── */}
+        <div className="px-4 py-4 space-y-3 border-t border-gray-100">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EO Actions</div>
+
+          {/* SUBMITTED: Manual allot */}
+          {isSubmitted && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">This request is awaiting allotment. Select a quarter to allot manually.</p>
+              <button
+                onClick={() => { setManualAllotSearch(''); setManualAllotPickerOpen(true); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={14} />Allot Quarter Manually
+              </button>
+              <button
+                onClick={() => handleWithdraw(req.id)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+              >
+                <XCircle size={14} />Withdraw Request
+              </button>
+            </div>
+          )}
+
+          {/* ALLOTTED: Override or deallocate */}
+          {isAllotted && allotment && (
+            <div className="space-y-2">
+              <button
+                onClick={() => { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors"
+              >
+                <RefreshCw size={14} />Override Allotment
+              </button>
+              <button
+                onClick={async () => { if (!user) return; await quartersService.deallocateRequest(allotment.id, req.id); addToast('Deallocated', 'success'); loadData(); }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} />Deallocate
+              </button>
+            </div>
+          )}
+
+          {/* OCCUPIED: Pending tenant requests */}
+          {isOccupied && allotment && (
+            <div className="space-y-2">
+              {activeTRs.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">No pending service requests from this tenant.</p>
+              ) : (
+                activeTRs.map(tr => {
+                  const stc = serviceTypeConfig(tr.service_type);
+                  return (
+                    <div key={tr.id} className={`rounded-xl border px-3 py-3 space-y-2 ${stc.cls}`}>
+                      <div className="flex items-center gap-2">
+                        {stc.icon}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold">{stc.label}</div>
+                          {tr.reason && <div className="text-[10px] opacity-80 mt-0.5 truncate">{tr.reason}</div>}
+                        </div>
+                      </div>
+                      {eoTrId === tr.id && eoTrAction ? (
+                        <div className="space-y-2 pt-1">
+                          <textarea
+                            value={eoTrNotes}
+                            onChange={e => setEoTrNotes(e.target.value)}
+                            rows={2}
+                            placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
+                            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800"
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }} className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white transition-colors">Cancel</button>
+                            {eoTrAction === 'approve'
+                              ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">{eoTrSubmitting ? '…' : 'Approve'}</button>
+                              : <button onClick={handleEORejectTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">{eoTrSubmitting ? '…' : 'Reject'}</button>
+                            }
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => { setEoTrId(tr.id); setEoTrAction('approve'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"><ThumbsUp size={11} />Approve</button>
+                          <button onClick={() => { setEoTrId(tr.id); setEoTrAction('reject'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"><ThumbsDown size={11} />Reject</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <button
+                onClick={() => { if (allotment) { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); } }}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-50 transition-colors"
+              >
+                <RefreshCw size={13} />Override Allotment
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Manual allot quarter picker modal */}
+        {manualAllotPickerOpen && createPortal(
+          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '85vh' }}>
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0"><Home size={18} className="text-blue-600" /></div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-gray-900">Select Quarter to Allot</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{req.request_number} · {req.required_bhk_config}</p>
+                </div>
+                <button onClick={() => setManualAllotPickerOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
+              </div>
+              <div className="px-4 pt-3 pb-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={manualAllotSearch} onChange={e => setManualAllotSearch(e.target.value)}
+                    placeholder="Search by number, block…"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" autoFocus />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto divide-y divide-gray-50 px-2 py-1">
+                {manualAllotLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl m-2 animate-pulse" />)
+                ) : manualAllotQuarters.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400"><Building2 size={24} className="mb-2 opacity-30" /><p className="text-sm">No available quarters found</p></div>
+                ) : manualAllotQuarters.map((q, i) => (
+                  <button key={q.id} onClick={() => handleManualAllot(q.id)} disabled={manualAllotSubmitting}
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-blue-50 transition-colors text-left rounded-xl">
+                    <img src={getImage(q, i)} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-900">{q.quarter_number}</div>
+                      <div className="text-xs text-gray-500 truncate">{q.bhk_config} · {fmtINR(q.monthly_rent)}/mo</div>
+                    </div>
+                    <span className="text-xs font-semibold text-blue-600 hover:underline shrink-0">{manualAllotSubmitting ? '…' : 'Allot'}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-t border-gray-100">
+                <button onClick={() => setManualAllotPickerOpen(false)} className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Override modal */}
+        {showOverrideModal && overrideAllotment && user && (
+          <QuarterOverrideModal
+            isOpen={showOverrideModal}
+            allotment={overrideAllotment}
+            allCycleAllotments={requests.filter(r => r.allotment).map(r => r.allotment as QuarterAllotment)}
+            eoAuthId={user.id}
+            onClose={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); }}
+            onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
+          />
+        )}
+      </div>
+    );
+  };
+
   // ─── render ──────────────────────────────────────────────────────────────────
+
+  // EO mode selection screen — shown every time before the main dashboard
+  if (isEO && eoMode === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-2xl">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-teal-600 text-white rounded-2xl shadow-lg mb-4">
+              <ShieldCheck size={28} />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Estate Officer Portal</h1>
+            <p className="text-gray-500 mt-2 text-sm">How would you like to proceed today?</p>
+            {user?.bhkEntitlement && (
+              <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 bg-teal-50 border border-teal-200 rounded-full text-xs font-semibold text-teal-700">
+                <Bed size={11} /> Cadre Entitlement: {user.bhkEntitlement}
+              </div>
+            )}
+          </div>
+
+          {/* Two mode cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* My Allotments */}
+            <button
+              onClick={() => setEOMode('self')}
+              className="group text-left bg-white rounded-2xl border-2 border-gray-200 hover:border-teal-400 hover:shadow-xl transition-all duration-200 p-7 flex flex-col gap-4"
+            >
+              <div className="w-12 h-12 rounded-xl bg-teal-50 group-hover:bg-teal-600 flex items-center justify-center transition-colors duration-200">
+                <Home size={22} className="text-teal-600 group-hover:text-white transition-colors duration-200" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 mb-1.5">My Allotments</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Manage your own quarter requests, view allotment status, and submit new requests for yourself or on behalf of others.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-teal-600 text-xs font-semibold mt-auto">
+                Continue <ChevronRight size={14} />
+              </div>
+            </button>
+
+            {/* Employee Allotments */}
+            <button
+              onClick={() => { setEOMode('employee'); }}
+              className="group text-left bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 p-7 flex flex-col gap-4"
+            >
+              <div className="w-12 h-12 rounded-xl bg-blue-50 group-hover:bg-blue-600 flex items-center justify-center transition-colors duration-200">
+                <UserCog size={22} className="text-blue-600 group-hover:text-white transition-colors duration-200" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 mb-1.5">Employee Allotments</h2>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Review all employee requests, manually allot quarters, approve or reject tenant services, and manage override actions.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-blue-600 text-xs font-semibold mt-auto">
+                Continue <ChevronRight size={14} />
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -2640,21 +3088,35 @@ export const QuarterRequestsPage: React.FC = () => {
                   </>
                 )}
               </div>
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">Quarter Requests</h1>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">
+                {isEO && eoMode === 'employee' ? 'Employee Allotments' : 'Quarter Requests'}
+              </h1>
             </div>
             <div className="flex gap-2 shrink-0 items-center">
+              {isEO && (
+                <button
+                  onClick={() => { setEOMode(null); setSelectedRequest(null); resetActionForm(); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition-colors"
+                >
+                  <ShieldCheck size={13} /> Switch Mode
+                </button>
+              )}
               {user && activeCycle && (
                 <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
                   <Clock size={11} className="text-blue-500" />
                   {activeCycle.cycle_name} · Closes {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}
                 </span>
               )}
-              <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                <Eye size={13} /> Browse
-              </button>
-              <Button onClick={() => openNewModal()}>
-                <Plus size={13} className="mr-1" /> New Request
-              </Button>
+              {!(isEO && eoMode === 'employee') && (
+                <>
+                  <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Eye size={13} /> Browse
+                  </button>
+                  <Button onClick={() => openNewModal()}>
+                    <Plus size={13} className="mr-1" /> New Request
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2696,6 +3158,26 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
 
         {/* ── Main content ──────────────────────────────────────────────── */}
+        {/* EO employee mode: employee search bar */}
+        {isEO && eoMode === 'employee' && (
+          <div className="flex-none mb-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={empModeSearch}
+                onChange={e => setEmpModeSearch(e.target.value)}
+                placeholder="Search by employee name, department, request no.…"
+                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+              />
+              {empModeSearch && (
+                <button onClick={() => setEmpModeSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[1, 2].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />)}
@@ -2703,9 +3185,17 @@ export const QuarterRequestsPage: React.FC = () => {
         ) : filteredRequests.length === 0 && requests.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 py-20 text-center">
             <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-            <h3 className="text-base font-semibold text-gray-700 mb-1">No quarter requests yet</h3>
-            <p className="text-sm text-gray-500 mb-6">Create your first request to start the allotment process.</p>
-            <Button onClick={() => openNewModal()}><Plus size={15} className="mr-1" /> New Request</Button>
+            <h3 className="text-base font-semibold text-gray-700 mb-1">
+              {isEO && eoMode === 'employee' ? 'No employee requests found' : 'No quarter requests yet'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              {isEO && eoMode === 'employee'
+                ? 'Employee allotment requests will appear here once submitted.'
+                : 'Create your first request to start the allotment process.'}
+            </p>
+            {!(isEO && eoMode === 'employee') && (
+              <Button onClick={() => openNewModal()}><Plus size={15} className="mr-1" /> New Request</Button>
+            )}
           </div>
         ) : (
           <>
@@ -2763,6 +3253,8 @@ export const QuarterRequestsPage: React.FC = () => {
             maxLeft={80}
             onClose={() => setSelectedRequest(null)}
             renderRight={selectedRequest ? (controls) => {
+              // In EO employee mode, show EO management right panel
+              if (isEO && eoMode === 'employee') return <EOEmployeeRightPanel panelControls={controls} />;
               const s = selectedRequest.request_status;
               if (s === 'DRAFT') return <RightPanelDraft panelControls={controls} />;
               if (s === 'SUBMITTED') return <RightPanelSubmitted panelControls={controls} />;
@@ -3590,14 +4082,28 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={handleSaveDraft} disabled={submitting}
+              <button onClick={handleSaveDraft} disabled={submitting || allotNowSubmitting}
                 className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
                 Save Draft
               </button>
-              <button onClick={handleSubmit} disabled={submitting || prefs.length === 0}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-                <Send size={14} />Submit Request
-              </button>
+              {/* Submit — not shown for EO TP flow (TP reviews + submits themselves) */}
+              {!(isEO && requestFor === 'TP') && (
+                <button onClick={handleSubmit} disabled={submitting || allotNowSubmitting || prefs.length === 0}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+                  <Send size={14} />Submit Request
+                </button>
+              )}
+              {/* Allot Now — EO only */}
+              {isEO && (
+                <button
+                  onClick={() => setShowAllotNowPicker(true)}
+                  disabled={submitting || allotNowSubmitting || !form.request_reason.trim()}
+                  className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                  title="Allot Now — pick a quarter and allot immediately (VVIP/priority cases)"
+                >
+                  <Zap size={14} />Allot Now
+                </button>
+              )}
             </div>
           </div>
 
@@ -3639,8 +4145,8 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Request For strip — EO only */}
-              {(user?.role === 'manager' || user?.role === 'admin') && (
+              {/* Request For strip — managers, admins, and EOs (My Allotment mode) */}
+              {(user?.role === 'manager' || user?.role === 'admin' || (isEO && eoMode === 'self')) && (
                 <div className="mt-4 flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-2 shrink-0">
                     <Users size={13} className="text-teal-600" />
@@ -4017,6 +4523,89 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
             );
           })()}
+
+          {/* ── Allot Now: Quarter Picker overlay (EO only) ── */}
+          {showAllotNowPicker && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                    <Zap size={18} className="text-teal-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-gray-900">Select Quarter to Allot Now</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {user?.bhkEntitlement ? `Cadre: ${user.bhkEntitlement} · ` : ''}Showing available quarters
+                    </p>
+                  </div>
+                  <button onClick={() => setShowAllotNowPicker(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
+                </div>
+
+                {allotNowQuarter && (
+                  <div className="mx-4 mt-3 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-xl px-4 py-2.5">
+                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      <Home size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-teal-900">{allotNowQuarter.quarter_number}</div>
+                      <div className="text-[10px] text-teal-500">{allotNowQuarter.bhk_config} · {fmtINR(allotNowQuarter.monthly_rent)}/mo</div>
+                    </div>
+                    <span className="text-[10px] font-bold bg-teal-600 text-white px-2 py-0.5 rounded-full shrink-0">Selected</span>
+                  </div>
+                )}
+
+                <div className="px-4 pt-3 pb-2">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input value={allotNowSearch} onChange={e => setAllotNowSearch(e.target.value)}
+                      placeholder="Search quarter number, block…"
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20" autoFocus />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto border-t border-gray-100 divide-y divide-gray-50 px-2 py-1">
+                  {allotNowLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl m-2 animate-pulse" />)
+                  ) : allotNowQuarters.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                      <Building2 size={24} className="mb-2 opacity-30" />
+                      <p className="text-sm">No available quarters found</p>
+                    </div>
+                  ) : allotNowQuarters.map((q, i) => (
+                    <button
+                      key={q.id}
+                      onClick={() => { setAllotNowQuarterId(q.id); setAllotNowQuarter(q); }}
+                      className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-teal-50 transition-colors text-left group rounded-xl ${allotNowQuarterId === q.id ? 'bg-teal-50' : ''}`}
+                    >
+                      <img src={getImage(q, i)} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-900">{q.quarter_number}</div>
+                        <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name} Block`}</div>
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                          <span className="flex items-center gap-0.5"><Bed size={10} />{q.bhk_config}</span>
+                          <span className="font-semibold text-gray-800">{fmtINR(q.monthly_rent)}/mo</span>
+                        </div>
+                      </div>
+                      {allotNowQuarterId === q.id
+                        ? <CheckCircle size={16} className="text-teal-600 shrink-0" />
+                        : <div className="w-4 h-4 rounded-full border-2 border-gray-200 group-hover:border-teal-400 transition-colors shrink-0" />
+                      }
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+                  <button onClick={() => setShowAllotNowPicker(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-white transition-colors">Cancel</button>
+                  <button
+                    onClick={async () => { setShowAllotNowPicker(false); await handleAllotNow(); }}
+                    disabled={!allotNowQuarterId || allotNowSubmitting}
+                    className="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+                    <Zap size={14} />{allotNowSubmitting ? 'Allotting…' : 'Confirm Allot Now'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── TP Info form popup ─────────────────────────── */}
           {showTPForm && (

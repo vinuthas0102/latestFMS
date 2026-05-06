@@ -181,6 +181,7 @@ function mapUserFromDb(dbUser: any): UserDTO {
     role: dbUser.role || 'public',
     govtDepartment: dbUser.govt_department,
     govtEmployeeId: dbUser.govt_employee_id,
+    bhkEntitlement: dbUser.bhk_entitlement ?? undefined,
     assignedEstateId: dbUser.assigned_estate_id,
     metadata: dbUser.metadata || {},
     createdAt: dbUser.created_at,

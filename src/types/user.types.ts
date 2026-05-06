@@ -8,6 +8,7 @@ export interface UserDTO {
   role: UserRole;
   govtDepartment?: string;
   govtEmployeeId?: string;
+  bhkEntitlement?: string;
   assignedEstateId?: string;
   metadata?: Record<string, any>;
   createdAt: string;

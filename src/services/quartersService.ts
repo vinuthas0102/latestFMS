@@ -828,4 +828,97 @@ export const quartersService = {
     if (error) throw error;
     return data as QuarterAllotmentChat;
   },
+
+  // ─── EO: Create request and immediately allot (Allot Now) ───────────────────
+  async createAndAllotNow(
+    eoId: string,
+    input: CreateQuarterRequestInput,
+    quarterId: string,
+  ): Promise<QuarterRequest> {
+    const reqNumber = `REQ-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
+
+    const { data: req, error: reqErr } = await supabase
+      .from('quarter_requests')
+      .insert({
+        employee_id: eoId,
+        request_number: reqNumber,
+        cycle_id: input.cycle_id,
+        request_reason: input.request_reason,
+        required_bhk_config: input.required_bhk_config,
+        preferred_location: input.preferred_location,
+        move_in_date: input.move_in_date,
+        family_member_count: input.family_member_count,
+        employee_notes: input.employee_notes,
+        request_status: 'ALLOTTED',
+        request_for: input.request_for ?? 'SELF',
+        on_behalf_employee_id: input.on_behalf_employee_id ?? null,
+        on_behalf_employee_name: input.on_behalf_employee_name ?? null,
+        on_behalf_employee_dept: input.on_behalf_employee_dept ?? null,
+        tp_name: input.tp_name ?? null,
+        tp_organization: input.tp_organization ?? null,
+        tp_mobile: input.tp_mobile ?? null,
+        tp_email: input.tp_email ?? null,
+        tp_pan: input.tp_pan ?? null,
+        tp_notes: input.tp_notes ?? null,
+      })
+      .select()
+      .single();
+    if (reqErr) throw reqErr;
+
+    if (input.preferences.length > 0) {
+      const prefs = input.preferences.map(p => ({
+        request_id: req.id,
+        quarter_id: p.quarter_id,
+        preference_rank: p.preference_rank,
+        pref_status: 'PENDING',
+      }));
+      await supabase.from('quarter_request_preferences').insert(prefs);
+    }
+
+    const { error: allotErr } = await supabase.from('quarter_allotments').insert({
+      request_id: req.id,
+      quarter_id: quarterId,
+      allotted_by: eoId,
+      allotment_date: new Date().toISOString().split('T')[0],
+      approval_status: 'APPROVED',
+    });
+    if (allotErr) throw allotErr;
+
+    return req as QuarterRequest;
+  },
+
+  // ─── EO: Manually allot a specific quarter to a SUBMITTED request ────────────
+  async manualAllotRequest(
+    requestId: string,
+    quarterId: string,
+    eoId: string,
+    conditions?: string,
+  ): Promise<void> {
+    const { error: allotErr } = await supabase.from('quarter_allotments').insert({
+      request_id: requestId,
+      quarter_id: quarterId,
+      allotted_by: eoId,
+      allotment_date: new Date().toISOString().split('T')[0],
+      approval_status: 'PENDING',
+      allotment_conditions: conditions ?? '',
+    });
+    if (allotErr) throw allotErr;
+
+    const { error: reqErr } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'ALLOTTED', updated_at: new Date().toISOString() })
+      .eq('id', requestId);
+    if (reqErr) throw reqErr;
+  },
+
+  // ─── Fetch all users with role govt_official or employee for EO lookup ───────
+  async getEmployeeUsers(): Promise<{ id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[]> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, govt_department, govt_employee_id, email')
+      .neq('role', 'admin')
+      .order('full_name');
+    if (error) throw error;
+    return (data ?? []) as { id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[];
+  },
 };
