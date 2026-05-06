@@ -59,8 +59,10 @@ export const LoginPage: React.FC = () => {
     try {
       await login(email, password, selectedRole);
       addToast('Login successful', 'success');
-      if (selectedRole === 'admin' || selectedRole === 'manager') {
+      if (selectedRole === 'admin') {
         navigate(ROUTES.PROPERTIES);
+      } else if (selectedRole === 'manager') {
+        navigate(ROUTES.QUARTERS_REQUESTS);
       } else if (selectedRole === 'govt_official') {
         navigate(ROUTES.QUARTERS_REQUESTS);
       } else {
