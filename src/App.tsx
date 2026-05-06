@@ -177,7 +177,7 @@ function App() {
             <Route
               path="/quarters/requests"
               element={
-                <ProtectedRoute allowedRoles={['manager', 'admin']}>
+                <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official']}>
                   <AppLayout><QuarterRequestsPage /></AppLayout>
                 </ProtectedRoute>
               }

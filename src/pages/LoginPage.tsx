@@ -62,7 +62,7 @@ export const LoginPage: React.FC = () => {
       if (selectedRole === 'admin' || selectedRole === 'manager') {
         navigate(ROUTES.PROPERTIES);
       } else if (selectedRole === 'govt_official') {
-        navigate(ROUTES.DASHBOARD);
+        navigate(ROUTES.QUARTERS_REQUESTS);
       } else {
         navigate(ROUTES.DASHBOARD);
       }

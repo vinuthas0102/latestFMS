@@ -39,7 +39,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
         {
           title: 'Quarters',
           iconName: 'Home',
-          route: ROUTES.QUARTERS_FREEVIEW,
+          route: ROUTES.QUARTERS_REQUESTS,
           activePrefix: '/quarters',
         },
       ];
