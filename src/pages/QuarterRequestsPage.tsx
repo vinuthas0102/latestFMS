@@ -1495,11 +1495,13 @@ export const QuarterRequestsPage: React.FC = () => {
       // File input ref for chat attachment
       const chatFileRef = useRef<HTMLInputElement>(null);
 
+      const titleIsGeneric = mainTitle === stc.label;
+
       return (
         <div className="flex flex-col h-full bg-white">
 
-          {/* ── Header: single clean bar ── */}
-          <div className="flex-none flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 rounded-t-xl sticky top-0 z-10">
+          {/* ── Header: single compact bar ── */}
+          <div className="flex-none flex items-center gap-2 px-3 py-2 bg-white border-b border-gray-100 rounded-t-xl sticky top-0 z-10">
             <button
               onClick={() => setSelectedServiceId(null)}
               className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors shrink-0"
@@ -1508,32 +1510,33 @@ export const QuarterRequestsPage: React.FC = () => {
               <ChevronLeft size={16} />
             </button>
 
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${svcIconCls}`}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${svcIconCls}`}>
               {stc.icon}
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-bold text-gray-800">{stc.label}</span>
-                <span className="text-[10px] text-gray-400 font-mono">{svcCtrlRef}</span>
+            {titleIsGeneric ? (
+              /* No meaningful title — collapse to single row */
+              <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+                <span className="text-[13px] font-bold text-gray-900 shrink-0">{stc.label}</span>
+                <span className="text-[10px] text-gray-400 font-mono shrink-0">{svcCtrlRef}</span>
               </div>
-              <div className="text-sm font-semibold text-gray-900 leading-tight truncate">{mainTitle}</div>
-            </div>
+            ) : (
+              /* Has a real title — show type+ref on line 1, title on line 2 */
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-gray-500">{stc.label}</span>
+                  <span className="text-[10px] text-gray-400 font-mono">{svcCtrlRef}</span>
+                </div>
+                <div className="text-[13px] font-semibold text-gray-900 leading-tight truncate">{mainTitle}</div>
+              </div>
+            )}
 
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border shrink-0 ${tsc.cls}`}>{tsc.label}</span>
-
-            <button
-              onClick={() => { setSelectedServiceId(null); setSelectedRequest(null); }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
-              title="Close panel"
-            >
-              <X size={15} />
-            </button>
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${tsc.cls}`}>{tsc.label}</span>
           </div>
 
           {/* ── Quarter context sub-row ── */}
           {q && (
-            <div className="flex-none flex items-center gap-2.5 px-4 py-2 bg-teal-50 border-b border-teal-100">
+            <div className="flex-none flex items-center gap-2.5 px-4 py-1.5 bg-teal-50 border-b border-teal-100">
               <div className="w-6 h-6 rounded-md overflow-hidden shrink-0 border border-teal-200">
                 <img src={getImage(q, 0)} alt={q.quarter_number} className="w-full h-full object-cover" />
               </div>
