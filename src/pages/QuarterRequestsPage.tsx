@@ -304,7 +304,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // EO mode selection — null means show mode-selection screen every visit
   type EOMode = 'self' | 'employee' | null;
-  const isEO = user?.role === 'govt_official';
+  const isEO = user?.role === 'manager';
   const [eoMode, setEOMode] = useState<EOMode>(null);
 
   // EO Employee mode: employee search filter

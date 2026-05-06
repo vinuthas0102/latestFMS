@@ -177,7 +177,7 @@ function App() {
             <Route
               path="/quarters/requests"
               element={
-                <ProtectedRoute allowedRoles={['govt_official']}>
+                <ProtectedRoute allowedRoles={['manager', 'admin']}>
                   <AppLayout><QuarterRequestsPage /></AppLayout>
                 </ProtectedRoute>
               }
@@ -193,7 +193,7 @@ function App() {
             <Route
               path="/quarters/rent"
               element={
-                <ProtectedRoute allowedRoles={['govt_official']}>
+                <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
                   <AppLayout><QuarterRentPage /></AppLayout>
                 </ProtectedRoute>
               }

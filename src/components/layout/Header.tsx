@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Building2, Bell, LogOut, UserCheck, Calendar, Settings,
   Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
-  LayoutDashboard, Home, FileText,
+  LayoutDashboard, Home,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
@@ -31,8 +31,7 @@ export const Header: React.FC = () => {
 
   const isManager = user?.role === 'manager' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
-  const isGovtOfficial = user?.role === 'govt_official';
-  const isRegularUser = user && !isManager && !isGovtOfficial;
+  const isRegularUser = user && !isManager;
 
   const checkScroll = () => {
     const el = scrollContainerRef.current;
@@ -50,7 +49,7 @@ export const Header: React.FC = () => {
       if (el) el.removeEventListener('scroll', checkScroll);
       window.removeEventListener('resize', checkScroll);
     };
-  }, [isManager, isAdmin, isGovtOfficial]);
+  }, [isManager, isAdmin]);
 
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
@@ -82,22 +81,13 @@ export const Header: React.FC = () => {
     { route: ROUTES.ADMIN, label: 'Admin', icon: <Shield size={17} /> },
   ];
 
-  const govtOfficialNavItems: NavItem[] = [
-    { route: ROUTES.QUARTERS_FREEVIEW, label: 'Browse Quarters', icon: <Home size={17} /> },
-    { route: ROUTES.QUARTERS_REQUESTS, label: 'My Requests', icon: <FileText size={17} /> },
-    { route: ROUTES.DASHBOARD, label: 'My Dashboard', icon: <LayoutDashboard size={17} /> },
-    { route: ROUTES.BOOKINGS, label: 'My Bookings', icon: <Calendar size={17} /> },
-  ];
-
   const quartersManagerNavItem: NavItem = {
     route: ROUTES.QUARTERS_MANAGER,
     label: 'Quarters',
     icon: <Home size={17} />,
   };
 
-  const navItems = isGovtOfficial
-    ? govtOfficialNavItems
-    : isRegularUser
+  const navItems = isRegularUser
     ? regularUserNavItems
     : [
         ...baseNavItems,

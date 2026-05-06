@@ -168,7 +168,6 @@ export const QuarterDetailPage: React.FC = () => {
   }, []);
 
   const canManage = !!(user && canManageProperties(user.role));
-  const isGovtOfficial = user?.role === 'govt_official';
 
   // ── Loading ────────────────────────────────────────────────────
 

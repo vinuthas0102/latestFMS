@@ -6,9 +6,8 @@ export const canAccessProperty = (userRole: UserRole, assetCategory: AssetCatego
     case 'manager':
       return true;
     case 'govt_official':
-      return assetCategory === 'A' || assetCategory === 'B';
-    case 'public':
     case 'dept_user':
+    case 'public':
       return assetCategory === 'B';
     default:
       return false;

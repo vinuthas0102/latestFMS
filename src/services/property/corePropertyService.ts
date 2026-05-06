@@ -9,7 +9,7 @@ import { getRooms } from './roomService';
 
 function getAllowedCategoriesForRole(userRole?: UserRole): string[] | null {
   if (!userRole || userRole === 'admin' || userRole === 'manager') return null;
-  if (userRole === 'govt_official') return ['A', 'B'];
+  if (userRole === 'govt_official') return ['B'];
   return ['B'];
 }
 

@@ -206,9 +206,8 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
   if (!isOpen && !inline) return null;
 
   const canManage = !!(user && canManageProperties(user.role));
-  const isGovtOfficial = user?.role === 'govt_official';
 
-  const actionLabel = canManage ? 'Manage' : isGovtOfficial ? 'Request' : 'Info';
+  const actionLabel = canManage ? 'Manage' : 'Info';
   const sections: SectionDef[] = [
     ...BASE_SECTIONS,
     { id: 'action', label: actionLabel, icon: canManage ? <Settings size={13} /> : <Plus size={13} /> },

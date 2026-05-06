@@ -11,28 +11,6 @@ export interface ModuleTab {
 
 export function getModuleTabs(role: UserRole): ModuleTab[] {
   switch (role) {
-    case 'govt_official':
-      return [
-        {
-          title: 'Facilities',
-          iconName: 'Building2',
-          route: ROUTES.DASHBOARD,
-          activePrefix: '/dashboard',
-        },
-        {
-          title: 'Quarters',
-          iconName: 'Home',
-          route: ROUTES.QUARTERS_FREEVIEW,
-          activePrefix: '/quarters',
-        },
-        {
-          title: 'Rent',
-          iconName: 'IndianRupee',
-          route: ROUTES.QUARTERS_RENT,
-          activePrefix: '/quarters/rent',
-        },
-      ];
-
     case 'admin':
     case 'manager':
       return [
