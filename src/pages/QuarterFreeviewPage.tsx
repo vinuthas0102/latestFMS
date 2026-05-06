@@ -31,7 +31,7 @@ const QUARTERS_WELCOME: Record<string, {
   iconBg: string;
 }> = {
   govt_official: {
-    title: 'Quarters Allotment Portal',
+    title: 'Quarters Allotment',
     icon: <Shield className="w-5 h-5 text-white" />,
     gradient: 'bg-gradient-to-r from-blue-950 via-blue-900 to-blue-800',
     iconBg: 'bg-gradient-to-br from-blue-950 to-blue-800',
