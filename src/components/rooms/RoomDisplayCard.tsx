@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Users, Calendar, BedDouble, Baby, PawPrint, Accessibility,
   Cigarette, Check, Trees, Mountain, Waves, Building2, Droplets,
-  CircleDot, Eye,
+  CircleDot, Eye, type LucideIcon,
 } from 'lucide-react';
 import { RoomDTO, AmenityDTO } from '../../types';
 import { getAmenityIcon } from '../../utils/amenityIcons';
@@ -14,7 +14,7 @@ interface RoomDisplayCardProps {
   compact?: boolean;
 }
 
-const VIEW_CONFIG: Record<string, { label: string; Icon: React.FC<{ size?: number; className?: string }>; cls: string }> = {
+const VIEW_CONFIG: Record<string, { label: string; Icon: LucideIcon; cls: string }> = {
   garden:    { label: 'Garden View',    Icon: Trees,    cls: 'bg-green-100 text-green-700 border-green-200' },
   mountain:  { label: 'Mountain View',  Icon: Mountain, cls: 'bg-gray-100 text-gray-700 border-gray-200' },
   sea:       { label: 'Sea View',       Icon: Waves,    cls: 'bg-blue-100 text-blue-700 border-blue-200' },
