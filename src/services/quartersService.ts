@@ -93,6 +93,16 @@ export interface QuarterServiceChat {
   created_at: string;
 }
 
+export interface QuarterAllotmentChat {
+  id: string;
+  allotment_id: string;
+  author_id: string;
+  author_role: 'employee' | 'eo' | 'system';
+  message: string;
+  document_urls: string[];
+  created_at: string;
+}
+
 export interface QuarterRequestPreference {
   id: string;
   request_id: string;
@@ -790,5 +800,32 @@ export const quartersService = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data ?? []) as QuarterServiceChat[];
+  },
+
+  // ─── Allotment chats ─────────────────────────────────────────────────────────
+  async getAllotmentChats(allotmentId: string): Promise<QuarterAllotmentChat[]> {
+    const { data, error } = await supabase
+      .from('quarter_allotment_chats')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterAllotmentChat[];
+  },
+
+  async addAllotmentChat(
+    allotmentId: string,
+    authorId: string,
+    authorRole: 'employee' | 'eo' | 'system',
+    message: string,
+    documentUrls: string[] = [],
+  ): Promise<QuarterAllotmentChat> {
+    const { data, error } = await supabase
+      .from('quarter_allotment_chats')
+      .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as QuarterAllotmentChat;
   },
 };

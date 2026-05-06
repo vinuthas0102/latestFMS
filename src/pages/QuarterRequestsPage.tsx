@@ -27,6 +27,7 @@ import {
   QuarterAllotmentCycle,
   QuarterTenantRequest,
   QuarterServiceChat,
+  QuarterAllotmentChat,
   CreateTenantRequestInput,
 } from '../services/quartersService';
 import { supabase } from '../lib/supabase';
@@ -364,6 +365,12 @@ export const QuarterRequestsPage: React.FC = () => {
   const [chatAttachFile, setChatAttachFile] = useState<File | null>(null);
   const [chatSubmitting, setChatSubmitting] = useState(false);
 
+  // Allotment chats for allotted panel
+  const [allotmentChats, setAllotmentChats] = useState<Record<string, QuarterAllotmentChat[]>>({});
+  const [allotmentChatMessage, setAllotmentChatMessage] = useState('');
+  const [allotmentChatFile, setAllotmentChatFile] = useState<File | null>(null);
+  const [allotmentChatSubmitting, setAllotmentChatSubmitting] = useState(false);
+
   // Card-level dot-menu (portal-based to avoid scroll clipping)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -442,6 +449,29 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to send message', 'error'); } finally { setChatSubmitting(false); }
   };
 
+  const handleSendAllotmentChat = async () => {
+    if (!user || !selectedRequest?.allotment?.id || !allotmentChatMessage.trim()) return;
+    const allotmentId = selectedRequest.allotment.id;
+    setAllotmentChatSubmitting(true);
+    try {
+      const docUrls: string[] = [];
+      if (allotmentChatFile) {
+        const ext = allotmentChatFile.name.split('.').pop() ?? 'bin';
+        const path = `allotment-chats/${allotmentId}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, allotmentChatFile);
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
+          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
+        }
+      }
+      await quartersService.addAllotmentChat(allotmentId, user.id, 'employee', allotmentChatMessage, docUrls);
+      setAllotmentChatMessage('');
+      setAllotmentChatFile(null);
+      const chats = await quartersService.getAllotmentChats(allotmentId);
+      setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
+    } catch { addToast('Failed to send message', 'error'); } finally { setAllotmentChatSubmitting(false); }
+  };
+
   const handleCloseService = async () => {
     if (!selectedServiceId || !selectedRequest) return;
     if (!window.confirm('Close this service request?')) return;
@@ -462,6 +492,15 @@ export const QuarterRequestsPage: React.FC = () => {
       setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
     }).catch(() => {});
   }, [selectedServiceId]);
+
+  // Load allotment chats when an allotted request is selected
+  useEffect(() => {
+    const allotmentId = selectedRequest?.allotment?.id;
+    if (!allotmentId || selectedRequest?.request_status !== 'ALLOTTED') return;
+    quartersService.getAllotmentChats(allotmentId).then(chats => {
+      setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
+    }).catch(() => {});
+  }, [selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
@@ -1206,7 +1245,7 @@ export const QuarterRequestsPage: React.FC = () => {
     const allotment = selectedRequest.allotment;
     const q = allotment.quarter;
 
-    // Local state for accept/decline forms
+    // Local state for accept/decline modals
     const [acceptOpen, setAcceptOpen] = useState(false);
     const [acceptRemarks, setAcceptRemarks] = useState('');
     const [acceptSubmitting, setAcceptSubmitting] = useState(false);
@@ -1214,6 +1253,10 @@ export const QuarterRequestsPage: React.FC = () => {
     const [declineRemarks, setDeclineRemarks] = useState('');
     const [declineDocUrl, setDeclineDocUrl] = useState<File | null>(null);
     const [declineSubmitting, setDeclineSubmitting] = useState(false);
+
+    const allotmentChatFileRef = useRef<HTMLInputElement>(null);
+    const chatScrollRef = useRef<HTMLDivElement>(null);
+    const chats = allotmentChats[allotment.id] ?? [];
 
     const handleAccept = async () => {
       setAcceptSubmitting(true);
@@ -1235,7 +1278,7 @@ export const QuarterRequestsPage: React.FC = () => {
         addToast('Allotment declined', 'success');
         setDeclineOpen(false);
         setDeclineRemarks('');
-        setDeclineDocUrl('');
+        setDeclineDocUrl(null);
         loadData();
         resetActionForm();
       } catch { addToast('Failed to decline allotment', 'error'); } finally { setDeclineSubmitting(false); }
@@ -1259,12 +1302,10 @@ export const QuarterRequestsPage: React.FC = () => {
       ? 'bg-red-100 text-red-800 border border-red-200'
       : 'bg-white/20 text-white';
 
-    const reqPrefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
-
     return (
-      <>
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-t-xl shrink-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <CheckCircle size={18} className="text-white" />
           </div>
@@ -1278,84 +1319,173 @@ export const QuarterRequestsPage: React.FC = () => {
           {panelControls}
         </div>
 
-        {/* Compact allotted quarter identity row */}
+        {/* Quarter identity strip */}
         {q && <CompactQuarterRow q={q} accentCls="bg-emerald-50 text-emerald-700 border-emerald-200" />}
         {!q && (
-          <div className="px-5 py-3 border-b border-gray-100 bg-emerald-50">
+          <div className="px-5 py-3 border-b border-gray-100 bg-emerald-50 shrink-0">
             <div className="text-xs text-emerald-700 font-medium">Allotted on {fmtDate(allotment.allotment_date)}</div>
           </div>
         )}
 
-        {/* Allotment conditions / remarks */}
-        {(allotment.allotment_conditions || allotment.acknowledgement_remarks) && (
-          <div className="px-5 py-3 border-b border-gray-100 space-y-2">
-            {allotment.allotment_conditions && (
-              <div className="text-xs text-gray-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                <span className="font-semibold text-amber-700">Conditions: </span>{allotment.allotment_conditions}
-              </div>
-            )}
-            {allotment.acknowledgement_remarks && (
-              <div className="text-xs text-gray-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                <span className="font-semibold text-blue-700">Remarks: </span>{allotment.acknowledgement_remarks}
-              </div>
-            )}
+        {/* Conditions banner */}
+        {allotment.allotment_conditions && (
+          <div className="px-4 py-2 border-b border-amber-100 bg-amber-50 shrink-0">
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <span className="font-semibold">Conditions: </span>{allotment.allotment_conditions}
+            </p>
           </div>
         )}
 
-        {/* Section B — Accept Allotment */}
-        <div className="p-5 border-b border-gray-100">
-          {!acceptOpen ? (
-            <button
-              onClick={() => setAcceptOpen(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
-            >
-              <ThumbsUp size={15} /> Accept Allotment
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><ThumbsUp size={14} /> Accept Allotment</span>
-                <button onClick={() => { setAcceptOpen(false); setAcceptRemarks(''); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+        {/* Chat thread */}
+        <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
+          {[...chats].reverse().map(chat => {
+            const isEmployee = chat.author_role === 'employee';
+            return (
+              <div key={chat.id} className={`flex ${isEmployee ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                  isEmployee
+                    ? 'bg-emerald-600 text-white rounded-tr-sm'
+                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                }`}>
+                  {chat.author_role === 'eo' && (
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Estate Officer</div>
+                  )}
+                  <p className="text-[13px] leading-relaxed">{chat.message}</p>
+                  {chat.document_urls.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {chat.document_urls.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center gap-1.5 text-[11px] font-medium ${isEmployee ? 'text-emerald-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
+                          <Paperclip size={10} />Attachment {i + 1}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  <div className={`text-[10px] mt-1.5 ${isEmployee ? 'text-emerald-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Acceptance Remarks (optional)</label>
-                <textarea value={acceptRemarks} onChange={e => setAcceptRemarks(e.target.value)} rows={3} placeholder="Any remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none" />
+            );
+          })}
+          {chats.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-2.5">
+                <Send size={16} className="text-emerald-400" />
               </div>
-              <button onClick={handleAccept} disabled={acceptSubmitting} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                {acceptSubmitting ? 'Saving…' : 'Confirm Acceptance'}
-              </button>
+              <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
             </div>
           )}
         </div>
 
-        {/* Section C — Decline Allotment (collapsible) */}
-        <div className="p-5">
-          <button
-            onClick={() => setDeclineOpen(v => !v)}
-            className="w-full flex items-center justify-between py-2 px-3 rounded-lg border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-50 transition-colors"
-          >
-            <span className="flex items-center gap-2"><ThumbsDown size={14} /> Decline Allotment</span>
-            {declineOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {declineOpen && (
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Decline Remarks *</label>
-                <textarea value={declineRemarks} onChange={e => setDeclineRemarks(e.target.value)} rows={3} placeholder="State your reason for declining…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
-              </div>
-              <DocUpload value={declineDocUrl} onChange={setDeclineDocUrl} label="Supporting Document" optional />
-              <div className="flex gap-2">
-                <button onClick={handleDecline} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors">
-                  {declineSubmitting ? 'Saving…' : 'Decline'}
-                </button>
-                <button onClick={handleDeclineAndCancel} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
-                  Decline & Cancel Request
-                </button>
-              </div>
+        {/* Compose bar */}
+        <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
+          {allotmentChatFile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+              <FileText size={13} className="text-blue-500 shrink-0" />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+              <button type="button" onClick={() => setAllotmentChatFile(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0">
+                <X size={12} />
+              </button>
             </div>
           )}
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => allotmentChatFileRef.current?.click()}
+              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
+              title="Attach file"
+            >
+              <Paperclip size={15} />
+            </button>
+            <input
+              ref={allotmentChatFileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile(f); e.target.value = ''; }}
+            />
+            <textarea
+              value={allotmentChatMessage}
+              onChange={e => setAllotmentChatMessage(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat(); } }}
+              rows={1}
+              placeholder="Message the Estate Officer… (Enter to send)"
+              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white leading-relaxed transition-colors"
+              style={{ minHeight: '40px', maxHeight: '80px' }}
+            />
+            <button
+              onClick={handleSendAllotmentChat}
+              disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+              className="flex-none p-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              title="Send"
+            >
+              <Send size={15} />
+            </button>
+          </div>
         </div>
-      </>
+
+        {/* Footer: Accept / Decline actions */}
+        <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white flex gap-2">
+          <button
+            onClick={() => { setDeclineOpen(false); setAcceptOpen(v => !v); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            <ThumbsUp size={14} /> Accept
+          </button>
+          <button
+            onClick={() => { setAcceptOpen(false); setDeclineOpen(v => !v); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+          >
+            <ThumbsDown size={14} /> Decline
+          </button>
+        </div>
+
+        {/* Accept modal */}
+        {acceptOpen && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-4 bg-emerald-50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><ThumbsUp size={14} /> Accept Allotment</span>
+              <button onClick={() => { setAcceptOpen(false); setAcceptRemarks(''); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+            </div>
+            <textarea
+              value={acceptRemarks}
+              onChange={e => setAcceptRemarks(e.target.value)}
+              rows={2}
+              placeholder="Acceptance remarks (optional)…"
+              className="w-full px-3 py-2 text-sm border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none bg-white"
+            />
+            <button onClick={handleAccept} disabled={acceptSubmitting} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+              {acceptSubmitting ? 'Saving…' : 'Confirm Acceptance'}
+            </button>
+          </div>
+        )}
+
+        {/* Decline modal */}
+        {declineOpen && (
+          <div className="shrink-0 border-t border-gray-100 px-4 py-4 bg-red-50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-red-700 flex items-center gap-1.5"><ThumbsDown size={14} /> Decline Allotment</span>
+              <button onClick={() => { setDeclineOpen(false); setDeclineRemarks(''); setDeclineDocUrl(null); }} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+            </div>
+            <textarea
+              value={declineRemarks}
+              onChange={e => setDeclineRemarks(e.target.value)}
+              rows={2}
+              placeholder="State your reason for declining… *"
+              className="w-full px-3 py-2 text-sm border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none bg-white"
+            />
+            <DocUpload value={declineDocUrl} onChange={setDeclineDocUrl} label="Supporting Document" optional />
+            <div className="flex gap-2">
+              <button onClick={handleDecline} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors">
+                {declineSubmitting ? 'Saving…' : 'Decline'}
+              </button>
+              <button onClick={handleDeclineAndCancel} disabled={declineSubmitting} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors">
+                Decline & Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
