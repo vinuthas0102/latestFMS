@@ -386,8 +386,8 @@ export const QuarterRequestsPage: React.FC = () => {
   const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   // EO: Right panel mode for each DP
-  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'guest_info' | 'services';
-  const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
+  type EORightMode = 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'services' | 'inspection' | 'handover';
+  const [eoRightMode, setEoRightMode] = useState<EORightMode>('allot');
   const [eoRejectReason, setEoRejectReason] = useState('');
   const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
 
@@ -648,7 +648,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // Reset EO right mode when selected request changes
   useEffect(() => {
-    setEoRightMode('detail');
+    setEoRightMode('allot');
     setApprovalAction(null);
     setApprovalRemarks('');
     setInspectionPanel('list');
@@ -1128,7 +1128,7 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       await quartersService.eoRejectRequest(selectedRequest.id, user.id, eoRejectReason);
       addToast('Request rejected and sent back to draft', 'success');
-      setEoRightMode('detail');
+      setEoRightMode('allot');
       setEoRejectReason('');
       setSelectedRequest(null);
       loadData();
@@ -2745,15 +2745,11 @@ export const QuarterRequestsPage: React.FC = () => {
     // Sub-nav tabs
     type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
     const tabs: TabEntry[] = ([
-      { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: true },
       { key: 'allot' as EORightMode, label: 'Allot', icon: <Home size={12} />, show: isSubmitted },
       { key: 'rejection_chat' as EORightMode, label: 'Reject', icon: <XCircle size={12} />, show: isSubmitted },
       { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
       { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
-      { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted },
-      { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted },
       { key: 'services' as EORightMode, label: 'Services', icon: <Wrench size={12} />, show: isOccupied },
-      { key: 'guest_info' as EORightMode, label: 'Guests', icon: <Users size={12} />, show: isOccupied },
     ] as TabEntry[]).filter(t => t.show);
 
     return (
@@ -2799,11 +2795,11 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
+        {/* ── Inline request summary — always shown since Detail tab is removed ── */}
+        <RequestSummaryBlock req={req} />
+
         {/* ── Tab content ── */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* Detail tab */}
-          {eoRightMode === 'detail' && <RequestSummaryBlock req={req} />}
 
           {/* Allot tab (SUBMITTED) */}
           {eoRightMode === 'allot' && isSubmitted && (
@@ -2947,11 +2943,14 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Inspection tab (ACKNOWLEDGED) */}
-          {eoRightMode === 'inspection' && isAccepted && (
+          {/* Inspection (opened via action menu) */}
+          {eoRightMode === 'inspection' && (isAccepted || isAllotted) && (
             <div className="p-4 space-y-3">
               {inspectionPanel === 'list' && (
                 <>
+                  <button onClick={() => setEoRightMode('services')} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors mb-1">
+                    <ArrowLeft size={12} />Back
+                  </button>
                   <button
                     onClick={() => setInspectionPanel('new')}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors"
@@ -3048,9 +3047,12 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Handover tab (ACKNOWLEDGED) */}
-          {eoRightMode === 'handover' && isAccepted && (
+          {/* Handover (opened via action menu) */}
+          {eoRightMode === 'handover' && (isAccepted || isAllotted) && (
             <div className="p-4 space-y-3">
+              <button onClick={() => setEoRightMode('services')} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                <ArrowLeft size={12} />Back
+              </button>
               {handover ? (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4 space-y-2">
                   <div className="flex items-center gap-2 mb-1">
@@ -3157,8 +3159,8 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Guest Info tab (OCCUPIED) */}
-          {eoRightMode === 'guest_info' && isOccupied && (
+          {/* Guest Info not shown for quarters — applicable to properties only */}
+          {false && (
             <div className="p-4 space-y-3">
               <button onClick={() => setShowGuestInfoPopup(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
                 <UserPlus size={14} />Add Guest Info
@@ -4095,8 +4097,8 @@ export const QuarterRequestsPage: React.FC = () => {
                               {expandedCardId === req.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
 
-                            {/* Action menu — hidden for ALLOTTED (handled inline) and terminal statuses */}
-                            {!['ALLOTTED', 'VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
+                            {/* Action menu — hidden only for terminal statuses */}
+                            {!['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
                                 onClick={e => openMenu(e, req.id)}
                                 className={`p-1.5 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
@@ -4513,6 +4515,25 @@ export const QuarterRequestsPage: React.FC = () => {
                         >
                           <span className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center shrink-0"><ThumbsDown size={12} className="text-red-500" /></span>
                           Decline Upgrade
+                        </button>
+                      </>
+                    )}
+                    {(req.request_status === 'ALLOTTED' || req.request_status === 'ACKNOWLEDGED') && req.allotment && (
+                      <>
+                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actions</span></div>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); setInspectionPanel('list'); setEoRightMode('inspection'); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><HardHat size={12} className="text-teal-600" /></span>
+                          Inspection
+                        </button>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); setEoRightMode('handover'); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><Key size={12} className="text-emerald-600" /></span>
+                          Handover
                         </button>
                       </>
                     )}
