@@ -9,6 +9,8 @@ import {
   MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, Zap, ShieldCheck, UserCog,
+  GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare, SkipForward,
+  UserX, HardHat, Package, ClipboardCheck, Handshake,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -29,6 +31,14 @@ import {
   QuarterTenantRequest,
   QuarterServiceChat,
   QuarterAllotmentChat,
+  QuarterAllotment,
+  QuarterApprovalWorkflow,
+  QuarterAllotmentApproval,
+  QuarterApprovalChat,
+  QuarterInspection,
+  QuarterInspectionChat,
+  QuarterHandover,
+  QuarterGuestInfo,
   CreateTenantRequestInput,
 } from '../services/quartersService';
 import { supabase } from '../lib/supabase';
@@ -327,6 +337,63 @@ export const QuarterRequestsPage: React.FC = () => {
   const [eoTrNotes, setEoTrNotes] = useState('');
   const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
 
+  // EO: Run Allocation popup
+  const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
+  const [runAllocSubmitting, setRunAllocSubmitting] = useState(false);
+
+  // EO: Allot Requests popup (bulk allot with optional WFL)
+  const [showAllotRequestsPopup, setShowAllotRequestsPopup] = useState(false);
+  const [allotRequestsWorkflows, setAllotRequestsWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
+  const [allotRequestsWflId, setAllotRequestsWflId] = useState<string>('none');
+  const [allotRequestsSubmitting, setAllotRequestsSubmitting] = useState(false);
+
+  // EO: Approval workflow panel (Pending Approval DP)
+  const [approvalRecord, setApprovalRecord] = useState<QuarterAllotmentApproval | null>(null);
+  const [approvalChats, setApprovalChats] = useState<QuarterApprovalChat[]>([]);
+  const [approvalChatMsg, setApprovalChatMsg] = useState('');
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'clarify' | null>(null);
+  const [approvalRemarks, setApprovalRemarks] = useState('');
+  const [approvalTargetLevel, setApprovalTargetLevel] = useState(1);
+  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
+
+  // EO: Inspection panel
+  const [inspections, setInspections] = useState<QuarterInspection[]>([]);
+  const [inspectionChats, setInspectionChats] = useState<QuarterInspectionChat[]>([]);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [inspectionPanel, setInspectionPanel] = useState<'list' | 'chat' | 'new'>('list');
+  const [inspectionOpeningRemark, setInspectionOpeningRemark] = useState('');
+  const [inspectionChatMsg, setInspectionChatMsg] = useState('');
+  const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
+  const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
+  const [inspectionCloseRemarks, setInspectionCloseRemarks] = useState('');
+  const [inspectionCondition, setInspectionCondition] = useState('GOOD');
+
+  // EO: Handover popup
+  const [showHandoverPopup, setShowHandoverPopup] = useState(false);
+  const [handover, setHandover] = useState<QuarterHandover | null>(null);
+  const [handoverKeyNo, setHandoverKeyNo] = useState('');
+  const [handoverRemarks, setHandoverRemarks] = useState('');
+  const [handoverDeadline, setHandoverDeadline] = useState('');
+  const [handoverInteriorFile, setHandoverInteriorFile] = useState<File | null>(null);
+  const [handoverReportFile, setHandoverReportFile] = useState<File | null>(null);
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
+
+  // EO: Guest Info panel / popup
+  const [showGuestInfoPopup, setShowGuestInfoPopup] = useState(false);
+  const [guestInfoList, setGuestInfoList] = useState<QuarterGuestInfo[]>([]);
+  const [guestInfoLoading, setGuestInfoLoading] = useState(false);
+  const [guestForm, setGuestForm] = useState({ name: '', mobile: '', email: '' });
+  const [guestAadhaarFile, setGuestAadhaarFile] = useState<File | null>(null);
+  const [guestPanFile, setGuestPanFile] = useState<File | null>(null);
+  const [guestOtherFiles, setGuestOtherFiles] = useState<File[]>([]);
+  const [guestSubmitting, setGuestSubmitting] = useState(false);
+
+  // EO: Right panel mode for each DP
+  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'guest_info' | 'services';
+  const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
+  const [eoRejectReason, setEoRejectReason] = useState('');
+  const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
+
   // Dashboard filter — default to 'allotted' per spec
   const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
 
@@ -581,6 +648,19 @@ export const QuarterRequestsPage: React.FC = () => {
   }, [user, addToast, isEO, eoMode]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Reset EO right mode when selected request changes
+  useEffect(() => {
+    setEoRightMode('detail');
+    setApprovalAction(null);
+    setApprovalRemarks('');
+    setInspectionPanel('list');
+    setSelectedInspectionId(null);
+    setEoRejectReason('');
+    setEoTrId(null);
+    setEoTrAction(null);
+    setEoTrNotes('');
+  }, [selectedRequest?.id]);
 
   // Auto-select top preference for detail view
   useEffect(() => {
@@ -1005,6 +1085,244 @@ export const QuarterRequestsPage: React.FC = () => {
       closeActionPopup();
       loadData();
     } catch { addToast('Failed to submit request', 'error'); } finally { setPopupSubmitting(false); }
+  };
+
+  // ─── EO: Run Allocation cycle ─────────────────────────────────────────────────
+  const handleRunAllocation = async () => {
+    if (!user) return;
+    setRunAllocSubmitting(true);
+    try {
+      const submitted = requests.filter(r => r.request_status === 'SUBMITTED');
+      const result = await quartersService.runAllocationCycle(user.id, submitted);
+      addToast(`Allocation complete: ${result.allotted} allotted, ${result.skipped} skipped`, 'success');
+      setShowRunAllocationPopup(false);
+      loadData();
+    } catch { addToast('Allocation failed', 'error'); } finally { setRunAllocSubmitting(false); }
+  };
+
+  // ─── EO: Allot Requests (bulk, with/without WFL) ───────────────────────────
+  const handleAllotRequests = async () => {
+    if (!user) return;
+    setAllotRequestsSubmitting(true);
+    try {
+      const allotted = requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status) && r.allotment?.id);
+      const ids = allotted.map(r => r.allotment!.id).filter(Boolean);
+      const wflId = allotRequestsWflId === 'none' ? null : allotRequestsWflId;
+      await quartersService.submitAllotments(ids, wflId, user.id);
+      addToast(`${ids.length} allotments processed`, 'success');
+      setShowAllotRequestsPopup(false);
+      loadData();
+    } catch { addToast('Failed to process allotments', 'error'); } finally { setAllotRequestsSubmitting(false); }
+  };
+
+  // Load workflows for Allot Requests popup
+  useEffect(() => {
+    if (showAllotRequestsPopup) {
+      quartersService.getApprovalWorkflows().then(setAllotRequestsWorkflows).catch(() => {});
+    }
+  }, [showAllotRequestsPopup]);
+
+  // ─── EO: Reject request (DRAFT + sub_status=REJECTED) ─────────────────────
+  const handleEORejectRequest = async () => {
+    if (!user || !selectedRequest || !eoRejectReason.trim()) {
+      addToast('Please provide a rejection reason', 'warning'); return;
+    }
+    setEoRejectSubmitting(true);
+    try {
+      await quartersService.eoRejectRequest(selectedRequest.id, user.id, eoRejectReason);
+      addToast('Request rejected and sent back to draft', 'success');
+      setEoRightMode('detail');
+      setEoRejectReason('');
+      setSelectedRequest(null);
+      loadData();
+    } catch { addToast('Failed to reject request', 'error'); } finally { setEoRejectSubmitting(false); }
+  };
+
+  // ─── EO: Load approval for selected allotment ─────────────────────────────
+  useEffect(() => {
+    const allotmentId = selectedRequest?.allotment?.id;
+    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getApprovalForAllotment(allotmentId).then(approval => {
+      setApprovalRecord(approval);
+      if (approval) {
+        quartersService.getApprovalChats(approval.id).then(setApprovalChats).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
+
+  // ─── EO: Load inspections for selected allotment ──────────────────────────
+  useEffect(() => {
+    const allotmentId = selectedRequest?.allotment?.id;
+    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getInspections(allotmentId).then(setInspections).catch(() => {});
+  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
+
+  // ─── EO: Load inspection chats ────────────────────────────────────────────
+  useEffect(() => {
+    if (!selectedInspectionId) return;
+    quartersService.getInspectionChats(selectedInspectionId).then(setInspectionChats).catch(() => {});
+  }, [selectedInspectionId]);
+
+  // ─── EO: Load handover for selected allotment ─────────────────────────────
+  useEffect(() => {
+    const allotmentId = selectedRequest?.allotment?.id;
+    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getHandover(allotmentId).then(setHandover).catch(() => {});
+  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
+
+  // ─── EO: Load guest info ──────────────────────────────────────────────────
+  const loadGuestInfo = useCallback(async () => {
+    const allotmentId = selectedRequest?.allotment?.id;
+    if (!allotmentId) return;
+    setGuestInfoLoading(true);
+    try {
+      const list = await quartersService.getGuestInfo(allotmentId);
+      setGuestInfoList(list);
+    } catch {} finally { setGuestInfoLoading(false); }
+  }, [selectedRequest?.allotment?.id]);
+
+  useEffect(() => {
+    if (showGuestInfoPopup) loadGuestInfo();
+  }, [showGuestInfoPopup, loadGuestInfo]);
+
+  // ─── EO: Approve allotment level ──────────────────────────────────────────
+  const handleApproveLevel = async () => {
+    if (!user || !approvalRecord) return;
+    setApprovalSubmitting(true);
+    try {
+      await quartersService.approveAllotmentLevel(approvalRecord.id, user.id, approvalRemarks);
+      addToast('Level approved', 'success');
+      setApprovalAction(null);
+      setApprovalRemarks('');
+      const updated = await quartersService.getApprovalForAllotment(approvalRecord.allotment_id);
+      setApprovalRecord(updated);
+      if (updated) {
+        const chats = await quartersService.getApprovalChats(updated.id);
+        setApprovalChats(chats);
+      }
+      loadData();
+    } catch { addToast('Failed to approve', 'error'); } finally { setApprovalSubmitting(false); }
+  };
+
+  // ─── EO: Send for clarification ───────────────────────────────────────────
+  const handleSendClarification = async () => {
+    if (!user || !approvalRecord || !approvalRemarks.trim()) {
+      addToast('Please provide clarification remarks', 'warning'); return;
+    }
+    setApprovalSubmitting(true);
+    try {
+      await quartersService.sendClarification(approvalRecord.id, approvalTargetLevel, approvalRemarks, user.id);
+      addToast('Sent for clarification', 'success');
+      setApprovalAction(null);
+      setApprovalRemarks('');
+      const updated = await quartersService.getApprovalForAllotment(approvalRecord.allotment_id);
+      setApprovalRecord(updated);
+      if (updated) {
+        const chats = await quartersService.getApprovalChats(updated.id);
+        setApprovalChats(chats);
+      }
+    } catch { addToast('Failed to send clarification', 'error'); } finally { setApprovalSubmitting(false); }
+  };
+
+  // ─── EO: Start inspection ─────────────────────────────────────────────────
+  const handleStartInspection = async () => {
+    if (!user || !selectedRequest?.allotment?.id || !inspectionOpeningRemark.trim()) {
+      addToast('Please provide opening remarks', 'warning'); return;
+    }
+    setInspectionSubmitting(true);
+    try {
+      const insp = await quartersService.startInspection(selectedRequest.allotment.id, user.id, inspectionOpeningRemark);
+      addToast('Inspection started', 'success');
+      setInspectionOpeningRemark('');
+      setInspectionPanel('chat');
+      setSelectedInspectionId(insp.id);
+      const list = await quartersService.getInspections(selectedRequest.allotment.id);
+      setInspections(list);
+    } catch { addToast('Failed to start inspection', 'error'); } finally { setInspectionSubmitting(false); }
+  };
+
+  // ─── EO: Add inspection chat ──────────────────────────────────────────────
+  const handleSendInspectionChat = async () => {
+    if (!user || !selectedInspectionId || !inspectionChatMsg.trim()) return;
+    try {
+      const docUrls: string[] = [];
+      if (inspectionChatFile) {
+        const path = `inspection-chats/${selectedInspectionId}/${Date.now()}.${inspectionChatFile.name.split('.').pop() ?? 'bin'}`;
+        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, inspectionChatFile);
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
+          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
+        }
+        setInspectionChatFile(null);
+      }
+      await quartersService.addInspectionChat(selectedInspectionId, user.id, 'eo', inspectionChatMsg, docUrls);
+      setInspectionChatMsg('');
+      const chats = await quartersService.getInspectionChats(selectedInspectionId);
+      setInspectionChats(chats);
+    } catch { addToast('Failed to send message', 'error'); }
+  };
+
+  // ─── EO: Close inspection ─────────────────────────────────────────────────
+  const handleCloseInspection = async () => {
+    if (!selectedInspectionId || !inspectionCloseRemarks.trim()) {
+      addToast('Please provide closing remarks', 'warning'); return;
+    }
+    setInspectionSubmitting(true);
+    try {
+      await quartersService.closeInspection(selectedInspectionId, inspectionCloseRemarks, inspectionCondition);
+      addToast('Inspection closed', 'success');
+      setInspectionCloseRemarks('');
+      setInspectionPanel('list');
+      setSelectedInspectionId(null);
+      if (selectedRequest?.allotment?.id) {
+        const list = await quartersService.getInspections(selectedRequest.allotment.id);
+        setInspections(list);
+      }
+    } catch { addToast('Failed to close inspection', 'error'); } finally { setInspectionSubmitting(false); }
+  };
+
+  // ─── EO: Create handover ──────────────────────────────────────────────────
+  const handleCreateHandover = async () => {
+    if (!user || !selectedRequest?.allotment?.id || !handoverKeyNo.trim() || !handoverDeadline) {
+      addToast('Key number and deadline are required', 'warning'); return;
+    }
+    setHandoverSubmitting(true);
+    try {
+      await quartersService.createHandover(selectedRequest.allotment.id, user.id, {
+        key_number: handoverKeyNo,
+        remarks: handoverRemarks,
+        occupying_deadline: handoverDeadline,
+        interior_doc_url: handoverInteriorFile?.name,
+        inspection_report_url: handoverReportFile?.name,
+      });
+      addToast('Handover recorded and allotment confirmed', 'success');
+      setShowHandoverPopup(false);
+      setHandoverKeyNo(''); setHandoverRemarks(''); setHandoverDeadline('');
+      setHandoverInteriorFile(null); setHandoverReportFile(null);
+      loadData();
+    } catch { addToast('Failed to record handover', 'error'); } finally { setHandoverSubmitting(false); }
+  };
+
+  // ─── EO: Add guest info ───────────────────────────────────────────────────
+  const handleAddGuestInfo = async () => {
+    if (!user || !selectedRequest?.allotment?.id || !guestForm.name.trim() || !guestForm.mobile.trim()) {
+      addToast('Guest name and mobile are required', 'warning'); return;
+    }
+    setGuestSubmitting(true);
+    try {
+      await quartersService.addGuestInfo(selectedRequest.allotment.id, user.id, {
+        guest_name: guestForm.name,
+        guest_mobile: guestForm.mobile,
+        guest_email: guestForm.email,
+        aadhaar_doc_url: guestAadhaarFile?.name,
+        pan_doc_url: guestPanFile?.name,
+        other_doc_urls: guestOtherFiles.map(f => f.name),
+      });
+      addToast('Guest info added', 'success');
+      setGuestForm({ name: '', mobile: '', email: '' });
+      setGuestAadhaarFile(null); setGuestPanFile(null); setGuestOtherFiles([]);
+      await loadGuestInfo();
+    } catch { addToast('Failed to add guest info', 'error'); } finally { setGuestSubmitting(false); }
   };
 
   // ─── derived counts ─────────────────────────────────────────────────────────
@@ -2439,143 +2757,428 @@ export const QuarterRequestsPage: React.FC = () => {
     const s = req.request_status;
     const isSubmitted = s === 'SUBMITTED';
     const isAllotted = s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED';
+    const isPendingApproval = isAllotted && approvalRecord && approvalRecord.status === 'PENDING';
+    const isAccepted = s === 'ACKNOWLEDGED';
     const isOccupied = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s);
     const activeTRs = tenantRequests.filter(tr => tr.allotment_id === allotment?.id && tr.request_status === 'PENDING');
     const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
 
+    const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
+
+    // Sub-nav tabs
+    type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
+    const tabs: TabEntry[] = ([
+      { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: true },
+      { key: 'allot' as EORightMode, label: 'Allot', icon: <Home size={12} />, show: isSubmitted },
+      { key: 'rejection_chat' as EORightMode, label: 'Reject', icon: <XCircle size={12} />, show: isSubmitted },
+      { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
+      { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
+      { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted },
+      { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted },
+      { key: 'services' as EORightMode, label: 'Services', icon: <Wrench size={12} />, show: isOccupied },
+      { key: 'guest_info' as EORightMode, label: 'Guests', icon: <Users size={12} />, show: isOccupied },
+    ] as TabEntry[]).filter(t => t.show);
+
     return (
-      <div className="h-full overflow-y-auto flex flex-col">
-        {/* Header */}
-        <div className={`flex items-center gap-3 px-4 py-3 sticky top-0 z-10 rounded-t-xl ${isSubmitted ? 'bg-blue-600' : isAllotted ? 'bg-emerald-600' : isOccupied ? 'bg-teal-600' : 'bg-gray-600'}`}>
+      <div className="h-full overflow-y-auto flex flex-col bg-white">
+        {/* ── Header ── */}
+        <div className={`flex items-center gap-3 px-4 py-3 sticky top-0 z-10 rounded-t-xl ${headerColor}`}>
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
             <UserCog size={16} className="text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-white/70 uppercase tracking-wide">EO Review</div>
+            <div className="text-[10px] font-medium text-white/60 uppercase tracking-wider">EO Review</div>
             <div className="text-sm font-semibold text-white truncate">{req.request_number}</div>
           </div>
-          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/20 text-white shrink-0`}>{statusConfig(s).label}</span>
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/20 text-white shrink-0">{statusConfig(s).label}</span>
           {panelControls}
         </div>
 
-        {/* Requester identity block */}
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Requester</div>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
-              {(req.on_behalf_employee_name ?? req.tp_name ?? 'E').charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-gray-900 truncate">
-                {req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_name
-                  : req.request_for === 'TP' ? req.tp_name
-                  : 'Self'}
-              </div>
-              <div className="text-[10px] text-gray-500 truncate">
-                {req.request_for === 'EMPLOYEE' ? (req.on_behalf_employee_dept ?? req.on_behalf_employee_id ?? '')
-                  : req.request_for === 'TP' ? (req.tp_organization ?? req.tp_mobile ?? '')
-                  : req.required_bhk_config ?? ''}
-              </div>
-            </div>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${req.request_for === 'TP' ? 'bg-amber-100 text-amber-700' : req.request_for === 'EMPLOYEE' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
-              {req.request_for ?? 'SELF'}
-            </span>
+        {/* ── Requester strip ── */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+            {(req.on_behalf_employee_name ?? req.tp_name ?? 'E').charAt(0)}
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-gray-900 truncate">
+              {req.request_for === 'EMPLOYEE' ? req.on_behalf_employee_name : req.request_for === 'TP' ? req.tp_name : 'Self'}
+            </div>
+            <div className="text-[10px] text-gray-500 truncate">
+              {req.request_for === 'EMPLOYEE' ? (req.on_behalf_employee_dept ?? '') : req.request_for === 'TP' ? (req.tp_organization ?? '') : (req.required_bhk_config ?? '')}
+            </div>
+          </div>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${req.request_for === 'TP' ? 'bg-amber-100 text-amber-700' : req.request_for === 'EMPLOYEE' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
+            {req.request_for ?? 'SELF'}
+          </span>
         </div>
 
-        {/* Quarter info if allotted/occupied */}
-        {allottedQ && (
-          <CompactQuarterRow q={allottedQ} accentCls={accentCls} />
+        {/* ── Quarter thumbnail if allotted ── */}
+        {allottedQ && <CompactQuarterRow q={allottedQ} accentCls={accentCls} />}
+
+        {/* ── Sub-nav tabs ── */}
+        {tabs.length > 1 && (
+          <div className="flex items-center gap-0.5 px-3 pt-2 pb-1 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setEoRightMode(tab.key)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${eoRightMode === tab.key ? `${headerColor} text-white shadow-sm` : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+              >
+                {tab.icon}{tab.label}
+              </button>
+            ))}
+          </div>
         )}
 
-        {/* Request summary */}
-        <RequestSummaryBlock req={req} />
+        {/* ── Tab content ── */}
+        <div className="flex-1 overflow-y-auto">
 
-        {/* ── EO Actions by status ── */}
-        <div className="px-4 py-4 space-y-3 border-t border-gray-100">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EO Actions</div>
+          {/* Detail tab */}
+          {eoRightMode === 'detail' && <RequestSummaryBlock req={req} />}
 
-          {/* SUBMITTED: Manual allot */}
-          {isSubmitted && (
-            <div className="space-y-2">
-              <p className="text-xs text-gray-500">This request is awaiting allotment. Select a quarter to allot manually.</p>
+          {/* Allot tab (SUBMITTED) */}
+          {eoRightMode === 'allot' && isSubmitted && (
+            <div className="p-4 space-y-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
+                Select a quarter to manually allot to this request. The employee will be notified to acknowledge.
+              </div>
               <button
                 onClick={() => { setManualAllotSearch(''); setManualAllotPickerOpen(true); }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
-                <Plus size={14} />Allot Quarter Manually
-              </button>
-              <button
-                onClick={() => handleWithdraw(req.id)}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-              >
-                <XCircle size={14} />Withdraw Request
+                <Home size={14} />Pick Quarter to Allot
               </button>
             </div>
           )}
 
-          {/* ALLOTTED: Override or deallocate */}
-          {isAllotted && allotment && (
-            <div className="space-y-2">
+          {/* Reject tab (SUBMITTED) */}
+          {(eoRightMode as string) === 'rejection_chat' && isSubmitted && (
+            <div className="p-4 space-y-3">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
+                Rejecting this request will send it back to Draft status with a sub-status of REJECTED. The employee can revise and resubmit.
+              </div>
+              <textarea
+                value={eoRejectReason}
+                onChange={e => setEoRejectReason(e.target.value)}
+                rows={4}
+                placeholder="Rejection reason (required)…"
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
+              />
+              <button
+                onClick={handleEORejectRequest}
+                disabled={eoRejectSubmitting || !eoRejectReason.trim()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                <XCircle size={14} />{eoRejectSubmitting ? 'Rejecting…' : 'Confirm Rejection'}
+              </button>
+            </div>
+          )}
+
+          {/* Override tab (ALLOTTED) */}
+          {eoRightMode === 'override' && isAllotted && allotment && (
+            <div className="p-4 space-y-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
+                Override allows you to reassign, swap, or cancel this allotment with full audit trail.
+              </div>
               <button
                 onClick={() => { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors"
               >
-                <RefreshCw size={14} />Override Allotment
+                <RefreshCw size={14} />Open Override Panel
               </button>
               <button
                 onClick={async () => { if (!user) return; await quartersService.deallocateRequest(allotment.id, req.id); addToast('Deallocated', 'success'); loadData(); }}
                 className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
               >
-                <Trash2 size={14} />Deallocate
+                <Trash2 size={14} />Deallocate (Back to Submitted)
               </button>
             </div>
           )}
 
-          {/* OCCUPIED: Pending tenant requests */}
-          {isOccupied && allotment && (
-            <div className="space-y-2">
-              {activeTRs.length === 0 ? (
-                <p className="text-xs text-gray-500 italic">No pending service requests from this tenant.</p>
-              ) : (
-                activeTRs.map(tr => {
-                  const stc = serviceTypeConfig(tr.service_type);
-                  return (
-                    <div key={tr.id} className={`rounded-xl border px-3 py-3 space-y-2 ${stc.cls}`}>
-                      <div className="flex items-center gap-2">
-                        {stc.icon}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold">{stc.label}</div>
-                          {tr.reason && <div className="text-[10px] opacity-80 mt-0.5 truncate">{tr.reason}</div>}
-                        </div>
+          {/* Approval chat tab (ALLOTTED with pending approval) */}
+          {eoRightMode === 'approval_chat' && approvalRecord && (
+            <div className="p-4 space-y-3">
+              {/* Approval status card */}
+              <div className={`rounded-xl border px-4 py-3 ${approvalRecord.status === 'APPROVED' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs font-bold text-gray-700">Approval Chain</div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${approvalRecord.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {approvalRecord.status}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">Level {approvalRecord.current_level} of {approvalRecord.max_level}</div>
+                <div className="mt-2 flex gap-1.5">
+                  {Array.from({ length: approvalRecord.max_level }).map((_, i) => (
+                    <div key={i} className={`flex-1 h-1.5 rounded-full ${i < approvalRecord.current_level ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Chat history */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {approvalChats.length === 0 && <p className="text-xs text-gray-400 text-center py-4 italic">No messages yet.</p>}
+                {approvalChats.map(chat => (
+                  <div key={chat.id} className={`rounded-xl px-3 py-2.5 text-xs ${chat.author_role === 'approver' ? 'bg-emerald-50 border border-emerald-100 ml-4' : 'bg-gray-50 border border-gray-100 mr-4'}`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`font-semibold capitalize ${chat.author_role === 'approver' ? 'text-emerald-700' : 'text-gray-700'}`}>{chat.author_role}</span>
+                      <span className="text-gray-400 text-[10px]">{fmtDate(chat.created_at)}</span>
+                    </div>
+                    <p className="text-gray-700 leading-relaxed">{chat.message}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* EO Actions */}
+              {approvalRecord.status === 'PENDING' && (
+                approvalAction ? (
+                  <div className="space-y-2">
+                    {approvalAction === 'clarify' && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Target Level</label>
+                        <select
+                          value={approvalTargetLevel}
+                          onChange={e => setApprovalTargetLevel(Number(e.target.value))}
+                          className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none mb-2"
+                        >
+                          {Array.from({ length: approvalRecord.max_level }).map((_, i) => (
+                            <option key={i + 1} value={i + 1}>Level {i + 1}</option>
+                          ))}
+                        </select>
                       </div>
-                      {eoTrId === tr.id && eoTrAction ? (
-                        <div className="space-y-2 pt-1">
-                          <textarea
-                            value={eoTrNotes}
-                            onChange={e => setEoTrNotes(e.target.value)}
-                            rows={2}
-                            placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
-                            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800"
-                          />
-                          <div className="flex gap-2">
-                            <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }} className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white transition-colors">Cancel</button>
-                            {eoTrAction === 'approve'
-                              ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">{eoTrSubmitting ? '…' : 'Approve'}</button>
-                              : <button onClick={handleEORejectTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">{eoTrSubmitting ? '…' : 'Reject'}</button>
-                            }
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 pt-1">
-                          <button onClick={() => { setEoTrId(tr.id); setEoTrAction('approve'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"><ThumbsUp size={11} />Approve</button>
-                          <button onClick={() => { setEoTrId(tr.id); setEoTrAction('reject'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"><ThumbsDown size={11} />Reject</button>
-                        </div>
+                    )}
+                    <textarea
+                      value={approvalRemarks}
+                      onChange={e => setApprovalRemarks(e.target.value)}
+                      rows={3}
+                      placeholder={approvalAction === 'approve' ? 'Approval remarks (optional)…' : 'Clarification remarks (required)…'}
+                      className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => { setApprovalAction(null); setApprovalRemarks(''); }} className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                      <button
+                        onClick={approvalAction === 'approve' ? handleApproveLevel : handleSendClarification}
+                        disabled={approvalSubmitting}
+                        className={`flex-1 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-50 transition-colors ${approvalAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                      >
+                        {approvalSubmitting ? '…' : approvalAction === 'approve' ? 'Approve' : 'Send'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={() => setApprovalAction('approve')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
+                      <CheckSquare size={12} />Approve Level {approvalRecord.current_level}
+                    </button>
+                    <button onClick={() => setApprovalAction('clarify')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors">
+                      <SkipForward size={12} />Clarify
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Inspection tab (ACKNOWLEDGED) */}
+          {eoRightMode === 'inspection' && isAccepted && (
+            <div className="p-4 space-y-3">
+              {inspectionPanel === 'list' && (
+                <>
+                  <button
+                    onClick={() => setInspectionPanel('new')}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors"
+                  >
+                    <Plus size={14} />New Inspection
+                  </button>
+                  {inspections.length === 0 && <p className="text-xs text-gray-400 text-center italic py-4">No inspections yet.</p>}
+                  {inspections.map(insp => (
+                    <div key={insp.id} className={`rounded-xl border px-3 py-3 space-y-1.5 ${insp.status === 'CLOSED' ? 'border-gray-200 bg-gray-50' : 'border-teal-200 bg-teal-50'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${insp.status === 'CLOSED' ? 'bg-gray-100 text-gray-500' : 'bg-teal-100 text-teal-700'}`}>{insp.status}</span>
+                        <span className="text-[10px] text-gray-400">{fmtDate(insp.created_at)}</span>
+                      </div>
+                      {insp.opening_remarks && <p className="text-xs text-gray-600">{insp.opening_remarks}</p>}
+                      {insp.property_condition && <p className="text-[10px] font-semibold text-gray-500">Condition: {insp.property_condition}</p>}
+                      {insp.status === 'OPEN' && (
+                        <button
+                          onClick={() => { setSelectedInspectionId(insp.id); setInspectionPanel('chat'); }}
+                          className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
+                        >
+                          <MessageSquare size={11} />Open Chat
+                        </button>
                       )}
                     </div>
-                  );
-                })
+                  ))}
+                </>
               )}
+              {inspectionPanel === 'new' && (
+                <div className="space-y-3">
+                  <button onClick={() => setInspectionPanel('list')} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                    <ArrowLeft size={12} />Back
+                  </button>
+                  <textarea
+                    value={inspectionOpeningRemark}
+                    onChange={e => setInspectionOpeningRemark(e.target.value)}
+                    rows={4}
+                    placeholder="Opening remarks / inspection purpose…"
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
+                  />
+                  <button onClick={handleStartInspection} disabled={inspectionSubmitting || !inspectionOpeningRemark.trim()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                    <PlayCircle size={14} />{inspectionSubmitting ? 'Starting…' : 'Start Inspection'}
+                  </button>
+                </div>
+              )}
+              {inspectionPanel === 'chat' && selectedInspectionId && (
+                <div className="space-y-3">
+                  <button onClick={() => { setInspectionPanel('list'); setSelectedInspectionId(null); }} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                    <ArrowLeft size={12} />Back
+                  </button>
+                  <div className="space-y-2 max-h-44 overflow-y-auto">
+                    {inspectionChats.map(chat => (
+                      <div key={chat.id} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-xs">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="font-semibold text-teal-700 capitalize">{chat.author_role}</span>
+                          <span className="text-gray-400 text-[10px]">{fmtDate(chat.created_at)}</span>
+                        </div>
+                        <p className="text-gray-700">{chat.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={inspectionChatMsg}
+                      onChange={e => setInspectionChatMsg(e.target.value)}
+                      placeholder="Add observation…"
+                      className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none"
+                      onKeyDown={e => { if (e.key === 'Enter') handleSendInspectionChat(); }}
+                    />
+                    <button onClick={handleSendInspectionChat} className="px-3 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors"><Send size={13} /></button>
+                  </div>
+                  {/* Close inspection form */}
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Close Inspection</div>
+                    <select
+                      value={inspectionCondition}
+                      onChange={e => setInspectionCondition(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none"
+                    >
+                      {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <textarea
+                      value={inspectionCloseRemarks}
+                      onChange={e => setInspectionCloseRemarks(e.target.value)}
+                      rows={2}
+                      placeholder="Closing remarks…"
+                      className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
+                    />
+                    <button onClick={handleCloseInspection} disabled={inspectionSubmitting || !inspectionCloseRemarks.trim()} className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-700 text-white text-xs font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                      <ClipboardCheck size={12} />{inspectionSubmitting ? '…' : 'Close Inspection'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Handover tab (ACKNOWLEDGED) */}
+          {eoRightMode === 'handover' && isAccepted && (
+            <div className="p-4 space-y-3">
+              {handover ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-4 space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Key size={14} className="text-emerald-600" />
+                    <span className="text-sm font-bold text-emerald-800">Handover Recorded</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><div className="text-[9px] text-gray-400 uppercase mb-0.5">Key No.</div><div className="font-semibold text-gray-800">{handover.key_number}</div></div>
+                    <div><div className="text-[9px] text-gray-400 uppercase mb-0.5">Deadline</div><div className="font-semibold text-gray-800">{fmtDate(handover.occupying_deadline)}</div></div>
+                  </div>
+                  {handover.remarks && <p className="text-xs text-gray-600">{handover.remarks}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
+                    Record the physical handover of keys and set the occupying deadline. This confirms occupancy.
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Key Number *</label>
+                      <input value={handoverKeyNo} onChange={e => setHandoverKeyNo(e.target.value)} placeholder="e.g. KEY-A-203" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Occupying Deadline *</label>
+                      <input type="date" value={handoverDeadline} onChange={e => setHandoverDeadline(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Remarks</label>
+                      <textarea value={handoverRemarks} onChange={e => setHandoverRemarks(e.target.value)} rows={2} placeholder="Handover notes…" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Interior Photo</label>
+                        <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors text-gray-400 hover:text-teal-600">
+                          <Upload size={14} />
+                          <span className="text-[10px] mt-1">{handoverInteriorFile?.name ?? 'Upload'}</span>
+                          <input type="file" accept="image/*" className="hidden" onChange={e => setHandoverInteriorFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Inspection Report</label>
+                        <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors text-gray-400 hover:text-teal-600">
+                          <Upload size={14} />
+                          <span className="text-[10px] mt-1">{handoverReportFile?.name ?? 'Upload'}</span>
+                          <input type="file" className="hidden" onChange={e => setHandoverReportFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                      </div>
+                    </div>
+                    <button onClick={handleCreateHandover} disabled={handoverSubmitting || !handoverKeyNo.trim() || !handoverDeadline} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                      <Handshake size={14} />{handoverSubmitting ? 'Recording…' : 'Record Handover & Confirm Occupancy'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Services tab (OCCUPIED) */}
+          {eoRightMode === 'services' && isOccupied && allotment && (
+            <div className="p-4 space-y-3">
+              {activeTRs.length === 0 ? (
+                <div className="flex flex-col items-center py-8 text-gray-400">
+                  <ClipboardList size={24} className="mb-2 opacity-30" />
+                  <p className="text-xs italic">No pending service requests from this tenant.</p>
+                </div>
+              ) : activeTRs.map(tr => {
+                const stc = serviceTypeConfig(tr.service_type);
+                return (
+                  <div key={tr.id} className={`rounded-xl border px-3 py-3 space-y-2 ${stc.cls}`}>
+                    <div className="flex items-center gap-2">
+                      {stc.icon}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold">{stc.label}</div>
+                        {tr.reason && <div className="text-[10px] opacity-80 mt-0.5 truncate">{tr.reason}</div>}
+                      </div>
+                    </div>
+                    {eoTrId === tr.id && eoTrAction ? (
+                      <div className="space-y-2 pt-1">
+                        <textarea value={eoTrNotes} onChange={e => setEoTrNotes(e.target.value)} rows={2}
+                          placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
+                          className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800" />
+                        <div className="flex gap-2">
+                          <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }} className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
+                          {eoTrAction === 'approve'
+                            ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
+                            : <button onClick={handleEORejectTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => { setEoTrId(tr.id); setEoTrAction('approve'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"><ThumbsUp size={11} />Approve</button>
+                        <button onClick={() => { setEoTrId(tr.id); setEoTrAction('reject'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700"><ThumbsDown size={11} />Reject</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <button
                 onClick={() => { if (allotment) { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); } }}
                 className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-50 transition-colors"
@@ -2584,9 +3187,41 @@ export const QuarterRequestsPage: React.FC = () => {
               </button>
             </div>
           )}
+
+          {/* Guest Info tab (OCCUPIED) */}
+          {eoRightMode === 'guest_info' && isOccupied && (
+            <div className="p-4 space-y-3">
+              <button onClick={() => setShowGuestInfoPopup(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
+                <UserPlus size={14} />Add Guest Info
+              </button>
+              {guestInfoLoading ? (
+                Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)
+              ) : guestInfoList.length === 0 ? (
+                <p className="text-xs text-gray-400 italic text-center py-4">No guest info recorded yet.</p>
+              ) : guestInfoList.map(guest => (
+                <div key={guest.id} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">{guest.guest_name.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-gray-900">{guest.guest_name}</div>
+                      <div className="text-[10px] text-gray-500">{guest.guest_mobile}{guest.guest_email ? ` · ${guest.guest_email}` : ''}</div>
+                    </div>
+                    <button onClick={() => quartersService.removeGuestInfo(guest.id).then(() => loadGuestInfo())} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+                  </div>
+                  {(guest.aadhaar_doc_url || guest.pan_doc_url) && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {guest.aadhaar_doc_url && <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">Aadhaar</span>}
+                      {guest.pan_doc_url && <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded-full">PAN</span>}
+                      {guest.other_doc_urls?.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full">+{guest.other_doc_urls.length} docs</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Manual allot quarter picker modal */}
+        {/* ── Manual allot quarter picker modal ── */}
         {manualAllotPickerOpen && createPortal(
           <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '85vh' }}>
@@ -2601,8 +3236,7 @@ export const QuarterRequestsPage: React.FC = () => {
               <div className="px-4 pt-3 pb-2">
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={manualAllotSearch} onChange={e => setManualAllotSearch(e.target.value)}
-                    placeholder="Search by number, block…"
+                  <input value={manualAllotSearch} onChange={e => setManualAllotSearch(e.target.value)} placeholder="Search by number, block…"
                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" autoFocus />
                 </div>
               </div>
@@ -2619,7 +3253,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       <div className="text-sm font-semibold text-gray-900">{q.quarter_number}</div>
                       <div className="text-xs text-gray-500 truncate">{q.bhk_config} · {fmtINR(q.monthly_rent)}/mo</div>
                     </div>
-                    <span className="text-xs font-semibold text-blue-600 hover:underline shrink-0">{manualAllotSubmitting ? '…' : 'Allot'}</span>
+                    <span className="text-xs font-semibold text-blue-600 shrink-0">{manualAllotSubmitting ? '…' : 'Allot'}</span>
                   </button>
                 ))}
               </div>
@@ -2641,6 +3275,68 @@ export const QuarterRequestsPage: React.FC = () => {
             onClose={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); }}
             onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
           />
+        )}
+
+        {/* Guest Info popup */}
+        {showGuestInfoPopup && createPortal(
+          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+                <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center shrink-0"><Users size={18} className="text-teal-600" /></div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-gray-900">Add Guest Information</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{req.request_number}</p>
+                </div>
+                <button onClick={() => setShowGuestInfoPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Guest Name *</label>
+                  <input value={guestForm.name} onChange={e => setGuestForm(f => ({...f, name: e.target.value}))} placeholder="Full name" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Mobile *</label>
+                    <input value={guestForm.mobile} onChange={e => setGuestForm(f => ({...f, mobile: e.target.value}))} placeholder="10-digit mobile" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Email</label>
+                    <input value={guestForm.email} onChange={e => setGuestForm(f => ({...f, email: e.target.value}))} placeholder="email@example.com" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Aadhaar</label>
+                    <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 text-gray-400 hover:text-blue-500">
+                      <Upload size={14} /><span className="text-[10px] mt-1 truncate w-full text-center">{guestAadhaarFile?.name ?? 'Upload'}</span>
+                      <input type="file" className="hidden" onChange={e => setGuestAadhaarFile(e.target.files?.[0] ?? null)} />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">PAN</label>
+                    <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-amber-400 text-gray-400 hover:text-amber-500">
+                      <Upload size={14} /><span className="text-[10px] mt-1 truncate w-full text-center">{guestPanFile?.name ?? 'Upload'}</span>
+                      <input type="file" className="hidden" onChange={e => setGuestPanFile(e.target.files?.[0] ?? null)} />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Others</label>
+                    <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 text-gray-400 hover:text-teal-500">
+                      <Upload size={14} /><span className="text-[10px] mt-1 text-center">{guestOtherFiles.length > 0 ? `${guestOtherFiles.length} file(s)` : 'Upload'}</span>
+                      <input type="file" multiple className="hidden" onChange={e => setGuestOtherFiles(Array.from(e.target.files ?? []))} />
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => setShowGuestInfoPopup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                  <button onClick={handleAddGuestInfo} disabled={guestSubmitting || !guestForm.name.trim() || !guestForm.mobile.trim()} className="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50">
+                    {guestSubmitting ? 'Saving…' : 'Add Guest'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
       </div>
     );
@@ -3116,6 +3812,22 @@ export const QuarterRequestsPage: React.FC = () => {
                     <Plus size={13} className="mr-1" /> New Request
                   </Button>
                 </>
+              )}
+              {isEO && eoMode === 'employee' && dpFilter === 'submitted' && (
+                <button
+                  onClick={() => setShowRunAllocationPopup(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <PlayCircle size={13} /> Run Allocation
+                </button>
+              )}
+              {isEO && eoMode === 'employee' && dpFilter === 'allotted' && (
+                <button
+                  onClick={() => setShowAllotRequestsPopup(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  <CheckSquare size={13} /> Allot Requests
+                </button>
               )}
             </div>
           </div>
@@ -3935,7 +4647,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 <p className="text-xs text-gray-400 mt-0.5">Your request will return to Submitted status</p>
               </div>
               <button
-                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(''); }}
+                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
                 className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X size={16} />
@@ -3963,7 +4675,7 @@ export const QuarterRequestsPage: React.FC = () => {
             {/* Footer */}
             <div className="px-5 pb-5 flex gap-2.5">
               <button
-                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(''); }}
+                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
@@ -4886,6 +5598,92 @@ export const QuarterRequestsPage: React.FC = () => {
           images={lightboxImages}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxOpen(false)}
+        />
+      )}
+
+      {/* ── EO: Run Allocation Popup ────────────────────────────────────── */}
+      {showRunAllocationPopup && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0"><PlayCircle size={20} className="text-blue-600" /></div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-gray-900">Run Allocation Cycle</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Auto-allot all submitted requests by top preference</p>
+              </div>
+              <button onClick={() => setShowRunAllocationPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                This will allot <strong>{requests.filter(r => r.request_status === 'SUBMITTED').length} submitted requests</strong> using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowRunAllocationPopup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button onClick={handleRunAllocation} disabled={runAllocSubmitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {runAllocSubmitting ? 'Running…' : 'Run Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EO: Allot Requests Popup (bulk with/without WFL) ───────────── */}
+      {showAllotRequestsPopup && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0"><CheckSquare size={20} className="text-emerald-600" /></div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-gray-900">Allot Requests</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Finalize allotments with or without approval chain</p>
+              </div>
+              <button onClick={() => setShowAllotRequestsPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700">
+                Finalizing <strong>{requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status) && r.allotment?.id).length} allotments</strong>. Select an approval workflow to route through approvers, or finalize immediately.
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Approval Workflow (optional)</label>
+                <select
+                  value={allotRequestsWflId}
+                  onChange={e => setAllotRequestsWflId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none"
+                >
+                  <option value="none">No Workflow — Finalize Immediately</option>
+                  {allotRequestsWorkflows.map(wfl => (
+                    <option key={wfl.id} value={wfl.id}>{wfl.workflow_name}</option>
+                  ))}
+                </select>
+              </div>
+              {allotRequestsWflId !== 'none' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-700">
+                  Allotments will be sent through the selected approval chain before being finalized.
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setShowAllotRequestsPopup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button onClick={handleAllotRequests} disabled={allotRequestsSubmitting} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                  {allotRequestsSubmitting ? 'Processing…' : allotRequestsWflId === 'none' ? 'Finalize All' : 'Send for Approval'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EO: Override modal (globally mounted) ────────────────────────── */}
+      {showOverrideModal && overrideAllotment && user && (
+        <QuarterOverrideModal
+          isOpen={showOverrideModal}
+          allotment={overrideAllotment}
+          allCycleAllotments={requests.filter(r => r.allotment).map(r => r.allotment as QuarterAllotment)}
+          eoAuthId={user.id}
+          onClose={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); }}
+          onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
         />
       )}
     </div>

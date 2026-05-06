@@ -221,6 +221,88 @@ export interface OverrideInput {
   b_new_quarter_id?: string;
 }
 
+export interface QuarterApprovalWorkflow {
+  id: string;
+  workflow_name: string;
+  description: string;
+  levels: { level: number; approver_role: string; approver_title: string }[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuarterAllotmentApproval {
+  id: string;
+  allotment_id: string;
+  workflow_id: string;
+  current_level: number;
+  max_level: number;
+  status: string;
+  initiated_by: string;
+  created_at: string;
+  updated_at: string;
+  workflow?: QuarterApprovalWorkflow;
+}
+
+export interface QuarterApprovalChat {
+  id: string;
+  approval_id: string;
+  author_id: string;
+  author_role: string;
+  message: string;
+  document_urls: string[];
+  created_at: string;
+}
+
+export interface QuarterInspection {
+  id: string;
+  allotment_id: string;
+  created_by: string;
+  status: string;
+  opening_remarks: string;
+  closing_remarks: string;
+  property_condition: string;
+  created_at: string;
+  closed_at: string | null;
+}
+
+export interface QuarterInspectionChat {
+  id: string;
+  inspection_id: string;
+  author_id: string;
+  author_role: string;
+  message: string;
+  document_urls: string[];
+  created_at: string;
+}
+
+export interface QuarterHandover {
+  id: string;
+  allotment_id: string;
+  created_by: string;
+  key_number: string;
+  remarks: string;
+  occupying_deadline: string;
+  interior_doc_url: string;
+  inspection_report_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuarterGuestInfo {
+  id: string;
+  allotment_id: string;
+  guest_name: string;
+  guest_mobile: string;
+  guest_email: string;
+  aadhaar_doc_url: string;
+  pan_doc_url: string;
+  other_doc_urls: string[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const quartersService = {
   async getQuarters(filters: QuarterFilters = {}): Promise<Quarter[]> {
     let query = supabase
@@ -920,5 +1002,244 @@ export const quartersService = {
       .order('full_name');
     if (error) throw error;
     return (data ?? []) as { id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[];
+  },
+
+  // ─── EO: Reject a submitted/allotted request (back to DRAFT + sub_status=REJECTED) ─
+  async eoRejectRequest(requestId: string, eoId: string, reason: string, docUrl?: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('quarter_requests')
+      .update({ request_status: 'DRAFT', sub_status: 'REJECTED', eo_notes: reason, updated_at: now })
+      .eq('id', requestId);
+    if (error) throw error;
+    if (docUrl) {
+      await supabase.from('quarter_allotment_chats').insert({
+        allotment_id: requestId, author_id: eoId, author_role: 'eo',
+        message: `Request rejected by EO. Reason: ${reason}`, document_urls: [docUrl],
+      }).maybeSingle();
+    }
+  },
+
+  // ─── Run allocation cycle: auto-allot SUBMITTED requests by top preference ────
+  async runAllocationCycle(eoId: string, requests: QuarterRequest[]): Promise<{ allotted: number; skipped: number }> {
+    let allotted = 0;
+    let skipped = 0;
+    for (const req of requests) {
+      if (req.request_status !== 'SUBMITTED') { skipped++; continue; }
+      if (!req.preferences || req.preferences.length === 0) { skipped++; continue; }
+      if (req.allotment) { skipped++; continue; }
+      const topPref = [...req.preferences].sort((a, b) => a.preference_rank - b.preference_rank)[0];
+      const { error: allotErr } = await supabase.from('quarter_allotments').insert({
+        request_id: req.id,
+        quarter_id: topPref.quarter_id,
+        allotted_by: eoId,
+        allotment_date: new Date().toISOString().split('T')[0],
+        approval_status: 'PENDING',
+      });
+      if (allotErr) { skipped++; continue; }
+      const { error: reqErr } = await supabase
+        .from('quarter_requests')
+        .update({ request_status: 'ALLOTTED', updated_at: new Date().toISOString() })
+        .eq('id', req.id);
+      if (reqErr) skipped++; else allotted++;
+    }
+    return { allotted, skipped };
+  },
+
+  // ─── EO: Allot Requests (bulk) — with or without approval workflow ─────────
+  async submitAllotments(
+    allotmentIds: string[],
+    workflowId: string | null,
+    eoId: string,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    if (!workflowId) {
+      for (const id of allotmentIds) {
+        await supabase.from('quarter_allotments').update({ approval_status: 'APPROVED', updated_at: now }).eq('id', id);
+      }
+    } else {
+      const { data: wfl } = await supabase.from('quarter_approval_workflows').select('*').eq('id', workflowId).maybeSingle();
+      const maxLevel = wfl ? (wfl.levels as { level: number }[]).length : 1;
+      for (const id of allotmentIds) {
+        await supabase.from('quarter_allotments').update({ approval_status: 'PENDING', updated_at: now }).eq('id', id);
+        await supabase.from('quarter_allotment_approvals').insert({
+          allotment_id: id, workflow_id: workflowId, current_level: 1,
+          max_level: maxLevel, status: 'PENDING', initiated_by: eoId,
+        });
+      }
+    }
+  },
+
+  // ─── Approval workflows ───────────────────────────────────────────────────────
+  async getApprovalWorkflows(): Promise<QuarterApprovalWorkflow[]> {
+    const { data, error } = await supabase
+      .from('quarter_approval_workflows')
+      .select('*')
+      .eq('is_active', true)
+      .order('workflow_name');
+    if (error) throw error;
+    return (data ?? []) as QuarterApprovalWorkflow[];
+  },
+
+  async getApprovalForAllotment(allotmentId: string): Promise<QuarterAllotmentApproval | null> {
+    const { data, error } = await supabase
+      .from('quarter_allotment_approvals')
+      .select('*, workflow:quarter_approval_workflows(*)')
+      .eq('allotment_id', allotmentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data as QuarterAllotmentApproval | null;
+  },
+
+  async getApprovalChats(approvalId: string): Promise<QuarterApprovalChat[]> {
+    const { data, error } = await supabase
+      .from('quarter_approval_chats')
+      .select('*')
+      .eq('approval_id', approvalId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as QuarterApprovalChat[];
+  },
+
+  async addApprovalChat(approvalId: string, authorId: string, authorRole: string, message: string, docUrls: string[] = []): Promise<void> {
+    const { error } = await supabase.from('quarter_approval_chats').insert({
+      approval_id: approvalId, author_id: authorId, author_role: authorRole, message, document_urls: docUrls,
+    });
+    if (error) throw error;
+  },
+
+  async approveAllotmentLevel(approvalId: string, approverId: string, remarks: string): Promise<void> {
+    const { data: approval } = await supabase.from('quarter_allotment_approvals').select('*').eq('id', approvalId).maybeSingle();
+    if (!approval) throw new Error('Approval record not found');
+    const now = new Date().toISOString();
+    const isLastLevel = approval.current_level >= approval.max_level;
+    const newStatus = isLastLevel ? 'APPROVED' : 'PENDING';
+    const newLevel = isLastLevel ? approval.current_level : approval.current_level + 1;
+    await supabase.from('quarter_allotment_approvals').update({ current_level: newLevel, status: newStatus, updated_at: now }).eq('id', approvalId);
+    await supabase.from('quarter_approval_chats').insert({
+      approval_id: approvalId, author_id: approverId, author_role: 'approver',
+      message: `Level ${approval.current_level} approved. ${remarks}`.trim(), document_urls: [],
+    });
+    if (isLastLevel) {
+      await supabase.from('quarter_allotments').update({ approval_status: 'APPROVED', updated_at: now }).eq('id', approval.allotment_id);
+    }
+  },
+
+  async sendClarification(approvalId: string, targetLevel: number, remarks: string, senderId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await supabase.from('quarter_allotment_approvals').update({ current_level: targetLevel, status: 'PENDING', updated_at: now }).eq('id', approvalId);
+    await supabase.from('quarter_approval_chats').insert({
+      approval_id: approvalId, author_id: senderId, author_role: 'eo',
+      message: `Sent for clarification to level ${targetLevel}. ${remarks}`.trim(), document_urls: [],
+    });
+  },
+
+  // ─── Inspections ──────────────────────────────────────────────────────────────
+  async getInspections(allotmentId: string): Promise<QuarterInspection[]> {
+    const { data, error } = await supabase
+      .from('quarter_inspections')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterInspection[];
+  },
+
+  async startInspection(allotmentId: string, createdBy: string, openingRemarks: string): Promise<QuarterInspection> {
+    const { data, error } = await supabase.from('quarter_inspections').insert({
+      allotment_id: allotmentId, created_by: createdBy, status: 'OPEN',
+      opening_remarks: openingRemarks, property_condition: '',
+    }).select().single();
+    if (error) throw error;
+    return data as QuarterInspection;
+  },
+
+  async closeInspection(inspectionId: string, closingRemarks: string, propertyCondition: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('quarter_inspections').update({
+      status: 'CLOSED', closing_remarks: closingRemarks, property_condition: propertyCondition, closed_at: now,
+    }).eq('id', inspectionId);
+    if (error) throw error;
+  },
+
+  async getInspectionChats(inspectionId: string): Promise<QuarterInspectionChat[]> {
+    const { data, error } = await supabase
+      .from('quarter_inspection_chats')
+      .select('*')
+      .eq('inspection_id', inspectionId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as QuarterInspectionChat[];
+  },
+
+  async addInspectionChat(inspectionId: string, authorId: string, authorRole: string, message: string, docUrls: string[] = []): Promise<void> {
+    const { error } = await supabase.from('quarter_inspection_chats').insert({
+      inspection_id: inspectionId, author_id: authorId, author_role: authorRole, message, document_urls: docUrls,
+    });
+    if (error) throw error;
+  },
+
+  // ─── Handover ─────────────────────────────────────────────────────────────────
+  async getHandover(allotmentId: string): Promise<QuarterHandover | null> {
+    const { data, error } = await supabase
+      .from('quarter_handovers')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data as QuarterHandover | null;
+  },
+
+  async createHandover(allotmentId: string, createdBy: string, input: {
+    key_number: string;
+    remarks: string;
+    occupying_deadline: string;
+    interior_doc_url?: string;
+    inspection_report_url?: string;
+  }): Promise<QuarterHandover> {
+    const { data, error } = await supabase.from('quarter_handovers').insert({
+      allotment_id: allotmentId, created_by: createdBy, ...input,
+    }).select().single();
+    if (error) throw error;
+    await supabase.from('quarter_allotments').update({ approval_status: 'ACKNOWLEDGED', updated_at: new Date().toISOString() }).eq('id', allotmentId);
+    return data as QuarterHandover;
+  },
+
+  // ─── Guest Info ───────────────────────────────────────────────────────────────
+  async getGuestInfo(allotmentId: string): Promise<QuarterGuestInfo[]> {
+    const { data, error } = await supabase
+      .from('quarter_guest_info')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterGuestInfo[];
+  },
+
+  async addGuestInfo(allotmentId: string, createdBy: string, input: {
+    guest_name: string;
+    guest_mobile: string;
+    guest_email: string;
+    aadhaar_doc_url?: string;
+    pan_doc_url?: string;
+    other_doc_urls?: string[];
+  }): Promise<QuarterGuestInfo> {
+    const { data, error } = await supabase.from('quarter_guest_info').insert({
+      allotment_id: allotmentId, created_by: createdBy,
+      guest_name: input.guest_name, guest_mobile: input.guest_mobile, guest_email: input.guest_email,
+      aadhaar_doc_url: input.aadhaar_doc_url ?? '', pan_doc_url: input.pan_doc_url ?? '',
+      other_doc_urls: input.other_doc_urls ?? [],
+    }).select().single();
+    if (error) throw error;
+    return data as QuarterGuestInfo;
+  },
+
+  async removeGuestInfo(guestInfoId: string): Promise<void> {
+    const { error } = await supabase.from('quarter_guest_info').delete().eq('id', guestInfoId);
+    if (error) throw error;
   },
 };
