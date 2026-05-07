@@ -1790,21 +1790,23 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Inspection + Handover action strip */}
-        <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/60 shrink-0 flex items-center gap-2">
-          <button
-            onClick={() => openActionPopup('INSPECTION', selectedRequest!.id, allotment.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
-          >
-            <HardHat size={13} /> Start Inspection
-          </button>
-          <button
-            onClick={() => openActionPopup('HANDOVER', selectedRequest!.id, allotment.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
-          >
-            <Key size={13} /> Record Handover
-          </button>
-        </div>
+        {/* Inspection + Handover action strip — Estate Manager only */}
+        {isEO && eoMode === 'employee' && (
+          <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/60 shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => openActionPopup('INSPECTION', selectedRequest!.id, allotment.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+            >
+              <HardHat size={13} /> Start Inspection
+            </button>
+            <button
+              onClick={() => openActionPopup('HANDOVER', selectedRequest!.id, allotment.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
+            >
+              <Key size={13} /> Record Handover
+            </button>
+          </div>
+        )}
 
         {/* Chat thread */}
         <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
@@ -2758,8 +2760,8 @@ export const QuarterRequestsPage: React.FC = () => {
       { key: 'rejection_chat' as EORightMode, label: 'Reject', icon: <XCircle size={12} />, show: isSubmitted },
       { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
       { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
-      { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied },
-      { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied },
+      { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
+      { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
       { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied },
     ] as TabEntry[]).filter(t => t.show);
 
@@ -4060,8 +4062,8 @@ export const QuarterRequestsPage: React.FC = () => {
                             </div>
 
 
-                            {/* Inspection + Handover buttons for ALLOTTED cards */}
-                            {req.request_status === 'ALLOTTED' && req.allotment?.id && (
+                            {/* Inspection + Handover buttons for ALLOTTED cards — Estate Manager only */}
+                            {isEO && eoMode === 'employee' && req.request_status === 'ALLOTTED' && req.allotment?.id && (
                               <>
                                 <button
                                   onClick={e => { e.stopPropagation(); openActionPopup('INSPECTION', req.id, req.allotment!.id); }}
