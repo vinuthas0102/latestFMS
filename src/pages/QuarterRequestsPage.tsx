@@ -366,14 +366,14 @@ export const QuarterRequestsPage: React.FC = () => {
     }).catch(() => {});
   }, [selectedServiceId]);
 
-  // Load allotment chats when an allotted request is selected
+  // Load allotment chats whenever a request with an allotment is selected
   useEffect(() => {
     const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || selectedRequest?.request_status !== 'ALLOTTED') return;
+    if (!allotmentId) return;
     quartersService.getAllotmentChats(allotmentId).then(chats => {
       setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
     }).catch(() => {});
-  }, [selectedRequest?.allotment?.id, selectedRequest?.request_status]);
+  }, [selectedRequest?.allotment?.id]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });

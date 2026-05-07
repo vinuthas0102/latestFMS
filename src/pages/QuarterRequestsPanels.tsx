@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
@@ -460,6 +460,15 @@ export const RightPanelOccupied = ({ panelControls }: { panelControls?: React.Re
   // All tenant requests for history mode
   const allSvcRequests = tenantRequests.filter(tr => tr.allotment_id === allotment.id);
   const [historySelectedId, setHistorySelectedId] = useState<string | null>(allSvcRequests[0]?.id ?? null);
+
+  // Pre-load chats for the initially-selected history item when history mode opens
+  useEffect(() => {
+    if (!servicesHistoryMode || !historySelectedId) return;
+    if (serviceChats[historySelectedId]) return; // already loaded
+    quartersService.getServiceChats(historySelectedId).then(chats => {
+      setServiceChats(prev => ({ ...prev, [historySelectedId]: chats }));
+    }).catch(() => {});
+  }, [servicesHistoryMode, historySelectedId]);
 
   const chatsForService = selectedServiceId ? (serviceChats[selectedServiceId] ?? []) : [];
   const selectedSvc = selectedServiceId ? tenantRequests.find(tr => tr.id === selectedServiceId) : null;
