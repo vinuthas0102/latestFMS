@@ -15,6 +15,7 @@ import type {
   QuarterGuestInfo,
   QuarterApprovalWorkflow,
   QuarterAllotmentApproval,
+  QuarterApprovalChat,
 } from '../types/quarters';
 
 // ─── Shared quarters ─────────────────────────────────────────────────────────
@@ -770,7 +771,43 @@ export const DEMO_WORKFLOWS: QuarterApprovalWorkflow[] = [
 
 // ─── Approval records ─────────────────────────────────────────────────────────
 
-export const DEMO_APPROVALS: QuarterAllotmentApproval[] = [];
+export const DEMO_APPROVAL_RECORD: QuarterAllotmentApproval = {
+  id: 'appr-001',
+  allotment_id: 'allot-001',
+  workflow_id: 'wfl-001',
+  current_level: 1,
+  max_level: 2,
+  status: 'PENDING',
+  initiated_by: 'eo-user-001',
+  created_at: '2025-03-20T11:00:00Z',
+  updated_at: '2025-03-20T11:00:00Z',
+  workflow: {
+    id: 'wfl-001',
+    workflow_name: 'Standard 2-Level Approval',
+    description: 'Deputy Secretary → Joint Secretary approval chain.',
+    levels: [
+      { level: 1, approver_role: 'deputy_secretary', approver_title: 'Deputy Secretary (Admn)' },
+      { level: 2, approver_role: 'joint_secretary', approver_title: 'Joint Secretary (Housing)' },
+    ],
+    is_active: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  },
+};
+
+export const DEMO_APPROVAL_CHATS: QuarterApprovalChat[] = [
+  {
+    id: 'achat-001',
+    approval_id: 'appr-001',
+    author_id: 'eo-user-001',
+    author_role: 'eo',
+    message: 'Allotment submitted for Level 1 approval — Deputy Secretary (Admn). Please review the request and supporting documents.',
+    document_urls: [],
+    created_at: '2025-03-20T11:00:00Z',
+  },
+];
+
+export const DEMO_APPROVALS: QuarterAllotmentApproval[] = [DEMO_APPROVAL_RECORD];
 
 // ─── Cycle history ────────────────────────────────────────────────────────────
 

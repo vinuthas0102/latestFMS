@@ -406,16 +406,25 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                 <div className="space-y-2">
                   {approvalAction === 'clarify' && (
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Target Level</label>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Send back to level</label>
                       <select
                         value={approvalTargetLevel}
                         onChange={e => setApprovalTargetLevel(Number(e.target.value))}
                         className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none mb-2"
                       >
-                        {Array.from({ length: approvalRecord.max_level }).map((_, i) => (
-                          <option key={i + 1} value={i + 1}>Level {i + 1}</option>
-                        ))}
+                        {Array.from({ length: approvalRecord.current_level - 1 }).map((_, i) => {
+                          const lvl = i + 1;
+                          const title = approvalRecord.workflow?.levels?.find(l => l.level === lvl)?.approver_title;
+                          return (
+                            <option key={lvl} value={lvl}>
+                              Level {lvl}{title ? ` — ${title}` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
+                      {approvalRecord.current_level <= 1 && (
+                        <p className="text-[11px] text-amber-600 italic">No earlier levels available to send back to.</p>
+                      )}
                     </div>
                   )}
                   <textarea
@@ -441,9 +450,11 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                   <button onClick={() => setApprovalAction('approve')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
                     <CheckSquare size={12} />Approve Level {approvalRecord.current_level}
                   </button>
-                  <button onClick={() => setApprovalAction('clarify')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors">
-                    <SkipForward size={12} />Clarify
-                  </button>
+                  {approvalRecord.current_level > 1 && (
+                    <button onClick={() => { setApprovalAction('clarify'); setApprovalTargetLevel(approvalRecord.current_level - 1); }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors">
+                      <SkipForward size={12} />Send for Clarification
+                    </button>
+                  )}
                 </div>
               )
             )}

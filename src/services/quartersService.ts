@@ -13,6 +13,8 @@ import {
   DEMO_GUEST_INFO,
   DEMO_WORKFLOWS,
   DEMO_APPROVALS,
+  DEMO_APPROVAL_RECORD,
+  DEMO_APPROVAL_CHATS,
 } from '../mocks/demoData';
 
 // Re-export all types for backwards compatibility
@@ -983,7 +985,7 @@ export const quartersService = {
   },
 
   async getApprovalChats(_approvalId: string): Promise<QuarterApprovalChat[]> {
-    if (DEMO_MODE) return Promise.resolve([]);
+    if (DEMO_MODE) return Promise.resolve(DEMO_APPROVAL_CHATS.filter(c => c.approval_id === _approvalId));
     const approvalId = _approvalId;
     const { data, error } = await supabase
       .from('quarter_approval_chats')
@@ -1008,7 +1010,27 @@ export const quartersService = {
   },
 
   async approveAllotmentLevel(_approvalId: string, _approverId: string, _remarks: string): Promise<void> {
-    if (DEMO_MODE) return Promise.resolve();
+    if (DEMO_MODE) {
+      const approval = DEMO_APPROVALS.find(a => a.id === _approvalId) ?? (DEMO_APPROVAL_RECORD.id === _approvalId ? DEMO_APPROVAL_RECORD : null);
+      if (approval) {
+        const isLastLevel = approval.current_level >= approval.max_level;
+        const now = new Date().toISOString();
+        const chatMsg = `Level ${approval.current_level} approved${_remarks ? `. ${_remarks}` : ''}.`;
+        DEMO_APPROVAL_CHATS.push({ id: `achat-${Date.now()}`, approval_id: approval.id, author_id: _approverId, author_role: 'approver', message: chatMsg, document_urls: [], created_at: now });
+        if (isLastLevel) {
+          approval.status = 'APPROVED';
+          approval.updated_at = now;
+          // Mark the allotment as approved so it leaves the unapproved filter
+          const allotment = DEMO_APPROVALS[0]; // find by allotment_id in real flow
+          const reqWithAllotment = DEMO_REQUESTS.find(r => r.allotment?.id === approval.allotment_id);
+          if (reqWithAllotment?.allotment) reqWithAllotment.allotment.approval_status = 'APPROVED';
+        } else {
+          approval.current_level += 1;
+          approval.updated_at = now;
+        }
+      }
+      return Promise.resolve();
+    }
     const approvalId = _approvalId;
     const approverId = _approverId;
     const remarks = _remarks;
@@ -1029,7 +1051,19 @@ export const quartersService = {
   },
 
   async sendClarification(_approvalId: string, _targetLevel: number, _remarks: string, _senderId: string): Promise<void> {
-    if (DEMO_MODE) return Promise.resolve();
+    if (DEMO_MODE) {
+      const approval = DEMO_APPROVALS.find(a => a.id === _approvalId) ?? (DEMO_APPROVAL_RECORD.id === _approvalId ? DEMO_APPROVAL_RECORD : null);
+      if (approval) {
+        const now = new Date().toISOString();
+        const levelTitle = approval.workflow?.levels?.find(l => l.level === _targetLevel)?.approver_title ?? `Level ${_targetLevel}`;
+        const chatMsg = `Sent for clarification to ${levelTitle}${_remarks ? `. ${_remarks}` : ''}.`;
+        DEMO_APPROVAL_CHATS.push({ id: `achat-${Date.now()}`, approval_id: approval.id, author_id: _senderId, author_role: 'eo', message: chatMsg, document_urls: [], created_at: now });
+        approval.current_level = _targetLevel;
+        approval.status = 'PENDING';
+        approval.updated_at = now;
+      }
+      return Promise.resolve();
+    }
     const approvalId = _approvalId;
     const targetLevel = _targetLevel;
     const remarks = _remarks;

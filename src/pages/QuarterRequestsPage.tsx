@@ -101,13 +101,14 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'unapproved' | 'occupied' | 'tenantServices' | 'vacated';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
   draft: 'Draft Requests',
   submitted: 'Submitted',
-  allotted: 'Allotted',
+  allotted: 'Allocated',
+  unapproved: 'Unapproved Allotment',
   occupied: 'Occupied',
   tenantServices: 'Tenant Services',
   vacated: 'Vacated',
@@ -567,7 +568,8 @@ export const QuarterRequestsPage: React.FC = () => {
   useEffect(() => {
     const s = selectedRequest?.request_status;
     const isOcc = s ? isOccupiedStatus(s) : false;
-    setEoRightMode(isOcc ? 'chat' : 'detail');
+    const hasPendingApproval = selectedRequest?.allotment?.approval_status === 'PENDING';
+    setEoRightMode(isOcc ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
     setApprovalAction(null);
     setApprovalRemarks('');
     setInspectionPanel('list');
@@ -1182,6 +1184,14 @@ export const QuarterRequestsPage: React.FC = () => {
       if (updated) {
         const chats = await quartersService.getApprovalChats(updated.id);
         setApprovalChats(chats);
+        // In DEMO_MODE, sync allotment approval_status into local requests state
+        if (updated.status === 'APPROVED') {
+          setRequests(prev => prev.map(r =>
+            r.allotment?.id === updated.allotment_id
+              ? { ...r, allotment: { ...r.allotment!, approval_status: 'APPROVED' } }
+              : r
+          ));
+        }
       }
       loadData();
     } catch { addToast('Failed to approve', 'error'); } finally { setApprovalSubmitting(false); }
@@ -1307,11 +1317,12 @@ export const QuarterRequestsPage: React.FC = () => {
   // ─── derived counts ─────────────────────────────────────────────────────────
 
   const statCounts = {
-    draft:     requests.filter(r => r.request_status === 'DRAFT').length,
-    submitted: requests.filter(r => r.request_status === 'SUBMITTED').length,
-    allotted:  requests.filter(r => isAllottedStatus(r.request_status)).length,
-    occupied:  requests.filter(r => isOccupiedStatus(r.request_status)).length,
-    vacated:   requests.filter(r => r.request_status === 'VACATED').length,
+    draft:      requests.filter(r => r.request_status === 'DRAFT').length,
+    submitted:  requests.filter(r => r.request_status === 'SUBMITTED').length,
+    allotted:   requests.filter(r => isAllottedStatus(r.request_status)).length,
+    unapproved: requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
+    occupied:   requests.filter(r => isOccupiedStatus(r.request_status)).length,
+    vacated:    requests.filter(r => r.request_status === 'VACATED').length,
   };
 
   const ALL_STATUS_CARDS: StatusCard[] = [
@@ -1330,11 +1341,18 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <Send size={20} className="text-blue-600" />,
     },
     {
-      key: 'allotted', label: 'Allotted', description: 'Pending your action',
+      key: 'allotted', label: 'Allocated', description: 'Pending your action',
       count: statCounts.allotted,
       gradient: 'from-emerald-500 to-green-400',
       iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
       icon: <CheckCircle size={20} className="text-emerald-600" />,
+    },
+    {
+      key: 'unapproved', label: 'Unapproved Allotment', description: 'Awaiting approval',
+      count: statCounts.unapproved,
+      gradient: 'from-orange-500 to-amber-400',
+      iconBg: 'bg-orange-100', textColor: 'text-orange-700', countColor: 'text-orange-900',
+      icon: <GitMerge size={20} className="text-orange-600" />,
     },
     {
       key: 'occupied', label: 'Occupied', description: 'Occupying / Service active',
@@ -1352,10 +1370,10 @@ export const QuarterRequestsPage: React.FC = () => {
     },
   ];
 
-  // Hide Draft tab in EO employee mode
+  // Hide Draft tab in EO employee mode; show Unapproved only in EO employee mode
   const STATUS_CARDS = (isEO && eoMode === 'employee')
     ? ALL_STATUS_CARDS.filter(c => c.key !== 'draft')
-    : ALL_STATUS_CARDS;
+    : ALL_STATUS_CARDS.filter(c => c.key !== 'unapproved');
 
   // ─── filtered request lists ─────────────────────────────────────────────────
 
@@ -1365,6 +1383,7 @@ export const QuarterRequestsPage: React.FC = () => {
     if (dpFilter === 'draft') result = result.filter(r => r.request_status === 'DRAFT');
     else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
     else if (dpFilter === 'allotted') result = result.filter(r => isAllottedStatus(r.request_status));
+    else if (dpFilter === 'unapproved') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
     else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
     else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
@@ -1952,6 +1971,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     draft: FileText,
                     submitted: Send,
                     allotted: CheckCircle,
+                    unapproved: GitMerge,
                     occupied: Home,
                     tenantServices: RefreshCw,
                     vacated: Building2,
