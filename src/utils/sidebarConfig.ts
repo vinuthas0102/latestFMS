@@ -12,7 +12,6 @@ export interface ModuleTab {
 export function getModuleTabs(role: UserRole): ModuleTab[] {
   switch (role) {
     case 'admin':
-    case 'manager':
       return [
         {
           title: 'Facilities',
@@ -24,6 +23,22 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           title: 'Quarters',
           iconName: 'Home',
           route: ROUTES.QUARTERS_MANAGER,
+          activePrefix: '/quarters',
+        },
+      ];
+
+    case 'manager':
+      return [
+        {
+          title: 'Facilities',
+          iconName: 'Building2',
+          route: ROUTES.PROPERTIES,
+          activePrefix: '/properties',
+        },
+        {
+          title: 'Quarters',
+          iconName: 'Home',
+          route: ROUTES.QUARTERS_REQUESTS,
           activePrefix: '/quarters',
         },
       ];
