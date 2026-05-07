@@ -114,7 +114,7 @@ const Section: React.FC<SectionProps> = ({ id, sectionRefs, children }) => (
 export const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentProperty, fetchPropertyById, roomTypes, amenities } = usePropertyStore();
+  const { currentProperty, fetchPropertyById, setCurrentProperty, roomTypes, amenities } = usePropertyStore();
   const { user } = useAuthStore();
 
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
@@ -130,7 +130,10 @@ export const PropertyDetailPage: React.FC = () => {
   const { blocks, floors, rooms, loading: hierarchyLoading } = usePropertyHierarchy(id);
 
   useEffect(() => {
-    if (id) fetchPropertyById(id);
+    if (id) {
+      setCurrentProperty(null);
+      fetchPropertyById(id);
+    }
   }, [id]);
 
   // ── Scroll-spy via IntersectionObserver ────────────────────────

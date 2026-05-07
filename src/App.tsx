@@ -59,7 +59,6 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/map-search" element={<MapSearchPage />} />
             <Route path="/track-booking" element={<BookingTrackingPage />} />
-            <Route path="/properties/:id" element={<PropertyDetailPage />} />
             <Route path="/payment" element={<PaymentGatewayPage />} />
             <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
             <Route path="/book/:token" element={<AdHocBookingPage />} />
@@ -81,6 +80,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Static /properties/* routes MUST come before the :id wildcard */}
             <Route
               path="/properties/create"
               element={
@@ -100,6 +100,11 @@ function App() {
                   </AppLayout>
                 </ProtectedRoute>
               }
+            />
+            {/* Wildcard property detail — must come after all static /properties/* routes */}
+            <Route
+              path="/properties/:id"
+              element={<ErrorBoundary><PropertyDetailPage /></ErrorBoundary>}
             />
             <Route
               path="/check-in"
@@ -166,14 +171,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/quarters/:id"
-              element={
-                <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
-                  <AppLayout><QuarterDetailPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
+            {/* Static /quarters/* routes MUST come before the :id wildcard */}
             <Route
               path="/quarters/requests"
               element={
@@ -195,6 +193,17 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
                   <AppLayout><QuarterRentPage /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Wildcard quarter detail — must come after all static /quarters/* routes */}
+            <Route
+              path="/quarters/:id"
+              element={
+                <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
+                  <AppLayout>
+                    <ErrorBoundary><QuarterDetailPage /></ErrorBoundary>
+                  </AppLayout>
                 </ProtectedRoute>
               }
             />
