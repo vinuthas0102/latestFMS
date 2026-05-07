@@ -3,17 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  esbuild: {
-    target: 'es2020',
-  },
-  server: {
-    watch: { usePolling: true },
-    hmr: { overlay: false },
-  },
   optimizeDeps: {
-    entries: ['src/main.tsx'],
-    include: ['lucide-react'],
-    esbuildOptions: { target: 'es2020' },
+    exclude: ['lucide-react'],
   },
   build: {
     chunkSizeWarningLimit: 1000,

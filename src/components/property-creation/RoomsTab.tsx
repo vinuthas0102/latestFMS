@@ -8,7 +8,6 @@ import {
   Plus, Trash2, Copy, DoorOpen, Building, Search, Check,
   BedDouble, Baby, PawPrint, Accessibility, Cigarette, ChevronDown, ChevronUp,
   Trees, Mountain, Waves, Building2, Droplets, CircleDot, MapPin, Eye,
-  type LucideIcon,
 } from 'lucide-react';
 import { FormLoadingSkeleton } from '../ui/LoadingSkeleton';
 import { getAmenityIcon, getCategoryTheme, VIEW_TYPE_CONFIG } from '../../utils/amenityIcons';
@@ -56,13 +55,13 @@ const BED_TYPE_OPTIONS = [
   { value: 'king',   label: 'King' },
 ];
 
-const POLICY_TOGGLES: Array<{ key: keyof RoomFeatures; label: string; icon: LucideIcon; activeColor: string }> = [
+const POLICY_TOGGLES: Array<{ key: keyof RoomFeatures; label: string; icon: React.FC<{ size?: number; className?: string }>; activeColor: string }> = [
   { key: 'isKidsFriendly',        label: 'Kids Friendly',         icon: Baby,          activeColor: 'bg-sky-500' },
   { key: 'isPetFriendly',         label: 'Pets Friendly',         icon: PawPrint,      activeColor: 'bg-amber-500' },
   { key: 'isWheelchairAccessible',label: 'Wheelchair Accessible', icon: Accessibility, activeColor: 'bg-green-500' },
 ];
 
-const FEATURE_TOGGLES: Array<{ key: keyof RoomFeatures; label: string; icon: LucideIcon; activeColor: string }> = [
+const FEATURE_TOGGLES: Array<{ key: keyof RoomFeatures; label: string; icon: React.FC<{ size?: number; className?: string }>; activeColor: string }> = [
   { key: 'hasBalcony',    label: 'Balcony',       icon: MapPin,    activeColor: 'bg-blue-500' },
   { key: 'hasAC',         label: 'AC',            icon: Waves,     activeColor: 'bg-cyan-500' },
   { key: 'hasKitchen',    label: 'Kitchen',       icon: Building,  activeColor: 'bg-orange-500' },
@@ -273,10 +272,10 @@ const RoomCardEditor: React.FC<RoomCardEditorProps> = ({
             <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Policies</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[...POLICY_TOGGLES, { key: 'isSmokingAllowed' as const, label: 'Smoking Allowed', icon: Cigarette as LucideIcon, activeColor: 'bg-red-400' }].map(toggle => {
+            {[...POLICY_TOGGLES, { key: 'isSmokingAllowed' as keyof RoomFeatures, label: 'Smoking Allowed', icon: Cigarette, activeColor: 'bg-red-400' }].map(toggle => {
               const isActive = toggle.key === 'isSmokingAllowed'
                 ? room.isSmokingAllowed
-                : room.features[toggle.key];
+                : room.features[toggle.key as keyof RoomFeatures];
               const ToggleIcon = toggle.icon;
               return (
                 <button
@@ -286,7 +285,7 @@ const RoomCardEditor: React.FC<RoomCardEditorProps> = ({
                     if (toggle.key === 'isSmokingAllowed') {
                       onUpdate({ isSmokingAllowed: !room.isSmokingAllowed });
                     } else {
-                      toggleFeature(toggle.key);
+                      toggleFeature(toggle.key as keyof RoomFeatures);
                     }
                   }}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${

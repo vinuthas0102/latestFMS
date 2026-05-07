@@ -15,7 +15,7 @@ import {
   Building2, Images, ChevronRight, ChevronLeft, X,
   ExternalLink, Bed, Layers, Send, Plus, AlertTriangle,
   Wrench, Star, MessageSquare, RefreshCw, Ban, HelpCircle,
-  ChevronDown, ChevronUp, Loader2, type LucideIcon,
+  ChevronDown, ChevronUp, Loader2,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
@@ -200,7 +200,7 @@ const BookingCardItem: React.FC<BookingCardItemProps> = ({ booking, index, isSel
 
 // ─── Service type config ──────────────────────────────────────────────────────
 
-const SERVICE_CONFIGS: Record<BookingServiceType, { label: string; icon: LucideIcon; color: string; bg: string; border: string }> = {
+const SERVICE_CONFIGS: Record<BookingServiceType, { label: string; icon: React.FC<{ size?: number; className?: string }>; color: string; bg: string; border: string }> = {
   GRIEVANCE:            { label: 'Grievance',            icon: AlertTriangle, color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200' },
   MAINTENANCE:          { label: 'Maintenance',          icon: Wrench,        color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
   EXTENSION:            { label: 'Extension Request',    icon: RefreshCw,     color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },

@@ -213,7 +213,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
     { id: 'action', label: actionLabel, icon: canManage ? <Settings size={13} /> : <Plus size={13} /> },
   ];
 
-  const isGovtOfficial = !!(user && (user.role === 'govt_official' || user.role === 'dept_user'));
   const images = quarter ? resolveImages(quarter) : [];
   const isAvailable = quarter?.occupancy_status === 'AVAILABLE';
   const lat = quarter?.metadata?.latitude ? Number(quarter.metadata.latitude) : null;

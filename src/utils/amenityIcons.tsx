@@ -6,10 +6,10 @@ import {
   CircleDot, Baby, PawPrint, Accessibility, Cigarette, Sun, Moon,
   MonitorPlay, Bluetooth, Coffee, Wine, WashingMachine, ArrowUpDown,
   Users, Briefcase, TreePine, Building, Star, Sofa, GlassWater,
-  ThermometerSun, BedDouble, Eye, Heart, type LucideIcon,
+  ThermometerSun, BedDouble, Eye, Heart,
 } from 'lucide-react';
 
-const ICON_MAP: Record<string, LucideIcon> = {
+const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
   'wifi':               Wifi,
   'air-vent':           Wind,
   'tv':                 Tv,
@@ -61,7 +61,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   'heart':              Heart,
 };
 
-export function getAmenityIcon(iconName: string): LucideIcon {
+export function getAmenityIcon(iconName: string): React.FC<{ size?: number; className?: string }> {
   return ICON_MAP[iconName] ?? Star;
 }
 
