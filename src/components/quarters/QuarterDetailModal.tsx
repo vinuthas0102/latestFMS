@@ -10,6 +10,8 @@ import { PhotoGallery, PhotoLightbox } from '../ui/PhotoGallery';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../maps/NearbyPlacesPanel';
 import { quartersService, Quarter } from '../../services/quartersService';
+import { SpecTile } from '../ui/SpecTile';
+import { SectionHeading } from '../ui/SectionHeading';
 import { useAuthStore } from '../../stores/authStore';
 import { canManageProperties } from '../../utils/permissions';
 import { ROUTES } from '../../constants/routes';
@@ -66,30 +68,6 @@ function getOccupancyBadge(status: string) {
   if (status === 'OCCUPIED') return 'bg-red-50 text-red-700 border border-red-200';
   return 'bg-amber-50 text-amber-700 border border-amber-200';
 }
-
-// ── Spec tile ─────────────────────────────────────────────────────
-
-const SpecTile: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; accent?: string }> = ({
-  icon, label, value, accent,
-}) => (
-  <div className={`rounded-xl border p-4 ${accent ?? 'bg-white border-gray-200'} shadow-sm`}>
-    <div className="flex items-center gap-1.5 text-gray-400 mb-2">{icon}<span className="text-xs font-medium">{label}</span></div>
-    <div className="text-sm font-bold text-gray-900">{value}</div>
-  </div>
-);
-
-// ── Section heading ───────────────────────────────────────────────
-
-const SectionHeading: React.FC<{ icon: React.ReactNode; label: string; count?: string }> = ({ icon, label, count }) => (
-  <div className="flex items-center gap-2.5 mb-4">
-    <div className="w-0.5 h-6 bg-teal-600 rounded-full flex-shrink-0" />
-    <div className="flex items-center gap-2 text-gray-900">
-      {icon}
-      <h3 className="text-base font-bold">{label}</h3>
-    </div>
-    {count && <span className="ml-auto text-xs text-gray-400">{count}</span>}
-  </div>
-);
 
 // ── Modal ─────────────────────────────────────────────────────────
 

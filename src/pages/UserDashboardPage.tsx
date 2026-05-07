@@ -36,6 +36,7 @@ import { ROLE_LABELS } from '../constants/roles';
 import { requiresLoginForBooking, getModuleBadgeText, getModuleBadgeStyles } from '../utils/moduleHelpers';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { formatCurrency } from '../utils/formatters';
+import { VIEW_MODE_OPTIONS } from '../components/ui/ViewModeIcons';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -74,32 +75,6 @@ const ROLE_WELCOME: Record<string, {
     iconBg: 'bg-gradient-to-br from-blue-950 to-blue-800',
   },
 };
-
-const CardIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-  </svg>
-);
-const ListIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-  </svg>
-);
-const TableIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2"/>
-    <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
-    <line x1="9" y1="9" x2="9" y2="21"/>
-  </svg>
-);
-
-const VIEW_OPTIONS: { mode: ViewMode; icon: React.ReactNode; label: string }[] = [
-  { mode: 'card',  icon: <CardIcon />,  label: 'Cards' },
-  { mode: 'list',  icon: <ListIcon />,  label: 'List' },
-  { mode: 'table', icon: <TableIcon />, label: 'Table' },
-];
 
 // ── Default filter state ─────────────────────────────────────────
 
@@ -370,7 +345,7 @@ export const UserDashboardPage: React.FC = () => {
               <div className="flex items-center gap-2 flex-shrink-0">
                 {/* View toggle */}
                 <div className="inline-flex items-center bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 p-0.5 gap-0.5">
-                  {VIEW_OPTIONS.map(({ mode, icon, label }) => (
+                  {VIEW_MODE_OPTIONS.map(({ mode, icon, label }) => (
                     <button
                       key={mode}
                       onClick={() => setViewMode(mode)}

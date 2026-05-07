@@ -5,11 +5,15 @@ import {
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
-  UserCheck, UserPlus, Phone, Mail, CreditCard,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
+import { CyclesTabContent } from '../components/quarters/manager/CyclesTabContent';
+import { CycleRequestsTabContent } from '../components/quarters/manager/CycleRequestsTabContent';
+import { AllotmentsTabContent } from '../components/quarters/manager/AllotmentsTabContent';
+import { AllRequestsTabContent } from '../components/quarters/manager/AllRequestsTabContent';
+import { TenantServicesTabContent } from '../components/quarters/manager/TenantServicesTabContent';
 import {
   quartersService,
   QuarterAllotmentCycle,
@@ -126,40 +130,26 @@ export const QuarterManagerPage: React.FC = () => {
   const [loadingAll, setLoadingAll] = useState(false);
   const [loadingTenant, setLoadingTenant] = useState(false);
 
-  // DP summary cards
   type DPFilter = 'all' | 'occupied' | 'allotted' | 'allocated' | 'submitted' | 'draft';
   const [dpFilter, setDpFilter] = useState<DPFilter>('all');
   const [quartersSummary, setQuartersSummary] = useState<{ total: number; available: number; occupied: number } | null>(null);
 
-  // View mode: dp cards + filtered list vs allocation table
   type ViewMode = 'dp' | 'allocation';
   const [viewMode, setViewMode] = useState<ViewMode>('dp');
 
-  // Override mini-menu for Allocated DP rows
   const [miniMenuTarget, setMiniMenuTarget] = useState<{ req: QuarterRequest; allotment: QuarterAllotment } | null>(null);
   const miniMenuRef = useRef<HTMLDivElement>(null);
   const [overrideInitialAction, setOverrideInitialAction] = useState<string | undefined>(undefined);
 
-  // Cycle Requests (submitted) filter
   const [cycleReqSearch, setCycleReqSearch] = useState('');
-
-  // Allotments filter
   const [allotSearch, setAllotSearch] = useState('');
-
-  // All Requests filters
   const [allReqSearch, setAllReqSearch] = useState('');
   const [allReqStatus, setAllReqStatus] = useState('ALL');
-
-  // Tenant Requests filters
   const [tenantSearch, setTenantSearch] = useState('');
   const [tenantStatusFilter, setTenantStatusFilter] = useState('ALL');
   const [tenantTypeFilter, setTenantTypeFilter] = useState('ALL');
-
-  // EO action on tenant request
   const [eoNotesMap, setEoNotesMap] = useState<Record<string, string>>({});
   const [processingTenant, setProcessingTenant] = useState<string | null>(null);
-
-  // Override modal
   const [overrideTarget, setOverrideTarget] = useState<QuarterAllotment | null>(null);
 
   const loadCycles = useCallback(async () => {
@@ -233,7 +223,6 @@ export const QuarterManagerPage: React.FC = () => {
     loadQuartersSummary();
   }, [loadCycles, loadAllRequests, loadAllTenantRequests, loadQuartersSummary]);
 
-  // Close mini-menu on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (miniMenuRef.current && !miniMenuRef.current.contains(e.target as Node)) {
@@ -345,7 +334,6 @@ export const QuarterManagerPage: React.FC = () => {
     return counts;
   }, [allRequests]);
 
-  // DP counts: Occupied → Allotted → Allocated (pending approval) → Submitted → Draft
   const dpCounts = React.useMemo(() => ({
     occupied:  allRequests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     allotted:  allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status !== 'PENDING').length,
@@ -393,7 +381,7 @@ export const QuarterManagerPage: React.FC = () => {
           </button>
         </div>
 
-        {/* DP Summary Cards — only in dp mode */}
+        {/* DP Summary Cards */}
         {viewMode === 'dp' && <div className="mb-5">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {quartersSummary && (
@@ -482,7 +470,7 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         </div>}
 
-        {/* Allocation Panel — only in allocation mode */}
+        {/* Allocation Panel */}
         {viewMode === 'allocation' && (
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -597,7 +585,7 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         )}
 
-        {/* DP filtered list — only in dp mode */}
+        {/* DP filtered list */}
         {viewMode === 'dp' && dpFilter !== 'all' && (
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
@@ -698,58 +686,33 @@ export const QuarterManagerPage: React.FC = () => {
                   <XCircle size={16} />
                 </button>
               </div>
-
               <div className="py-1">
-                {/* Destructive group */}
                 <div className="px-3 pt-2 pb-1">
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Destructive</div>
-                  <button
-                    onClick={() => handleDeallocate(req)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-red-50 transition-colors group"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100">
-                      <Trash2 size={13} className="text-red-600" />
-                    </div>
+                  <button onClick={() => handleDeallocate(req)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-red-50 transition-colors group">
+                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100"><Trash2 size={13} className="text-red-600" /></div>
                     <div>
                       <div className="text-xs font-semibold text-gray-800">Deallocate Request</div>
                       <div className="text-[10px] text-gray-400">Return to Submitted — quarter back to pool</div>
                     </div>
                   </button>
-                  <button
-                    onClick={() => handleCancelAllocated(req)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-red-50 transition-colors group"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100">
-                      <Ban size={13} className="text-red-600" />
-                    </div>
+                  <button onClick={() => handleCancelAllocated(req)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-red-50 transition-colors group">
+                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100"><Ban size={13} className="text-red-600" /></div>
                     <div>
                       <div className="text-xs font-semibold text-gray-800">Cancel Request</div>
                       <div className="text-[10px] text-gray-400">Permanently cancel — mark as Withdrawn</div>
                     </div>
                   </button>
                 </div>
-
                 <div className="border-t border-gray-100 mx-3 my-1" />
-
-                {/* Reassign group */}
                 <div className="px-3 py-1">
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Reassign</div>
                   {[
                     { icon: <Star size={13} className="text-amber-600" />, bg: 'bg-amber-50', label: 'Assign Another Preference', desc: "Pick from Request A's preference list", action: 'pref' },
                     { icon: <Plus size={13} className="text-blue-600" />, bg: 'bg-blue-50', label: 'Assign Available Property', desc: 'Search and assign any available quarter', action: 'new' },
                   ].map(item => (
-                    <button
-                      key={item.action}
-                      onClick={() => {
-                        setOverrideInitialAction(item.action);
-                        setOverrideTarget(req.allotment!);
-                        setMiniMenuTarget(null);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 transition-colors group"
-                    >
-                      <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
-                        {item.icon}
-                      </div>
+                    <button key={item.action} onClick={() => { setOverrideInitialAction(item.action); setOverrideTarget(req.allotment!); setMiniMenuTarget(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 transition-colors group">
+                      <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>{item.icon}</div>
                       <div>
                         <div className="text-xs font-semibold text-gray-800">{item.label}</div>
                         <div className="text-[10px] text-gray-400">{item.desc}</div>
@@ -757,29 +720,16 @@ export const QuarterManagerPage: React.FC = () => {
                     </button>
                   ))}
                 </div>
-
                 <div className="border-t border-gray-100 mx-3 my-1" />
-
-                {/* Swap group */}
                 <div className="px-3 py-1 pb-2">
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Swap with Request B</div>
                   {[
                     { icon: <ArrowLeftRight size={13} className="text-emerald-600" />, bg: 'bg-emerald-50', label: 'Swap A↔B', desc: 'Assign B to A · Cancel Request B', action: 'swap' },
                     { icon: <Shuffle size={13} className="text-sky-600" />, bg: 'bg-sky-50', label: "Swap + B's Preference", desc: "Assign B to A · Assign B a new preference", action: 'swapPref' },
-                    { icon: <Layers size={13} className="text-violet-600" />, bg: 'bg-violet-50', label: 'Swap + B Available', desc: 'Assign B to A · Assign B an available property', action: 'swapNew' },
+                    { icon: <Layers size={13} className="text-slate-600" />, bg: 'bg-slate-50', label: 'Swap + B Available', desc: 'Assign B to A · Assign B an available property', action: 'swapNew' },
                   ].map(item => (
-                    <button
-                      key={item.action}
-                      onClick={() => {
-                        setOverrideInitialAction(item.action);
-                        setOverrideTarget(req.allotment!);
-                        setMiniMenuTarget(null);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 transition-colors group"
-                    >
-                      <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
-                        {item.icon}
-                      </div>
+                    <button key={item.action} onClick={() => { setOverrideInitialAction(item.action); setOverrideTarget(req.allotment!); setMiniMenuTarget(null); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-50 transition-colors group">
+                      <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>{item.icon}</div>
                       <div>
                         <div className="text-xs font-semibold text-gray-800">{item.label}</div>
                         <div className="text-[10px] text-gray-400">{item.desc}</div>
@@ -792,7 +742,7 @@ export const QuarterManagerPage: React.FC = () => {
           );
         })()}
 
-        {/* Compact Cycle Selector — hidden in DP view */}
+        {/* Compact Cycle Selector */}
         {viewMode !== 'dp' && selectedCycle && (
           <div className="bg-white rounded-xl border border-gray-200 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
             <Calendar size={13} className="text-gray-400 shrink-0" />
@@ -826,7 +776,7 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         )}
 
-        {/* Tabs — hidden in DP view */}
+        {/* Tabs */}
         {viewMode !== 'dp' && <div className="flex gap-1 mb-5 bg-white rounded-xl border border-gray-200 p-1 w-fit flex-wrap">
           {TABS.map(tab => (
             <button
@@ -851,545 +801,76 @@ export const QuarterManagerPage: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ── Cycles Tab ─────────────────────────────────────────── */}
             {activeTab === 'cycles' && (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        {['Cycle', 'Code', 'Period', 'Closes', 'Status', ''].map(h => (
-                          <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {cycles.length === 0 ? (
-                        <tr><td colSpan={6} className="text-center py-12 text-gray-400 text-sm">No allotment cycles found</td></tr>
-                      ) : cycles.map(cycle => (
-                        <tr key={cycle.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-5 py-4 font-semibold text-gray-900">{cycle.cycle_name}</td>
-                          <td className="px-5 py-4 font-mono text-xs text-gray-500">{cycle.cycle_code}</td>
-                          <td className="px-5 py-4 text-gray-600 whitespace-nowrap">
-                            {new Date(cycle.start_date).toLocaleDateString('en-IN')} — {new Date(cycle.end_date).toLocaleDateString('en-IN')}
-                          </td>
-                          <td className="px-5 py-4 text-gray-600">{new Date(cycle.end_date).toLocaleDateString('en-IN')}</td>
-                          <td className="px-5 py-4">
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cycleStatusBadge(cycle.status)}`}>
-                              {cycle.status}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <button
-                              onClick={() => { setSelectedCycle(cycle); setActiveTab('requests'); }}
-                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                              <Eye size={12} /> View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <CyclesTabContent
+                cycles={cycles}
+                cycleStatusBadge={cycleStatusBadge}
+                onViewCycle={cycle => { setSelectedCycle(cycle); setActiveTab('requests'); }}
+              />
             )}
 
-            {/* ── Cycle Requests Tab ─────────────────────────────────── */}
-            {activeTab === 'requests' && (() => {
-              const submittedRequests = cycleRequests.filter(r => r.request_status === 'SUBMITTED');
-              const visibleCycleReqs = cycleReqSearch
-                ? submittedRequests.filter(r =>
-                    r.request_number?.toLowerCase().includes(cycleReqSearch.toLowerCase()) ||
-                    r.required_bhk_config?.toLowerCase().includes(cycleReqSearch.toLowerCase()) ||
-                    r.preferred_location?.toLowerCase().includes(cycleReqSearch.toLowerCase())
-                  )
-                : submittedRequests;
-              return (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900">Submitted Requests</span>
-                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium">
-                      {visibleCycleReqs.length}
-                    </span>
-                  </div>
-                  <div className="px-5 py-3 border-b border-gray-100">
-                    <MandatorySearchBar
-                      fields={[
-                        {
-                          key: 'search',
-                          label: 'Search',
-                          type: 'text',
-                          placeholder: 'Request no., BHK, preferred location…',
-                          value: cycleReqSearch,
-                          onChange: setCycleReqSearch,
-                          icon: <Search size={14} />,
-                        },
-                      ]}
-                    />
-                  </div>
-                  {loadingCycleData ? (
-                    <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            {['Sl. No.', 'Request No.', 'Requested For', 'Reason', 'BHK Required', 'Preferred Location', 'Preferences', 'Move-in', ''].map(h => (
-                              <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {visibleCycleReqs.length === 0 ? (
-                            <tr><td colSpan={9} className="text-center py-12 text-gray-400 text-sm">No submitted requests for this cycle</td></tr>
-                          ) : visibleCycleReqs.map((req, idx) => (
-                            <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-xs text-gray-500 font-medium">{idx + 1}</td>
-                              <td className="px-4 py-3 font-mono text-xs text-gray-700">{req.request_number}</td>
-                              <td className="px-4 py-3">
-                                {req.request_for === 'EMPLOYEE' && req.on_behalf_employee_name ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{req.on_behalf_employee_name.charAt(0)}</div>
-                                    <div className="min-w-0">
-                                      <div className="text-xs font-semibold text-blue-900 truncate max-w-[100px]">{req.on_behalf_employee_name}</div>
-                                      <div className="text-[10px] text-blue-500">{req.on_behalf_employee_id}</div>
-                                    </div>
-                                  </div>
-                                ) : req.request_for === 'TP' && req.tp_name ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-6 h-6 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{req.tp_name.charAt(0)}</div>
-                                    <div className="min-w-0">
-                                      <div className="text-xs font-semibold text-amber-900 truncate max-w-[100px]">{req.tp_name}</div>
-                                      <div className="text-[10px] text-amber-600 truncate max-w-[100px]">{req.tp_organization}</div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">Self</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 max-w-[150px] truncate">{req.request_reason || '—'}</td>
-                              <td className="px-4 py-3 text-gray-600">{req.required_bhk_config || '—'}</td>
-                              <td className="px-4 py-3 text-gray-600">{req.preferred_location || '—'}</td>
-                              <td className="px-4 py-3">
-                                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                                  {req.preferences?.length ?? 0} prefs
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                {req.move_in_date ? fmtDate(req.move_in_date) : '—'}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => setActiveTab('allotments')}
-                                  className="text-xs px-2.5 py-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Eye size={12} className="inline" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            {activeTab === 'requests' && (
+              <CycleRequestsTabContent
+                cycleRequests={cycleRequests}
+                cycleReqSearch={cycleReqSearch}
+                setCycleReqSearch={setCycleReqSearch}
+                loadingCycleData={loadingCycleData}
+                onGoToAllotments={() => setActiveTab('allotments')}
+                fmtDate={fmtDate}
+              />
+            )}
 
-            {/* ── Allotments Tab ─────────────────────────────────────── */}
-            {activeTab === 'allotments' && (() => {
-              const visibleAllotments = allotSearch
-                ? cycleAllotments.filter(a => {
-                    const q = a.quarter as Quarter | undefined;
-                    const req = a.request as QuarterRequest | undefined;
-                    const s = allotSearch.toLowerCase();
-                    return (
-                      q?.quarter_number?.toLowerCase().includes(s) ||
-                      req?.request_number?.toLowerCase().includes(s)
-                    );
-                  })
-                : cycleAllotments;
-              return (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                {cycleAllotments.length > 0 && (
-                  <div className="px-5 py-3 border-b border-gray-100">
-                    <MandatorySearchBar
-                      fields={[
-                        {
-                          key: 'search',
-                          label: 'Search',
-                          type: 'text',
-                          placeholder: 'Quarter number or request no…',
-                          value: allotSearch,
-                          onChange: setAllotSearch,
-                          icon: <Search size={14} />,
-                        },
-                      ]}
-                    />
-                  </div>
-                )}
-                {loadingCycleData ? (
-                  <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
-                ) : cycleAllotments.length === 0 && cycleRequests.length > 0 ? (
-                  <div className="py-16 text-center">
-                    <Building2 size={36} className="mx-auto text-gray-300 mb-3" />
-                    <h3 className="text-base font-semibold text-gray-700 mb-1">No allotments generated yet</h3>
-                    <p className="text-sm text-gray-500 mb-5">Run the auto-allotment to assign quarters based on preferences.</p>
-                    <button
-                      onClick={handleFinaliseCycle}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
-                    >
-                      <RefreshCw size={15} /> Run Auto-Allotment
-                    </button>
-                  </div>
-                ) : cycleAllotments.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 text-sm">
-                    No allotments for this cycle. Select a cycle with requests first.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          {['Sl. No.', 'Allotted Quarter', 'Request No.', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
-                            <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {visibleAllotments.map((allot, i) => {
-                          const q = allot.quarter as Quarter | undefined;
-                          const req = allot.request as QuarterRequest | undefined;
-                          const prefUsed = req?.preferences?.find(p => p.quarter_id === q?.id)?.preference_rank;
-                          return (
-                            <tr key={allot.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-xs text-gray-500 font-medium">{i + 1}</td>
-                              <td className="px-4 py-3">
-                                {q ? (
-                                  <div className="flex items-center gap-3">
-                                    <img src={getImage(q, i)} alt="" className="w-10 h-10 rounded-lg object-cover" />
-                                    <div>
-                                      <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
-                                      <div className="text-xs text-gray-500">{q.bhk_config} · {fmtINR(q.monthly_rent)}</div>
-                                    </div>
-                                  </div>
-                                ) : '—'}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-xs text-gray-700">{req?.request_number ?? '—'}</td>
-                              <td className="px-4 py-3">
-                                {prefUsed !== undefined ? (
-                                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">P-{prefUsed}</span>
-                                ) : '—'}
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                {new Date(allot.allotment_date).toLocaleDateString('en-IN')}
-                              </td>
-                              <td className="px-4 py-3">
-                                {allot.is_overridden ? (
-                                  <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">Overridden</span>
-                                ) : (
-                                  <span className="text-xs text-gray-400">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                                  allot.approval_status === 'APPROVED'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : allot.approval_status === 'ACKNOWLEDGED'
-                                    ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                }`}>
-                                  {allot.approval_status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => setOverrideTarget(allot)}
-                                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
-                                >
-                                  <Settings size={12} /> Override
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-              );
-            })()}
+            {activeTab === 'allotments' && (
+              <AllotmentsTabContent
+                cycleAllotments={cycleAllotments}
+                cycleRequests={cycleRequests}
+                allotSearch={allotSearch}
+                setAllotSearch={setAllotSearch}
+                loadingCycleData={loadingCycleData}
+                onFinaliseCycle={handleFinaliseCycle}
+                onOverride={allot => setOverrideTarget(allot)}
+                getImage={getImage}
+                fmtINR={fmtINR}
+              />
+            )}
 
-            {/* ── All Requests Tab ───────────────────────────────────── */}
             {activeTab === 'all_requests' && (
-              <div className="space-y-4">
-                {/* Status summary tiles */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {[
-                    { key: 'SUBMITTED',        label: 'Submitted',   color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200' },
-                    { key: 'ALLOTTED',          label: 'Allotted',    color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-                    { key: 'ACKNOWLEDGED',      label: 'Occupied',    color: 'text-teal-700',    bg: 'bg-teal-50 border-teal-200' },
-                    { key: 'VACATE_REQUESTED',  label: 'Vacate Req.', color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-200' },
-                    { key: 'EXTEND_REQUESTED',  label: 'Extend Req.', color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-                    { key: 'UPGRADE_REQUESTED', label: 'Upgrade Req.',color: 'text-sky-700',     bg: 'bg-sky-50 border-sky-200' },
-                  ].map(s => (
-                    <button
-                      key={s.key}
-                      onClick={() => setAllReqStatus(allReqStatus === s.key ? 'ALL' : s.key)}
-                      className={`flex flex-col items-center py-3 rounded-xl border transition-all ${
-                        allReqStatus === s.key
-                          ? `${s.bg} ring-2 ring-offset-1 ring-current ${s.color}`
-                          : 'bg-white border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className={`text-2xl font-bold ${allReqStatus === s.key ? s.color : 'text-gray-800'}`}>
-                        {allReqCounts[s.key] ?? 0}
-                      </span>
-                      <span className={`text-[10px] font-medium mt-0.5 ${allReqStatus === s.key ? s.color : 'text-gray-500'}`}>
-                        {s.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Search + filter bar */}
-                <MandatorySearchBar
-                  fields={[
-                    {
-                      key: 'search',
-                      label: 'Search',
-                      type: 'text',
-                      placeholder: 'Request no., BHK, location…',
-                      value: allReqSearch,
-                      onChange: setAllReqSearch,
-                      icon: <Search size={14} />,
-                    },
-                    {
-                      key: 'status',
-                      label: 'Status',
-                      type: 'chips',
-                      value: allReqStatus,
-                      onChange: setAllReqStatus,
-                      options: ALL_STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label })),
-                    },
-                  ]}
-                  className="mb-0"
-                />
-
-                {loadingAll ? (
-                  <div className="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-400 text-sm">Loading…</div>
-                ) : (
-                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            {['Request No.', 'Quarter Allotted', 'BHK / Location', 'Move-in', 'Family', 'Status', 'Updated'].map(h => (
-                              <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {filteredAllRequests.length === 0 ? (
-                            <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">No requests match the current filter</td></tr>
-                          ) : filteredAllRequests.map((req, i) => {
-                            const sc = reqStatusConfig(req.request_status);
-                            const q = req.allotment?.quarter;
-                            return (
-                              <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">{req.request_number}</td>
-                                <td className="px-4 py-3">
-                                  {q ? (
-                                    <div className="flex items-center gap-2">
-                                      <img src={getImage(q, i)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-                                      <div>
-                                        <div className="text-xs font-medium text-gray-800">{q.quarter_number}</div>
-                                        <div className="text-[10px] text-gray-400">{q.bhk_config}</div>
-                                      </div>
-                                    </div>
-                                  ) : <span className="text-xs text-gray-400">Not allotted</span>}
-                                </td>
-                                <td className="px-4 py-3 text-xs text-gray-600">
-                                  <div>{req.required_bhk_config || '—'}</div>
-                                  <div className="text-gray-400">{req.preferred_location || '—'}</div>
-                                </td>
-                                <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                                  {req.move_in_date ? fmtDate(req.move_in_date) : '—'}
-                                </td>
-                                <td className="px-4 py-3 text-xs text-gray-600">{req.family_member_count ?? '—'}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit ${sc.cls}`}>
-                                    {sc.icon}{sc.label}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtDate(req.updated_at)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <AllRequestsTabContent
+                filteredAllRequests={filteredAllRequests}
+                allReqCounts={allReqCounts}
+                allReqSearch={allReqSearch}
+                setAllReqSearch={setAllReqSearch}
+                allReqStatus={allReqStatus}
+                setAllReqStatus={setAllReqStatus}
+                loadingAll={loadingAll}
+                statusOptions={ALL_STATUS_OPTIONS}
+                reqStatusConfig={reqStatusConfig}
+                getImage={getImage}
+                fmtDate={fmtDate}
+              />
             )}
 
-            {/* ── Tenant Services Tab ────────────────────────────────── */}
             {activeTab === 'tenant_requests' && (
-              <div className="space-y-4">
-                {/* Summary strip */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: 'PENDING',  label: 'Pending Action', color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-                    { key: 'APPROVED', label: 'Approved',       color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-                    { key: 'REJECTED', label: 'Rejected',       color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-                  ].map(s => {
-                    const cnt = allTenantRequests.filter(t => t.request_status === s.key).length;
-                    return (
-                      <button
-                        key={s.key}
-                        onClick={() => setTenantStatusFilter(tenantStatusFilter === s.key ? 'ALL' : s.key)}
-                        className={`flex flex-col items-center py-3 rounded-xl border transition-all ${
-                          tenantStatusFilter === s.key
-                            ? `${s.bg} ring-2 ring-offset-1 ring-current ${s.color}`
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className={`text-2xl font-bold ${tenantStatusFilter === s.key ? s.color : 'text-gray-800'}`}>{cnt}</span>
-                        <span className={`text-[10px] font-medium mt-0.5 ${tenantStatusFilter === s.key ? s.color : 'text-gray-500'}`}>{s.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Filter bar */}
-                <MandatorySearchBar
-                  fields={[
-                    {
-                      key: 'search',
-                      label: 'Search',
-                      type: 'text',
-                      placeholder: 'Quarter no., reason…',
-                      value: tenantSearch,
-                      onChange: setTenantSearch,
-                      icon: <Search size={14} />,
-                    },
-                    {
-                      key: 'type',
-                      label: 'Request Type',
-                      type: 'chips',
-                      value: tenantTypeFilter,
-                      onChange: setTenantTypeFilter,
-                      options: [
-                        { value: 'ALL', label: 'All' },
-                        { value: 'EXTEND', label: 'Extend' },
-                        { value: 'UPGRADE', label: 'Upgrade' },
-                        { value: 'VACATE', label: 'Vacate' },
-                      ],
-                    },
-                    {
-                      key: 'status',
-                      label: 'Status',
-                      type: 'chips',
-                      value: tenantStatusFilter,
-                      onChange: setTenantStatusFilter,
-                      options: [
-                        { value: 'ALL', label: 'All' },
-                        { value: 'PENDING', label: 'Pending' },
-                        { value: 'APPROVED', label: 'Approved' },
-                        { value: 'REJECTED', label: 'Rejected' },
-                      ],
-                    },
-                  ]}
-                  className="mb-0"
-                />
-
-                {loadingTenant ? (
-                  <div className="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-400 text-sm">Loading…</div>
-                ) : filteredTenantRequests.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
-                    <Building2 size={32} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-sm text-gray-500">No tenant service requests found.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredTenantRequests.map(tr => {
-                      const stc = tenantServiceConfig(tr.service_type);
-                      const q = tr.allotment?.quarter;
-                      const isPending = tr.request_status === 'PENDING';
-                      return (
-                        <div
-                          key={tr.id}
-                          className={`bg-white rounded-xl border border-gray-200 p-5 ${isPending ? 'border-l-4 border-l-amber-400' : ''}`}
-                        >
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div className="flex items-start gap-4">
-                              {q && (
-                                <img src={getImage(q, 0)} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
-                              )}
-                              <div>
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${stc.cls}`}>
-                                    {stc.icon}{stc.label}
-                                  </span>
-                                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${tenantStatusBadge(tr.request_status)}`}>
-                                    {tr.request_status}
-                                  </span>
-                                </div>
-                                <div className="font-semibold text-gray-900 text-sm">
-                                  {q?.quarter_number ?? 'Quarter'}{q?.bhk_config ? ` · ${q.bhk_config}` : ''}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-0.5">{q?.address || q?.block_name}</div>
-                                <div className="text-xs text-gray-600 mt-1.5 max-w-sm">{tr.reason || 'No reason provided'}</div>
-                                {tr.remarks && (
-                                  <div className="text-xs text-gray-500 mt-0.5">Remarks: {tr.remarks}</div>
-                                )}
-                                <div className="text-xs text-gray-400 mt-1">Requested on {fmtDate(tr.created_at)}</div>
-                              </div>
-                            </div>
-
-                            {isPending && (
-                              <div className="flex flex-col gap-2 min-w-52">
-                                <textarea
-                                  value={eoNotesMap[tr.id] ?? ''}
-                                  onChange={e => setEoNotesMap(prev => ({ ...prev, [tr.id]: e.target.value }))}
-                                  rows={2}
-                                  placeholder="EO notes (optional)…"
-                                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleApproveTenant(tr)}
-                                    disabled={processingTenant === tr.id}
-                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                                  >
-                                    <CheckCircle size={13} /> Approve
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectTenant(tr)}
-                                    disabled={processingTenant === tr.id}
-                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-                                  >
-                                    <XCircle size={13} /> Reject
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {!isPending && tr.eo_notes && (
-                              <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 max-w-xs">
-                                <span className="font-medium text-gray-700">EO Notes:</span> {tr.eo_notes}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <TenantServicesTabContent
+                filteredTenantRequests={filteredTenantRequests}
+                allTenantRequests={allTenantRequests}
+                tenantSearch={tenantSearch}
+                setTenantSearch={setTenantSearch}
+                tenantStatusFilter={tenantStatusFilter}
+                setTenantStatusFilter={setTenantStatusFilter}
+                tenantTypeFilter={tenantTypeFilter}
+                setTenantTypeFilter={setTenantTypeFilter}
+                loadingTenant={loadingTenant}
+                eoNotesMap={eoNotesMap}
+                setEoNotesMap={setEoNotesMap}
+                processingTenant={processingTenant}
+                onApprove={handleApproveTenant}
+                onReject={handleRejectTenant}
+                tenantServiceConfig={tenantServiceConfig}
+                tenantStatusBadge={tenantStatusBadge}
+                getImage={getImage}
+                fmtDate={fmtDate}
+              />
             )}
           </>
         ))}

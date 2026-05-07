@@ -1,307 +1,48 @@
 import { supabase } from '../lib/supabase';
 
-export interface Quarter {
-  id: string;
-  estate_id: string | null;
-  quarter_number: string;
-  block_name: string;
-  floor_number: number;
-  bhk_config: string;
-  area_sqft: number;
-  monthly_rent: number;
-  quarter_type: string;
-  furnishing_status: string;
-  toilet_type: string;
-  amenities: string[];
-  images: string[];
-  description: string;
-  address: string;
-  occupancy_status: string;
-  is_active: boolean;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  // Extended fields
-  region: string;
-  district: string;
-  pin_code: string;
-  unit_number: string;
-  quota: string;
-  counter_no: string;
-  location_area: string;
-  facing: string;
-  total_floors: number;
-  total_area_sqft: number;
-  toilet_western: boolean;
-  toilet_indian: boolean;
-  parking_details: string;
-  electricity_rate: number;
-  water_charges: number;
-  penalty_terms: string;
-  pooja_room: boolean;
-  electrical_fixtures: string;
-  power_backup: boolean;
-  water_heating: string;
-  lift_access: boolean;
-  kitchen_exhaust: boolean;
-  housing_style: string;
-  balcony: boolean;
-  renovation_status: string;
-  resident_type: string;
-  current_availability_status: string;
-}
+// Re-export all types for backwards compatibility
+export type {
+  Quarter,
+  QuarterRequest,
+  QuarterServiceChat,
+  QuarterAllotmentChat,
+  QuarterRequestPreference,
+  QuarterAllotmentCycle,
+  QuarterAllotment,
+  QuarterTenantRequest,
+  CreateTenantRequestInput,
+  QuarterFilters,
+  CreateQuarterRequestInput,
+  OverrideInput,
+  QuarterApprovalWorkflow,
+  QuarterAllotmentApproval,
+  QuarterApprovalChat,
+  QuarterInspection,
+  QuarterInspectionChat,
+  QuarterHandover,
+  QuarterGuestInfo,
+} from '../types/quarters';
 
-export interface QuarterRequest {
-  id: string;
-  request_number: string;
-  employee_id: string;
-  cycle_id: string | null;
-  initiation_type: string;
-  request_reason: string;
-  required_bhk_config: string;
-  preferred_location: string;
-  move_in_date: string | null;
-  family_member_count: number;
-  request_status: string;
-  sub_status: string | null;
-  employee_notes: string;
-  eo_notes: string;
-  // Request-for fields
-  request_for: 'SELF' | 'EMPLOYEE' | 'TP';
-  on_behalf_employee_id: string | null;
-  on_behalf_employee_name: string | null;
-  on_behalf_employee_dept: string | null;
-  tp_name: string | null;
-  tp_organization: string | null;
-  tp_mobile: string | null;
-  tp_email: string | null;
-  tp_pan: string | null;
-  tp_notes: string | null;
-  created_at: string;
-  updated_at: string;
-  preferences?: QuarterRequestPreference[];
-  allotment?: QuarterAllotment | null;
-}
-
-export interface QuarterServiceChat {
-  id: string;
-  tenant_request_id: string;
-  author_id: string;
-  author_role: 'EMPLOYEE' | 'EO';
-  message: string;
-  document_urls: string[];
-  created_at: string;
-}
-
-export interface QuarterAllotmentChat {
-  id: string;
-  allotment_id: string;
-  author_id: string;
-  author_role: 'employee' | 'eo' | 'system';
-  message: string;
-  document_urls: string[];
-  created_at: string;
-}
-
-export interface QuarterRequestPreference {
-  id: string;
-  request_id: string;
-  quarter_id: string;
-  preference_rank: number;
-  pref_status: string;
-  quarter?: Quarter;
-}
-
-export interface QuarterAllotmentCycle {
-  id: string;
-  cycle_name: string;
-  cycle_code: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-  request_count?: number;
-  allotted_count?: number;
-  pending_count?: number;
-  overridden_count?: number;
-}
-
-export interface QuarterAllotment {
-  id: string;
-  request_id: string;
-  quarter_id: string;
-  allotted_by: string;
-  allotment_date: string;
-  is_overridden: boolean;
-  approval_status: string;
-  allotment_conditions: string;
-  vacate_date: string | null;
-  acknowledgement_remarks: string;
-  rejection_reason: string;
-  rejection_doc_url: string;
-  acknowledged_at: string | null;
-  rejected_at: string | null;
-  created_at: string;
-  updated_at: string;
-  quarter?: Quarter;
-  request?: QuarterRequest;
-}
-
-export interface QuarterTenantRequest {
-  id: string;
-  allotment_id: string;
-  employee_id: string;
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
-  request_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
-  remarks: string;
-  reason: string;
-  document_url: string;
-  requested_date: string | null;
-  required_bhk_config: string;
-  eo_notes: string;
-  grievance_subject: string;
-  urgency_level: string;
-  created_at: string;
-  updated_at: string;
-  allotment?: QuarterAllotment;
-}
-
-export interface CreateTenantRequestInput {
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
-  remarks: string;
-  reason: string;
-  document_url?: string;
-  requested_date?: string | null;
-  required_bhk_config?: string;
-  grievance_subject?: string;
-  urgency_level?: string;
-}
-
-export interface QuarterFilters {
-  search?: string;
-  quarter_type?: string;
-  furnishing_status?: string;
-  occupancy_status?: string;
-  min_rent?: number;
-  max_rent?: number;
-  bhk_config?: string;
-}
-
-export interface CreateQuarterRequestInput {
-  cycle_id: string | null;
-  request_reason: string;
-  required_bhk_config: string;
-  preferred_location: string;
-  move_in_date: string | null;
-  family_member_count: number;
-  employee_notes: string;
-  preferences: { quarter_id: string; preference_rank: number }[];
-  // Request-for
-  request_for?: 'SELF' | 'EMPLOYEE' | 'TP';
-  on_behalf_employee_id?: string | null;
-  on_behalf_employee_name?: string | null;
-  on_behalf_employee_dept?: string | null;
-  tp_name?: string | null;
-  tp_organization?: string | null;
-  tp_mobile?: string | null;
-  tp_email?: string | null;
-  tp_pan?: string | null;
-  tp_notes?: string | null;
-}
-
-export interface OverrideInput {
-  allotment_id: string;
-  request_a_id: string;
-  request_b_id?: string;
-  action_type: string;
-  justification: string;
-  new_quarter_id?: string;
-  b_new_quarter_id?: string;
-}
-
-export interface QuarterApprovalWorkflow {
-  id: string;
-  workflow_name: string;
-  description: string;
-  levels: { level: number; approver_role: string; approver_title: string }[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface QuarterAllotmentApproval {
-  id: string;
-  allotment_id: string;
-  workflow_id: string;
-  current_level: number;
-  max_level: number;
-  status: string;
-  initiated_by: string;
-  created_at: string;
-  updated_at: string;
-  workflow?: QuarterApprovalWorkflow;
-}
-
-export interface QuarterApprovalChat {
-  id: string;
-  approval_id: string;
-  author_id: string;
-  author_role: string;
-  message: string;
-  document_urls: string[];
-  created_at: string;
-}
-
-export interface QuarterInspection {
-  id: string;
-  allotment_id: string;
-  created_by: string;
-  status: string;
-  opening_remarks: string;
-  closing_remarks: string;
-  property_condition: string;
-  created_at: string;
-  closed_at: string | null;
-}
-
-export interface QuarterInspectionChat {
-  id: string;
-  inspection_id: string;
-  author_id: string;
-  author_role: string;
-  message: string;
-  document_urls: string[];
-  created_at: string;
-}
-
-export interface QuarterHandover {
-  id: string;
-  allotment_id: string;
-  created_by: string;
-  key_number: string;
-  remarks: string;
-  occupying_deadline: string;
-  interior_doc_url: string;
-  inspection_report_url: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface QuarterGuestInfo {
-  id: string;
-  allotment_id: string;
-  guest_name: string;
-  guest_mobile: string;
-  guest_email: string;
-  aadhaar_doc_url: string;
-  pan_doc_url: string;
-  other_doc_urls: string[];
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}
+import type {
+  Quarter,
+  QuarterRequest,
+  QuarterServiceChat,
+  QuarterAllotmentChat,
+  QuarterAllotmentCycle,
+  QuarterAllotment,
+  QuarterTenantRequest,
+  CreateTenantRequestInput,
+  QuarterFilters,
+  CreateQuarterRequestInput,
+  OverrideInput,
+  QuarterApprovalWorkflow,
+  QuarterAllotmentApproval,
+  QuarterApprovalChat,
+  QuarterInspection,
+  QuarterInspectionChat,
+  QuarterHandover,
+  QuarterGuestInfo,
+} from '../types/quarters';
 
 export const quartersService = {
   async getQuarters(filters: QuarterFilters = {}): Promise<Quarter[]> {
@@ -315,24 +56,12 @@ export const quartersService = {
         `quarter_number.ilike.%${filters.search}%,block_name.ilike.%${filters.search}%,address.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
       );
     }
-    if (filters.quarter_type) {
-      query = query.eq('quarter_type', filters.quarter_type);
-    }
-    if (filters.furnishing_status) {
-      query = query.eq('furnishing_status', filters.furnishing_status);
-    }
-    if (filters.occupancy_status) {
-      query = query.eq('occupancy_status', filters.occupancy_status);
-    }
-    if (filters.bhk_config) {
-      query = query.eq('bhk_config', filters.bhk_config);
-    }
-    if (filters.min_rent !== undefined) {
-      query = query.gte('monthly_rent', filters.min_rent);
-    }
-    if (filters.max_rent !== undefined) {
-      query = query.lte('monthly_rent', filters.max_rent);
-    }
+    if (filters.quarter_type) query = query.eq('quarter_type', filters.quarter_type);
+    if (filters.furnishing_status) query = query.eq('furnishing_status', filters.furnishing_status);
+    if (filters.occupancy_status) query = query.eq('occupancy_status', filters.occupancy_status);
+    if (filters.bhk_config) query = query.eq('bhk_config', filters.bhk_config);
+    if (filters.min_rent !== undefined) query = query.gte('monthly_rent', filters.min_rent);
+    if (filters.max_rent !== undefined) query = query.lte('monthly_rent', filters.max_rent);
 
     const { data, error } = await query.order('quarter_number');
     if (error) throw error;
@@ -354,19 +83,12 @@ export const quartersService = {
       .from('quarter_requests')
       .select(`
         *,
-        preferences:quarter_request_preferences(
-          *,
-          quarter:quarters(*)
-        ),
-        allotment:quarter_allotments(
-          *,
-          quarter:quarters(*)
-        )
+        preferences:quarter_request_preferences(*, quarter:quarters(*)),
+        allotment:quarter_allotments(*, quarter:quarters(*))
       `)
       .eq('employee_id', employeeAuthId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    // Supabase returns one-to-many joins as arrays; normalise allotment to a single object
     const normalised = (data ?? []).map((r: Record<string, unknown>) => ({
       ...r,
       allotment: Array.isArray(r.allotment) ? (r.allotment[0] ?? null) : r.allotment,
@@ -398,11 +120,7 @@ export const quartersService = {
   async getAllotmentsForCycle(cycleId: string): Promise<QuarterAllotment[]> {
     const { data, error } = await supabase
       .from('quarter_allotments')
-      .select(`
-        *,
-        quarter:quarters(*),
-        request:quarter_requests(*)
-      `)
+      .select(`*, quarter:quarters(*), request:quarter_requests(*)`)
       .eq('request.cycle_id', cycleId);
     if (error) throw error;
     return (data ?? []) as unknown as QuarterAllotment[];
@@ -413,14 +131,8 @@ export const quartersService = {
       .from('quarter_requests')
       .select(`
         *,
-        preferences:quarter_request_preferences(
-          *,
-          quarter:quarters(*)
-        ),
-        allotment:quarter_allotments(
-          *,
-          quarter:quarters(*)
-        )
+        preferences:quarter_request_preferences(*, quarter:quarters(*)),
+        allotment:quarter_allotments(*, quarter:quarters(*))
       `)
       .eq('cycle_id', cycleId)
       .order('created_at');
@@ -436,12 +148,9 @@ export const quartersService = {
       .eq('employee_id', employeeAuthId)
       .in('request_status', ACTIVE_STATUSES);
     if (countErr) throw countErr;
-    if ((count ?? 0) >= 2) {
-      throw new Error('MAX_QUARTERS_REACHED');
-    }
+    if ((count ?? 0) >= 2) throw new Error('MAX_QUARTERS_REACHED');
 
     const reqNumber = `REQ-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
-
     const { data: req, error: reqErr } = await supabase
       .from('quarter_requests')
       .insert({
@@ -480,7 +189,6 @@ export const quartersService = {
       const { error: prefErr } = await supabase.from('quarter_request_preferences').insert(prefs);
       if (prefErr) throw prefErr;
     }
-
     return req as QuarterRequest;
   },
 
@@ -533,13 +241,8 @@ export const quartersService = {
     });
     if (logErr) throw logErr;
 
-    const updates: Record<string, unknown> = {
-      is_overridden: true,
-      updated_at: new Date().toISOString(),
-    };
-    if (input.new_quarter_id) {
-      updates.quarter_id = input.new_quarter_id;
-    }
+    const updates: Record<string, unknown> = { is_overridden: true, updated_at: new Date().toISOString() };
+    if (input.new_quarter_id) updates.quarter_id = input.new_quarter_id;
 
     const { error: updErr } = await supabase
       .from('quarter_allotments')
@@ -553,9 +256,7 @@ export const quartersService = {
       if (req.request_status !== 'SUBMITTED') continue;
       if (!req.preferences || req.preferences.length === 0) continue;
       const topPref = req.preferences.sort((a, b) => a.preference_rank - b.preference_rank)[0];
-
-      const existing = req.allotment;
-      if (existing) continue;
+      if (req.allotment) continue;
 
       await supabase.from('quarter_allotments').insert({
         request_id: req.id,
@@ -564,13 +265,11 @@ export const quartersService = {
         allotment_date: new Date().toISOString().split('T')[0],
         approval_status: 'PENDING',
       });
-
       await supabase
         .from('quarter_requests')
         .update({ request_status: 'ALLOTTED', updated_at: new Date().toISOString() })
         .eq('id', req.id);
     }
-
     await supabase
       .from('quarter_allotment_cycles')
       .update({ status: 'CLOSED', updated_at: new Date().toISOString() })
@@ -624,7 +323,6 @@ export const quartersService = {
       .single();
     if (error) throw error;
 
-    // update request status to reflect pending tenant service
     const statusMap: Record<string, string> = {
       EXTEND: 'EXTEND_REQUESTED',
       UPGRADE: 'UPGRADE_REQUESTED',
@@ -686,11 +384,7 @@ export const quartersService = {
       .eq('id', tenantRequestId);
     if (tErr) throw tErr;
 
-    const nextStatus: Record<string, string> = {
-      VACATE: 'VACATED',
-      EXTEND: 'ACKNOWLEDGED',
-      UPGRADE: 'ALLOTTED',
-    };
+    const nextStatus: Record<string, string> = { VACATE: 'VACATED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED' };
     if (nextStatus[serviceType]) {
       await supabase
         .from('quarter_requests')
@@ -707,11 +401,7 @@ export const quartersService = {
       .eq('id', tenantRequestId);
     if (tErr) throw tErr;
 
-    const revertStatus: Record<string, string> = {
-      VACATE: 'ACKNOWLEDGED',
-      EXTEND: 'ACKNOWLEDGED',
-      UPGRADE: 'ALLOTTED',
-    };
+    const revertStatus: Record<string, string> = { VACATE: 'ACKNOWLEDGED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED' };
     if (revertStatus[serviceType]) {
       await supabase
         .from('quarter_requests')
@@ -753,7 +443,6 @@ export const quartersService = {
     };
   },
 
-  // ─── Decline allotment (employee declines, request goes back to SUBMITTED) ──
   async declineAllotment(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
@@ -768,7 +457,6 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
-  // ─── Decline & cancel request ────────────────────────────────────────────────
   async declineAndCancelRequest(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
@@ -783,7 +471,6 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
-  // ─── Update request header fields (for Draft inline editing) ────────────────
   async updateRequestHeader(
     requestId: string,
     data: {
@@ -802,7 +489,6 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  // ─── Cancel a draft request ──────────────────────────────────────────────────
   async cancelRequest(requestId: string): Promise<void> {
     const { error } = await supabase
       .from('quarter_requests')
@@ -811,7 +497,6 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  // ─── Service chats ───────────────────────────────────────────────────────────
   async getServiceChats(tenantRequestId: string): Promise<QuarterServiceChat[]> {
     const { data, error } = await supabase
       .from('quarter_service_chats')
@@ -831,13 +516,7 @@ export const quartersService = {
   ): Promise<QuarterServiceChat> {
     const { data, error } = await supabase
       .from('quarter_service_chats')
-      .insert({
-        tenant_request_id: tenantRequestId,
-        author_id: authorId,
-        author_role: authorRole,
-        message,
-        document_urls: documentUrls,
-      })
+      .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
       .select()
       .single();
     if (error) throw error;
@@ -851,13 +530,9 @@ export const quartersService = {
       .update({ request_status: 'WITHDRAWN', updated_at: now })
       .eq('id', tenantRequestId);
     if (error) throw error;
-    // Revert request status back to ACKNOWLEDGED if this was a pending service
     const revertMap: Record<string, string> = {
-      EXTEND: 'ACKNOWLEDGED',
-      UPGRADE: 'ACKNOWLEDGED',
-      VACATE: 'ACKNOWLEDGED',
-      GRIEVANCE: 'ACKNOWLEDGED',
-      MAINTENANCE: 'ACKNOWLEDGED',
+      EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ACKNOWLEDGED', VACATE: 'ACKNOWLEDGED',
+      GRIEVANCE: 'ACKNOWLEDGED', MAINTENANCE: 'ACKNOWLEDGED',
     };
     if (revertMap[serviceType] && requestId) {
       await supabase
@@ -884,7 +559,6 @@ export const quartersService = {
     return (data ?? []) as QuarterServiceChat[];
   },
 
-  // ─── Allotment chats ─────────────────────────────────────────────────────────
   async getAllotmentChats(allotmentId: string): Promise<QuarterAllotmentChat[]> {
     const { data, error } = await supabase
       .from('quarter_allotment_chats')
@@ -911,14 +585,12 @@ export const quartersService = {
     return data as QuarterAllotmentChat;
   },
 
-  // ─── EO: Create request and immediately allot (Allot Now) ───────────────────
   async createAndAllotNow(
     eoId: string,
     input: CreateQuarterRequestInput,
     quarterId: string,
   ): Promise<QuarterRequest> {
     const reqNumber = `REQ-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
-
     const { data: req, error: reqErr } = await supabase
       .from('quarter_requests')
       .insert({
@@ -965,17 +637,10 @@ export const quartersService = {
       approval_status: 'APPROVED',
     });
     if (allotErr) throw allotErr;
-
     return req as QuarterRequest;
   },
 
-  // ─── EO: Manually allot a specific quarter to a SUBMITTED request ────────────
-  async manualAllotRequest(
-    requestId: string,
-    quarterId: string,
-    eoId: string,
-    conditions?: string,
-  ): Promise<void> {
+  async manualAllotRequest(requestId: string, quarterId: string, eoId: string, conditions?: string): Promise<void> {
     const { error: allotErr } = await supabase.from('quarter_allotments').insert({
       request_id: requestId,
       quarter_id: quarterId,
@@ -985,7 +650,6 @@ export const quartersService = {
       allotment_conditions: conditions ?? '',
     });
     if (allotErr) throw allotErr;
-
     const { error: reqErr } = await supabase
       .from('quarter_requests')
       .update({ request_status: 'ALLOTTED', updated_at: new Date().toISOString() })
@@ -993,7 +657,6 @@ export const quartersService = {
     if (reqErr) throw reqErr;
   },
 
-  // ─── Fetch all users with role govt_official or employee for EO lookup ───────
   async getEmployeeUsers(): Promise<{ id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[]> {
     const { data, error } = await supabase
       .from('users')
@@ -1004,7 +667,6 @@ export const quartersService = {
     return (data ?? []) as { id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[];
   },
 
-  // ─── EO: Reject a submitted/allotted request (back to DRAFT + sub_status=REJECTED) ─
   async eoRejectRequest(requestId: string, eoId: string, reason: string, docUrl?: string): Promise<void> {
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -1020,7 +682,6 @@ export const quartersService = {
     }
   },
 
-  // ─── Run allocation cycle: auto-allot SUBMITTED requests by top preference ────
   async runAllocationCycle(eoId: string, requests: QuarterRequest[]): Promise<{ allotted: number; skipped: number }> {
     let allotted = 0;
     let skipped = 0;
@@ -1046,12 +707,7 @@ export const quartersService = {
     return { allotted, skipped };
   },
 
-  // ─── EO: Allot Requests (bulk) — with or without approval workflow ─────────
-  async submitAllotments(
-    allotmentIds: string[],
-    workflowId: string | null,
-    eoId: string,
-  ): Promise<void> {
+  async submitAllotments(allotmentIds: string[], workflowId: string | null, eoId: string): Promise<void> {
     const now = new Date().toISOString();
     if (!workflowId) {
       for (const id of allotmentIds) {
@@ -1070,7 +726,6 @@ export const quartersService = {
     }
   },
 
-  // ─── Approval workflows ───────────────────────────────────────────────────────
   async getApprovalWorkflows(): Promise<QuarterApprovalWorkflow[]> {
     const { data, error } = await supabase
       .from('quarter_approval_workflows')
@@ -1136,7 +791,6 @@ export const quartersService = {
     });
   },
 
-  // ─── Inspections ──────────────────────────────────────────────────────────────
   async getInspections(allotmentId: string): Promise<QuarterInspection[]> {
     const { data, error } = await supabase
       .from('quarter_inspections')
@@ -1181,7 +835,6 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  // ─── Handover ─────────────────────────────────────────────────────────────────
   async getHandover(allotmentId: string): Promise<QuarterHandover | null> {
     const { data, error } = await supabase
       .from('quarter_handovers')
@@ -1209,7 +862,6 @@ export const quartersService = {
     return data as QuarterHandover;
   },
 
-  // ─── Guest Info ───────────────────────────────────────────────────────────────
   async getGuestInfo(allotmentId: string): Promise<QuarterGuestInfo[]> {
     const { data, error } = await supabase
       .from('quarter_guest_info')
