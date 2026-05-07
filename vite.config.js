@@ -17,9 +17,29 @@ export default defineConfig({
       '@googlemaps/js-api-loader',
       'axios',
     ],
-    // Limit the dep scan to only the HTML entry point — not the whole src tree.
     entries: ['index.html'],
     force: false,
+    esbuildOptions: {
+      // Reduce peak memory by disabling transforms not needed during dep pre-bundling.
+      treeShaking: false,
+      minifySyntax: false,
+      minifyWhitespace: false,
+    },
+  },
+  server: {
+    warmup: {
+      // Pre-transform the heaviest source files so the browser's first request
+      // doesn't block on a cold esbuild transform of a large file.
+      clientFiles: [
+        './src/pages/QuarterRequestsPage.tsx',
+        './src/pages/QuarterManagerPage.tsx',
+        './src/components/quarters/EOActionPanel.tsx',
+        './src/components/quarters/EmployeeRightPanels.tsx',
+        './src/components/quarters/quarterShared.tsx',
+        './src/components/quarters/ActionPopupModal.tsx',
+        './src/components/quarters/DeclineAllotmentModal.tsx',
+      ],
+    },
   },
   build: {
     chunkSizeWarningLimit: 1000,

@@ -60,6 +60,8 @@ import {
   RightPanelAllotted, RightPanelOccupied, RightPanelDraft,
   RightPanelPreferences, RightPanelSubmitted,
 } from '../components/quarters/EmployeeRightPanels';
+import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
+import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -2944,71 +2946,16 @@ export const QuarterRequestsPage: React.FC = () => {
       </main>
 
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
-      {declineModalReqId && createPortal(
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                <ThumbsDown size={18} className="text-red-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-gray-900">Decline Allotment</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Your request will return to Submitted status</p>
-              </div>
-              <button
-                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
-                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="px-5 py-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Decline Remarks <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={declineModalRemarks}
-                  onChange={e => setDeclineModalRemarks(e.target.value)}
-                  rows={4}
-                  placeholder="Please state your reason for declining this allotment…"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
-                  autoFocus
-                />
-              </div>
-              <DocUpload value={declineModalDocUrl} onChange={setDeclineModalDocUrl} label="Supporting Document" optional />
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 pb-5 flex gap-2.5">
-              <button
-                onClick={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDeclineModalSubmit(false)}
-                disabled={declineModalSubmitting}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
-              >
-                {declineModalSubmitting ? 'Saving…' : 'Decline'}
-              </button>
-              <button
-                onClick={() => handleDeclineModalSubmit(true)}
-                disabled={declineModalSubmitting}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
-              >
-                {declineModalSubmitting ? '…' : 'Decline & Cancel'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DeclineAllotmentModal
+        reqId={declineModalReqId}
+        remarks={declineModalRemarks}
+        docUrl={declineModalDocUrl}
+        submitting={declineModalSubmitting}
+        onClose={() => { setDeclineModalReqId(null); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
+        onRemarksChange={setDeclineModalRemarks}
+        onDocChange={setDeclineModalDocUrl}
+        onDecline={handleDeclineModalSubmit}
+      />
 
       {/* ── Mobile filter drawer ──────────────────────────────────────── */}
       <FilterDrawer
@@ -3156,175 +3103,32 @@ export const QuarterRequestsPage: React.FC = () => {
       )}
 
       {/* ── Inline Action Popup (Extension / Vacate / Grievance / Maintenance / Inspection / Handover) ── */}
-      <Modal
-        isOpen={!!actionPopup.type}
+      <ActionPopupModal
+        actionPopup={actionPopup}
         onClose={closeActionPopup}
-        size="sm"
-        noPadding={false}
-      >
-        {actionPopup.type && (() => {
-          const typeLabels: Record<string, { title: string; color: string; icon: React.ReactNode }> = {
-            EXTEND:      { title: 'Extension Request',    color: 'text-amber-700',  icon: <RefreshCw size={16} className="text-amber-600" /> },
-            VACATE:      { title: 'Vacate Request',       color: 'text-rose-700',   icon: <LogOut size={16} className="text-rose-600" /> },
-            GRIEVANCE:   { title: 'Raise Grievance',      color: 'text-slate-700',  icon: <AlertCircle size={16} className="text-slate-600" /> },
-            MAINTENANCE: { title: 'Maintenance Request',  color: 'text-teal-700',   icon: <Wrench size={16} className="text-teal-600" /> },
-            INSPECTION:  { title: 'Start Inspection',     color: 'text-blue-700',   icon: <HardHat size={16} className="text-blue-600" /> },
-            HANDOVER:    { title: 'Record Handover',      color: 'text-emerald-700',icon: <Key size={16} className="text-emerald-600" /> },
-          };
-          const cfg = typeLabels[actionPopup.type];
-          const isGrievance = actionPopup.type === 'GRIEVANCE';
-          const isMaintenance = actionPopup.type === 'MAINTENANCE';
-          const isInspection = actionPopup.type === 'INSPECTION';
-          const isHandover = actionPopup.type === 'HANDOVER';
-          const hasDate = actionPopup.type === 'EXTEND' || actionPopup.type === 'VACATE';
-
-          return (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                {cfg.icon}
-                <h3 className={`text-base font-bold ${cfg.color}`}>{cfg.title}</h3>
-              </div>
-
-              {isInspection && (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Inspector Name *</label>
-                    <input value={popupInspectorName} onChange={e => setPopupInspectorName(e.target.value)} placeholder="Name of the inspecting officer"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Property Condition</label>
-                    <div className="flex gap-2">
-                      {(['Good', 'Fair', 'Poor'] as const).map(c => (
-                        <button key={c} onClick={() => setPopupCondition(c)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                            popupCondition === c
-                              ? c === 'Good' ? 'bg-emerald-600 text-white border-emerald-600' : c === 'Poor' ? 'bg-red-600 text-white border-red-600' : 'bg-amber-500 text-white border-amber-500'
-                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
-                          }`}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Opening Remarks</label>
-                    <textarea value={popupRemarks} onChange={e => setPopupRemarks(e.target.value)} rows={2}
-                      placeholder="Any initial observations…"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                  </div>
-                </>
-              )}
-
-              {isHandover && (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Key Number *</label>
-                    <input value={popupKeyNumber} onChange={e => setPopupKeyNumber(e.target.value)} placeholder="Key / lock number"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Property Condition</label>
-                    <div className="flex gap-2">
-                      {(['Good', 'Fair', 'Poor'] as const).map(c => (
-                        <button key={c} onClick={() => setPopupCondition(c)}
-                          className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                            popupCondition === c
-                              ? c === 'Good' ? 'bg-emerald-600 text-white border-emerald-600' : c === 'Poor' ? 'bg-red-600 text-white border-red-600' : 'bg-amber-500 text-white border-amber-500'
-                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
-                          }`}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Handover Deadline</label>
-                    <div className="relative">
-                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="date" value={popupHandoverDeadline} onChange={e => setPopupHandoverDeadline(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (optional)</label>
-                    <input value={popupRemarks} onChange={e => setPopupRemarks(e.target.value)} placeholder="Additional remarks…"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
-                  </div>
-                </>
-              )}
-
-              {!isInspection && !isHandover && (
-                <>
-                  {isGrievance && (
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Subject *</label>
-                      <input value={popupSubject} onChange={e => setPopupSubject(e.target.value)} placeholder="Brief subject of your grievance"
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500/20" />
-                    </div>
-                  )}
-
-                  {isMaintenance && (
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Urgency Level</label>
-                      <div className="flex gap-2">
-                        {(['LOW', 'NORMAL', 'HIGH'] as const).map(u => (
-                          <button key={u} onClick={() => setPopupUrgency(u)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                              popupUrgency === u
-                                ? u === 'HIGH' ? 'bg-red-600 text-white border-red-600' : u === 'LOW' ? 'bg-gray-600 text-white border-gray-600' : 'bg-teal-600 text-white border-teal-600'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
-                            }`}>
-                            {u}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
-                      {isGrievance ? 'Description *' : 'Reason *'}
-                    </label>
-                    <textarea value={popupReason} onChange={e => setPopupReason(e.target.value)} rows={3}
-                      placeholder={isGrievance ? 'Describe your grievance in detail…' : isMaintenance ? 'Describe the issue…' : 'Reason for this request…'}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (optional)</label>
-                    <input value={popupRemarks} onChange={e => setPopupRemarks(e.target.value)} placeholder="Additional remarks…"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  </div>
-
-                  {hasDate && (
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">
-                        {actionPopup.type === 'EXTEND' ? 'Extension Until Date' : 'Intended Vacate Date'}
-                      </label>
-                      <div className="relative">
-                        <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="date" value={popupDate} onChange={e => setPopupDate(e.target.value)}
-                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                      </div>
-                    </div>
-                  )}
-
-                  <DocUpload value={popupDocUrl} onChange={setPopupDocUrl} label="Document" optional />
-                </>
-              )}
-
-              <div className="flex gap-3 pt-1">
-                <button onClick={closeActionPopup} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={handlePopupSubmit} disabled={popupSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  {popupSubmitting ? 'Submitting…' : 'Submit'}
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
+        onSubmit={handlePopupSubmit}
+        submitting={popupSubmitting}
+        reason={popupReason}
+        remarks={popupRemarks}
+        docUrl={popupDocUrl}
+        date={popupDate}
+        subject={popupSubject}
+        urgency={popupUrgency}
+        inspectorName={popupInspectorName}
+        condition={popupCondition}
+        keyNumber={popupKeyNumber}
+        handoverDeadline={popupHandoverDeadline}
+        onReasonChange={setPopupReason}
+        onRemarksChange={setPopupRemarks}
+        onDocChange={setPopupDocUrl}
+        onDateChange={setPopupDate}
+        onSubjectChange={setPopupSubject}
+        onUrgencyChange={setPopupUrgency}
+        onInspectorNameChange={setPopupInspectorName}
+        onConditionChange={setPopupCondition}
+        onKeyNumberChange={setPopupKeyNumber}
+        onHandoverDeadlineChange={setPopupHandoverDeadline}
+      />
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (
