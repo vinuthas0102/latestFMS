@@ -5851,19 +5851,24 @@ export const QuarterRequestsPage: React.FC = () => {
                   ) : (
                     <>
                       {/* Summary strip */}
-                      <div className="grid grid-cols-4 gap-3 mb-5">
-                        {[
-                          { label: 'Total Requests', value: cycleDetailRequests.length, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
-                          { label: 'Allotted', value: cycleDetailRequests.filter(r => isAllottedStatus(r.request_status) || isOccupiedStatus(r.request_status)).length, cls: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
-                          { label: 'Pending', value: cycleDetailRequests.filter(r => r.request_status === 'SUBMITTED').length, cls: 'bg-amber-50 border-amber-100 text-amber-700' },
-                          { label: 'Vacated / Withdrawn', value: cycleDetailRequests.filter(r => ['VACATED','WITHDRAWN','REJECTED'].includes(r.request_status)).length, cls: 'bg-gray-50 border-gray-100 text-gray-600' },
-                        ].map(stat => (
-                          <div key={stat.label} className={`rounded-xl border px-4 py-3 text-center ${stat.cls}`}>
-                            <div className="text-xl font-bold">{stat.value}</div>
-                            <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5 opacity-80">{stat.label}</div>
+                      {(() => {
+                        const shown = cycleDetailRequests.filter(r => ['ALLOTTED','ACKNOWLEDGED','REJECTED','VACATED'].includes(r.request_status));
+                        return (
+                          <div className="grid grid-cols-4 gap-3 mb-5">
+                            {[
+                              { label: 'Total Requests', value: shown.length, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
+                              { label: 'Allocated', value: shown.filter(r => isAllottedStatus(r.request_status)).length, cls: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                              { label: 'Occupied', value: shown.filter(r => isOccupiedStatus(r.request_status)).length, cls: 'bg-teal-50 border-teal-100 text-teal-700' },
+                              { label: 'Declined / Vacated', value: shown.filter(r => ['VACATED','REJECTED'].includes(r.request_status)).length, cls: 'bg-gray-50 border-gray-100 text-gray-600' },
+                            ].map(stat => (
+                              <div key={stat.label} className={`rounded-xl border px-4 py-3 text-center ${stat.cls}`}>
+                                <div className="text-xl font-bold">{stat.value}</div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5 opacity-80">{stat.label}</div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
 
                       {/* Table */}
                       <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -5876,7 +5881,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {cycleDetailRequests.map((req, i) => {
+                            {cycleDetailRequests.filter(r => ['ALLOTTED','ACKNOWLEDGED','REJECTED','VACATED'].includes(r.request_status)).map((req, i) => {
                               const allotment = req.allotment as QuarterAllotment | null | undefined;
                               const quarter = allotment?.quarter as Quarter | undefined;
                               const sc = statusConfig(req.request_status);
