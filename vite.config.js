@@ -6,7 +6,12 @@ export default defineConfig({
   esbuild: {
     target: 'es2020',
   },
+  server: {
+    watch: { usePolling: true },
+    hmr: { overlay: false },
+  },
   optimizeDeps: {
+    entries: ['src/main.tsx'],
     include: ['lucide-react'],
     esbuildOptions: { target: 'es2020' },
   },

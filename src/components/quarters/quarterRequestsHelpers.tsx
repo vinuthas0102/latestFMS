@@ -35,9 +35,14 @@ export const DEMO_TP_PROFILES = [
   { id: 'TP-008', name: 'Sunaina Kapoor',    organization: 'FICCI',                      mobile: '9880008008', email: 's.kapoor@ficci.in',             pan: 'SNKPR1230H', type: 'Guest' },
 ];
 
-// ─── types ─────────────────────────────────────────────────────────────────────
+// ─── types (canonical definitions live in src/types/quarter.ts) ───────────────
 
-export type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
+export type {
+  DPFilter, PrefItem, NewRequestForm, StatusCard,
+  ActionPopupType, ActionPopupState, RequestForType, DemoEmployee, TPInfo,
+} from '../../types/quarter';
+
+import type { DPFilter, NewRequestForm } from '../../types/quarter';
 
 export const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
@@ -49,51 +54,10 @@ export const DP_LABELS: Record<DPFilter, string> = {
   vacated: 'Vacated',
 };
 
-export interface PrefItem { quarter: Quarter; rank: number }
-
-export interface NewRequestForm {
-  request_reason: string; required_bhk_config: string; preferred_location: string;
-  move_in_date: string; family_member_count: number; employee_notes: string;
-}
-
 export const DEFAULT_FORM: NewRequestForm = {
   request_reason: '', required_bhk_config: '', preferred_location: '',
   move_in_date: '', family_member_count: 1, employee_notes: '',
 };
-
-export interface StatusCard {
-  key: DPFilter; label: string; description: string;
-  count: number;
-  gradient: string; iconBg: string; textColor: string; countColor: string;
-  icon: React.ReactNode;
-}
-
-export type ActionPopupType = 'EXTEND' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | null;
-
-export interface ActionPopupState {
-  type: ActionPopupType;
-  requestId: string;
-  allotmentId: string;
-}
-
-export type RequestForType = 'SELF' | 'EMPLOYEE' | 'TP';
-
-export interface DemoEmployee {
-  id: string;
-  name: string;
-  dept: string;
-  email: string;
-  designation: string;
-}
-
-export interface TPInfo {
-  name: string;
-  organization: string;
-  mobile: string;
-  email: string;
-  pan: string;
-  notes: string;
-}
 
 // ─── pure helpers ──────────────────────────────────────────────────────────────
 

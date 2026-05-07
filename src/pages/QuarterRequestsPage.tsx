@@ -25,11 +25,14 @@ import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModa
 import { QuarterRequestDetailView } from '../components/quarters/QuarterRequestDetailView';
 import {
   DEMO_EMPLOYEES, DEMO_TP_PROFILES,
-  DPFilter, DP_LABELS, PrefItem, NewRequestForm, DEFAULT_FORM,
-  StatusCard, ActionPopupType, ActionPopupState, RequestForType, DemoEmployee, TPInfo,
+  DP_LABELS, DEFAULT_FORM,
   statusAccentColor, fmtINR, fmtDate, statusConfig, tenantStatusConfig, serviceTypeConfig,
   PLACEHOLDER_IMAGES, resolveAllImages, getImage, CompactQuarterRow, QuarterDetailCard,
 } from '../components/quarters/quarterRequestsHelpers';
+import type {
+  DPFilter, PrefItem, NewRequestForm, StatusCard,
+  ActionPopupType, ActionPopupState, RequestForType, DemoEmployee, TPInfo,
+} from '../types/quarter';
 import {
   quartersService,
   Quarter,

@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
   ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
@@ -19,10 +18,11 @@ import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import {
   DEMO_EMPLOYEES, DEMO_TP_PROFILES,
-  DP_LABELS, PrefItem,
+  DP_LABELS,
   statusAccentColor, fmtINR, fmtDate, statusConfig, tenantStatusConfig, serviceTypeConfig,
   resolveAllImages, getImage, CompactQuarterRow, QuarterDetailCard,
 } from '../components/quarters/quarterRequestsHelpers';
+import type { PrefItem } from '../types/quarter';
 import {
   quartersService,
   Quarter,
@@ -30,7 +30,6 @@ import {
   QuarterAllotment,
 } from '../services/quartersService';
 import { useQRContext, EORightMode } from './QuarterRequestsContext';
-import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
 
 // Unified request summary block shown in all DPs

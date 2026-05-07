@@ -14,14 +14,13 @@ import {
   QuarterHandover,
   QuarterGuestInfo,
 } from '../services/quartersService';
-import {
-  DPFilter, PrefItem, NewRequestForm, ActionPopupState, RequestForType, DemoEmployee, TPInfo,
-} from '../components/quarters/quarterRequestsHelpers';
+import type {
+  DPFilter, PrefItem, NewRequestForm, ActionPopupState, RequestForType,
+  DemoEmployee, TPInfo, EOMode, EORightMode, RightAction,
+} from '../types/quarter';
 import { UserDTO } from '../types';
 
-export type EOMode = 'self' | 'employee' | null;
-export type EORightMode = 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'services' | 'inspection' | 'handover';
-export type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'upgrade' | 'vacate';
+export type { EOMode, EORightMode, RightAction };
 
 export interface QRPageContext {
   // Auth
@@ -279,7 +278,7 @@ export interface QRPageContext {
   // Handlers
   loadData: () => void;
   resetActionForm: () => void;
-  openActionPopup: (type: import('../components/quarters/quarterRequestsHelpers').ActionPopupType, requestId: string, allotmentId: string) => void;
+  openActionPopup: (type: import('../types/quarter').ActionPopupType, requestId: string, allotmentId: string) => void;
   closeActionPopup: () => void;
   handleSendChat: () => void;
   handleSendAllotmentChat: () => void;
