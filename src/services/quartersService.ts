@@ -1,4 +1,19 @@
 import { supabase } from '../lib/supabase';
+import {
+  DEMO_MODE,
+  DEMO_QUARTERS,
+  DEMO_REQUESTS,
+  DEMO_CYCLE,
+  DEMO_CYCLES,
+  DEMO_TENANT_REQUESTS,
+  DEMO_SERVICE_CHATS,
+  DEMO_ALLOTMENT_CHATS,
+  DEMO_INSPECTIONS,
+  DEMO_HANDOVER,
+  DEMO_GUEST_INFO,
+  DEMO_WORKFLOWS,
+  DEMO_APPROVALS,
+} from '../mocks/demoData';
 
 // Re-export all types for backwards compatibility
 export type {
@@ -45,7 +60,10 @@ import type {
 } from '../types/quarters';
 
 export const quartersService = {
-  async getQuarters(filters: QuarterFilters = {}): Promise<Quarter[]> {
+  async getQuarters(_filters: QuarterFilters = {}): Promise<Quarter[]> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_QUARTERS);
+    const filters = _filters;
     let query = supabase
       .from('quarters')
       .select('*')
@@ -69,6 +87,8 @@ export const quartersService = {
   },
 
   async getQuarterById(id: string): Promise<Quarter | null> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_QUARTERS.find(q => q.id === id) ?? null);
     const { data, error } = await supabase
       .from('quarters')
       .select('*')
@@ -78,7 +98,10 @@ export const quartersService = {
     return data as Quarter | null;
   },
 
-  async getMyRequests(employeeAuthId: string): Promise<QuarterRequest[]> {
+  async getMyRequests(_employeeAuthId: string): Promise<QuarterRequest[]> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_REQUESTS);
+    const employeeAuthId = _employeeAuthId;
     const { data, error } = await supabase
       .from('quarter_requests')
       .select(`
@@ -97,6 +120,8 @@ export const quartersService = {
   },
 
   async getActiveCycle(): Promise<QuarterAllotmentCycle | null> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_CYCLE);
     const { data, error } = await supabase
       .from('quarter_allotment_cycles')
       .select('*')
@@ -109,6 +134,8 @@ export const quartersService = {
   },
 
   async getAllotmentCycles(): Promise<QuarterAllotmentCycle[]> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_CYCLES);
     const { data, error } = await supabase
       .from('quarter_allotment_cycles')
       .select('*')
@@ -117,7 +144,10 @@ export const quartersService = {
     return (data ?? []) as QuarterAllotmentCycle[];
   },
 
-  async getAllotmentsForCycle(cycleId: string): Promise<QuarterAllotment[]> {
+  async getAllotmentsForCycle(_cycleId: string): Promise<QuarterAllotment[]> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve([]);
+    const cycleId = _cycleId;
     const { data, error } = await supabase
       .from('quarter_allotments')
       .select(`*, quarter:quarters(*), request:quarter_requests(*)`)
@@ -126,7 +156,10 @@ export const quartersService = {
     return (data ?? []) as unknown as QuarterAllotment[];
   },
 
-  async getRequestsForCycle(cycleId: string): Promise<QuarterRequest[]> {
+  async getRequestsForCycle(_cycleId: string): Promise<QuarterRequest[]> {
+    // DEMO_MODE: return mock data immediately
+    if (DEMO_MODE) return Promise.resolve(DEMO_REQUESTS);
+    const cycleId = _cycleId;
     const { data, error } = await supabase
       .from('quarter_requests')
       .select(`
@@ -140,7 +173,42 @@ export const quartersService = {
     return (data ?? []) as unknown as QuarterRequest[];
   },
 
-  async createRequest(employeeAuthId: string, input: CreateQuarterRequestInput): Promise<QuarterRequest> {
+  async createRequest(_employeeAuthId: string, input: CreateQuarterRequestInput): Promise<QuarterRequest> {
+    // DEMO_MODE: return a stub request immediately
+    if (DEMO_MODE) {
+      const stub: QuarterRequest = {
+        id: `req-demo-${Date.now()}`,
+        request_number: `REQ-${new Date().getFullYear()}-DEMO`,
+        employee_id: _employeeAuthId,
+        cycle_id: input.cycle_id,
+        initiation_type: 'CYCLE',
+        request_reason: input.request_reason,
+        required_bhk_config: input.required_bhk_config,
+        preferred_location: input.preferred_location,
+        move_in_date: input.move_in_date,
+        family_member_count: input.family_member_count,
+        request_status: 'DRAFT',
+        sub_status: null,
+        employee_notes: input.employee_notes,
+        eo_notes: '',
+        request_for: input.request_for ?? 'SELF',
+        on_behalf_employee_id: input.on_behalf_employee_id ?? null,
+        on_behalf_employee_name: input.on_behalf_employee_name ?? null,
+        on_behalf_employee_dept: input.on_behalf_employee_dept ?? null,
+        tp_name: input.tp_name ?? null,
+        tp_organization: input.tp_organization ?? null,
+        tp_mobile: input.tp_mobile ?? null,
+        tp_email: input.tp_email ?? null,
+        tp_pan: input.tp_pan ?? null,
+        tp_notes: input.tp_notes ?? null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        preferences: [],
+        allotment: null,
+      };
+      return Promise.resolve(stub);
+    }
+    const employeeAuthId = _employeeAuthId;
     const ACTIVE_STATUSES = ['DRAFT', 'SUBMITTED', 'ALLOTTED', 'ACKNOWLEDGED', 'EXTEND_REQUESTED', 'UPGRADE_REQUESTED', 'VACATE_REQUESTED'];
     const { count, error: countErr } = await supabase
       .from('quarter_requests')
@@ -192,7 +260,9 @@ export const quartersService = {
     return req as QuarterRequest;
   },
 
-  async submitRequest(requestId: string): Promise<void> {
+  async submitRequest(_requestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
     const { error } = await supabase
       .from('quarter_requests')
       .update({ request_status: 'SUBMITTED', updated_at: new Date().toISOString() })
@@ -200,7 +270,9 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  async withdrawRequest(requestId: string): Promise<void> {
+  async withdrawRequest(_requestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
     const { error } = await supabase
       .from('quarter_requests')
       .update({ request_status: 'WITHDRAWN', updated_at: new Date().toISOString() })
@@ -209,9 +281,12 @@ export const quartersService = {
   },
 
   async updateRequestPreferences(
-    requestId: string,
-    preferences: { quarter_id: string; preference_rank: number }[]
+    _requestId: string,
+    _preferences: { quarter_id: string; preference_rank: number }[]
   ): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
+    const preferences = _preferences;
     const { error: delErr } = await supabase
       .from('quarter_request_preferences')
       .delete()
@@ -230,7 +305,10 @@ export const quartersService = {
     }
   },
 
-  async saveOverride(allottedByAuthId: string, input: OverrideInput): Promise<void> {
+  async saveOverride(_allottedByAuthId: string, _input: OverrideInput): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allottedByAuthId = _allottedByAuthId;
+    const input = _input;
     const { error: logErr } = await supabase.from('quarter_override_logs').insert({
       allotment_id: input.allotment_id,
       request_a_id: input.request_a_id,
@@ -251,7 +329,11 @@ export const quartersService = {
     if (updErr) throw updErr;
   },
 
-  async finaliseAllotments(cycleId: string, allottedByAuthId: string, requests: QuarterRequest[]): Promise<void> {
+  async finaliseAllotments(_cycleId: string, _allottedByAuthId: string, _requests: QuarterRequest[]): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const cycleId = _cycleId;
+    const allottedByAuthId = _allottedByAuthId;
+    const requests = _requests;
     for (const req of requests) {
       if (req.request_status !== 'SUBMITTED') continue;
       if (!req.preferences || req.preferences.length === 0) continue;
@@ -276,7 +358,11 @@ export const quartersService = {
       .eq('id', cycleId);
   },
 
-  async acknowledgeAllotment(allotmentId: string, requestId: string, remarks: string): Promise<void> {
+  async acknowledgeAllotment(_allotmentId: string, _requestId: string, _remarks: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
+    const remarks = _remarks;
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
       .from('quarter_allotments')
@@ -290,7 +376,12 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
-  async rejectAllotment(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+  async rejectAllotment(_allotmentId: string, _requestId: string, _reason: string, _docUrl?: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
+    const reason = _reason;
+    const docUrl = _docUrl;
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
       .from('quarter_allotments')
@@ -304,7 +395,29 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
-  async createTenantRequest(employeeId: string, allotmentId: string, input: CreateTenantRequestInput): Promise<QuarterTenantRequest> {
+  async createTenantRequest(_employeeId: string, _allotmentId: string, input: CreateTenantRequestInput): Promise<QuarterTenantRequest> {
+    if (DEMO_MODE) {
+      const stub: QuarterTenantRequest = {
+        id: `tr-demo-${Date.now()}`,
+        allotment_id: _allotmentId,
+        employee_id: _employeeId,
+        service_type: input.service_type,
+        request_status: 'PENDING',
+        remarks: input.remarks,
+        reason: input.reason,
+        document_url: input.document_url ?? '',
+        requested_date: input.requested_date ?? null,
+        required_bhk_config: input.required_bhk_config ?? '',
+        eo_notes: '',
+        grievance_subject: input.grievance_subject ?? '',
+        urgency_level: input.urgency_level ?? 'NORMAL',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      return Promise.resolve(stub);
+    }
+    const employeeId = _employeeId;
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_tenant_requests')
       .insert({
@@ -336,7 +449,9 @@ export const quartersService = {
     return data as QuarterTenantRequest;
   },
 
-  async getMyTenantRequests(employeeId: string): Promise<QuarterTenantRequest[]> {
+  async getMyTenantRequests(_employeeId: string): Promise<QuarterTenantRequest[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_TENANT_REQUESTS);
+    const employeeId = _employeeId;
     const { data, error } = await supabase
       .from('quarter_tenant_requests')
       .select(`*, allotment:quarter_allotments(*, quarter:quarters(*))`)
@@ -346,7 +461,9 @@ export const quartersService = {
     return (data ?? []) as unknown as QuarterTenantRequest[];
   },
 
-  async withdrawTenantRequest(tenantRequestId: string): Promise<void> {
+  async withdrawTenantRequest(_tenantRequestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const tenantRequestId = _tenantRequestId;
     const { error } = await supabase
       .from('quarter_tenant_requests')
       .update({ request_status: 'WITHDRAWN', updated_at: new Date().toISOString() })
@@ -355,6 +472,7 @@ export const quartersService = {
   },
 
   async getAllRequests(): Promise<QuarterRequest[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_REQUESTS);
     const { data, error } = await supabase
       .from('quarter_requests')
       .select(`
@@ -368,6 +486,7 @@ export const quartersService = {
   },
 
   async getAllTenantRequests(): Promise<QuarterTenantRequest[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_TENANT_REQUESTS);
     const { data, error } = await supabase
       .from('quarter_tenant_requests')
       .select(`*, allotment:quarter_allotments(*, quarter:quarters(*))`)
@@ -376,7 +495,12 @@ export const quartersService = {
     return (data ?? []) as unknown as QuarterTenantRequest[];
   },
 
-  async approveTenantRequest(tenantRequestId: string, requestId: string, serviceType: string, eoNotes: string): Promise<void> {
+  async approveTenantRequest(_tenantRequestId: string, _requestId: string, _serviceType: string, _eoNotes: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const tenantRequestId = _tenantRequestId;
+    const requestId = _requestId;
+    const serviceType = _serviceType;
+    const eoNotes = _eoNotes;
     const now = new Date().toISOString();
     const { error: tErr } = await supabase
       .from('quarter_tenant_requests')
@@ -393,7 +517,12 @@ export const quartersService = {
     }
   },
 
-  async rejectTenantRequest(tenantRequestId: string, requestId: string, serviceType: string, eoNotes: string): Promise<void> {
+  async rejectTenantRequest(_tenantRequestId: string, _requestId: string, _serviceType: string, _eoNotes: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const tenantRequestId = _tenantRequestId;
+    const requestId = _requestId;
+    const serviceType = _serviceType;
+    const eoNotes = _eoNotes;
     const now = new Date().toISOString();
     const { error: tErr } = await supabase
       .from('quarter_tenant_requests')
@@ -410,7 +539,10 @@ export const quartersService = {
     }
   },
 
-  async deallocateRequest(allotmentId: string, requestId: string): Promise<void> {
+  async deallocateRequest(_allotmentId: string, _requestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
     const now = new Date().toISOString();
     const { error: delErr } = await supabase.from('quarter_allotments').delete().eq('id', allotmentId);
     if (delErr) throw delErr;
@@ -421,7 +553,10 @@ export const quartersService = {
     if (updErr) throw updErr;
   },
 
-  async cancelAllocatedRequest(allotmentId: string, requestId: string): Promise<void> {
+  async cancelAllocatedRequest(_allotmentId: string, _requestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
     const now = new Date().toISOString();
     const { error: delErr } = await supabase.from('quarter_allotments').delete().eq('id', allotmentId);
     if (delErr) throw delErr;
@@ -433,6 +568,7 @@ export const quartersService = {
   },
 
   async getQuartersSummary(): Promise<{ total: number; available: number; occupied: number }> {
+    if (DEMO_MODE) return Promise.resolve({ total: 4, available: 3, occupied: 1 });
     const { data, error } = await supabase.from('quarters').select('occupancy_status').eq('is_active', true);
     if (error) throw error;
     const rows = (data ?? []) as { occupancy_status: string }[];
@@ -443,7 +579,12 @@ export const quartersService = {
     };
   },
 
-  async declineAllotment(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+  async declineAllotment(_allotmentId: string, _requestId: string, _reason: string, _docUrl?: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
+    const reason = _reason;
+    const docUrl = _docUrl;
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
       .from('quarter_allotments')
@@ -457,7 +598,12 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
-  async declineAndCancelRequest(allotmentId: string, requestId: string, reason: string, docUrl?: string): Promise<void> {
+  async declineAndCancelRequest(_allotmentId: string, _requestId: string, _reason: string, _docUrl?: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentId = _allotmentId;
+    const requestId = _requestId;
+    const reason = _reason;
+    const docUrl = _docUrl;
     const now = new Date().toISOString();
     const { error: aErr } = await supabase
       .from('quarter_allotments')
@@ -472,7 +618,7 @@ export const quartersService = {
   },
 
   async updateRequestHeader(
-    requestId: string,
+    _requestId: string,
     data: {
       request_reason?: string;
       required_bhk_config?: string;
@@ -482,6 +628,8 @@ export const quartersService = {
       employee_notes?: string;
     }
   ): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
     const { error } = await supabase
       .from('quarter_requests')
       .update({ ...data, updated_at: new Date().toISOString() })
@@ -489,7 +637,9 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  async cancelRequest(requestId: string): Promise<void> {
+  async cancelRequest(_requestId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
     const { error } = await supabase
       .from('quarter_requests')
       .update({ request_status: 'CANCELLED', updated_at: new Date().toISOString() })
@@ -497,7 +647,9 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  async getServiceChats(tenantRequestId: string): Promise<QuarterServiceChat[]> {
+  async getServiceChats(_tenantRequestId: string): Promise<QuarterServiceChat[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_SERVICE_CHATS.filter(c => c.tenant_request_id === _tenantRequestId));
+    const tenantRequestId = _tenantRequestId;
     const { data, error } = await supabase
       .from('quarter_service_chats')
       .select('*')
@@ -508,12 +660,20 @@ export const quartersService = {
   },
 
   async addServiceChat(
-    tenantRequestId: string,
-    authorId: string,
-    authorRole: 'EMPLOYEE' | 'EO',
-    message: string,
-    documentUrls: string[]
+    _tenantRequestId: string,
+    _authorId: string,
+    _authorRole: 'EMPLOYEE' | 'EO',
+    _message: string,
+    _documentUrls: string[]
   ): Promise<QuarterServiceChat> {
+    if (DEMO_MODE) {
+      return Promise.resolve({ id: `sc-demo-${Date.now()}`, tenant_request_id: _tenantRequestId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, created_at: new Date().toISOString() });
+    }
+    const tenantRequestId = _tenantRequestId;
+    const authorId = _authorId;
+    const authorRole = _authorRole;
+    const message = _message;
+    const documentUrls = _documentUrls;
     const { data, error } = await supabase
       .from('quarter_service_chats')
       .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
@@ -523,7 +683,11 @@ export const quartersService = {
     return data as QuarterServiceChat;
   },
 
-  async closeService(tenantRequestId: string, requestId: string, serviceType: string): Promise<void> {
+  async closeService(_tenantRequestId: string, _requestId: string, _serviceType: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const tenantRequestId = _tenantRequestId;
+    const requestId = _requestId;
+    const serviceType = _serviceType;
     const now = new Date().toISOString();
     const { error } = await supabase
       .from('quarter_tenant_requests')
@@ -542,7 +706,9 @@ export const quartersService = {
     }
   },
 
-  async getServiceChatsForAllotment(allotmentId: string): Promise<QuarterServiceChat[]> {
+  async getServiceChatsForAllotment(_allotmentId: string): Promise<QuarterServiceChat[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_SERVICE_CHATS);
+    const allotmentId = _allotmentId;
     const { data: tenantReqs, error: tErr } = await supabase
       .from('quarter_tenant_requests')
       .select('id')
@@ -559,7 +725,9 @@ export const quartersService = {
     return (data ?? []) as QuarterServiceChat[];
   },
 
-  async getAllotmentChats(allotmentId: string): Promise<QuarterAllotmentChat[]> {
+  async getAllotmentChats(_allotmentId: string): Promise<QuarterAllotmentChat[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_ALLOTMENT_CHATS.filter(c => c.allotment_id === _allotmentId));
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_allotment_chats')
       .select('*')
@@ -570,12 +738,20 @@ export const quartersService = {
   },
 
   async addAllotmentChat(
-    allotmentId: string,
-    authorId: string,
-    authorRole: 'employee' | 'eo' | 'system',
-    message: string,
-    documentUrls: string[] = [],
+    _allotmentId: string,
+    _authorId: string,
+    _authorRole: 'employee' | 'eo' | 'system',
+    _message: string,
+    _documentUrls: string[] = [],
   ): Promise<QuarterAllotmentChat> {
+    if (DEMO_MODE) {
+      return Promise.resolve({ id: `ac-demo-${Date.now()}`, allotment_id: _allotmentId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, created_at: new Date().toISOString() });
+    }
+    const allotmentId = _allotmentId;
+    const authorId = _authorId;
+    const authorRole = _authorRole;
+    const message = _message;
+    const documentUrls = _documentUrls;
     const { data, error } = await supabase
       .from('quarter_allotment_chats')
       .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
@@ -586,10 +762,16 @@ export const quartersService = {
   },
 
   async createAndAllotNow(
-    eoId: string,
+    _eoId: string,
     input: CreateQuarterRequestInput,
-    quarterId: string,
+    _quarterId: string,
   ): Promise<QuarterRequest> {
+    if (DEMO_MODE) {
+      const stub: QuarterRequest = { id: `req-demo-${Date.now()}`, request_number: `REQ-${new Date().getFullYear()}-DEMO`, employee_id: _eoId, cycle_id: input.cycle_id, initiation_type: 'ADHOC', request_reason: input.request_reason, required_bhk_config: input.required_bhk_config, preferred_location: input.preferred_location, move_in_date: input.move_in_date, family_member_count: input.family_member_count, request_status: 'ALLOTTED', sub_status: null, employee_notes: input.employee_notes, eo_notes: '', request_for: input.request_for ?? 'SELF', on_behalf_employee_id: null, on_behalf_employee_name: null, on_behalf_employee_dept: null, tp_name: null, tp_organization: null, tp_mobile: null, tp_email: null, tp_pan: null, tp_notes: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), preferences: [], allotment: null };
+      return Promise.resolve(stub);
+    }
+    const eoId = _eoId;
+    const quarterId = _quarterId;
     const reqNumber = `REQ-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
     const { data: req, error: reqErr } = await supabase
       .from('quarter_requests')
@@ -640,7 +822,12 @@ export const quartersService = {
     return req as QuarterRequest;
   },
 
-  async manualAllotRequest(requestId: string, quarterId: string, eoId: string, conditions?: string): Promise<void> {
+  async manualAllotRequest(_requestId: string, _quarterId: string, _eoId: string, _conditions?: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
+    const quarterId = _quarterId;
+    const eoId = _eoId;
+    const conditions = _conditions;
     const { error: allotErr } = await supabase.from('quarter_allotments').insert({
       request_id: requestId,
       quarter_id: quarterId,
@@ -658,6 +845,7 @@ export const quartersService = {
   },
 
   async getEmployeeUsers(): Promise<{ id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
     const { data, error } = await supabase
       .from('users')
       .select('id, full_name, govt_department, govt_employee_id, email')
@@ -667,7 +855,12 @@ export const quartersService = {
     return (data ?? []) as { id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[];
   },
 
-  async eoRejectRequest(requestId: string, eoId: string, reason: string, docUrl?: string): Promise<void> {
+  async eoRejectRequest(_requestId: string, _eoId: string, _reason: string, _docUrl?: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const requestId = _requestId;
+    const eoId = _eoId;
+    const reason = _reason;
+    const docUrl = _docUrl;
     const now = new Date().toISOString();
     const { error } = await supabase
       .from('quarter_requests')
@@ -683,8 +876,13 @@ export const quartersService = {
   },
 
   async createAllotmentCycle(
-    cycleName: string, startDate: string, endDate: string, createdBy: string,
+    _cycleName: string, _startDate: string, _endDate: string, _createdBy: string,
   ): Promise<QuarterAllotmentCycle> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_CYCLE);
+    const cycleName = _cycleName;
+    const startDate = _startDate;
+    const endDate = _endDate;
+    const createdBy = _createdBy;
     const cycleCode = cycleName.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '');
     const { data, error } = await supabase
       .from('quarter_allotment_cycles')
@@ -695,7 +893,9 @@ export const quartersService = {
     return data as QuarterAllotmentCycle;
   },
 
-  async closeAllotmentCycle(cycleId: string): Promise<void> {
+  async closeAllotmentCycle(_cycleId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const cycleId = _cycleId;
     const { error } = await supabase
       .from('quarter_allotment_cycles')
       .update({ status: 'CLOSED', updated_at: new Date().toISOString() })
@@ -703,7 +903,11 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  async runAllocationCycle(eoId: string, requests: QuarterRequest[], cycleId?: string): Promise<{ allotted: number; skipped: number }> {
+  async runAllocationCycle(_eoId: string, _requests: QuarterRequest[], _cycleId?: string): Promise<{ allotted: number; skipped: number }> {
+    if (DEMO_MODE) return Promise.resolve({ allotted: 0, skipped: 0 });
+    const eoId = _eoId;
+    const requests = _requests;
+    const cycleId = _cycleId;
     let allotted = 0;
     let skipped = 0;
     for (const req of requests) {
@@ -730,7 +934,11 @@ export const quartersService = {
     return { allotted, skipped };
   },
 
-  async submitAllotments(allotmentIds: string[], workflowId: string | null, eoId: string): Promise<void> {
+  async submitAllotments(_allotmentIds: string[], _workflowId: string | null, _eoId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const allotmentIds = _allotmentIds;
+    const workflowId = _workflowId;
+    const eoId = _eoId;
     const now = new Date().toISOString();
     if (!workflowId) {
       for (const id of allotmentIds) {
@@ -750,6 +958,7 @@ export const quartersService = {
   },
 
   async getApprovalWorkflows(): Promise<QuarterApprovalWorkflow[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_WORKFLOWS);
     const { data, error } = await supabase
       .from('quarter_approval_workflows')
       .select('*')
@@ -759,7 +968,9 @@ export const quartersService = {
     return (data ?? []) as QuarterApprovalWorkflow[];
   },
 
-  async getApprovalForAllotment(allotmentId: string): Promise<QuarterAllotmentApproval | null> {
+  async getApprovalForAllotment(_allotmentId: string): Promise<QuarterAllotmentApproval | null> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_APPROVALS.find(a => a.allotment_id === _allotmentId) ?? null);
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_allotment_approvals')
       .select('*, workflow:quarter_approval_workflows(*)')
@@ -771,7 +982,9 @@ export const quartersService = {
     return data as QuarterAllotmentApproval | null;
   },
 
-  async getApprovalChats(approvalId: string): Promise<QuarterApprovalChat[]> {
+  async getApprovalChats(_approvalId: string): Promise<QuarterApprovalChat[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const approvalId = _approvalId;
     const { data, error } = await supabase
       .from('quarter_approval_chats')
       .select('*')
@@ -781,14 +994,24 @@ export const quartersService = {
     return (data ?? []) as QuarterApprovalChat[];
   },
 
-  async addApprovalChat(approvalId: string, authorId: string, authorRole: string, message: string, docUrls: string[] = []): Promise<void> {
+  async addApprovalChat(_approvalId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = []): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const approvalId = _approvalId;
+    const authorId = _authorId;
+    const authorRole = _authorRole;
+    const message = _message;
+    const docUrls = _docUrls;
     const { error } = await supabase.from('quarter_approval_chats').insert({
       approval_id: approvalId, author_id: authorId, author_role: authorRole, message, document_urls: docUrls,
     });
     if (error) throw error;
   },
 
-  async approveAllotmentLevel(approvalId: string, approverId: string, remarks: string): Promise<void> {
+  async approveAllotmentLevel(_approvalId: string, _approverId: string, _remarks: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const approvalId = _approvalId;
+    const approverId = _approverId;
+    const remarks = _remarks;
     const { data: approval } = await supabase.from('quarter_allotment_approvals').select('*').eq('id', approvalId).maybeSingle();
     if (!approval) throw new Error('Approval record not found');
     const now = new Date().toISOString();
@@ -805,7 +1028,12 @@ export const quartersService = {
     }
   },
 
-  async sendClarification(approvalId: string, targetLevel: number, remarks: string, senderId: string): Promise<void> {
+  async sendClarification(_approvalId: string, _targetLevel: number, _remarks: string, _senderId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const approvalId = _approvalId;
+    const targetLevel = _targetLevel;
+    const remarks = _remarks;
+    const senderId = _senderId;
     const now = new Date().toISOString();
     await supabase.from('quarter_allotment_approvals').update({ current_level: targetLevel, status: 'PENDING', updated_at: now }).eq('id', approvalId);
     await supabase.from('quarter_approval_chats').insert({
@@ -814,7 +1042,9 @@ export const quartersService = {
     });
   },
 
-  async getInspections(allotmentId: string): Promise<QuarterInspection[]> {
+  async getInspections(_allotmentId: string): Promise<QuarterInspection[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_INSPECTIONS.filter(i => i.allotment_id === _allotmentId));
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_inspections')
       .select('*')
@@ -824,7 +1054,11 @@ export const quartersService = {
     return (data ?? []) as QuarterInspection[];
   },
 
-  async startInspection(allotmentId: string, createdBy: string, openingRemarks: string): Promise<QuarterInspection> {
+  async startInspection(_allotmentId: string, _createdBy: string, _openingRemarks: string): Promise<QuarterInspection> {
+    if (DEMO_MODE) return Promise.resolve({ id: `insp-demo-${Date.now()}`, allotment_id: _allotmentId, created_by: _createdBy, status: 'OPEN', opening_remarks: _openingRemarks, closing_remarks: '', property_condition: '', created_at: new Date().toISOString(), closed_at: null });
+    const allotmentId = _allotmentId;
+    const createdBy = _createdBy;
+    const openingRemarks = _openingRemarks;
     const { data, error } = await supabase.from('quarter_inspections').insert({
       allotment_id: allotmentId, created_by: createdBy, status: 'OPEN',
       opening_remarks: openingRemarks, property_condition: '',
@@ -833,7 +1067,11 @@ export const quartersService = {
     return data as QuarterInspection;
   },
 
-  async closeInspection(inspectionId: string, closingRemarks: string, propertyCondition: string): Promise<void> {
+  async closeInspection(_inspectionId: string, _closingRemarks: string, _propertyCondition: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const inspectionId = _inspectionId;
+    const closingRemarks = _closingRemarks;
+    const propertyCondition = _propertyCondition;
     const now = new Date().toISOString();
     const { error } = await supabase.from('quarter_inspections').update({
       status: 'CLOSED', closing_remarks: closingRemarks, property_condition: propertyCondition, closed_at: now,
@@ -841,7 +1079,9 @@ export const quartersService = {
     if (error) throw error;
   },
 
-  async getInspectionChats(inspectionId: string): Promise<QuarterInspectionChat[]> {
+  async getInspectionChats(_inspectionId: string): Promise<QuarterInspectionChat[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const inspectionId = _inspectionId;
     const { data, error } = await supabase
       .from('quarter_inspection_chats')
       .select('*')
@@ -851,14 +1091,22 @@ export const quartersService = {
     return (data ?? []) as QuarterInspectionChat[];
   },
 
-  async addInspectionChat(inspectionId: string, authorId: string, authorRole: string, message: string, docUrls: string[] = []): Promise<void> {
+  async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = []): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const inspectionId = _inspectionId;
+    const authorId = _authorId;
+    const authorRole = _authorRole;
+    const message = _message;
+    const docUrls = _docUrls;
     const { error } = await supabase.from('quarter_inspection_chats').insert({
       inspection_id: inspectionId, author_id: authorId, author_role: authorRole, message, document_urls: docUrls,
     });
     if (error) throw error;
   },
 
-  async getHandover(allotmentId: string): Promise<QuarterHandover | null> {
+  async getHandover(_allotmentId: string): Promise<QuarterHandover | null> {
+    if (DEMO_MODE) return Promise.resolve(_allotmentId === 'allot-002' ? DEMO_HANDOVER : null);
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_handovers')
       .select('*')
@@ -870,13 +1118,16 @@ export const quartersService = {
     return data as QuarterHandover | null;
   },
 
-  async createHandover(allotmentId: string, createdBy: string, input: {
+  async createHandover(_allotmentId: string, _createdBy: string, input: {
     key_number: string;
     remarks: string;
     occupying_deadline: string;
     interior_doc_url?: string;
     inspection_report_url?: string;
   }): Promise<QuarterHandover> {
+    if (DEMO_MODE) return Promise.resolve({ id: `hov-demo-${Date.now()}`, allotment_id: _allotmentId, created_by: _createdBy, key_number: input.key_number, remarks: input.remarks, occupying_deadline: input.occupying_deadline, interior_doc_url: input.interior_doc_url ?? '', inspection_report_url: input.inspection_report_url ?? '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    const allotmentId = _allotmentId;
+    const createdBy = _createdBy;
     const { data, error } = await supabase.from('quarter_handovers').insert({
       allotment_id: allotmentId, created_by: createdBy, ...input,
     }).select().single();
@@ -885,7 +1136,9 @@ export const quartersService = {
     return data as QuarterHandover;
   },
 
-  async getGuestInfo(allotmentId: string): Promise<QuarterGuestInfo[]> {
+  async getGuestInfo(_allotmentId: string): Promise<QuarterGuestInfo[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_GUEST_INFO);
+    const allotmentId = _allotmentId;
     const { data, error } = await supabase
       .from('quarter_guest_info')
       .select('*')
@@ -895,7 +1148,7 @@ export const quartersService = {
     return (data ?? []) as QuarterGuestInfo[];
   },
 
-  async addGuestInfo(allotmentId: string, createdBy: string, input: {
+  async addGuestInfo(_allotmentId: string, _createdBy: string, input: {
     guest_name: string;
     guest_mobile: string;
     guest_email: string;
@@ -903,6 +1156,9 @@ export const quartersService = {
     pan_doc_url?: string;
     other_doc_urls?: string[];
   }): Promise<QuarterGuestInfo> {
+    if (DEMO_MODE) return Promise.resolve({ id: `gi-demo-${Date.now()}`, allotment_id: _allotmentId, guest_name: input.guest_name, guest_mobile: input.guest_mobile, guest_email: input.guest_email, aadhaar_doc_url: input.aadhaar_doc_url ?? '', pan_doc_url: input.pan_doc_url ?? '', other_doc_urls: input.other_doc_urls ?? [], created_by: _createdBy, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    const allotmentId = _allotmentId;
+    const createdBy = _createdBy;
     const { data, error } = await supabase.from('quarter_guest_info').insert({
       allotment_id: allotmentId, created_by: createdBy,
       guest_name: input.guest_name, guest_mobile: input.guest_mobile, guest_email: input.guest_email,
@@ -913,7 +1169,9 @@ export const quartersService = {
     return data as QuarterGuestInfo;
   },
 
-  async removeGuestInfo(guestInfoId: string): Promise<void> {
+  async removeGuestInfo(_guestInfoId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const guestInfoId = _guestInfoId;
     const { error } = await supabase.from('quarter_guest_info').delete().eq('id', guestInfoId);
     if (error) throw error;
   },

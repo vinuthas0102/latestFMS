@@ -46,6 +46,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
+import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE } from '../mocks/demoData';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -277,11 +278,12 @@ export const QuarterRequestsPage: React.FC = () => {
   const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
 
-  const [requests, setRequests] = useState<QuarterRequest[]>([]);
-  const [tenantRequests, setTenantRequests] = useState<QuarterTenantRequest[]>([]);
+  // DEMO_MODE: initialize state directly with mock data instead of empty defaults
+  const [requests, setRequests] = useState<QuarterRequest[]>(DEMO_MODE ? DEMO_REQUESTS : []);
+  const [tenantRequests, setTenantRequests] = useState<QuarterTenantRequest[]>(DEMO_MODE ? DEMO_TENANT_REQUESTS : []);
   const [selectedRequest, setSelectedRequest] = useState<QuarterRequest | null>(null);
-  const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(DEMO_MODE ? DEMO_CYCLE : null);
+  const [loading, setLoading] = useState(DEMO_MODE ? false : true);
 
   // EO mode selection — null means show mode-selection screen every visit
   type EOMode = 'self' | 'employee' | null;
@@ -591,9 +593,11 @@ export const QuarterRequestsPage: React.FC = () => {
   // Load chats when selectedServiceId changes
   useEffect(() => {
     if (!selectedServiceId) return;
+    /* DEMO_MODE: service call disabled
     quartersService.getServiceChats(selectedServiceId).then(chats => {
       setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
     }).catch(() => {});
+    */
   }, [selectedServiceId]);
 
   // Load allotment chats when an allotted request is selected
@@ -602,9 +606,11 @@ export const QuarterRequestsPage: React.FC = () => {
     const s = selectedRequest?.request_status;
     const hasAllotment = s ? (isAllottedStatus(s) || isOccupiedStatus(s)) : false;
     if (!allotmentId || !hasAllotment) return;
+    /* DEMO_MODE: service call disabled
     quartersService.getAllotmentChats(allotmentId).then(chats => {
       setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
     }).catch(() => {});
+    */
   }, [selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
@@ -619,6 +625,7 @@ export const QuarterRequestsPage: React.FC = () => {
   }
 
   const loadData = useCallback(async () => {
+    /* DEMO_MODE: data is pre-loaded from mock state; live fetch disabled
     if (!user) return;
     setLoading(true);
     try {
@@ -648,9 +655,11 @@ export const QuarterRequestsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    */
   }, [user, addToast, isEO, eoMode]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
 
   // Reset EO right mode when selected request changes
   useEffect(() => {
