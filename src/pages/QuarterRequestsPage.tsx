@@ -531,6 +531,7 @@ export const QuarterRequestsPage: React.FC = () => {
   // ─── shared file-upload helper ──────────────────────────────────────────────
 
   const uploadChatFile = async (file: File, pathPrefix: string): Promise<string | null> => {
+    if (DEMO_MODE) return Promise.resolve(null);
     const ext = file.name.split('.').pop() ?? 'bin';
     const path = `${pathPrefix}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('quarter-docs').upload(path, file);

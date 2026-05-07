@@ -1,8 +1,25 @@
 import { supabase, validateSession, refreshSession } from '../lib/supabase';
 import { UserDTO, LoginCredentials, CreateUserDTO } from '../types';
+import { DEMO_MODE } from '../mocks/demoData';
+
+const DEMO_USER: UserDTO = {
+  id: 'demo-user-001',
+  email: 'demo@fms.gov',
+  fullName: 'Demo EO User',
+  phone: '9999999999',
+  role: 'estate_officer',
+  govtDepartment: 'Ministry of Housing',
+  govtEmployeeId: 'EMP-001',
+  bhkEntitlement: '2BHK',
+  assignedEstateId: 'estate-1',
+  metadata: {},
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
 
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<{ user: UserDTO; token: string }> => {
+    if (DEMO_MODE) return Promise.resolve({ user: { ...DEMO_USER, role: (credentials.role ?? DEMO_USER.role) as UserDTO['role'] }, token: 'demo-token' });
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
@@ -49,6 +66,7 @@ export const authService = {
   },
 
   register: async (userData: CreateUserDTO): Promise<{ user: UserDTO; token: string }> => {
+    if (DEMO_MODE) return Promise.resolve({ user: DEMO_USER, token: 'demo-token' });
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -92,11 +110,13 @@ export const authService = {
   },
 
   logout: async (): Promise<void> => {
+    if (DEMO_MODE) return Promise.resolve();
     await supabase.auth.signOut();
     localStorage.removeItem('auth_token');
   },
 
   getCurrentUser: async (): Promise<UserDTO | null> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_USER);
     try {
       const validation = await validateSession();
 
@@ -136,6 +156,7 @@ export const authService = {
   },
 
   updateProfile: async (userId: string, updates: Partial<UserDTO>): Promise<UserDTO> => {
+    if (DEMO_MODE) return Promise.resolve({ ...DEMO_USER, ...updates });
     const { data, error } = await supabase
       .from('users')
       .update({
@@ -156,6 +177,7 @@ export const authService = {
   },
 
   switchRole: async (userId: string, newRole: string): Promise<void> => {
+    if (DEMO_MODE) return Promise.resolve();
     const { error } = await supabase
       .from('users')
       .update({ role: newRole })
