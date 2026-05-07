@@ -682,7 +682,28 @@ export const quartersService = {
     }
   },
 
-  async runAllocationCycle(eoId: string, requests: QuarterRequest[]): Promise<{ allotted: number; skipped: number }> {
+  async createAllotmentCycle(
+    cycleName: string, startDate: string, endDate: string, createdBy: string,
+  ): Promise<QuarterAllotmentCycle> {
+    const cycleCode = cycleName.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9-]/g, '');
+    const { data, error } = await supabase
+      .from('quarter_allotment_cycles')
+      .insert({ cycle_name: cycleName, cycle_code: cycleCode, start_date: startDate, end_date: endDate, status: 'OPEN', created_by: createdBy })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as QuarterAllotmentCycle;
+  },
+
+  async closeAllotmentCycle(cycleId: string): Promise<void> {
+    const { error } = await supabase
+      .from('quarter_allotment_cycles')
+      .update({ status: 'CLOSED', updated_at: new Date().toISOString() })
+      .eq('id', cycleId);
+    if (error) throw error;
+  },
+
+  async runAllocationCycle(eoId: string, requests: QuarterRequest[], cycleId?: string): Promise<{ allotted: number; skipped: number }> {
     let allotted = 0;
     let skipped = 0;
     for (const req of requests) {
@@ -698,9 +719,11 @@ export const quartersService = {
         approval_status: 'PENDING',
       });
       if (allotErr) { skipped++; continue; }
+      const updatePayload: Record<string, unknown> = { request_status: 'ALLOTTED', updated_at: new Date().toISOString() };
+      if (cycleId) updatePayload.cycle_id = cycleId;
       const { error: reqErr } = await supabase
         .from('quarter_requests')
-        .update({ request_status: 'ALLOTTED', updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', req.id);
       if (reqErr) skipped++; else allotted++;
     }

@@ -318,6 +318,17 @@ export const QuarterRequestsPage: React.FC = () => {
   // EO: Run Allocation popup
   const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
   const [runAllocSubmitting, setRunAllocSubmitting] = useState(false);
+  const [runAllocCycleName, setRunAllocCycleName] = useState('');
+  const [runAllocStart, setRunAllocStart] = useState('');
+  const [runAllocEnd, setRunAllocEnd] = useState('');
+
+  // EO: Cycle history popup
+  const [showCycleHistory, setShowCycleHistory] = useState(false);
+  const [cycleHistoryList, setCycleHistoryList] = useState<QuarterAllotmentCycle[]>([]);
+  const [cycleHistoryLoading, setCycleHistoryLoading] = useState(false);
+  const [selectedCycleDetail, setSelectedCycleDetail] = useState<QuarterAllotmentCycle | null>(null);
+  const [cycleDetailRequests, setCycleDetailRequests] = useState<QuarterRequest[]>([]);
+  const [cycleDetailLoading, setCycleDetailLoading] = useState(false);
 
   // EO: Allot Requests popup (bulk allot with optional WFL)
   const [showAllotRequestsPopup, setShowAllotRequestsPopup] = useState(false);
@@ -1095,11 +1106,37 @@ export const QuarterRequestsPage: React.FC = () => {
     setRunAllocSubmitting(true);
     try {
       const submitted = requests.filter(r => r.request_status === 'SUBMITTED');
-      const result = await quartersService.runAllocationCycle(user.id, submitted);
+      let cycleId: string | undefined;
+      if (runAllocCycleName.trim()) {
+        const startDate = runAllocStart || new Date().toISOString().split('T')[0];
+        const endDate = runAllocEnd || startDate;
+        const cycle = await quartersService.createAllotmentCycle(runAllocCycleName.trim(), startDate, endDate, user.id);
+        cycleId = cycle.id;
+      }
+      const result = await quartersService.runAllocationCycle(user.id, submitted, cycleId);
       addToast(`Allocation complete: ${result.allotted} allotted, ${result.skipped} skipped`, 'success');
       setShowRunAllocationPopup(false);
+      setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd('');
       loadData();
     } catch { addToast('Allocation failed', 'error'); } finally { setRunAllocSubmitting(false); }
+  };
+
+  // ─── EO: Load cycle history ───────────────────────────────────────────────────
+  const loadCycleHistory = async () => {
+    setCycleHistoryLoading(true);
+    try {
+      const cycles = await quartersService.getAllotmentCycles();
+      setCycleHistoryList(cycles);
+    } catch { addToast('Failed to load cycles', 'error'); } finally { setCycleHistoryLoading(false); }
+  };
+
+  const loadCycleDetail = async (cycle: QuarterAllotmentCycle) => {
+    setSelectedCycleDetail(cycle);
+    setCycleDetailLoading(true);
+    try {
+      const reqs = await quartersService.getRequestsForCycle(cycle.id);
+      setCycleDetailRequests(reqs);
+    } catch { addToast('Failed to load cycle requests', 'error'); } finally { setCycleDetailLoading(false); }
   };
 
   // ─── EO: Allot Requests (bulk, with/without WFL) ───────────────────────────
@@ -3723,12 +3760,20 @@ export const QuarterRequestsPage: React.FC = () => {
                 </>
               )}
               {isEO && eoMode === 'employee' && dpFilter === 'submitted' && (
-                <button
-                  onClick={() => setShowRunAllocationPopup(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  <PlayCircle size={13} /> Run Allocation
-                </button>
+                <>
+                  <button
+                    onClick={() => { setShowCycleHistory(true); loadCycleHistory(); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <ClipboardList size={13} /> View Runs
+                  </button>
+                  <button
+                    onClick={() => setShowRunAllocationPopup(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                  >
+                    <PlayCircle size={13} /> Run Allocation
+                  </button>
+                </>
               )}
               {isEO && eoMode === 'employee' && dpFilter === 'allotted' && (
                 <button
@@ -3892,7 +3937,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   const sc = statusConfig(req.request_status);
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
-                  const isServiceInProgress = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
                   const allottedQ = req.allotment?.quarter as Quarter | undefined;
                   const prefQ = req.preferences?.[0]?.quarter as Quarter | undefined;
                   const thumbQ = allottedQ ?? prefQ;
@@ -3900,21 +3944,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   const reqFor = req.request_for ?? 'SELF';
                   const activeSvcs = tenantRequests.filter(tr => tr.allotment_id === req.allotment?.id && tr.request_status === 'PENDING');
 
-                  // Sub-group label: show "Services" divider before first EXTEND/VACATE card when in occupied filter
-                  const showServicesDivider = dpFilter === 'occupied' && isServiceInProgress &&
-                    (reqIdx === 0 || !['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(filteredRequests[reqIdx - 1].request_status));
-
                   return (
                     <React.Fragment key={req.id}>
-                    {showServicesDivider && (
-                      <div className="flex items-center gap-2 pt-1 pb-0.5">
-                        <div className="flex-1 h-px bg-orange-100" />
-                        <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest flex items-center gap-1">
-                          <RefreshCw size={9} /> Services in Progress
-                        </span>
-                        <div className="flex-1 h-px bg-orange-100" />
-                      </div>
-                    )}
                     <div
                       onClick={() => { setSelectedRequest(req); setSelectedServiceId(null); resetActionForm(); }}
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
@@ -5625,25 +5656,273 @@ export const QuarterRequestsPage: React.FC = () => {
       {/* ── EO: Run Allocation Popup ────────────────────────────────────── */}
       {showRunAllocationPopup && createPortal(
         <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0"><PlayCircle size={20} className="text-blue-600" /></div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <PlayCircle size={20} className="text-blue-600" />
+              </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-gray-900">Run Allocation Cycle</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Auto-allot all submitted requests by top preference</p>
+                <p className="text-xs text-gray-400 mt-0.5">Auto-allot submitted requests by top-ranked preference</p>
               </div>
               <button onClick={() => setShowRunAllocationPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
             </div>
-            <div className="px-5 py-4 space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
-                This will allot <strong>{requests.filter(r => r.request_status === 'SUBMITTED').length} submitted requests</strong> using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 rounded-xl border border-blue-100 px-3 py-3 text-center">
+                  <div className="text-2xl font-bold text-blue-700">{requests.filter(r => r.request_status === 'SUBMITTED').length}</div>
+                  <div className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mt-0.5">Outstanding</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-3 text-center">
+                  <div className="text-xs font-bold text-gray-700 leading-tight">Demo Admin User</div>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">Estate Officer</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-3 text-center">
+                  <div className="text-xs font-bold text-gray-700 leading-tight">{new Date().toLocaleDateString('en-IN')}</div>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">Run Date</div>
+                </div>
               </div>
+
+              {/* Cycle Name */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Cycle Name / Number <span className="text-gray-400 font-normal normal-case">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={runAllocCycleName}
+                  onChange={e => setRunAllocCycleName(e.target.value)}
+                  placeholder="e.g. 2025-Q2, Jun Cycle"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+
+              {/* Date range */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Cycle Period <span className="text-gray-400 font-normal normal-case">(optional)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-[10px] text-gray-400 mb-1">Start Date</div>
+                    <input
+                      type="date"
+                      value={runAllocStart}
+                      onChange={e => setRunAllocStart(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400 mb-1">End Date</div>
+                    <input
+                      type="date"
+                      value={runAllocEnd}
+                      onChange={e => setRunAllocEnd(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Info banner */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                <strong>{requests.filter(r => r.request_status === 'SUBMITTED').length} requests</strong> will be auto-allotted using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
+                {runAllocCycleName.trim() && (
+                  <div className="mt-1.5 text-blue-600">A formal cycle record "<strong>{runAllocCycleName}</strong>" will be created and linked to all allotted requests.</div>
+                )}
+              </div>
+
+              {/* Actions */}
               <div className="flex gap-2">
-                <button onClick={() => setShowRunAllocationPopup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleRunAllocation} disabled={runAllocSubmitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                <button
+                  onClick={() => { setShowRunAllocationPopup(false); setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd(''); }}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >Cancel</button>
+                <button
+                  onClick={handleRunAllocation}
+                  disabled={runAllocSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
                   {runAllocSubmitting ? 'Running…' : 'Run Now'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EO: Cycle History Popup ──────────────────────────────────────── */}
+      {showCycleHistory && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{ maxHeight: '90vh' }}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+              {selectedCycleDetail ? (
+                <>
+                  <button onClick={() => { setSelectedCycleDetail(null); setCycleDetailRequests([]); }} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
+                    <ArrowLeft size={16} />
+                  </button>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <ClipboardList size={18} className="text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-gray-900">{selectedCycleDetail.cycle_name}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(selectedCycleDetail.start_date).toLocaleDateString('en-IN')} – {new Date(selectedCycleDetail.end_date).toLocaleDateString('en-IN')}
+                      <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${selectedCycleDetail.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{selectedCycleDetail.status}</span>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                    <ClipboardList size={18} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-gray-900">Allocation Run History</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">All allocation cycles run for this estate</p>
+                  </div>
+                </>
+              )}
+              <button onClick={() => { setShowCycleHistory(false); setSelectedCycleDetail(null); setCycleDetailRequests([]); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto">
+              {!selectedCycleDetail ? (
+                /* ── Cycle list ── */
+                <div className="p-5">
+                  {cycleHistoryLoading ? (
+                    <div className="space-y-3">
+                      {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+                    </div>
+                  ) : cycleHistoryList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                      <ClipboardList size={32} className="mb-3 opacity-30" />
+                      <div className="text-sm font-semibold">No allocation runs yet</div>
+                      <div className="text-xs mt-1">Run your first allocation to see history here</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {cycleHistoryList.map(cycle => (
+                        <div key={cycle.id} className="flex items-center gap-4 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 hover:bg-white hover:shadow-sm transition-all cursor-default">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-900">{cycle.cycle_name}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${cycle.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{cycle.status}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {new Date(cycle.start_date).toLocaleDateString('en-IN')} – {new Date(cycle.end_date).toLocaleDateString('en-IN')}
+                              <span className="mx-1.5 text-gray-300">·</span>
+                              Code: <span className="font-mono text-gray-600">{cycle.cycle_code}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs text-gray-400">Created</div>
+                            <div className="text-xs font-medium text-gray-700">{new Date(cycle.created_at).toLocaleDateString('en-IN')}</div>
+                          </div>
+                          <button
+                            onClick={() => loadCycleDetail(cycle)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shrink-0"
+                          >
+                            <Eye size={12} /> View Details
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── Cycle detail table ── */
+                <div className="p-5">
+                  {cycleDetailLoading ? (
+                    <div className="space-y-3">
+                      {[1,2,3,4].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+                    </div>
+                  ) : cycleDetailRequests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                      <Users size={32} className="mb-3 opacity-30" />
+                      <div className="text-sm font-semibold">No requests in this cycle</div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summary strip */}
+                      <div className="grid grid-cols-4 gap-3 mb-5">
+                        {[
+                          { label: 'Total Requests', value: cycleDetailRequests.length, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
+                          { label: 'Allotted', value: cycleDetailRequests.filter(r => isAllottedStatus(r.request_status) || isOccupiedStatus(r.request_status)).length, cls: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                          { label: 'Pending', value: cycleDetailRequests.filter(r => r.request_status === 'SUBMITTED').length, cls: 'bg-amber-50 border-amber-100 text-amber-700' },
+                          { label: 'Vacated / Withdrawn', value: cycleDetailRequests.filter(r => ['VACATED','WITHDRAWN','REJECTED'].includes(r.request_status)).length, cls: 'bg-gray-50 border-gray-100 text-gray-600' },
+                        ].map(stat => (
+                          <div key={stat.label} className={`rounded-xl border px-4 py-3 text-center ${stat.cls}`}>
+                            <div className="text-xl font-bold">{stat.value}</div>
+                            <div className="text-[10px] font-semibold uppercase tracking-wide mt-0.5 opacity-80">{stat.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Table */}
+                      <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              {['Request No.','Quarter','Location','Requested By','Request For','Allotted To','Allotted On','Allotted By','Status'].map(col => (
+                                <th key={col} className="text-left px-3 py-2.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cycleDetailRequests.map((req, i) => {
+                              const allotment = req.allotment as QuarterAllotment | null | undefined;
+                              const quarter = allotment?.quarter as Quarter | undefined;
+                              const sc = statusConfig(req.request_status);
+                              const reqFor = req.request_for ?? 'SELF';
+                              const allottedTo = reqFor === 'EMPLOYEE' ? (req.on_behalf_employee_name ?? 'Employee') : reqFor === 'TP' ? (req.tp_name ?? 'Third Party') : 'Demo Admin User';
+                              return (
+                                <tr key={req.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${i % 2 === 0 ? '' : 'bg-gray-50/50'}`}>
+                                  <td className="px-3 py-2.5 font-mono text-gray-700 whitespace-nowrap">{req.request_number}</td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap">
+                                    {quarter ? (
+                                      <div>
+                                        <div className="font-semibold text-gray-800">{quarter.quarter_number}</div>
+                                        <div className="text-[10px] text-gray-400">{req.required_bhk_config}</div>
+                                      </div>
+                                    ) : <span className="text-gray-400">—</span>}
+                                  </td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">
+                                    {quarter ? `${(quarter as any).block_name ?? 'Block'}, Sector 3` : '—'}
+                                  </td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap">
+                                    <div className="font-medium text-gray-800">Demo Admin User</div>
+                                    <div className="text-[10px] text-gray-400">DEMO001</div>
+                                  </td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getRequestForBadgeCls(reqFor)}`}>{getRequestForLabel(reqFor)}</span>
+                                  </td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap font-medium text-gray-800">{allottedTo}</td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">
+                                    {allotment?.allotment_date ? fmtDate(allotment.allotment_date) : '—'}
+                                  </td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">Estate Officer</td>
+                                  <td className="px-3 py-2.5 whitespace-nowrap">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${sc.cls}`}>
+                                      {sc.icon}{sc.label}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>,
