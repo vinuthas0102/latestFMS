@@ -1809,7 +1809,7 @@ export const QuarterRequestsPage: React.FC = () => {
         )}
 
         {/* Accept / Decline action strip — Govt Official only, when approval is APPROVED */}
-        {!isEO && allotment.approval_status === 'APPROVED' && (
+        {!isEO && selectedRequest.request_status === 'ALLOTTED' && (
           <div className="px-4 py-3 border-b border-gray-100 bg-white shrink-0">
             <p className="text-[11px] text-gray-500 mb-2.5 font-medium uppercase tracking-wide">Your Action Required</p>
             {rightAction !== 'acknowledge' && rightAction !== 'reject' ? (
