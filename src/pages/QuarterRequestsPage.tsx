@@ -329,7 +329,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   // EO: Right panel mode for each DP
-  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'guest_info' | 'services';
+  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'guest_info' | 'services' | 'chat';
   const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
   const [eoRejectReason, setEoRejectReason] = useState('');
   const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
@@ -496,9 +496,10 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to send message', 'error'); } finally { setChatSubmitting(false); }
   };
 
-  const handleSendAllotmentChat = async () => {
+  const handleSendAllotmentChat = async (authorRole?: string) => {
     if (!user || !selectedRequest?.allotment?.id || !allotmentChatMessage.trim()) return;
     const allotmentId = selectedRequest.allotment.id;
+    const role = authorRole ?? (isEO && eoMode === 'employee' ? 'eo' : 'employee');
     setAllotmentChatSubmitting(true);
     try {
       const docUrls: string[] = [];
@@ -511,7 +512,7 @@ export const QuarterRequestsPage: React.FC = () => {
           if (pub?.publicUrl) docUrls.push(pub.publicUrl);
         }
       }
-      await quartersService.addAllotmentChat(allotmentId, user.id, 'employee', allotmentChatMessage, docUrls);
+      await quartersService.addAllotmentChat(allotmentId, user.id, role, allotmentChatMessage, docUrls);
       setAllotmentChatMessage('');
       setAllotmentChatFile(null);
       const chats = await quartersService.getAllotmentChats(allotmentId);
@@ -543,7 +544,9 @@ export const QuarterRequestsPage: React.FC = () => {
   // Load allotment chats when an allotted request is selected
   useEffect(() => {
     const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || selectedRequest?.request_status !== 'ALLOTTED') return;
+    const s = selectedRequest?.request_status;
+    const hasAllotment = s ? ['ALLOTTED', 'ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s) : false;
+    if (!allotmentId || !hasAllotment) return;
     quartersService.getAllotmentChats(allotmentId).then(chats => {
       setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
     }).catch(() => {});
@@ -596,7 +599,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // Reset EO right mode when selected request changes
   useEffect(() => {
-    setEoRightMode('detail');
+    const s = selectedRequest?.request_status;
+    const isOcc = s ? ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s) : false;
+    setEoRightMode(isOcc ? 'chat' : 'detail');
     setApprovalAction(null);
     setApprovalRemarks('');
     setInspectionPanel('list');
@@ -2722,6 +2727,7 @@ export const QuarterRequestsPage: React.FC = () => {
     const isAccepted = s === 'ACKNOWLEDGED';
     const isOccupied = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s);
     const activeTRs = tenantRequests.filter(tr => tr.allotment_id === allotment?.id && tr.request_status === 'PENDING');
+    const eoAllotChatFileRef = useRef<HTMLInputElement>(null);
     const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
 
     const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
@@ -2729,14 +2735,15 @@ export const QuarterRequestsPage: React.FC = () => {
     // Sub-nav tabs
     type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
     const tabs: TabEntry[] = ([
-      { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: true },
+      { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: !isOccupied },
       { key: 'allot' as EORightMode, label: 'Allot', icon: <Home size={12} />, show: isSubmitted },
       { key: 'rejection_chat' as EORightMode, label: 'Reject', icon: <XCircle size={12} />, show: isSubmitted },
       { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
       { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
       { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied },
       { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied },
-      { key: 'services' as EORightMode, label: 'Services', icon: <Wrench size={12} />, show: isOccupied },
+      { key: 'services' as EORightMode, label: 'Services', icon: <Wrench size={12} />, show: false },
+      { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied },
       { key: 'guest_info' as EORightMode, label: 'Guests', icon: <Users size={12} />, show: false },
     ] as TabEntry[]).filter(t => t.show);
 
@@ -2783,8 +2790,84 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Tab content ── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── Chat tab (occupied) — full flex column with pinned compose bar ── */}
+        {eoRightMode === 'chat' && isOccupied && allotment && (() => {
+          const eoAllotChats = allotmentChats[allotment.id] ?? [];
+          return (
+            <>
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
+                {[...eoAllotChats].reverse().map(chat => {
+                  const isEOAuthor = chat.author_role === 'eo';
+                  return (
+                    <div key={chat.id} className={`flex ${isEOAuthor ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                        isEOAuthor
+                          ? 'bg-teal-700 text-white rounded-tr-sm'
+                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                      }`}>
+                        {!isEOAuthor && (
+                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                            {chat.author_role === 'employee' ? 'Employee' : 'System'}
+                          </div>
+                        )}
+                        <p className="text-[13px] leading-relaxed">{chat.message}</p>
+                        {chat.document_urls?.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {chat.document_urls.map((url: string, i: number) => (
+                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                                className={`flex items-center gap-1.5 text-[11px] font-medium ${isEOAuthor ? 'text-teal-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
+                                <Paperclip size={10} />Attachment {i + 1}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        <div className={`text-[10px] mt-1.5 ${isEOAuthor ? 'text-teal-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {eoAllotChats.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-dashed border-gray-200">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2.5">
+                      <Send size={16} className="text-gray-300" />
+                    </div>
+                    <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
+                    <div className="text-[11px] text-gray-400 mt-0.5">Start the conversation below</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
+                {allotmentChatFile && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+                    <FileText size={13} className="text-blue-500 shrink-0" />
+                    <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+                    <button type="button" onClick={() => setAllotmentChatFile(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+                  </div>
+                )}
+                <div className="flex items-end gap-2">
+                  <button type="button" onClick={() => eoAllotChatFileRef.current?.click()}
+                    className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors" title="Attach file">
+                    <Paperclip size={15} />
+                  </button>
+                  <input ref={eoAllotChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile(f); e.target.value = ''; }} />
+                  <textarea value={allotmentChatMessage} onChange={e => setAllotmentChatMessage(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat(); } }}
+                    rows={1} placeholder="Type a message… (Enter to send)"
+                    className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white leading-relaxed transition-colors"
+                    style={{ minHeight: '40px', maxHeight: '80px' }} />
+                  <button onClick={handleSendAllotmentChat} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+                    className="flex-none p-2.5 rounded-xl bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm" title="Send">
+                    <Send size={15} />
+                  </button>
+                </div>
+              </div>
+            </>
+          );
+        })()}
+
+        {/* ── Tab content (non-chat tabs) ── */}
+        <div className={`flex-1 overflow-y-auto ${eoRightMode === 'chat' ? 'hidden' : ''}`}>
 
           {/* Detail tab */}
           {eoRightMode === 'detail' && <RequestSummaryBlock req={req} />}
@@ -4450,6 +4533,38 @@ export const QuarterRequestsPage: React.FC = () => {
                                           </div>
                                         )}
                                       </div>
+
+                                      {/* EO Approve / Reject actions — only in EO employee mode */}
+                                      {isEO && eoMode === 'employee' && svc.request_status === 'PENDING' && (() => {
+                                        const isActing = eoTrId === svc.id;
+                                        return isActing && eoTrAction ? (
+                                          <div className="space-y-2 pt-1 border-t border-gray-200">
+                                            <textarea value={eoTrNotes} onChange={e => setEoTrNotes(e.target.value)} rows={2}
+                                              placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
+                                              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800" />
+                                            <div className="flex gap-2">
+                                              <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }}
+                                                className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
+                                              {eoTrAction === 'approve'
+                                                ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting}
+                                                    className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
+                                                : <button onClick={handleEORejectTR} disabled={eoTrSubmitting}
+                                                    className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex gap-2 pt-1 border-t border-gray-200">
+                                            <button onClick={e => { e.stopPropagation(); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); }}
+                                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+                                              <ThumbsUp size={11} />Approve
+                                            </button>
+                                            <button onClick={e => { e.stopPropagation(); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); }}
+                                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700">
+                                              <ThumbsDown size={11} />Reject
+                                            </button>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                 </div>
