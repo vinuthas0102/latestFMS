@@ -4122,11 +4122,14 @@ export const QuarterRequestsPage: React.FC = () => {
                                   e.stopPropagation();
                                   setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
                                 }}
-                                className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
+                                className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
                               >
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                </span>
                                 {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
-                                {expandedSvcsCardId === req.id ? <ChevronUp size={9} className="ml-0.5" /> : <ChevronDown size={9} className="ml-0.5" />}
+                                {expandedSvcsCardId === req.id ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
                               </button>
                             )}
                           </div>
@@ -4444,22 +4447,14 @@ export const QuarterRequestsPage: React.FC = () => {
                                             <Paperclip size={9} />Doc
                                           </span>
                                         )}
-                                      </div>
-
-                                      {/* Row 4: submitter + date + expand toggle */}
-                                      <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
-                                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                          <div className={`w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0 ${svcAccent}`}>
-                                            {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
-                                          </div>
-                                          <span className="text-[10px] text-gray-500 font-medium truncate">
-                                            {user?.fullName ?? 'Me'}
-                                          </span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 shrink-0 flex items-center gap-0.5">
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
                                           <Clock size={9} />{fmtDate(svc.created_at)}
                                         </span>
-                                        {/* Chat button — opens right-panel chat for this service */}
+                                      </div>
+
+                                      {/* Row 4: actions only */}
+                                      <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-gray-100">
+                                        {/* Chat button */}
                                         <button
                                           onClick={e => { e.stopPropagation(); setSelectedRequest(req); setSelectedServiceId(svc.id); resetActionForm(); }}
                                           className="p-1 rounded-md border border-teal-200 bg-teal-50 text-teal-600 hover:bg-teal-100 transition-colors shrink-0"
@@ -4467,10 +4462,10 @@ export const QuarterRequestsPage: React.FC = () => {
                                         >
                                           <MessageSquare size={11} />
                                         </button>
-                                        {/* Expand / collapse — same style as primary card */}
+                                        {/* Expand / collapse */}
                                         <button
                                           onClick={e => { e.stopPropagation(); setExpandedSvcDetailId(expandedSvcDetailId === svc.id ? null : svc.id); }}
-                                          className={`p-1 rounded-md border transition-colors shrink-0 ml-1 ${expandedSvcDetailId === svc.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                          className={`p-1 rounded-md border transition-colors shrink-0 ${expandedSvcDetailId === svc.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
                                           title={expandedSvcDetailId === svc.id ? 'Collapse' : 'Expand details'}
                                         >
                                           {expandedSvcDetailId === svc.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
