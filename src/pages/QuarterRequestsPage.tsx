@@ -1808,6 +1808,54 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
+        {/* Accept / Decline action strip — Govt Official only, when approval is APPROVED */}
+        {!isEO && allotment.approval_status === 'APPROVED' && (
+          <div className="px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+            <p className="text-[11px] text-gray-500 mb-2.5 font-medium uppercase tracking-wide">Your Action Required</p>
+            {rightAction !== 'acknowledge' && rightAction !== 'reject' ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRightAction('acknowledge')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  <ThumbsUp size={13} /> Accept Allotment
+                </button>
+                <button
+                  onClick={() => { setDeclineModalReqId(selectedRequest!.id); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+                >
+                  <ThumbsDown size={13} /> Decline
+                </button>
+              </div>
+            ) : rightAction === 'acknowledge' ? (
+              <div className="space-y-2">
+                <textarea
+                  value={actionRemarks}
+                  onChange={e => setActionRemarks(e.target.value)}
+                  placeholder="Remarks (optional)…"
+                  rows={2}
+                  className="w-full px-3 py-2 text-[12px] border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAcknowledge}
+                    disabled={actionSubmitting}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  >
+                    {actionSubmitting ? 'Confirming…' : <><CheckCircle size={12} /> Confirm Accept</>}
+                  </button>
+                  <button
+                    onClick={() => { setRightAction(null); setActionRemarks(''); }}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {/* Chat thread */}
         <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
           {[...chats].reverse().map(chat => (
