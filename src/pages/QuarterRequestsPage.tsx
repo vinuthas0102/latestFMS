@@ -94,18 +94,7 @@ const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80',
 ];
 
-function getImage(q: Quarter, idx: number) {
-  let images = q.images;
-  if (typeof images === 'string') {
-    try { images = JSON.parse(images); } catch {
-      images = (images as unknown as string).replace(/^\{/, '').replace(/\}$/, '').split(',').map((s: string) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
-    }
-  }
-  const first = Array.isArray(images) && images.length > 0 ? images[0] : null;
-  return first || PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
-}
-
-function resolveAllImages(q: Quarter): string[] {
+function parseQuarterImages(q: Quarter): string[] {
   let images: unknown = q.images;
   if (typeof images === 'string') {
     try { images = JSON.parse(images as string); } catch {
@@ -114,6 +103,15 @@ function resolveAllImages(q: Quarter): string[] {
   }
   if (Array.isArray(images) && (images as string[]).length > 0) return images as string[];
   return PLACEHOLDER_IMAGES;
+}
+
+function getImage(q: Quarter, idx: number) {
+  const imgs = parseQuarterImages(q);
+  return imgs[0] !== PLACEHOLDER_IMAGES[0] ? imgs[0] : PLACEHOLDER_IMAGES[idx % PLACEHOLDER_IMAGES.length];
+}
+
+function resolveAllImages(q: Quarter): string[] {
+  return parseQuarterImages(q);
 }
 
 function getOccupancyBadge(status: string) {
@@ -129,42 +127,82 @@ function fmtINR(amount: number) {
 
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-IN'); }
 
-function statusConfig(status: string) {
-  const cfg: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-    DRAFT:              { label: 'Draft',           cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <Clock size={11} /> },
-    SUBMITTED:         { label: 'Submitted',        cls: 'bg-blue-50 text-blue-700 border border-blue-200',       icon: <Send size={11} /> },
-    ALLOTTED:          { label: 'Allotted',         cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle size={11} /> },
-    ACKNOWLEDGED:      { label: 'Occupied',         cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ThumbsUp size={11} /> },
-    REJECTED:          { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200',          icon: <ThumbsDown size={11} /> },
-    EXTEND_REQUESTED:  { label: 'Extension Req.',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
-    UPGRADE_REQUESTED: { label: 'Upgrade Req.',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
-    VACATE_REQUESTED:  { label: 'Vacate Req.',      cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
-    VACATED:           { label: 'Vacated',          cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
-    WITHDRAWN:         { label: 'Withdrawn',        cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
-    ON_HOLD:           { label: 'On Hold',          cls: 'bg-purple-50 text-purple-700 border border-purple-200', icon: <Clock size={11} /> },
-  };
-  return cfg[status] ?? cfg.DRAFT;
+function ChatBubble({ chat, isSelf, roleLabel }: {
+  chat: { id: string; message: string; author_role: string; document_urls: string[]; created_at: string };
+  isSelf: boolean;
+  roleLabel?: string;
+}) {
+  return (
+    <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+        isSelf ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+      }`}>
+        {!isSelf && roleLabel && (
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{roleLabel}</div>
+        )}
+        <p className="text-[13px] leading-relaxed">{chat.message}</p>
+        {chat.document_urls?.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {chat.document_urls.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                className={`flex items-center gap-1.5 text-[11px] font-medium ${isSelf ? 'text-teal-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
+                <Paperclip size={10} />Attachment {i + 1}
+              </a>
+            ))}
+          </div>
+        )}
+        <div className={`text-[10px] mt-1.5 ${isSelf ? 'text-teal-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
+      </div>
+    </div>
+  );
 }
 
-function tenantStatusConfig(status: string) {
-  const cfg: Record<string, { label: string; cls: string }> = {
-    PENDING:   { label: 'Pending',   cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
-    APPROVED:  { label: 'Approved',  cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
-    REJECTED:  { label: 'Rejected',  cls: 'bg-red-50 text-red-700 border border-red-200' },
-    WITHDRAWN: { label: 'Withdrawn', cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  };
-  return cfg[status] ?? cfg.PENDING;
-}
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  DRAFT:              { label: 'Draft',           cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <Clock size={11} /> },
+  SUBMITTED:         { label: 'Submitted',        cls: 'bg-blue-50 text-blue-700 border border-blue-200',       icon: <Send size={11} /> },
+  ALLOTTED:          { label: 'Allotted',         cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle size={11} /> },
+  ACKNOWLEDGED:      { label: 'Occupied',         cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ThumbsUp size={11} /> },
+  REJECTED:          { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200',          icon: <ThumbsDown size={11} /> },
+  EXTEND_REQUESTED:  { label: 'Extension Req.',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
+  UPGRADE_REQUESTED: { label: 'Upgrade Req.',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
+  VACATE_REQUESTED:  { label: 'Vacate Req.',      cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
+  VACATED:           { label: 'Vacated',          cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
+  WITHDRAWN:         { label: 'Withdrawn',        cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
+  ON_HOLD:           { label: 'On Hold',          cls: 'bg-slate-50 text-slate-700 border border-slate-200',    icon: <Clock size={11} /> },
+};
+function statusConfig(status: string) { return STATUS_CONFIG[status] ?? STATUS_CONFIG.DRAFT; }
 
-function serviceTypeConfig(type: string) {
-  const cfg: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-    EXTEND:      { label: 'Extension',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
-    UPGRADE:     { label: 'Upgrade',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',           icon: <ArrowRightCircle size={11} /> },
-    VACATE:      { label: 'Vacate',      cls: 'bg-orange-50 text-orange-700 border border-orange-200',  icon: <LogOut size={11} /> },
-    GRIEVANCE:   { label: 'Grievance',   cls: 'bg-rose-50 text-rose-700 border border-rose-200',        icon: <AlertCircle size={11} /> },
-    MAINTENANCE: { label: 'Maintenance', cls: 'bg-slate-50 text-slate-700 border border-slate-200',     icon: <Wrench size={11} /> },
-  };
-  return cfg[type] ?? cfg.EXTEND;
+const TENANT_STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
+  PENDING:   { label: 'Pending',   cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  APPROVED:  { label: 'Approved',  cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  REJECTED:  { label: 'Rejected',  cls: 'bg-red-50 text-red-700 border border-red-200' },
+  WITHDRAWN: { label: 'Withdrawn', cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
+};
+function tenantStatusConfig(status: string) { return TENANT_STATUS_CONFIG[status] ?? TENANT_STATUS_CONFIG.PENDING; }
+
+const SERVICE_TYPE_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  EXTEND:      { label: 'Extension',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
+  UPGRADE:     { label: 'Upgrade',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',           icon: <ArrowRightCircle size={11} /> },
+  VACATE:      { label: 'Vacate',      cls: 'bg-orange-50 text-orange-700 border border-orange-200',  icon: <LogOut size={11} /> },
+  GRIEVANCE:   { label: 'Grievance',   cls: 'bg-rose-50 text-rose-700 border border-rose-200',        icon: <AlertCircle size={11} /> },
+  MAINTENANCE: { label: 'Maintenance', cls: 'bg-slate-50 text-slate-700 border border-slate-200',     icon: <Wrench size={11} /> },
+};
+function serviceTypeConfig(type: string) { return SERVICE_TYPE_CONFIG[type] ?? SERVICE_TYPE_CONFIG.EXTEND; }
+
+// Status set constants — avoids repeated inline array literals
+const ALLOTTED_STATUSES = ['ALLOTTED', 'UPGRADE_REQUESTED'] as const;
+const OCCUPIED_STATUSES = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'] as const;
+const ACCEPTED_STATUSES = [...ALLOTTED_STATUSES, ...OCCUPIED_STATUSES] as const;
+
+function isAllottedStatus(s: string) { return (ALLOTTED_STATUSES as readonly string[]).includes(s); }
+function isOccupiedStatus(s: string) { return (OCCUPIED_STATUSES as readonly string[]).includes(s); }
+function isAcceptedStatus(s: string) { return (ACCEPTED_STATUSES as readonly string[]).includes(s); }
+
+function getRequestForBadgeCls(rf: string) {
+  return rf === 'SELF' ? 'bg-teal-50 text-teal-700' : rf === 'EMPLOYEE' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
+}
+function getRequestForLabel(rf: string) {
+  return rf === 'SELF' ? 'Self' : rf === 'EMPLOYEE' ? 'On Behalf' : 'Third Party';
 }
 
 type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'tenantServices' | 'vacated';
@@ -329,7 +367,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   // EO: Right panel mode for each DP
-  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'guest_info' | 'services' | 'chat';
+  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'chat';
   const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
   const [eoRejectReason, setEoRejectReason] = useState('');
   const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
@@ -472,6 +510,17 @@ export const QuarterRequestsPage: React.FC = () => {
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
 
+  // ─── shared file-upload helper ──────────────────────────────────────────────
+
+  const uploadChatFile = async (file: File, pathPrefix: string): Promise<string | null> => {
+    const ext = file.name.split('.').pop() ?? 'bin';
+    const path = `${pathPrefix}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('quarter-docs').upload(path, file);
+    if (error) return null;
+    const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
+    return pub?.publicUrl ?? null;
+  };
+
   // ─── service chat handlers ──────────────────────────────────────────────────
 
   const handleSendChat = async () => {
@@ -480,13 +529,8 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       const docUrls: string[] = [];
       if (chatAttachFile) {
-        const ext = chatAttachFile.name.split('.').pop() ?? 'bin';
-        const path = `service-chats/${selectedServiceId}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, chatAttachFile);
-        if (!upErr) {
-          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
-          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
-        }
+        const url = await uploadChatFile(chatAttachFile, `service-chats/${selectedServiceId}`);
+        if (url) docUrls.push(url);
       }
       await quartersService.addServiceChat(selectedServiceId, user.id, 'EMPLOYEE', chatMessage, docUrls);
       setChatMessage('');
@@ -504,13 +548,8 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       const docUrls: string[] = [];
       if (allotmentChatFile) {
-        const ext = allotmentChatFile.name.split('.').pop() ?? 'bin';
-        const path = `allotment-chats/${allotmentId}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, allotmentChatFile);
-        if (!upErr) {
-          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
-          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
-        }
+        const url = await uploadChatFile(allotmentChatFile, `allotment-chats/${allotmentId}`);
+        if (url) docUrls.push(url);
       }
       await quartersService.addAllotmentChat(allotmentId, user.id, role, allotmentChatMessage, docUrls);
       setAllotmentChatMessage('');
@@ -545,7 +584,7 @@ export const QuarterRequestsPage: React.FC = () => {
   useEffect(() => {
     const allotmentId = selectedRequest?.allotment?.id;
     const s = selectedRequest?.request_status;
-    const hasAllotment = s ? ['ALLOTTED', 'ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s) : false;
+    const hasAllotment = s ? (isAllottedStatus(s) || isOccupiedStatus(s)) : false;
     if (!allotmentId || !hasAllotment) return;
     quartersService.getAllotmentChats(allotmentId).then(chats => {
       setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
@@ -583,8 +622,8 @@ export const QuarterRequestsPage: React.FC = () => {
 
       // Auto-select default tab for EO employee mode per priority: Occupied > Allotted > Submitted
       if (isEmployeeMode) {
-        const hasOccupied = normalised.some((r: any) => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
-        const hasAllotted = normalised.some((r: any) => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
+        const hasOccupied = normalised.some((r: any) => isOccupiedStatus(r.request_status));
+        const hasAllotted = normalised.some((r: any) => isAllottedStatus(r.request_status));
         const hasSubmitted = normalised.some((r: any) => r.request_status === 'SUBMITTED');
         setDpFilter(hasOccupied ? 'occupied' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
       }
@@ -600,7 +639,7 @@ export const QuarterRequestsPage: React.FC = () => {
   // Reset EO right mode when selected request changes
   useEffect(() => {
     const s = selectedRequest?.request_status;
-    const isOcc = s ? ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s) : false;
+    const isOcc = s ? isOccupiedStatus(s) : false;
     setEoRightMode(isOcc ? 'chat' : 'detail');
     setApprovalAction(null);
     setApprovalRemarks('');
@@ -983,30 +1022,23 @@ export const QuarterRequestsPage: React.FC = () => {
   };
 
   // ─── EO Employee mode: approve/reject tenant request ───────────────────────
-  const handleEOApproveTR = async () => {
+  const handleEOActionTR = async (action: 'approve' | 'reject') => {
     if (!eoTrId || !selectedRequest) return;
+    if (action === 'reject' && !eoTrNotes.trim()) { addToast('Please provide rejection notes', 'warning'); return; }
     const tr = tenantRequests.find(t => t.id === eoTrId);
     if (!tr) return;
     setEoTrSubmitting(true);
     try {
-      await quartersService.approveTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
-      addToast('Request approved', 'success');
+      if (action === 'approve') {
+        await quartersService.approveTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
+        addToast('Request approved', 'success');
+      } else {
+        await quartersService.rejectTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
+        addToast('Request rejected', 'success');
+      }
       setEoTrId(null); setEoTrAction(null); setEoTrNotes('');
       loadData();
-    } catch { addToast('Failed to approve', 'error'); } finally { setEoTrSubmitting(false); }
-  };
-
-  const handleEORejectTR = async () => {
-    if (!eoTrId || !selectedRequest || !eoTrNotes.trim()) { addToast('Please provide rejection notes', 'warning'); return; }
-    const tr = tenantRequests.find(t => t.id === eoTrId);
-    if (!tr) return;
-    setEoTrSubmitting(true);
-    try {
-      await quartersService.rejectTenantRequest(eoTrId, selectedRequest.id, tr.service_type, eoTrNotes);
-      addToast('Request rejected', 'success');
-      setEoTrId(null); setEoTrAction(null); setEoTrNotes('');
-      loadData();
-    } catch { addToast('Failed to reject', 'error'); } finally { setEoTrSubmitting(false); }
+    } catch { addToast(`Failed to ${action}`, 'error'); } finally { setEoTrSubmitting(false); }
   };
 
   // ─── inline action popup submit ────────────────────────────────────────────
@@ -1075,7 +1107,7 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user) return;
     setAllotRequestsSubmitting(true);
     try {
-      const allotted = requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status) && r.allotment?.id);
+      const allotted = requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.id);
       const ids = allotted.map(r => r.allotment!.id).filter(Boolean);
       const wflId = allotRequestsWflId === 'none' ? null : allotRequestsWflId;
       await quartersService.submitAllotments(ids, wflId, user.id);
@@ -1217,12 +1249,8 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       const docUrls: string[] = [];
       if (inspectionChatFile) {
-        const path = `inspection-chats/${selectedInspectionId}/${Date.now()}.${inspectionChatFile.name.split('.').pop() ?? 'bin'}`;
-        const { error: upErr } = await supabase.storage.from('quarter-docs').upload(path, inspectionChatFile);
-        if (!upErr) {
-          const { data: pub } = supabase.storage.from('quarter-docs').getPublicUrl(path);
-          if (pub?.publicUrl) docUrls.push(pub.publicUrl);
-        }
+        const url = await uploadChatFile(inspectionChatFile, `inspection-chats/${selectedInspectionId}`);
+        if (url) docUrls.push(url);
         setInspectionChatFile(null);
       }
       await quartersService.addInspectionChat(selectedInspectionId, user.id, 'eo', inspectionChatMsg, docUrls);
@@ -1300,8 +1328,8 @@ export const QuarterRequestsPage: React.FC = () => {
   const statCounts = {
     draft:     requests.filter(r => r.request_status === 'DRAFT').length,
     submitted: requests.filter(r => r.request_status === 'SUBMITTED').length,
-    allotted:  requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status)).length,
-    occupied:  requests.filter(r => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status)).length,
+    allotted:  requests.filter(r => isAllottedStatus(r.request_status)).length,
+    occupied:  requests.filter(r => isOccupiedStatus(r.request_status)).length,
     vacated:   requests.filter(r => r.request_status === 'VACATED').length,
   };
 
@@ -1355,8 +1383,8 @@ export const QuarterRequestsPage: React.FC = () => {
 
     if (dpFilter === 'draft') result = result.filter(r => r.request_status === 'DRAFT');
     else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
-    else if (dpFilter === 'allotted') result = result.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status));
-    else if (dpFilter === 'occupied') result = result.filter(r => ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(r.request_status));
+    else if (dpFilter === 'allotted') result = result.filter(r => isAllottedStatus(r.request_status));
+    else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
     else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
     if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
@@ -1582,8 +1610,8 @@ export const QuarterRequestsPage: React.FC = () => {
               <div className="text-xs font-semibold text-gray-800 leading-tight">{user?.fullName ?? '—'}</div>
               <div className="text-[10px] text-gray-400">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
             </div>
-            <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${rf === 'SELF' ? 'bg-teal-50 text-teal-700' : rf === 'EMPLOYEE' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-              {rf === 'SELF' ? 'Self' : rf === 'EMPLOYEE' ? 'On Behalf' : 'Third Party'}
+            <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${getRequestForBadgeCls(rf)}`}>
+              {getRequestForLabel(rf)}
             </span>
           </div>
           {user?.govtDepartment && <div className="text-[10px] text-gray-500">{user.govtDepartment}</div>}
@@ -1743,34 +1771,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* Chat thread */}
         <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
-          {[...chats].reverse().map(chat => {
-            const isEmployee = chat.author_role === 'employee';
-            return (
-              <div key={chat.id} className={`flex ${isEmployee ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
-                  isEmployee
-                    ? 'bg-emerald-600 text-white rounded-tr-sm'
-                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                }`}>
-                  {chat.author_role === 'eo' && (
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Estate Officer</div>
-                  )}
-                  <p className="text-[13px] leading-relaxed">{chat.message}</p>
-                  {chat.document_urls.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {chat.document_urls.map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                          className={`flex items-center gap-1.5 text-[11px] font-medium ${isEmployee ? 'text-emerald-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
-                          <Paperclip size={10} />Attachment {i + 1}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  <div className={`text-[10px] mt-1.5 ${isEmployee ? 'text-emerald-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
-                </div>
-              </div>
-            );
-          })}
+          {[...chats].reverse().map(chat => (
+            <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+          ))}
           {chats.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10">
               <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-2.5">
@@ -2153,31 +2156,9 @@ export const QuarterRequestsPage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {[...chatsForService].reverse().map(chat => {
-                  const isEmployee = chat.author_role === 'EMPLOYEE';
-                  return (
-                    <div key={chat.id} className={`flex ${isEmployee ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
-                        isEmployee
-                          ? 'bg-teal-600 text-white rounded-tr-sm'
-                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                      }`}>
-                        <p className="text-[13px] leading-relaxed">{chat.message}</p>
-                        {chat.document_urls.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {chat.document_urls.map((url, i) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                className={`flex items-center gap-1.5 text-[11px] font-medium ${isEmployee ? 'text-teal-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
-                                <Paperclip size={10} />Attachment {i + 1}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                        <div className={`text-[10px] mt-1.5 ${isEmployee ? 'text-teal-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {[...chatsForService].reverse().map(chat => (
+                  <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'EMPLOYEE'} />
+                ))}
                 {chatsForService.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-dashed border-gray-200">
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2.5">
@@ -2722,10 +2703,10 @@ export const QuarterRequestsPage: React.FC = () => {
     const allottedQ = allotment?.quarter as Quarter | undefined;
     const s = req.request_status;
     const isSubmitted = s === 'SUBMITTED';
-    const isAllotted = s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED';
+    const isAllotted = isAllottedStatus(s);
     const isPendingApproval = isAllotted && approvalRecord && approvalRecord.status === 'PENDING';
     const isAccepted = s === 'ACKNOWLEDGED';
-    const isOccupied = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s);
+    const isOccupied = isOccupiedStatus(s);
     const activeTRs = tenantRequests.filter(tr => tr.allotment_id === allotment?.id && tr.request_status === 'PENDING');
     const eoAllotChatFileRef = useRef<HTMLInputElement>(null);
     const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
@@ -2742,9 +2723,7 @@ export const QuarterRequestsPage: React.FC = () => {
       { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
       { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied },
       { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied },
-      { key: 'services' as EORightMode, label: 'Services', icon: <Wrench size={12} />, show: false },
       { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied },
-      { key: 'guest_info' as EORightMode, label: 'Guests', icon: <Users size={12} />, show: false },
     ] as TabEntry[]).filter(t => t.show);
 
     return (
@@ -2796,36 +2775,10 @@ export const QuarterRequestsPage: React.FC = () => {
           return (
             <>
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
-                {[...eoAllotChats].reverse().map(chat => {
-                  const isEOAuthor = chat.author_role === 'eo';
-                  return (
-                    <div key={chat.id} className={`flex ${isEOAuthor ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
-                        isEOAuthor
-                          ? 'bg-teal-700 text-white rounded-tr-sm'
-                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                      }`}>
-                        {!isEOAuthor && (
-                          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                            {chat.author_role === 'employee' ? 'Employee' : 'System'}
-                          </div>
-                        )}
-                        <p className="text-[13px] leading-relaxed">{chat.message}</p>
-                        {chat.document_urls?.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {chat.document_urls.map((url: string, i: number) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                className={`flex items-center gap-1.5 text-[11px] font-medium ${isEOAuthor ? 'text-teal-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
-                                <Paperclip size={10} />Attachment {i + 1}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                        <div className={`text-[10px] mt-1.5 ${isEOAuthor ? 'text-teal-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {[...eoAllotChats].reverse().map(chat => (
+                  <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'eo'}
+                    roleLabel={chat.author_role !== 'eo' ? (chat.author_role === 'employee' ? 'Employee' : 'System') : undefined} />
+                ))}
                 {eoAllotChats.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-dashed border-gray-200">
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2.5">
@@ -3175,86 +3128,6 @@ export const QuarterRequestsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Services tab (OCCUPIED) */}
-          {eoRightMode === 'services' && isOccupied && allotment && (
-            <div className="p-4 space-y-3">
-              {activeTRs.length === 0 ? (
-                <div className="flex flex-col items-center py-8 text-gray-400">
-                  <ClipboardList size={24} className="mb-2 opacity-30" />
-                  <p className="text-xs italic">No pending service requests from this tenant.</p>
-                </div>
-              ) : activeTRs.map(tr => {
-                const stc = serviceTypeConfig(tr.service_type);
-                return (
-                  <div key={tr.id} className={`rounded-xl border px-3 py-3 space-y-2 ${stc.cls}`}>
-                    <div className="flex items-center gap-2">
-                      {stc.icon}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold">{stc.label}</div>
-                        {tr.reason && <div className="text-[10px] opacity-80 mt-0.5 truncate">{tr.reason}</div>}
-                      </div>
-                    </div>
-                    {eoTrId === tr.id && eoTrAction ? (
-                      <div className="space-y-2 pt-1">
-                        <textarea value={eoTrNotes} onChange={e => setEoTrNotes(e.target.value)} rows={2}
-                          placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
-                          className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800" />
-                        <div className="flex gap-2">
-                          <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }} className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
-                          {eoTrAction === 'approve'
-                            ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
-                            : <button onClick={handleEORejectTR} disabled={eoTrSubmitting} className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={() => { setEoTrId(tr.id); setEoTrAction('approve'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"><ThumbsUp size={11} />Approve</button>
-                        <button onClick={() => { setEoTrId(tr.id); setEoTrAction('reject'); setEoTrNotes(''); }} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700"><ThumbsDown size={11} />Reject</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <button
-                onClick={() => { if (allotment) { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); } }}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-50 transition-colors"
-              >
-                <RefreshCw size={13} />Override Allotment
-              </button>
-            </div>
-          )}
-
-          {/* Guest Info tab (OCCUPIED) */}
-          {eoRightMode === 'guest_info' && isOccupied && (
-            <div className="p-4 space-y-3">
-              <button onClick={() => setShowGuestInfoPopup(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
-                <UserPlus size={14} />Add Guest Info
-              </button>
-              {guestInfoLoading ? (
-                Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)
-              ) : guestInfoList.length === 0 ? (
-                <p className="text-xs text-gray-400 italic text-center py-4">No guest info recorded yet.</p>
-              ) : guestInfoList.map(guest => (
-                <div key={guest.id} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">{guest.guest_name.charAt(0)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-gray-900">{guest.guest_name}</div>
-                      <div className="text-[10px] text-gray-500">{guest.guest_mobile}{guest.guest_email ? ` · ${guest.guest_email}` : ''}</div>
-                    </div>
-                    <button onClick={() => quartersService.removeGuestInfo(guest.id).then(() => loadGuestInfo())} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                  </div>
-                  {(guest.aadhaar_doc_url || guest.pan_doc_url) && (
-                    <div className="flex gap-1.5 flex-wrap">
-                      {guest.aadhaar_doc_url && <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">Aadhaar</span>}
-                      {guest.pan_doc_url && <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded-full">PAN</span>}
-                      {guest.other_doc_urls?.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full">+{guest.other_doc_urls.length} docs</span>}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Manual allot quarter picker modal ── */}
@@ -3641,8 +3514,8 @@ export const QuarterRequestsPage: React.FC = () => {
                             <div className="text-xs text-gray-500">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
                             {user?.govtDepartment && <div className="text-xs text-gray-400">{user.govtDepartment}</div>}
                           </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rf === 'SELF' ? 'bg-teal-50 text-teal-700' : rf === 'EMPLOYEE' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-                            {rf === 'SELF' ? 'Self' : rf === 'EMPLOYEE' ? 'On Behalf' : 'Third Party'}
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getRequestForBadgeCls(rf)}`}>
+                            {getRequestForLabel(rf)}
                           </span>
                         </div>
 
@@ -3986,8 +3859,8 @@ export const QuarterRequestsPage: React.FC = () => {
               const s = selectedRequest.request_status;
               if (s === 'DRAFT') return <RightPanelDraft panelControls={controls} />;
               if (s === 'SUBMITTED') return <RightPanelSubmitted panelControls={controls} />;
-              if (s === 'ALLOTTED' || s === 'UPGRADE_REQUESTED') return <RightPanelAllotted panelControls={controls} />;
-              if (s === 'ACKNOWLEDGED' || ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(s)) return <RightPanelOccupied panelControls={controls} />;
+              if (isAllottedStatus(s)) return <RightPanelAllotted panelControls={controls} />;
+              if (isOccupiedStatus(s)) return <RightPanelOccupied panelControls={controls} />;
               return <RightPanelPreferences panelControls={controls} />;
             } : undefined}
             left={
@@ -4541,9 +4414,9 @@ export const QuarterRequestsPage: React.FC = () => {
                                               <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }}
                                                 className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
                                               {eoTrAction === 'approve'
-                                                ? <button onClick={handleEOApproveTR} disabled={eoTrSubmitting}
+                                                ? <button onClick={() => handleEOActionTR('approve')} disabled={eoTrSubmitting}
                                                     className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
-                                                : <button onClick={handleEORejectTR} disabled={eoTrSubmitting}
+                                                : <button onClick={() => handleEOActionTR('reject')} disabled={eoTrSubmitting}
                                                     className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
                                             </div>
                                           </div>
