@@ -59,6 +59,7 @@ import type {
   QuarterInspectionChat,
   QuarterHandover,
   QuarterGuestInfo,
+  QuarterRequestPreference,
 } from '../types/quarters';
 
 export const quartersService = {
