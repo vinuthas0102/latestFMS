@@ -444,6 +444,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const [actionBhk, setActionBhk] = useState('');
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
+  // Card-level accept inline state
+  const [acceptCardId, setAcceptCardId] = useState<string | null>(null);
+  const [acceptCardRemarks, setAcceptCardRemarks] = useState('');
+  const [acceptCardSubmitting, setAcceptCardSubmitting] = useState(false);
+
   // Quarter preview modal (photo click)
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -880,6 +885,18 @@ export const QuarterRequestsPage: React.FC = () => {
       resetActionForm();
       loadData();
     } catch { addToast('Failed to acknowledge', 'error'); } finally { setActionSubmitting(false); }
+  };
+
+  const handleCardAcknowledge = async (req: QuarterRequest) => {
+    if (!req.allotment?.id) return;
+    setAcceptCardSubmitting(true);
+    try {
+      await quartersService.acknowledgeAllotment(req.allotment.id, req.id, acceptCardRemarks);
+      addToast('Allotment acknowledged', 'success');
+      setAcceptCardId(null);
+      setAcceptCardRemarks('');
+      loadData();
+    } catch { addToast('Failed to acknowledge', 'error'); } finally { setAcceptCardSubmitting(false); }
   };
 
   const handleReject = async () => {
@@ -1808,53 +1825,6 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Accept / Decline action strip — Govt Official only, when approval is APPROVED */}
-        {!isEO && selectedRequest.request_status === 'ALLOTTED' && (
-          <div className="px-4 py-3 border-b border-gray-100 bg-white shrink-0">
-            <p className="text-[11px] text-gray-500 mb-2.5 font-medium uppercase tracking-wide">Your Action Required</p>
-            {rightAction !== 'acknowledge' && rightAction !== 'reject' ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setRightAction('acknowledge')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
-                >
-                  <ThumbsUp size={13} /> Accept Allotment
-                </button>
-                <button
-                  onClick={() => { setDeclineModalReqId(selectedRequest!.id); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
-                >
-                  <ThumbsDown size={13} /> Decline
-                </button>
-              </div>
-            ) : rightAction === 'acknowledge' ? (
-              <div className="space-y-2">
-                <textarea
-                  value={actionRemarks}
-                  onChange={e => setActionRemarks(e.target.value)}
-                  placeholder="Remarks (optional)…"
-                  rows={2}
-                  className="w-full px-3 py-2 text-[12px] border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAcknowledge}
-                    disabled={actionSubmitting}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                  >
-                    {actionSubmitting ? 'Confirming…' : <><CheckCircle size={12} /> Confirm Accept</>}
-                  </button>
-                  <button
-                    onClick={() => { setRightAction(null); setActionRemarks(''); }}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
 
         {/* Chat thread */}
         <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
@@ -4130,6 +4100,26 @@ export const QuarterRequestsPage: React.FC = () => {
                               </>
                             )}
 
+                            {/* Accept / Decline buttons — Govt Official only, ALLOTTED cards */}
+                            {!isEO && req.request_status === 'ALLOTTED' && req.allotment?.id && (
+                              <>
+                                <button
+                                  onClick={e => { e.stopPropagation(); setAcceptCardId(req.id); setAcceptCardRemarks(''); }}
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
+                                  title="Accept Allotment"
+                                >
+                                  <ThumbsUp size={11} /> Accept
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); setDeclineModalReqId(req.id); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[10px] font-semibold hover:bg-red-100 transition-colors shrink-0"
+                                  title="Decline Allotment"
+                                >
+                                  <ThumbsDown size={11} /> Decline
+                                </button>
+                              </>
+                            )}
+
                             {/* Expand / collapse icon */}
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
@@ -4152,6 +4142,38 @@ export const QuarterRequestsPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Inline Accept confirmation form */}
+                      {acceptCardId === req.id && (
+                        <div
+                          className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 space-y-2"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <p className="text-[11px] text-emerald-800 font-semibold uppercase tracking-wide">Confirm Acceptance</p>
+                          <textarea
+                            value={acceptCardRemarks}
+                            onChange={e => setAcceptCardRemarks(e.target.value)}
+                            placeholder="Remarks (optional)…"
+                            rows={2}
+                            className="w-full px-3 py-2 text-[12px] border border-emerald-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleCardAcknowledge(req)}
+                              disabled={acceptCardSubmitting}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                            >
+                              {acceptCardSubmitting ? 'Confirming…' : <><CheckCircle size={12} /> Confirm Accept</>}
+                            </button>
+                            <button
+                              onClick={() => { setAcceptCardId(null); setAcceptCardRemarks(''); }}
+                              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Expand/collapse request details */}
                       {expandedCardId === req.id && (
