@@ -4,8 +4,6 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    // Pre-declare all heavy deps so esbuild never needs to crawl src/ at startup.
-    // This prevents the esbuild OOM crash on dev server cold start.
     include: [
       'react',
       'react-dom',
@@ -19,27 +17,6 @@ export default defineConfig({
     ],
     entries: ['index.html'],
     force: false,
-    esbuildOptions: {
-      // Reduce peak memory by disabling transforms not needed during dep pre-bundling.
-      treeShaking: false,
-      minifySyntax: false,
-      minifyWhitespace: false,
-    },
-  },
-  server: {
-    warmup: {
-      // Pre-transform the heaviest source files so the browser's first request
-      // doesn't block on a cold esbuild transform of a large file.
-      clientFiles: [
-        './src/pages/QuarterRequestsPage.tsx',
-        './src/pages/QuarterManagerPage.tsx',
-        './src/components/quarters/EOActionPanel.tsx',
-        './src/components/quarters/EmployeeRightPanels.tsx',
-        './src/components/quarters/quarterShared.tsx',
-        './src/components/quarters/ActionPopupModal.tsx',
-        './src/components/quarters/DeclineAllotmentModal.tsx',
-      ],
-    },
   },
   build: {
     chunkSizeWarningLimit: 1000,

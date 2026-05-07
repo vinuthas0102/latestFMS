@@ -21,9 +21,9 @@ import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DocUpload } from '../components/ui/DocUpload';
-import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
-import { QuarterOverrideModal } from '../components/quarters/QuarterOverrideModal';
 import { QuarterDetailCard } from '../components/quarters/QuarterDetailCard';
+const QuarterDetailModal = React.lazy(() => import('../components/quarters/QuarterDetailModal').then(m => ({ default: m.QuarterDetailModal })));
+const QuarterOverrideModal = React.lazy(() => import('../components/quarters/QuarterOverrideModal').then(m => ({ default: m.QuarterOverrideModal })));
 import {
   quartersService,
   Quarter,
@@ -55,11 +55,12 @@ import {
   getRequestForBadgeCls, getRequestForLabel,
   ChatBubble, CompactQuarterRow, QuarterSummaryPanel, RequestSummaryBlock,
 } from '../components/quarters/quarterShared';
-import { EOActionPanel, EORightMode } from '../components/quarters/EOActionPanel';
-import {
-  RightPanelAllotted, RightPanelOccupied, RightPanelDraft,
-  RightPanelPreferences, RightPanelSubmitted,
-} from '../components/quarters/EmployeeRightPanels';
+const EOActionPanel = React.lazy(() => import('../components/quarters/EOActionPanel').then(m => ({ default: m.EOActionPanel })));
+const RightPanelAllotted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelAllotted })));
+const RightPanelOccupied = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelOccupied })));
+const RightPanelDraft = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelDraft })));
+const RightPanelPreferences = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelPreferences })));
+const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
@@ -2029,6 +2030,7 @@ export const QuarterRequestsPage: React.FC = () => {
             renderRight={selectedRequest ? (controls) => {
               // In EO employee mode, show EO management right panel
               if (isEO && eoMode === 'employee') return (
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
                 <EOActionPanel
                   selectedRequest={selectedRequest}
                   user={user}
@@ -2120,77 +2122,93 @@ export const QuarterRequestsPage: React.FC = () => {
                   handleDeallocate={handleDeallocate}
                   panelControls={controls}
                 />
+                </Suspense>
               );
               const s = selectedRequest.request_status;
-              if (s === 'DRAFT') return <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal} />;
-              if (s === 'SUBMITTED') return <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw} />;
+              if (s === 'DRAFT') return (
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
+                  <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal} />
+                </Suspense>
+              );
+              if (s === 'SUBMITTED') return (
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
+                  <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw} />
+                </Suspense>
+              );
+              const panelFallback = <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
               if (isAllottedStatus(s)) return (
-                <RightPanelAllotted
-                  panelControls={controls}
-                  selectedRequest={selectedRequest}
-                  isEO={isEO}
-                  eoMode={eoMode}
-                  allotmentChats={allotmentChats}
-                  allotmentChatMessage={allotmentChatMessage}
-                  setAllotmentChatMessage={setAllotmentChatMessage}
-                  allotmentChatFile={allotmentChatFile}
-                  setAllotmentChatFile={setAllotmentChatFile}
-                  allotmentChatSubmitting={allotmentChatSubmitting}
-                  handleSendAllotmentChat={handleSendAllotmentChat}
-                  openActionPopup={openActionPopup as any}
-                />
+                <Suspense fallback={panelFallback}>
+                  <RightPanelAllotted
+                    panelControls={controls}
+                    selectedRequest={selectedRequest}
+                    isEO={isEO}
+                    eoMode={eoMode}
+                    allotmentChats={allotmentChats}
+                    allotmentChatMessage={allotmentChatMessage}
+                    setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile}
+                    setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting}
+                    handleSendAllotmentChat={handleSendAllotmentChat}
+                    openActionPopup={openActionPopup as any}
+                  />
+                </Suspense>
               );
               if (isOccupiedStatus(s)) return (
-                <RightPanelOccupied
-                  panelControls={controls}
-                  selectedRequest={selectedRequest}
-                  tenantRequests={tenantRequests}
-                  serviceChats={serviceChats}
-                  selectedServiceId={selectedServiceId}
-                  setSelectedServiceId={setSelectedServiceId}
-                  servicesHistoryMode={servicesHistoryMode}
-                  setServicesHistoryMode={setServicesHistoryMode}
-                  chatMessage={chatMessage}
-                  setChatMessage={setChatMessage}
-                  chatAttachFile={chatAttachFile}
-                  setChatAttachFile={setChatAttachFile}
-                  chatSubmitting={chatSubmitting}
-                  handleSendChat={handleSendChat}
-                  handleCloseService={handleCloseService}
-                  rightAction={rightAction}
-                  setRightAction={setRightAction}
-                  actionReason={actionReason}
-                  setActionReason={setActionReason}
-                  actionRemarks={actionRemarks}
-                  setActionRemarks={setActionRemarks}
-                  actionDate={actionDate}
-                  setActionDate={setActionDate}
-                  actionBhk={actionBhk}
-                  setActionBhk={setActionBhk}
-                  actionDocUrl={actionDocUrl}
-                  setActionDocUrl={setActionDocUrl}
-                  actionSubmitting={actionSubmitting}
-                  resetActionForm={resetActionForm}
-                  handleTenantRequest={handleTenantRequest}
-                  openActionPopup={openActionPopup as any}
-                  setServiceChats={setServiceChats}
-                  setPreviewQuarterId={setPreviewQuarterId}
-                  setIsPreviewOpen={setIsPreviewOpen}
-                />
+                <Suspense fallback={panelFallback}>
+                  <RightPanelOccupied
+                    panelControls={controls}
+                    selectedRequest={selectedRequest}
+                    tenantRequests={tenantRequests}
+                    serviceChats={serviceChats}
+                    selectedServiceId={selectedServiceId}
+                    setSelectedServiceId={setSelectedServiceId}
+                    servicesHistoryMode={servicesHistoryMode}
+                    setServicesHistoryMode={setServicesHistoryMode}
+                    chatMessage={chatMessage}
+                    setChatMessage={setChatMessage}
+                    chatAttachFile={chatAttachFile}
+                    setChatAttachFile={setChatAttachFile}
+                    chatSubmitting={chatSubmitting}
+                    handleSendChat={handleSendChat}
+                    handleCloseService={handleCloseService}
+                    rightAction={rightAction}
+                    setRightAction={setRightAction}
+                    actionReason={actionReason}
+                    setActionReason={setActionReason}
+                    actionRemarks={actionRemarks}
+                    setActionRemarks={setActionRemarks}
+                    actionDate={actionDate}
+                    setActionDate={setActionDate}
+                    actionBhk={actionBhk}
+                    setActionBhk={setActionBhk}
+                    actionDocUrl={actionDocUrl}
+                    setActionDocUrl={setActionDocUrl}
+                    actionSubmitting={actionSubmitting}
+                    resetActionForm={resetActionForm}
+                    handleTenantRequest={handleTenantRequest}
+                    openActionPopup={openActionPopup as any}
+                    setServiceChats={setServiceChats}
+                    setPreviewQuarterId={setPreviewQuarterId}
+                    setIsPreviewOpen={setIsPreviewOpen}
+                  />
+                </Suspense>
               );
               return (
-                <RightPanelPreferences
-                  panelControls={controls}
-                  selectedRequest={selectedRequest}
-                  selectedPrefs={selectedPrefs}
-                  selectedPrefQuarter={selectedPrefQuarter}
-                  setSelectedPrefQuarter={setSelectedPrefQuarter}
-                  setPreviewQuarterId={setPreviewQuarterId}
-                  setIsPreviewOpen={setIsPreviewOpen}
-                  openNewModal={openNewModal}
-                  addToast={addToast}
-                  loadData={loadData}
-                />
+                <Suspense fallback={panelFallback}>
+                  <RightPanelPreferences
+                    panelControls={controls}
+                    selectedRequest={selectedRequest}
+                    selectedPrefs={selectedPrefs}
+                    selectedPrefQuarter={selectedPrefQuarter}
+                    setSelectedPrefQuarter={setSelectedPrefQuarter}
+                    setPreviewQuarterId={setPreviewQuarterId}
+                    setIsPreviewOpen={setIsPreviewOpen}
+                    openNewModal={openNewModal}
+                    addToast={addToast}
+                    loadData={loadData}
+                  />
+                </Suspense>
               );
             } : undefined}
             left={
@@ -3132,11 +3150,13 @@ export const QuarterRequestsPage: React.FC = () => {
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (
-        <QuarterDetailModal
-          isOpen={isPreviewOpen}
-          onClose={() => { setIsPreviewOpen(false); setPreviewQuarterId(null); }}
-          quarterId={previewQuarterId}
-        />
+        <Suspense fallback={null}>
+          <QuarterDetailModal
+            isOpen={isPreviewOpen}
+            onClose={() => { setIsPreviewOpen(false); setPreviewQuarterId(null); }}
+            quarterId={previewQuarterId}
+          />
+        </Suspense>
       )}
 
       {/* ── Image lightbox (allotted/occupied panel tiles) ─────────────── */}
@@ -3477,14 +3497,16 @@ export const QuarterRequestsPage: React.FC = () => {
 
       {/* ── EO: Override modal (globally mounted) ────────────────────────── */}
       {showOverrideModal && overrideAllotment && user && (
-        <QuarterOverrideModal
-          isOpen={showOverrideModal}
-          allotment={overrideAllotment}
-          allCycleAllotments={requests.filter(r => r.allotment).map(r => r.allotment as QuarterAllotment)}
-          eoAuthId={user.id}
-          onClose={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); }}
-          onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
-        />
+        <Suspense fallback={null}>
+          <QuarterOverrideModal
+            isOpen={showOverrideModal}
+            allotment={overrideAllotment}
+            allCycleAllotments={requests.filter(r => r.allotment).map(r => r.allotment as QuarterAllotment)}
+            eoAuthId={user.id}
+            onClose={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); }}
+            onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
+          />
+        </Suspense>
       )}
     </div>
   );
