@@ -5,6 +5,7 @@ import { propertyService } from '../services/propertyService';
 interface PropertyStore {
   properties: PropertyDTO[];
   currentProperty: PropertyDTO | null;
+  currentPropertyError: string | null;
   modules: ModuleDTO[];
   propertyTypes: PropertyTypeDTO[];
   roomTypes: RoomTypeDTO[];
@@ -27,6 +28,7 @@ interface PropertyStore {
 export const usePropertyStore = create<PropertyStore>((set) => ({
   properties: [],
   currentProperty: null,
+  currentPropertyError: null,
   modules: [],
   propertyTypes: [],
   roomTypes: [],
@@ -37,7 +39,7 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
 
   setProperties: (properties) => set({ properties }),
 
-  setCurrentProperty: (property) => set({ currentProperty: property }),
+  setCurrentProperty: (property) => set({ currentProperty: property, currentPropertyError: null }),
 
   fetchProperties: async (filters) => {
     set({ loading: true });
@@ -51,13 +53,13 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
   },
 
   fetchPropertyById: async (id) => {
-    set({ loading: true });
+    set({ loading: true, currentPropertyError: null });
     try {
       const property = await propertyService.getPropertyById(id);
       set({ currentProperty: property, loading: false });
     } catch (error) {
-      set({ loading: false });
-      throw error;
+      const msg = error instanceof Error ? error.message : 'Failed to load property';
+      set({ loading: false, currentPropertyError: msg });
     }
   },
 

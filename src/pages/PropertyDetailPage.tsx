@@ -4,7 +4,7 @@ import {
   MapPin, Wifi, Calendar, ArrowLeft, Info, Layers,
   DollarSign, Map, BarChart3, Star,
   CheckCircle, Bed, Users, ChevronDown,
-  CreditCard as EditIcon,
+  CreditCard as EditIcon, Building2,
 } from 'lucide-react';
 import { RoomDisplayCard } from '../components/rooms/RoomDisplayCard';
 import { getCategoryTheme, getAmenityIcon } from '../utils/amenityIcons';
@@ -114,8 +114,8 @@ const Section: React.FC<SectionProps> = ({ id, sectionRefs, children }) => (
 export const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentProperty, fetchPropertyById, setCurrentProperty, roomTypes, amenities } = usePropertyStore();
-  const { user } = useAuthStore();
+  const { currentProperty, currentPropertyError, fetchPropertyById, setCurrentProperty, roomTypes, amenities } = usePropertyStore();
+  const { user, isLoading: authLoading } = useAuthStore();
 
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
@@ -130,11 +130,10 @@ export const PropertyDetailPage: React.FC = () => {
   const { blocks, floors, rooms, loading: hierarchyLoading } = usePropertyHierarchy(id);
 
   useEffect(() => {
-    if (id) {
-      setCurrentProperty(null);
-      fetchPropertyById(id);
-    }
-  }, [id]);
+    if (!id || authLoading) return;
+    setCurrentProperty(null);
+    fetchPropertyById(id);
+  }, [id, authLoading]);
 
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
@@ -200,14 +199,25 @@ export const PropertyDetailPage: React.FC = () => {
   const isGovtFacilities = currentProperty?.module?.code === 'GOVT_FAC';
   const requiresLogin = isGovtFacilities;
 
-  // ── Loading ────────────────────────────────────────────────────
+  // ── Loading / error guards ─────────────────────────────────────
 
-  if (!currentProperty) {
+  if (authLoading || (!currentProperty && !currentPropertyError)) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600" />
+      </div>
+    );
+  }
+
+  if (currentPropertyError || !currentProperty) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+        <Building2 size={48} className="text-gray-300" />
+        <h2 className="text-xl font-semibold text-gray-700">Property not found</h2>
+        <p className="text-sm text-gray-400 max-w-xs text-center">
+          {currentPropertyError || 'This property could not be loaded. It may have been removed or you may need to log in.'}
+        </p>
+        <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm">Go back</button>
       </div>
     );
   }

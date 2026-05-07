@@ -104,7 +104,11 @@ function App() {
             {/* Wildcard property detail — must come after all static /properties/* routes */}
             <Route
               path="/properties/:id"
-              element={<ErrorBoundary><PropertyDetailPage /></ErrorBoundary>}
+              element={
+                <AppLayout>
+                  <ErrorBoundary><PropertyDetailPage /></ErrorBoundary>
+                </AppLayout>
+              }
             />
             <Route
               path="/check-in"
