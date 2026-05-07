@@ -461,8 +461,8 @@ export const QuarterRequestsPage: React.FC = () => {
   };
 
   const handleSendAllotmentChat = async (authorRole?: string) => {
-    if (!user || !selectedRequest?.allotment?.id || !allotmentChatMessage.trim()) return;
-    const allotmentId = selectedRequest.allotment.id;
+    if (!user || !selectedRequest || !allotmentChatMessage.trim()) return;
+    const allotmentId = selectedRequest.allotment?.id ?? selectedRequest.id;
     const role = authorRole ?? (isEO && eoMode === 'employee' ? 'eo' : 'employee');
     setAllotmentChatSubmitting(true);
     try {

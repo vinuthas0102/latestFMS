@@ -245,7 +245,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
-    { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied },
+    { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied || isSubmitted },
   ] as TabEntry[]).filter(t => t.show);
 
   // suppress unused warning
@@ -292,9 +292,10 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
         </div>
       )}
 
-      {/* ── Chat tab (occupied) ── */}
-      {eoRightMode === 'chat' && isOccupied && allotment && (() => {
-        const eoAllotChats = allotmentChats[allotment.id] ?? [];
+      {/* ── Chat tab (occupied or submitted) ── */}
+      {eoRightMode === 'chat' && (isOccupied || isSubmitted) && (isOccupied ? !!allotment : true) && (() => {
+        const chatKey = allotment?.id ?? req.id;
+        const eoAllotChats = allotmentChats[chatKey] ?? [];
         return (
           <>
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
