@@ -241,8 +241,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
   const tabs: TabEntry[] = ([
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: !isOccupied },
-    { key: 'allot' as EORightMode, label: 'Allot', icon: <Home size={12} />, show: isSubmitted },
-    { key: 'rejection_chat' as EORightMode, label: 'Reject', icon: <XCircle size={12} />, show: isSubmitted },
     { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
@@ -349,44 +347,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
 
         {/* Detail tab */}
         {eoRightMode === 'detail' && <RequestSummaryBlock req={req} user={user} />}
-
-        {/* Allot tab (SUBMITTED) */}
-        {eoRightMode === 'allot' && isSubmitted && (
-          <div className="p-4 space-y-3">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700">
-              Select a quarter to manually allot to this request. The employee will be notified to acknowledge.
-            </div>
-            <button
-              onClick={() => { setManualAllotSearch(''); setManualAllotPickerOpen(true); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-            >
-              <Home size={14} />Pick Quarter to Allot
-            </button>
-          </div>
-        )}
-
-        {/* Reject tab (SUBMITTED) */}
-        {(eoRightMode as string) === 'rejection_chat' && isSubmitted && (
-          <div className="p-4 space-y-3">
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">
-              Rejecting this request will send it back to Draft status with a sub-status of REJECTED. The employee can revise and resubmit.
-            </div>
-            <textarea
-              value={eoRejectReason}
-              onChange={e => setEoRejectReason(e.target.value)}
-              rows={4}
-              placeholder="Rejection reason (required)…"
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 resize-none"
-            />
-            <button
-              onClick={handleEORejectRequest}
-              disabled={eoRejectSubmitting || !eoRejectReason.trim()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
-            >
-              <XCircle size={14} />{eoRejectSubmitting ? 'Rejecting…' : 'Confirm Rejection'}
-            </button>
-          </div>
-        )}
 
         {/* Override tab (ALLOTTED) */}
         {eoRightMode === 'override' && isAllotted && allotment && (
