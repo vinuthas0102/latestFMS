@@ -355,6 +355,12 @@ export const QuarterRequestsPage: React.FC = () => {
   const [acceptCardRemarks, setAcceptCardRemarks] = useState('');
   const [acceptCardSubmitting, setAcceptCardSubmitting] = useState(false);
 
+  // New Inspection modal (Accepted DP filter)
+  const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
+  const [inspectRemarks, setInspectRemarks] = useState('');
+  const [inspectCondition, setInspectCondition] = useState('GOOD');
+  const [inspectSubmitting, setInspectSubmitting] = useState(false);
+
   // Quarter preview modal (photo click)
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -1316,6 +1322,23 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to add guest info', 'error'); } finally { setGuestSubmitting(false); }
   };
 
+  const handleStartAcceptedInspection = async () => {
+    if (!inspectTarget?.allotment?.id || !user) return;
+    setInspectSubmitting(true);
+    try {
+      await quartersService.startInspection(inspectTarget.allotment.id, user.id, inspectRemarks);
+      addToast('Inspection started', 'success');
+      setInspectTarget(null);
+      setInspectRemarks('');
+      setInspectCondition('GOOD');
+      loadData();
+    } catch {
+      addToast('Failed to start inspection', 'error');
+    } finally {
+      setInspectSubmitting(false);
+    }
+  };
+
   // ─── derived counts ─────────────────────────────────────────────────────────
 
   const statCounts = {
@@ -2208,6 +2231,24 @@ export const QuarterRequestsPage: React.FC = () => {
                   />
                 </Suspense>
               );
+              if (isOccupiedStatus(s) && dpFilter === 'accepted') return (
+                <Suspense fallback={panelFallback}>
+                  <RightPanelAllotted
+                    panelControls={controls}
+                    selectedRequest={selectedRequest}
+                    isEO={isEO}
+                    eoMode={eoMode}
+                    allotmentChats={allotmentChats}
+                    allotmentChatMessage={allotmentChatMessage}
+                    setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile}
+                    setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting}
+                    handleSendAllotmentChat={handleSendAllotmentChat}
+                    openActionPopup={openActionPopup as any}
+                  />
+                </Suspense>
+              );
               if (isOccupiedStatus(s)) return (
                 <Suspense fallback={panelFallback}>
                   <RightPanelOccupied
@@ -3009,7 +3050,26 @@ export const QuarterRequestsPage: React.FC = () => {
                         </button>
                       </>
                     )}
-                    {isOccupied && req.allotment && (() => {
+                    {isOccupied && req.allotment && dpFilter === 'accepted' && (
+                      <>
+                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actions</span></div>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center shrink-0"><Eye size={12} className="text-blue-600" /></span>
+                          View Detail
+                        </button>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setInspectTarget(req); setInspectRemarks(''); setInspectCondition('GOOD'); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><HardHat size={12} className="text-sky-600" /></span>
+                          New Inspection
+                        </button>
+                      </>
+                    )}
+                    {isOccupied && req.allotment && dpFilter !== 'accepted' && (() => {
                       const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
                       return (
                         <>
@@ -3074,6 +3134,70 @@ export const QuarterRequestsPage: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* ── New Inspection Modal (Accepted DP filter) ────────────────────── */}
+      {inspectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 bg-sky-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <HardHat size={16} className="text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white">New Inspection</div>
+                  <div className="text-[11px] text-sky-200">{inspectTarget.request_number} · {inspectTarget.allotment?.quarter?.quarter_number ?? '—'}</div>
+                </div>
+              </div>
+              <button onClick={() => setInspectTarget(null)} className="p-1.5 rounded-lg text-sky-200 hover:text-white hover:bg-white/10 transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Opening Remarks</label>
+                <textarea
+                  value={inspectRemarks}
+                  onChange={e => setInspectRemarks(e.target.value)}
+                  rows={3}
+                  placeholder="Describe the purpose of this inspection…"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400 resize-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Initial Condition</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setInspectCondition(c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${inspectCondition === c ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                      {c.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setInspectTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartAcceptedInspection}
+                disabled={inspectSubmitting || !inspectRemarks.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <PlayCircle size={14} />
+                {inspectSubmitting ? 'Starting…' : 'Start Inspection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
       <DeclineAllotmentModal
