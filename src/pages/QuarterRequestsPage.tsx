@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, Zap, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare, SkipForward,
-  UserX, HardHat, Package, ClipboardCheck, Handshake,
+  UserX, HardHat, Package, ClipboardCheck, Handshake, Download,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -63,6 +63,7 @@ const RightPanelPreferences = React.lazy(() => import('../components/quarters/Em
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -2018,6 +2019,13 @@ export const QuarterRequestsPage: React.FC = () => {
                   {activeCycle.cycle_name} · Closes {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}
                 </span>
               )}
+              <button
+                onClick={() => downloadPageAsHtml('/quarters/requests')}
+                title="Download Offline Copy"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              >
+                <Download size={13} /> Download
+              </button>
               {!(isEO && eoMode === 'employee') && (
                 <>
                   <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">

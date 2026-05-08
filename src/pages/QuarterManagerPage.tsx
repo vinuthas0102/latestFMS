@@ -5,7 +5,7 @@ import {
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
-  HardHat, MoreVertical, MessageSquare, PlayCircle, X,
+  HardHat, MoreVertical, MessageSquare, PlayCircle, X, Download,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -27,6 +27,7 @@ import {
 } from '../services/quartersService';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 
 const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
@@ -466,17 +467,26 @@ export const QuarterManagerPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Quarters Management</h1>
             <p className="text-sm text-gray-500 mt-1">Manage allotment cycles, review requests, and process tenant services.</p>
           </div>
-          <button
-            onClick={() => setViewMode(v => v === 'allocation' ? 'dp' : 'allocation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              viewMode === 'allocation'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-            }`}
-          >
-            <BarChart3 size={15} />
-            Allocation
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadPageAsHtml('/quarters/manager')}
+              title="Download Offline Copy"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <Download size={15} /> Download
+            </button>
+            <button
+              onClick={() => setViewMode(v => v === 'allocation' ? 'dp' : 'allocation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'allocation'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              <BarChart3 size={15} />
+              Allocation
+            </button>
+          </div>
         </div>
 
         {/* DP Summary Cards */}

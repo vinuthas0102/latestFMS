@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import {
   ArrowLeft, Send, Zap, Search, Filter, Building2, Plus, Star, ArrowUp, ArrowDown, Trash2,
   X, UserCheck, UserPlus, User, Users, CheckCircle, Bed, Ruler, Home, FileText,
-  Phone, Mail, CreditCard,
+  Phone, Mail, CreditCard, Download,
 } from 'lucide-react';
 import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
+import { downloadPageAsHtml } from '../../utils/downloadHtml';
 
 // Types needed
 interface NewRequestForm {
@@ -161,6 +162,14 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => downloadPageAsHtml('/quarters/requests')}
+            title="Download Offline Copy"
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-1.5"
+          >
+            <Download size={14} />
+            <span className="hidden sm:inline">Download</span>
+          </button>
           <button onClick={onSaveDraft} disabled={submitting || allotNowSubmitting}
             className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
             Save Draft
