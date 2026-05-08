@@ -412,7 +412,7 @@ export const QuarterRequestsPage: React.FC = () => {
     e.stopPropagation();
     if (openMenuId === reqId) { setOpenMenuId(null); setMenuPos(null); return; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = dpFilter === 'accepted' ? 120 : 320;
+    const menuHeight = dpFilter === 'allotted' ? 70 : dpFilter === 'accepted' ? 120 : 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
     setMenuPos({ top, left: rect.right - 210 });
@@ -2335,6 +2335,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   const scBase = statusConfig(req.request_status);
                   const sc = (dpFilter === 'accepted' && req.request_status === 'ACKNOWLEDGED')
                     ? { ...scBase, label: 'Accepted', cls: 'bg-sky-50 text-sky-700 border border-sky-200' }
+                    : (dpFilter === 'allotted' && req.request_status === 'ALLOTTED')
+                    ? { ...scBase, label: 'Allotted', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
                     : scBase;
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
@@ -2568,8 +2570,8 @@ export const QuarterRequestsPage: React.FC = () => {
                               {expandedCardId === req.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
 
-                            {/* Action menu — hidden for ALLOTTED (handled inline) and terminal statuses */}
-                            {!['ALLOTTED', 'VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
+                            {/* Action menu — hidden for ALLOTTED (unless in allotted filter) and terminal statuses */}
+                            {(!(req.request_status === 'ALLOTTED') || dpFilter === 'allotted') && !['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
                                 onClick={e => openMenu(e, req.id)}
                                 className={`p-1.5 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
@@ -3007,6 +3009,15 @@ export const QuarterRequestsPage: React.FC = () => {
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="py-1">
+                    {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && (
+                      <button
+                        onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                      >
+                        <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><Eye size={12} className="text-emerald-600" /></span>
+                        Detail
+                      </button>
+                    )}
                     {req.request_status === 'DRAFT' && (
                       <button
                         onClick={() => { setOpenMenuId(null); setMenuPos(null); openNewModal(req); }}
