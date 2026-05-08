@@ -268,11 +268,12 @@ export const QuarterManagerPage: React.FC = () => {
   }, [dpActionMenuReqId]);
 
   useEffect(() => {
-    if (dpFilter === 'accepted' && dpFilteredRequests.length > 0) {
-      loadDpInspections(dpFilteredRequests);
+    if (dpFilter === 'accepted') {
+      const accepted = allRequests.filter(r => r.request_status === 'ACKNOWLEDGED');
+      if (accepted.length > 0) loadDpInspections(accepted);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dpFilter, dpFilteredRequests]);
+  }, [dpFilter, allRequests]);
 
   const handleFinaliseCycle = async () => {
     if (!selectedCycle || !user) return;

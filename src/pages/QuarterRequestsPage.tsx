@@ -101,7 +101,7 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'unapproved' | 'occupied' | 'tenantServices' | 'vacated';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
@@ -109,6 +109,7 @@ const DP_LABELS: Record<DPFilter, string> = {
   submitted: 'Submitted',
   allotted: 'Allocated',
   unapproved: 'Unapproved Allotment',
+  accepted: 'Accepted',
   occupied: 'Occupied',
   tenantServices: 'Tenant Services',
   vacated: 'Vacated',
@@ -1322,6 +1323,7 @@ export const QuarterRequestsPage: React.FC = () => {
     submitted:  requests.filter(r => r.request_status === 'SUBMITTED').length,
     allotted:   requests.filter(r => isAllottedStatus(r.request_status)).length,
     unapproved: requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
+    accepted:   requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     occupied:   requests.filter(r => isOccupiedStatus(r.request_status)).length,
     vacated:    requests.filter(r => r.request_status === 'VACATED').length,
   };
@@ -1356,6 +1358,13 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <GitMerge size={20} className="text-orange-600" />,
     },
     {
+      key: 'accepted', label: 'Accepted', description: 'Awaiting inspection',
+      count: statCounts.accepted,
+      gradient: 'from-sky-500 to-blue-500',
+      iconBg: 'bg-sky-100', textColor: 'text-sky-700', countColor: 'text-sky-900',
+      icon: <HardHat size={20} className="text-sky-600" />,
+    },
+    {
       key: 'occupied', label: 'Occupied', description: 'Occupying / Service active',
       count: statCounts.occupied,
       gradient: 'from-teal-500 to-cyan-400',
@@ -1385,6 +1394,7 @@ export const QuarterRequestsPage: React.FC = () => {
     else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
     else if (dpFilter === 'allotted') result = result.filter(r => isAllottedStatus(r.request_status));
     else if (dpFilter === 'unapproved') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
+    else if (dpFilter === 'accepted') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
     else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
     else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
@@ -1973,6 +1983,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     submitted: Send,
                     allotted: CheckCircle,
                     unapproved: GitMerge,
+                    accepted: HardHat,
                     occupied: Home,
                     tenantServices: RefreshCw,
                     vacated: Building2,
