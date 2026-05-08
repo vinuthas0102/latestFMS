@@ -2058,25 +2058,25 @@ export const QuarterRequestsPage: React.FC = () => {
 
         {/* ── Status summary cards — single-row slider ── */}
         <div className="flex-none mb-4">
-          <div className="relative">
-            {/* Left arrow */}
-            {dpCanScrollLeft && (
-              <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
-                <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-50 to-transparent" />
-                <button
-                  onClick={() => dpScrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
-                  className="pointer-events-auto relative z-10 ml-1 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:shadow-lg hover:text-gray-900 transition-all duration-150"
-                  aria-label="Scroll left"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-              </div>
-            )}
+          <div className="flex items-center gap-2">
+            {/* Left nav button — always reserves space so track width is stable */}
+            <button
+              onClick={() => dpScrollRef.current?.scrollBy({ left: -210, behavior: 'smooth' })}
+              disabled={!dpCanScrollLeft}
+              aria-label="Scroll left"
+              className={`flex-none w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-150 ${
+                dpCanScrollLeft
+                  ? 'bg-white border-gray-200 text-gray-600 shadow-sm hover:bg-gray-50 hover:shadow-md hover:text-gray-900 cursor-pointer'
+                  : 'bg-gray-50 border-gray-100 text-gray-300 cursor-default'
+              }`}
+            >
+              <ChevronLeft size={15} />
+            </button>
 
             {/* Scrollable track */}
             <div
               ref={dpScrollRef}
-              className="flex gap-3 overflow-x-auto"
+              className="flex-1 flex gap-3 overflow-x-auto"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {STATUS_CARDS.map((card, idx) => {
@@ -2095,7 +2095,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 return (
                   <div
                     key={card.key}
-                    className="flex-none w-[195px]"
+                    className="flex-none w-[190px]"
                     data-dp-active={dpFilter === card.key ? 'true' : undefined}
                   >
                     <SummaryStatsCard
@@ -2117,22 +2117,21 @@ export const QuarterRequestsPage: React.FC = () => {
                   </div>
                 );
               })}
-              <div className="flex-none w-2" />
             </div>
 
-            {/* Right arrow */}
-            {dpCanScrollRight && (
-              <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
-                <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-50 to-transparent" />
-                <button
-                  onClick={() => dpScrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
-                  className="pointer-events-auto relative z-10 mr-1 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:shadow-lg hover:text-gray-900 transition-all duration-150"
-                  aria-label="Scroll right"
-                >
-                  <ChevronRight size={15} />
-                </button>
-              </div>
-            )}
+            {/* Right nav button — always reserves space */}
+            <button
+              onClick={() => dpScrollRef.current?.scrollBy({ left: 210, behavior: 'smooth' })}
+              disabled={!dpCanScrollRight}
+              aria-label="Scroll right"
+              className={`flex-none w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-150 ${
+                dpCanScrollRight
+                  ? 'bg-white border-gray-200 text-gray-600 shadow-sm hover:bg-gray-50 hover:shadow-md hover:text-gray-900 cursor-pointer'
+                  : 'bg-gray-50 border-gray-100 text-gray-300 cursor-default'
+              }`}
+            >
+              <ChevronRight size={15} />
+            </button>
           </div>
         </div>
 
