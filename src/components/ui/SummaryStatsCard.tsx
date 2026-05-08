@@ -38,7 +38,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
     ? 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]'
     : '';
   const activeClasses = isActive
-    ? 'ring-2 ring-white/70 ring-offset-2 shadow-lg scale-[1.02]'
+    ? 'ring-2 ring-gray-900 ring-offset-2 shadow-lg scale-[1.02]'
     : 'shadow-sm';
 
   const TrendIcon = trend != null
