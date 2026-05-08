@@ -292,6 +292,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // Dashboard filter — default to 'allotted' per spec
   const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
+  const dpScrollRef = useRef<HTMLDivElement>(null);
+  const [dpCanScrollLeft, setDpCanScrollLeft] = useState(false);
+  const [dpCanScrollRight, setDpCanScrollRight] = useState(false);
 
   // New-request full-screen
   const [showNewModal, setShowNewModal] = useState(false);
@@ -575,6 +578,35 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
+
+  // DP scroll arrow visibility
+  const updateDpScrollState = useCallback(() => {
+    const el = dpScrollRef.current;
+    if (!el) return;
+    setDpCanScrollLeft(el.scrollLeft > 2);
+    setDpCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = dpScrollRef.current;
+    if (!el) return;
+    updateDpScrollState();
+    el.addEventListener('scroll', updateDpScrollState, { passive: true });
+    const ro = new ResizeObserver(updateDpScrollState);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
+  }, [updateDpScrollState]);
+
+  // Scroll active DP card into view when filter changes
+  useEffect(() => {
+    const el = dpScrollRef.current;
+    if (!el) return;
+    const activeEl = el.querySelector('[data-dp-active="true"]') as HTMLElement | null;
+    if (activeEl) {
+      const offset = activeEl.offsetLeft - 16;
+      el.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
+    }
+  }, [dpFilter]);
 
   // Reset EO right mode when selected request changes
   useEffect(() => {
@@ -2024,42 +2056,83 @@ export const QuarterRequestsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Status summary cards (SummaryStatsCard, matches QuarterManagerPage) ── */}
+        {/* ── Status summary cards — single-row slider ── */}
         <div className="flex-none mb-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {STATUS_CARDS.map((card, idx) => (
-              <SummaryStatsCard
-                key={card.key}
-                label={card.label}
-                value={card.count}
-                icon={(() => {
-                  const iconMap: Record<DPFilter, React.FC<any>> = {
-                    all: FileText,
-                    draft: FileText,
-                    submitted: Send,
-                    allotted: CheckSquare,
-                    allocated_em: ClipboardCheck,
-                    unapproved: GitMerge,
-                    accepted: HardHat,
-                    occupied: Home,
-                    tenantServices: RefreshCw,
-                    vacated: Building2,
-                  };
-                  return iconMap[card.key];
-                })()}
-                gradient={`bg-gradient-to-r ${card.gradient}`}
-                delay={idx * 50}
-                subtitle={card.description}
-                isActive={dpFilter === card.key}
-                onClick={() => {
-                  setDpFilter(card.key);
-                  setSelectedRequest(null);
-                  resetActionForm();
-                  setReqSearch('');
-                  setReqBhkFilter('ALL');
-                }}
-              />
-            ))}
+          <div className="relative">
+            {/* Left arrow */}
+            {dpCanScrollLeft && (
+              <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
+                <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-50 to-transparent" />
+                <button
+                  onClick={() => dpScrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+                  className="pointer-events-auto relative z-10 ml-1 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:shadow-lg hover:text-gray-900 transition-all duration-150"
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* Scrollable track */}
+            <div
+              ref={dpScrollRef}
+              className="flex gap-3 overflow-x-auto"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {STATUS_CARDS.map((card, idx) => {
+                const iconMap: Record<DPFilter, React.FC<any>> = {
+                  all: FileText,
+                  draft: FileText,
+                  submitted: Send,
+                  allotted: CheckSquare,
+                  allocated_em: ClipboardCheck,
+                  unapproved: GitMerge,
+                  accepted: HardHat,
+                  occupied: Home,
+                  tenantServices: RefreshCw,
+                  vacated: Building2,
+                };
+                return (
+                  <div
+                    key={card.key}
+                    className="flex-none w-[195px]"
+                    data-dp-active={dpFilter === card.key ? 'true' : undefined}
+                  >
+                    <SummaryStatsCard
+                      label={card.label}
+                      value={card.count}
+                      icon={iconMap[card.key]}
+                      gradient={`bg-gradient-to-r ${card.gradient}`}
+                      delay={idx * 40}
+                      subtitle={card.description}
+                      isActive={dpFilter === card.key}
+                      onClick={() => {
+                        setDpFilter(card.key);
+                        setSelectedRequest(null);
+                        resetActionForm();
+                        setReqSearch('');
+                        setReqBhkFilter('ALL');
+                      }}
+                    />
+                  </div>
+                );
+              })}
+              <div className="flex-none w-2" />
+            </div>
+
+            {/* Right arrow */}
+            {dpCanScrollRight && (
+              <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
+                <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-50 to-transparent" />
+                <button
+                  onClick={() => dpScrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+                  className="pointer-events-auto relative z-10 mr-1 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 hover:shadow-lg hover:text-gray-900 transition-all duration-150"
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
