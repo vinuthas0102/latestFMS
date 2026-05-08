@@ -412,10 +412,10 @@ export const QuarterRequestsPage: React.FC = () => {
     e.stopPropagation();
     if (openMenuId === reqId) { setOpenMenuId(null); setMenuPos(null); return; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = 320;
+    const menuHeight = dpFilter === 'accepted' ? 120 : 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
-    setMenuPos({ top, left: rect.right - 188 });
+    setMenuPos({ top, left: rect.right - 210 });
     setOpenMenuId(reqId);
   }
 
@@ -2332,7 +2332,10 @@ export const QuarterRequestsPage: React.FC = () => {
                     </div>
                   )
                 ) : filteredRequests.map((req, reqIdx) => {
-                  const sc = statusConfig(req.request_status);
+                  const scBase = statusConfig(req.request_status);
+                  const sc = (dpFilter === 'accepted' && req.request_status === 'ACKNOWLEDGED')
+                    ? { ...scBase, label: 'Accepted', cls: 'bg-sky-50 text-sky-700 border border-sky-200' }
+                    : scBase;
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
                   const allottedQ = req.allotment?.quarter as Quarter | undefined;
