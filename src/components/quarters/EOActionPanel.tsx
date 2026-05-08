@@ -17,7 +17,7 @@ import {
   ChatBubble, CompactQuarterRow, RequestSummaryBlock, getImage,
 } from './quarterShared';
 
-export type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'chat';
+export type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'inspection_chat' | 'handover' | 'chat';
 
 export interface EOActionPanelProps {
   selectedRequest: QuarterRequest;
@@ -243,6 +243,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: !isOccupied },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
+    { key: 'inspection_chat' as EORightMode, label: 'Insp. Chat', icon: <MessageSquare size={12} />, show: isAccepted && !isOccupied && isEO && !!selectedInspectionId },
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied || isSubmitted },
   ] as TabEntry[]).filter(t => t.show);
@@ -459,14 +460,12 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                     </div>
                     {insp.opening_remarks && <p className="text-xs text-gray-600">{insp.opening_remarks}</p>}
                     {insp.property_condition && <p className="text-[10px] font-semibold text-gray-500">Condition: {insp.property_condition}</p>}
-                    {insp.status === 'OPEN' && (
-                      <button
-                        onClick={() => { setSelectedInspectionId(insp.id); setInspectionPanel('chat'); }}
-                        className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
-                      >
-                        <MessageSquare size={11} />Open Chat
-                      </button>
-                    )}
+                    <button
+                      onClick={() => { setSelectedInspectionId(insp.id); setInspectionPanel('chat'); setEoRightMode('inspection_chat'); }}
+                      className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 transition-colors"
+                    >
+                      <MessageSquare size={11} />Open Chat
+                    </button>
                   </div>
                 ))}
               </>
@@ -536,6 +535,62 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Inspection Chat tab */}
+        {eoRightMode === 'inspection_chat' && isAccepted && selectedInspectionId && (
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-sky-50">
+              <HardHat size={12} className="text-sky-600" />
+              <span className="text-xs font-semibold text-sky-800">Inspection Chat</span>
+              <button
+                onClick={() => { setSelectedInspectionId(null); setEoRightMode('inspection'); }}
+                className="ml-auto text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-1 transition-colors"
+              >
+                <X size={11} />Back
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-gray-50 min-h-0">
+              {inspectionChats.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center mb-2">
+                    <MessageSquare size={14} className="text-sky-400" />
+                  </div>
+                  <p className="text-xs text-gray-400 italic">No messages yet</p>
+                </div>
+              )}
+              {inspectionChats.map(chat => (
+                <div key={chat.id} className={`flex ${chat.author_role === 'eo' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[78%] rounded-xl px-3 py-2 text-xs shadow-sm ${chat.author_role === 'eo' ? 'bg-sky-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
+                    <div className={`text-[9px] font-bold mb-0.5 capitalize ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-sky-600'}`}>{chat.author_role}</div>
+                    <p className="leading-relaxed">{chat.message}</p>
+                    <div className={`text-[9px] mt-0.5 ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={inspectionChatMsg}
+                  onChange={e => setInspectionChatMsg(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && inspectionChatMsg.trim()) { e.preventDefault(); handleSendInspectionChat(); } }}
+                  rows={1}
+                  placeholder="Add observation… (Enter to send)"
+                  className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 bg-white leading-relaxed transition-colors"
+                  style={{ minHeight: '40px', maxHeight: '80px' }}
+                />
+                <button
+                  onClick={handleSendInspectionChat}
+                  disabled={!inspectionChatMsg.trim() || inspectionSubmitting}
+                  className="flex-none p-2.5 rounded-xl bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  title="Send"
+                >
+                  <Send size={15} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
