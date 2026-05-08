@@ -130,7 +130,7 @@ export const QuarterManagerPage: React.FC = () => {
   const [loadingAll, setLoadingAll] = useState(false);
   const [loadingTenant, setLoadingTenant] = useState(false);
 
-  type DPFilter = 'all' | 'occupied' | 'allotted' | 'allocated' | 'submitted' | 'draft';
+  type DPFilter = 'all' | 'occupied' | 'allotted' | 'allotted_pending' | 'submitted' | 'draft';
   const [dpFilter, setDpFilter] = useState<DPFilter>('all');
   const [quartersSummary, setQuartersSummary] = useState<{ total: number; available: number; occupied: number } | null>(null);
 
@@ -337,7 +337,7 @@ export const QuarterManagerPage: React.FC = () => {
   const dpCounts = React.useMemo(() => ({
     occupied:  allRequests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     allotted:  allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status !== 'PENDING').length,
-    allocated: allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING').length,
+    allotted_pending: allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING').length,
     submitted: allRequests.filter(r => r.request_status === 'SUBMITTED').length,
     draft:     allRequests.filter(r => r.request_status === 'DRAFT').length,
   }), [allRequests]);
@@ -346,7 +346,7 @@ export const QuarterManagerPage: React.FC = () => {
     if (dpFilter === 'all') return [];
     if (dpFilter === 'occupied')  return allRequests.filter(r => r.request_status === 'ACKNOWLEDGED');
     if (dpFilter === 'allotted')  return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status !== 'PENDING');
-    if (dpFilter === 'allocated') return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING');
+    if (dpFilter === 'allotted_pending') return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING');
     if (dpFilter === 'submitted') return allRequests.filter(r => r.request_status === 'SUBMITTED');
     if (dpFilter === 'draft')     return allRequests.filter(r => r.request_status === 'DRAFT');
     return [];
@@ -431,14 +431,14 @@ export const QuarterManagerPage: React.FC = () => {
                 subtitle="Confirmed allotments"
               />
             )}
-            {dpCounts.allocated > 0 && (
+            {dpCounts.allotted_pending > 0 && (
               <SummaryStatsCard
-                label="Allocated"
-                value={dpCounts.allocated}
+                label="Allotted"
+                value={dpCounts.allotted_pending}
                 icon={Clock}
                 gradient="bg-gradient-to-r from-amber-500 to-orange-400"
-                onClick={() => setDpFilter(dpFilter === 'allocated' ? 'all' : 'allocated')}
-                isActive={dpFilter === 'allocated'}
+                onClick={() => setDpFilter(dpFilter === 'allotted_pending' ? 'all' : 'allotted_pending')}
+                isActive={dpFilter === 'allotted_pending'}
                 delay={175}
                 subtitle="Pending check-in"
               />
@@ -590,7 +590,7 @@ export const QuarterManagerPage: React.FC = () => {
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-900">{dpFilter.charAt(0).toUpperCase() + dpFilter.slice(1)} Requests</span>
+                <span className="text-sm font-semibold text-gray-900">{{ all: 'All', occupied: 'Occupied', allotted: 'Allotted', allotted_pending: 'Allotted', submitted: 'Submitted', draft: 'Draft' }[dpFilter]} Requests</span>
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{dpFilteredRequests.length}</span>
               </div>
               <button onClick={() => setDpFilter('all')} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
@@ -604,7 +604,7 @@ export const QuarterManagerPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Request No.', 'Quarter', 'BHK / Location', 'Move-in', 'Family', 'Status', dpFilter === 'allocated' ? 'Override' : 'Updated'].map(h => (
+                      {['Request No.', 'Quarter', 'BHK / Location', 'Move-in', 'Family', 'Status', dpFilter === 'allotted_pending' ? 'Override' : 'Updated'].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -613,7 +613,7 @@ export const QuarterManagerPage: React.FC = () => {
                     {dpFilteredRequests.map((req, i) => {
                       const sc = reqStatusConfig(req.request_status);
                       const q = req.allotment?.quarter;
-                      const isAllocated = dpFilter === 'allocated';
+                      const isAllocated = dpFilter === 'allotted_pending';
                       return (
                         <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">{req.request_number}</td>
