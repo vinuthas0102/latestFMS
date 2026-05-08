@@ -101,13 +101,14 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
   draft: 'Draft Requests',
   submitted: 'Submitted',
-  allotted: 'Allocated',
+  allotted: 'Allotted',
+  allocated_em: 'Allocated',
   unapproved: 'Unapproved Allotment',
   accepted: 'Accepted',
   occupied: 'Occupied',
@@ -412,8 +413,8 @@ export const QuarterRequestsPage: React.FC = () => {
     e.stopPropagation();
     if (openMenuId === reqId) { setOpenMenuId(null); setMenuPos(null); return; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = dpFilter === 'allotted'
-      ? (isEO && eoMode === 'employee' ? 180 : 70)
+    const menuHeight = dpFilter === 'allocated_em' ? 180
+      : dpFilter === 'allotted' ? (isEO && eoMode === 'employee' ? 180 : 70)
       : dpFilter === 'accepted' ? 120 : 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
@@ -556,12 +557,13 @@ export const QuarterRequestsPage: React.FC = () => {
       setActiveCycle(cycle);
       setTenantRequests(tReqs);
 
-      // Auto-select default tab for EO employee mode per priority: Occupied > Allotted > Submitted
+      // Auto-select default tab for EO employee mode per priority: Occupied > Allocated > Allotted > Submitted
       if (isEmployeeMode) {
         const hasOccupied = normalised.some((r: any) => isOccupiedStatus(r.request_status));
-        const hasAllotted = normalised.some((r: any) => isAllottedStatus(r.request_status));
+        const hasAllocated = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED');
+        const hasAllotted = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
         const hasSubmitted = normalised.some((r: any) => r.request_status === 'SUBMITTED');
-        setDpFilter(hasOccupied ? 'occupied' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
+        setDpFilter(hasOccupied ? 'occupied' : hasAllocated ? 'allocated_em' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
       }
     } catch {
       addToast('Failed to load data', 'error');
@@ -1344,14 +1346,19 @@ export const QuarterRequestsPage: React.FC = () => {
   // ─── derived counts ─────────────────────────────────────────────────────────
 
   const statCounts = {
-    draft:      requests.filter(r => r.request_status === 'DRAFT').length,
-    submitted:  requests.filter(r => r.request_status === 'SUBMITTED').length,
-    allotted:   requests.filter(r => isAllottedStatus(r.request_status)).length,
-    unapproved: requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
-    accepted:   requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
-    occupied:   requests.filter(r => isOccupiedStatus(r.request_status)).length,
-    vacated:    requests.filter(r => r.request_status === 'VACATED').length,
+    draft:        requests.filter(r => r.request_status === 'DRAFT').length,
+    submitted:    requests.filter(r => r.request_status === 'SUBMITTED').length,
+    // For EM employee mode: 'allotted' = pending approval; 'allocated_em' = formally approved
+    allotted:     requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
+    allocated_em: requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED').length,
+    unapproved:   requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
+    accepted:     requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
+    occupied:     requests.filter(r => isOccupiedStatus(r.request_status)).length,
+    vacated:      requests.filter(r => r.request_status === 'VACATED').length,
   };
+
+  // Govt official self view: total allotted = all isAllottedStatus regardless of approval
+  const govtAllottedCount = requests.filter(r => isAllottedStatus(r.request_status)).length;
 
   const ALL_STATUS_CARDS: StatusCard[] = [
     {
@@ -1369,13 +1376,25 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <Send size={20} className="text-blue-600" />,
     },
     {
+      // In EM employee mode: "Allotted" = assigned but pending workflow approval
+      // In Govt official / EM self: "Allocated" = all allotted requests
       key: 'allotted',
       label: (isEO && eoMode === 'employee') ? 'Allotted' : 'Allocated',
-      description: (isEO && eoMode === 'employee') ? 'Pending employee acceptance' : 'Pending your action',
-      count: statCounts.allotted,
-      gradient: 'from-emerald-500 to-green-400',
+      description: (isEO && eoMode === 'employee') ? 'Pending approval / action' : 'Quarter assigned to you',
+      count: (isEO && eoMode === 'employee') ? statCounts.allotted : govtAllottedCount,
+      gradient: (isEO && eoMode === 'employee') ? 'from-emerald-500 to-teal-400' : 'from-green-500 to-emerald-400',
       iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
-      icon: <CheckCircle size={20} className="text-emerald-600" />,
+      icon: <CheckSquare size={20} className="text-emerald-600" />,
+    },
+    {
+      // EM employee mode only: "Allocated" = workflow-approved allotments awaiting employee acceptance
+      key: 'allocated_em',
+      label: 'Allocated',
+      description: 'Approved — awaiting acceptance',
+      count: statCounts.allocated_em,
+      gradient: 'from-green-600 to-lime-500',
+      iconBg: 'bg-green-100', textColor: 'text-green-700', countColor: 'text-green-900',
+      icon: <ClipboardCheck size={20} className="text-green-600" />,
     },
     {
       key: 'unapproved', label: 'Unapproved Allotment', description: 'Awaiting approval',
@@ -1407,10 +1426,11 @@ export const QuarterRequestsPage: React.FC = () => {
     },
   ];
 
-  // Hide Draft tab in EO employee mode; show Unapproved only in EO employee mode
+  // EM employee mode: show allotted + allocated_em + unapproved + accepted + occupied + vacated (hide draft)
+  // Govt official / EM self mode: show draft + submitted + allotted + occupied + vacated (hide EM-only cards + accepted)
   const STATUS_CARDS = (isEO && eoMode === 'employee')
     ? ALL_STATUS_CARDS.filter(c => c.key !== 'draft')
-    : ALL_STATUS_CARDS.filter(c => c.key !== 'unapproved');
+    : ALL_STATUS_CARDS.filter(c => c.key !== 'allocated_em' && c.key !== 'unapproved' && c.key !== 'accepted');
 
   // ─── filtered request lists ─────────────────────────────────────────────────
 
@@ -1419,7 +1439,16 @@ export const QuarterRequestsPage: React.FC = () => {
 
     if (dpFilter === 'draft') result = result.filter(r => r.request_status === 'DRAFT');
     else if (dpFilter === 'submitted') result = result.filter(r => r.request_status === 'SUBMITTED');
-    else if (dpFilter === 'allotted') result = result.filter(r => isAllottedStatus(r.request_status));
+    else if (dpFilter === 'allotted') {
+      if (isEO && eoMode === 'employee') {
+        // EM: Allotted = pending approval
+        result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
+      } else {
+        // Govt official / self: Allocated = all allotted statuses
+        result = result.filter(r => isAllottedStatus(r.request_status));
+      }
+    }
+    else if (dpFilter === 'allocated_em') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED');
     else if (dpFilter === 'unapproved') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
     else if (dpFilter === 'accepted') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
     else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
@@ -1521,7 +1550,7 @@ export const QuarterRequestsPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* My Allotments */}
             <button
-              onClick={() => setEOMode('self')}
+              onClick={() => { setEOMode('self'); setDpFilter('allotted'); setSelectedRequest(null); resetActionForm(); }}
               className="group text-left bg-white rounded-2xl border-2 border-gray-200 hover:border-teal-400 hover:shadow-xl transition-all duration-200 p-7 flex flex-col gap-4"
             >
               <div className="w-12 h-12 rounded-xl bg-teal-50 group-hover:bg-teal-600 flex items-center justify-center transition-colors duration-200">
@@ -1540,7 +1569,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
             {/* Employee Allotments */}
             <button
-              onClick={() => { setEOMode('employee'); }}
+              onClick={() => { setEOMode('employee'); setDpFilter('allotted'); setSelectedRequest(null); resetActionForm(); }}
               className="group text-left bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-200 p-7 flex flex-col gap-4"
             >
               <div className="w-12 h-12 rounded-xl bg-blue-50 group-hover:bg-blue-600 flex items-center justify-center transition-colors duration-200">
@@ -2008,7 +2037,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     all: FileText,
                     draft: FileText,
                     submitted: Send,
-                    allotted: CheckCircle,
+                    allotted: CheckSquare,
+                    allocated_em: ClipboardCheck,
                     unapproved: GitMerge,
                     accepted: HardHat,
                     occupied: Home,
@@ -2315,17 +2345,23 @@ export const QuarterRequestsPage: React.FC = () => {
               {/* Quarter request cards */}
               {(
                 filteredRequests.length === 0 ? (
-                  dpFilter === 'allotted' ? (
+                  (dpFilter === 'allotted' || dpFilter === 'allocated_em') ? (
                     <div className="bg-white rounded-xl border border-gray-200 py-14 text-center px-6">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-100 border-dashed mb-4">
-                        <Building2 size={28} className="text-emerald-300" />
+                      <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full border-2 border-dashed mb-4 ${dpFilter === 'allocated_em' ? 'bg-green-50 border-green-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                        <Building2 size={28} className={dpFilter === 'allocated_em' ? 'text-green-300' : 'text-emerald-300'} />
                       </div>
-                      <h3 className="text-sm font-bold text-gray-700 mb-2">No Quarter Allocated Yet</h3>
+                      <h3 className="text-sm font-bold text-gray-700 mb-2">
+                        {dpFilter === 'allocated_em' ? 'No Allocated Requests' : (isEO && eoMode === 'employee') ? 'No Allotted Requests' : 'No Quarter Allocated Yet'}
+                      </h3>
                       <p className="text-xs text-gray-500 leading-relaxed mb-4">
-                        Your quarter allocation will appear here once an Estate Officer processes and approves your request.
+                        {dpFilter === 'allocated_em'
+                          ? 'Workflow-approved allocations awaiting employee acceptance will appear here.'
+                          : (isEO && eoMode === 'employee')
+                          ? 'Allotted requests pending approval will appear here once quarters are assigned.'
+                          : 'Your quarter allocation will appear here once an Estate Officer processes and approves your request.'}
                       </p>
-                      <button onClick={() => setDpFilter('all')} className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline">
-                        View all requests →
+                      <button onClick={() => setDpFilter(isEO && eoMode === 'employee' ? 'submitted' : 'all')} className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline">
+                        {isEO && eoMode === 'employee' ? 'View submitted requests →' : 'View all requests →'}
                       </button>
                     </div>
                   ) : (
@@ -2339,8 +2375,10 @@ export const QuarterRequestsPage: React.FC = () => {
                   const scBase = statusConfig(req.request_status);
                   const sc = (dpFilter === 'accepted' && req.request_status === 'ACKNOWLEDGED')
                     ? { ...scBase, label: 'Accepted', cls: 'bg-sky-50 text-sky-700 border border-sky-200' }
-                    : (dpFilter === 'allotted' && req.request_status === 'ALLOTTED')
+                    : (dpFilter === 'allotted' && isEO && eoMode === 'employee' && req.request_status === 'ALLOTTED')
                     ? { ...scBase, label: 'Allotted', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
+                    : (dpFilter === 'allocated_em' && req.request_status === 'ALLOTTED')
+                    ? { ...scBase, label: 'Allocated', cls: 'bg-green-50 text-green-700 border border-green-200' }
                     : scBase;
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
@@ -2574,8 +2612,8 @@ export const QuarterRequestsPage: React.FC = () => {
                               {expandedCardId === req.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                             </button>
 
-                            {/* Action menu — hidden for ALLOTTED (unless in allotted filter) and terminal statuses */}
-                            {(!(req.request_status === 'ALLOTTED') || dpFilter === 'allotted') && !['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
+                            {/* Action menu — hidden for ALLOTTED (unless in allotted/allocated_em filter) and terminal statuses */}
+                            {(!(req.request_status === 'ALLOTTED') || dpFilter === 'allotted' || dpFilter === 'allocated_em') && !['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
                                 onClick={e => openMenu(e, req.id)}
                                 className={`p-1.5 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
@@ -3013,9 +3051,10 @@ export const QuarterRequestsPage: React.FC = () => {
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="py-1">
+                    {/* EM: Allotted filter — pending-approval allotments (Override + Deallocate) */}
                     {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && isEO && eoMode === 'employee' && req.allotment?.id && (
                       <>
-                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actions</span></div>
+                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Allotted Actions</span></div>
                         <button
                           onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
@@ -3045,6 +3084,40 @@ export const QuarterRequestsPage: React.FC = () => {
                         </button>
                       </>
                     )}
+                    {/* EM: Allocated filter — approved allotments (Override + Deallocate) */}
+                    {req.request_status === 'ALLOTTED' && dpFilter === 'allocated_em' && isEO && eoMode === 'employee' && req.allotment?.id && (
+                      <>
+                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Allocated Actions</span></div>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center shrink-0"><Eye size={12} className="text-green-600" /></span>
+                          View Detail
+                        </button>
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null); setMenuPos(null);
+                            const a = { ...req.allotment!, request: req };
+                            setOverrideAllotment(a as QuarterAllotment);
+                            setOverrideRequest(req);
+                            setShowOverrideModal(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
+                          Override Allotment
+                        </button>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); handleDeallocate(req.allotment!.id, req.id); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center shrink-0"><Trash2 size={12} className="text-red-500" /></span>
+                          Deallocate
+                        </button>
+                      </>
+                    )}
+                    {/* Govt official / EM self: Allocated filter — simple detail view */}
                     {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && !isEO && (
                       <button
                         onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}

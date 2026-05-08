@@ -362,6 +362,27 @@ const DEMO_ALLOTMENT_OCCUPIED_2: QuarterAllotment = {
   quarter: DEMO_QUARTERS[4],
 };
 
+// Allotment with approval_status APPROVED — used by req-007 (EM "Allocated" DP)
+const DEMO_ALLOTMENT_APPROVED: QuarterAllotment = {
+  id: 'allot-004',
+  request_id: 'req-007',
+  quarter_id: 'q-004',
+  allotted_by: 'eo-user-001',
+  allotment_date: '2025-04-10',
+  is_overridden: false,
+  approval_status: 'APPROVED',
+  allotment_conditions: 'Quarter to be occupied within 15 days of allotment letter.',
+  vacate_date: null,
+  acknowledgement_remarks: '',
+  rejection_reason: '',
+  rejection_doc_url: '',
+  acknowledged_at: null,
+  rejected_at: null,
+  created_at: '2025-04-10T09:00:00Z',
+  updated_at: '2025-04-12T10:00:00Z',
+  quarter: DEMO_QUARTERS[3],
+};
+
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
 const PREF_SUBMITTED: QuarterRequestPreference[] = [
@@ -556,6 +577,36 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
     updated_at: '2025-04-15T09:00:00Z',
     preferences: [],
     allotment: DEMO_ALLOTMENT_OCCUPIED_2,
+  },
+  {
+    id: 'req-007',
+    request_number: 'REQ-2025-00312',
+    employee_id: 'demo-user-002',
+    cycle_id: 'cycle-2025-01',
+    initiation_type: 'CYCLE',
+    request_reason: 'Transferred from Mumbai to New Delhi on deputation; require government accommodation.',
+    required_bhk_config: '2BHK',
+    preferred_location: 'Sector 12 or Dwarka',
+    move_in_date: '2025-05-01',
+    family_member_count: 2,
+    request_status: 'ALLOTTED',
+    sub_status: null,
+    employee_notes: 'Prefer second floor or above. No pets.',
+    eo_notes: 'Allotment approved by workflow. Letter dispatched. Awaiting employee acknowledgement.',
+    request_for: 'SELF',
+    on_behalf_employee_id: null,
+    on_behalf_employee_name: null,
+    on_behalf_employee_dept: null,
+    tp_name: null,
+    tp_organization: null,
+    tp_mobile: null,
+    tp_email: null,
+    tp_pan: null,
+    tp_notes: null,
+    created_at: '2025-02-20T09:00:00Z',
+    updated_at: '2025-04-12T10:00:00Z',
+    preferences: [],
+    allotment: DEMO_ALLOTMENT_APPROVED,
   },
 ];
 
