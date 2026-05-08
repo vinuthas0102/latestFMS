@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Home, FileText, XCircle, RefreshCw, Key, MessageSquare, GitMerge, HardHat,
-  X, Search, Building2, Send, Paperclip, Trash2, Upload, Plus, ArrowLeft,
+  Home, FileText, XCircle, Key, MessageSquare, GitMerge, HardHat,
+  X, Search, Building2, Send, Paperclip, Upload, Plus, ArrowLeft,
   PlayCircle, CheckSquare, SkipForward, ClipboardCheck, Handshake, Users,
 } from 'lucide-react';
 import {
@@ -241,7 +241,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
   const tabs: TabEntry[] = ([
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: !isOccupied },
-    { key: 'override' as EORightMode, label: 'Override', icon: <RefreshCw size={12} />, show: isAllotted && !!allotment },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
@@ -348,27 +347,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
 
         {/* Detail tab */}
         {eoRightMode === 'detail' && <RequestSummaryBlock req={req} user={user} />}
-
-        {/* Override tab (ALLOTTED) */}
-        {eoRightMode === 'override' && isAllotted && allotment && (
-          <div className="p-4 space-y-3">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
-              Override allows you to reassign, swap, or cancel this allotment with full audit trail.
-            </div>
-            <button
-              onClick={() => { const a = { ...allotment, request: req }; setOverrideAllotment(a as QuarterAllotment); setOverrideRequest(req); setShowOverrideModal(true); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors"
-            >
-              <RefreshCw size={14} />Open Override Panel
-            </button>
-            <button
-              onClick={() => handleDeallocate(allotment.id, req.id)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-            >
-              <Trash2 size={14} />Deallocate (Back to Submitted)
-            </button>
-          </div>
-        )}
 
         {/* Approval chat tab */}
         {eoRightMode === 'approval_chat' && approvalRecord && (
