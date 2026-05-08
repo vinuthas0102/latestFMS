@@ -412,7 +412,9 @@ export const QuarterRequestsPage: React.FC = () => {
     e.stopPropagation();
     if (openMenuId === reqId) { setOpenMenuId(null); setMenuPos(null); return; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = dpFilter === 'allotted' ? 70 : dpFilter === 'accepted' ? 120 : 320;
+    const menuHeight = dpFilter === 'allotted'
+      ? (isEO && eoMode === 'employee' ? 180 : 70)
+      : dpFilter === 'accepted' ? 120 : 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
     setMenuPos({ top, left: rect.right - 210 });
@@ -1367,7 +1369,9 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <Send size={20} className="text-blue-600" />,
     },
     {
-      key: 'allotted', label: 'Allocated', description: 'Pending your action',
+      key: 'allotted',
+      label: (isEO && eoMode === 'employee') ? 'Allotted' : 'Allocated',
+      description: (isEO && eoMode === 'employee') ? 'Pending employee acceptance' : 'Pending your action',
       count: statCounts.allotted,
       gradient: 'from-emerald-500 to-green-400',
       iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
@@ -3009,7 +3013,39 @@ export const QuarterRequestsPage: React.FC = () => {
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="py-1">
-                    {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && (
+                    {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && isEO && eoMode === 'employee' && req.allotment?.id && (
+                      <>
+                        <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Actions</span></div>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><Eye size={12} className="text-emerald-600" /></span>
+                          View Detail
+                        </button>
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null); setMenuPos(null);
+                            const a = { ...req.allotment!, request: req };
+                            setOverrideAllotment(a as QuarterAllotment);
+                            setOverrideRequest(req);
+                            setShowOverrideModal(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
+                          Override Allotment
+                        </button>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); handleDeallocate(req.allotment!.id, req.id); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-red-100 flex items-center justify-center shrink-0"><Trash2 size={12} className="text-red-500" /></span>
+                          Deallocate
+                        </button>
+                      </>
+                    )}
+                    {req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && !isEO && (
                       <button
                         onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
