@@ -2546,21 +2546,40 @@ export const QuarterRequestsPage: React.FC = () => {
                               </span>
                             )}
                             {activeSvcs.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
-                                }}
-                                className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
-                              >
-                                <span className="relative flex h-2 w-2 shrink-0">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                                </span>
-                                {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
-                                {expandedSvcsCardId === req.id ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
+                                  }}
+                                  className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
+                                >
+                                  <span className="relative flex h-2 w-2 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                  </span>
+                                  {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
+                                  {expandedSvcsCardId === req.id ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                                </button>
+                                {/* Per-service-type informational tags */}
+                                {Array.from(new Set(activeSvcs.map(s => s.service_type))).map(stype => {
+                                  const tagCls = stype === 'GRIEVANCE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                    stype === 'MAINTENANCE' ? 'bg-slate-50 text-slate-600 border-slate-200' :
+                                    stype === 'EXTEND' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                    stype === 'UPGRADE' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                                    stype === 'VACATE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                    'bg-gray-50 text-gray-600 border-gray-200';
+                                  const tagLabel = stype === 'EXTEND' ? 'Extension' :
+                                    stype.charAt(0) + stype.slice(1).toLowerCase();
+                                  const count = activeSvcs.filter(s => s.service_type === stype).length;
+                                  return (
+                                    <span key={stype} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none ${tagCls}`}>
+                                      {tagLabel}{count > 1 ? ` ×${count}` : ''}
+                                    </span>
+                                  );
+                                })}
+                              </>
                             )}
                           </div>
 

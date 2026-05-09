@@ -41,6 +41,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
     ? 'shadow-xl scale-[1.03]'
     : 'shadow-sm hover:shadow-md';
 
+
   const TrendIcon = trend != null
     ? trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus
     : null;
@@ -126,9 +127,12 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
           <div className={`absolute bottom-0 left-0 right-0 transition-all duration-200 ${isActive ? 'h-1 bg-white/60' : 'h-0.5 bg-white/20'}`} />
         </div>
 
-        {/* Active outer glow ring — sits outside the card so it doesn't clip */}
+        {/* Active outer ring — white inner + dark outer for visibility on any background */}
         {isActive && (
-          <div className="absolute -inset-[3px] rounded-[14px] ring-2 ring-white/50 pointer-events-none" />
+          <>
+            <div className="absolute -inset-[3px] rounded-[14px] ring-2 ring-white pointer-events-none" />
+            <div className="absolute -inset-[5px] rounded-[16px] ring-2 ring-gray-800/30 pointer-events-none" />
+          </>
         )}
       </div>
     </FadeIn>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, Search, Plus, AlertCircle, CheckCircle, ArrowLeftRight,
-  Shuffle, PauseCircle, Star, Home
+  X, Search, Plus, CheckCircle, ArrowLeftRight,
+  Shuffle, PauseCircle, Star, Home, Maximize2, Minimize2
 } from 'lucide-react';
 import { quartersService, QuarterAllotment, QuarterRequest, Quarter } from '../../services/quartersService';
 import { useUIStore } from '../../stores/uiStore';
@@ -90,6 +90,7 @@ export const QuarterOverrideModal: React.FC<Props> = ({
   const [swapNewQuarters, setSwapNewQuarters] = useState<Quarter[]>([]);
   const [selectedSwapNewId, setSelectedSwapNewId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const reqA = allotment?.request as QuarterRequest | undefined;
   const reqAPrefs = (reqA?.preferences ?? []).sort((a, b) => a.preference_rank - b.preference_rank);
@@ -269,18 +270,23 @@ export const QuarterOverrideModal: React.FC<Props> = ({
   const reqAAllottedQ = allotment.quarter as Quarter | undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isMaximized ? 'p-0' : 'p-4'}`}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className={`relative bg-white shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${isMaximized ? 'w-full h-full rounded-none' : 'rounded-2xl w-full max-w-6xl max-h-[92vh]'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Override Allotment</h2>
             <p className="text-xs text-gray-500 mt-0.5">All actions require EO justification and will be audit-logged.</p>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setIsMaximized(m => !m)} className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors" title={isMaximized ? 'Restore' : 'Maximize'}>
+              {isMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Request A Banner */}
@@ -328,10 +334,6 @@ export const QuarterOverrideModal: React.FC<Props> = ({
                 {tab.icon}{tab.label}
               </button>
             ))}
-          </div>
-          <div className="mt-2 text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-            <AlertCircle size={12} className="inline mr-1 text-blue-500" />
-            {actionMeta.desc}
           </div>
         </div>
 

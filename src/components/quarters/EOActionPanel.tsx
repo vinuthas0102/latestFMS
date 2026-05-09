@@ -240,7 +240,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
 
   type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
   const tabs: TabEntry[] = ([
-    { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: !isOccupied },
+    { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: false },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'inspection_chat' as EORightMode, label: 'Insp. Chat', icon: <MessageSquare size={12} />, show: isAccepted && !isOccupied && isEO && !!selectedInspectionId },
