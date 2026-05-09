@@ -217,6 +217,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [eoTrNotes, setEoTrNotes] = useState('');
   const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
 
+  // Service card three-dot action menu
+  const [svcMenuOpenId, setSvcMenuOpenId] = useState<string | null>(null);
+
   // EO: Run Allocation popup
   const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
   const [runAllocSubmitting, setRunAllocSubmitting] = useState(false);
@@ -1026,6 +1029,16 @@ export const QuarterRequestsPage: React.FC = () => {
       setEoTrId(null); setEoTrAction(null); setEoTrNotes('');
       loadData();
     } catch { addToast(`Failed to ${action}`, 'error'); } finally { setEoTrSubmitting(false); }
+  };
+
+  // ─── Service card quick-status update (In Progress / Resolved) ────────────
+  const handleSvcStatusUpdate = async (svcId: string, status: 'IN_PROGRESS' | 'RESOLVED') => {
+    setSvcMenuOpenId(null);
+    try {
+      await quartersService.updateTenantRequestStatus(svcId, status);
+      addToast(status === 'IN_PROGRESS' ? 'Marked as In Progress' : 'Marked as Resolved', 'success');
+      loadData();
+    } catch { addToast('Failed to update status', 'error'); }
   };
 
   // ─── inline action popup submit ────────────────────────────────────────────
@@ -2460,6 +2473,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     ? { ...scBase, label: 'Allotted', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
                     : (dpFilter === 'allocated_em' && req.request_status === 'ALLOTTED')
                     ? { ...scBase, label: 'Allocated', cls: 'bg-green-50 text-green-700 border border-green-200' }
+                    : (dpFilter === 'occupied' && isOccupiedStatus(req.request_status))
+                    ? { ...scBase, label: 'Occupied', cls: 'bg-teal-50 text-teal-700 border border-teal-200' }
                     : scBase;
                   const isSelected = selectedRequest?.id === req.id;
                   const isOccupied = req.request_status === 'ACKNOWLEDGED';
@@ -3021,6 +3036,67 @@ export const QuarterRequestsPage: React.FC = () => {
                                         >
                                           <MessageSquare size={11} />
                                         </button>
+                                        {/* Three-dot action menu — EO employee mode only */}
+                                        {isEO && eoMode === 'employee' && (() => {
+                                          const isMaintenanceOrGrievance = svc.service_type === 'MAINTENANCE' || svc.service_type === 'GRIEVANCE';
+                                          const isExtendOrVacate = svc.service_type === 'EXTEND' || svc.service_type === 'VACATE';
+                                          const isPending = svc.request_status === 'PENDING';
+                                          const isInProgress = svc.request_status === 'IN_PROGRESS';
+                                          if (!isMaintenanceOrGrievance && !isExtendOrVacate) return null;
+                                          if (!isPending && !isInProgress) return null;
+                                          return (
+                                            <div className="relative shrink-0">
+                                              <button
+                                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(prev => prev === svc.id ? null : svc.id); }}
+                                                className="p-1 rounded-md border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 transition-colors"
+                                                title="Actions"
+                                              >
+                                                <MoreVertical size={11} />
+                                              </button>
+                                              {svcMenuOpenId === svc.id && (
+                                                <div
+                                                  className="absolute right-0 bottom-7 z-30 w-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1 text-xs"
+                                                  onClick={e => e.stopPropagation()}
+                                                >
+                                                  {isMaintenanceOrGrievance && (
+                                                    <>
+                                                      {isPending && (
+                                                        <button
+                                                          onClick={() => handleSvcStatusUpdate(svc.id, 'IN_PROGRESS')}
+                                                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-amber-50 text-amber-700 font-medium transition-colors rounded-t-xl"
+                                                        >
+                                                          <RefreshCw size={11} />In Progress
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        onClick={() => handleSvcStatusUpdate(svc.id, 'RESOLVED')}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors rounded-b-xl"
+                                                      >
+                                                        <CheckCircle size={11} />Resolved
+                                                      </button>
+                                                    </>
+                                                  )}
+                                                  {isExtendOrVacate && isPending && (
+                                                    <>
+                                                      <button
+                                                        onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors rounded-t-xl"
+                                                      >
+                                                        <ThumbsUp size={11} />Accept
+                                                      </button>
+                                                      <button
+                                                        onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-700 font-medium transition-colors rounded-b-xl"
+                                                      >
+                                                        <ThumbsDown size={11} />Reject
+                                                      </button>
+                                                    </>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
                                         {/* Expand / collapse */}
                                         <button
                                           onClick={e => { e.stopPropagation(); setExpandedSvcDetailId(expandedSvcDetailId === svc.id ? null : svc.id); }}

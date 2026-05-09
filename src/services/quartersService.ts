@@ -709,6 +709,16 @@ export const quartersService = {
     }
   },
 
+  async updateTenantRequestStatus(_tenantRequestId: string, status: 'IN_PROGRESS' | 'RESOLVED'): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const tenantRequestId = _tenantRequestId;
+    const { error } = await supabase
+      .from('quarter_tenant_requests')
+      .update({ request_status: status, updated_at: new Date().toISOString() })
+      .eq('id', tenantRequestId);
+    if (error) throw error;
+  },
+
   async getServiceChatsForAllotment(_allotmentId: string): Promise<QuarterServiceChat[]> {
     if (DEMO_MODE) return Promise.resolve(DEMO_SERVICE_CHATS);
     const allotmentId = _allotmentId;
