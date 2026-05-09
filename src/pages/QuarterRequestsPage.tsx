@@ -591,12 +591,13 @@ export const QuarterRequestsPage: React.FC = () => {
   useEffect(() => {
     const el = dpScrollRef.current;
     if (!el) return;
-    updateDpScrollState();
+    // Defer initial measurement so the DOM has fully painted the cards
+    const raf = requestAnimationFrame(updateDpScrollState);
     el.addEventListener('scroll', updateDpScrollState, { passive: true });
     const ro = new ResizeObserver(updateDpScrollState);
     ro.observe(el);
-    return () => { el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
-  }, [updateDpScrollState]);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
+  }, [updateDpScrollState, eoMode]);
 
   // Scroll active DP card into view when filter changes
   useEffect(() => {
@@ -1409,17 +1410,6 @@ export const QuarterRequestsPage: React.FC = () => {
       icon: <Send size={20} className="text-blue-600" />,
     },
     {
-      // In EM employee mode: "Allotted" = assigned but pending workflow approval
-      // In Govt official / EM self: "Allocated" = all allotted requests
-      key: 'allotted',
-      label: (isEO && eoMode === 'employee') ? 'Allotted' : 'Allocated',
-      description: (isEO && eoMode === 'employee') ? 'Pending approval / action' : 'Quarter assigned to you',
-      count: (isEO && eoMode === 'employee') ? statCounts.allotted : govtAllottedCount,
-      gradient: (isEO && eoMode === 'employee') ? 'from-emerald-500 to-teal-400' : 'from-green-500 to-emerald-400',
-      iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
-      icon: <CheckSquare size={20} className="text-emerald-600" />,
-    },
-    {
       // EM employee mode only: "Allocated" = workflow-approved allotments awaiting employee acceptance
       key: 'allocated_em',
       label: 'Allocated',
@@ -1435,6 +1425,17 @@ export const QuarterRequestsPage: React.FC = () => {
       gradient: 'from-orange-500 to-amber-400',
       iconBg: 'bg-orange-100', textColor: 'text-orange-700', countColor: 'text-orange-900',
       icon: <GitMerge size={20} className="text-orange-600" />,
+    },
+    {
+      // In EM employee mode: "Allotted" = assigned but pending workflow approval
+      // In Govt official / EM self: "Allocated" = all allotted requests
+      key: 'allotted',
+      label: (isEO && eoMode === 'employee') ? 'Allotted' : 'Allocated',
+      description: (isEO && eoMode === 'employee') ? 'Pending approval / action' : 'Quarter assigned to you',
+      count: (isEO && eoMode === 'employee') ? statCounts.allotted : govtAllottedCount,
+      gradient: (isEO && eoMode === 'employee') ? 'from-emerald-500 to-teal-400' : 'from-green-500 to-emerald-400',
+      iconBg: 'bg-emerald-100', textColor: 'text-emerald-700', countColor: 'text-emerald-900',
+      icon: <CheckSquare size={20} className="text-emerald-600" />,
     },
     {
       key: 'accepted', label: 'Accepted', description: 'Awaiting inspection',
