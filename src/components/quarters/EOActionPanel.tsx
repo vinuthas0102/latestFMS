@@ -292,8 +292,8 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
         </div>
       )}
 
-      {/* ── Chat tab (occupied or submitted) ── */}
-      {eoRightMode === 'chat' && (isOccupied || isSubmitted) && (isOccupied ? !!allotment : true) && (() => {
+      {/* ── Chat tab (occupied, submitted, or allotted/allocated) ── */}
+      {eoRightMode === 'chat' && (isOccupied || isSubmitted || isAllotted) && (isOccupied ? !!allotment : true) && (() => {
         const chatKey = allotment?.id ?? req.id;
         const eoAllotChats = allotmentChats[chatKey] ?? [];
         return (
