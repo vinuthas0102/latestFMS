@@ -142,12 +142,26 @@ export const BookingHistoryPage: React.FC = () => {
             )}
           </div>
 
+          {/* User identity strip */}
+          {user && (
+            <div className="flex items-center gap-2.5 mb-3 px-3 py-2 bg-blue-50/60 border border-blue-100 rounded-xl">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                {user.fullName?.[0]?.toUpperCase() ?? 'U'}
+              </div>
+              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-gray-900 truncate">{user.fullName}</span>
+                {user.email && <span className="text-xs text-gray-400 truncate hidden sm:inline">{user.email}</span>}
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 uppercase flex-shrink-0">{user.role}</span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2.5">
               <div className="p-1.5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
                 <History className="w-4 h-4 text-white" />
               </div>
-              Booking History
+              My Bookings
             </h1>
             <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
           </div>
@@ -238,15 +252,16 @@ export const BookingHistoryPage: React.FC = () => {
               minLeft={40}
               maxLeft={80}
               onClose={() => setSelectedBooking(null)}
-              right={selectedBooking ? (
+              renderRight={selectedBooking ? (controls) => (
                 <BookingDetailPanel
                   booking={selectedBooking}
                   userId={user!.id}
                   onClose={() => setSelectedBooking(null)}
                   onNavigate={(id) => navigate(`/bookings/${id}`)}
                   onServiceCountChange={(count) => setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))}
+                  panelControls={controls}
                 />
-              ) : null}
+              ) : undefined}
               left={
                 <div className="pr-1">
                   {filteredBookings.length === 0 ? (

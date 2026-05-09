@@ -278,7 +278,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
       {allottedQ && <CompactQuarterRow q={allottedQ} accentCls={accentCls} />}
 
       {/* ── Sub-nav tabs ── */}
-      {tabs.length > 1 && (
+      {tabs.length >= 1 && (
         <div className="flex items-center gap-0.5 px-3 pt-2 pb-1 border-b border-gray-100 overflow-x-auto scrollbar-hide">
           {tabs.map(tab => (
             <button

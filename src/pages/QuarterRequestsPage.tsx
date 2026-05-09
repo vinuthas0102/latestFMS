@@ -618,7 +618,8 @@ export const QuarterRequestsPage: React.FC = () => {
     const s = selectedRequest?.request_status;
     const isOcc = s ? isOccupiedStatus(s) : false;
     const hasPendingApproval = selectedRequest?.allotment?.approval_status === 'PENDING';
-    setEoRightMode(isOcc ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
+    const isSubOrAllot = s ? (s === 'SUBMITTED' || isAllottedStatus(s)) : false;
+    setEoRightMode(isOcc || isSubOrAllot ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
     setApprovalAction(null);
     setApprovalRemarks('');
     setInspectionPanel('list');
@@ -2014,6 +2015,21 @@ export const QuarterRequestsPage: React.FC = () => {
                   </>
                 )}
               </div>
+              {/* User identity strip */}
+              {user && (
+                <div className="flex items-center gap-2 mt-1.5 mb-1">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                    {user.fullName?.[0]?.toUpperCase() ?? 'U'}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800 truncate">{user.fullName}</span>
+                  {(user as any).govtEmployeeId && <span className="text-xs text-gray-400 font-mono hidden sm:inline">{(user as any).govtEmployeeId}</span>}
+                  {(user as any).govtDepartment && <span className="text-xs text-gray-400 truncate hidden md:inline">{(user as any).govtDepartment}</span>}
+                  {(user as any).bhkEntitlement && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">{(user as any).bhkEntitlement} Entitled</span>
+                  )}
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 flex-shrink-0 uppercase">{user.role}</span>
+                </div>
+              )}
               <h1 className="text-lg font-bold text-gray-900 leading-tight">
                 {isEO && eoMode === 'employee' ? 'Employee Allotments' : 'Quarter Requests'}
               </h1>
