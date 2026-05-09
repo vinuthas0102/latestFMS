@@ -1983,119 +1983,127 @@ export const QuarterRequestsPage: React.FC = () => {
         document.body
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col" style={{ height: '100vh' }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col" style={{ height: '100vh' }}>
 
-        {/* ── Compact header ─────────────────────────────────────────── */}
-        <div className="flex-none bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              {/* Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1 flex-wrap">
-                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-blue-600 transition-colors"><Home size={11} /></button>
-                <ChevronRight size={10} />
-                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-blue-600 transition-colors">My Workspace</button>
-                <ChevronRight size={10} />
-                <button
-                  onClick={() => { setSelectedRequest(null); setDpFilter('allotted'); resetActionForm(); }}
-                  className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
-                >
-                  Quarter Requests
-                </button>
-                <ChevronRight size={10} />
-                <button
-                  onClick={() => { setSelectedRequest(null); resetActionForm(); }}
-                  className="text-gray-700 font-medium hover:text-blue-600 transition-colors"
-                >
-                  {DP_LABELS[dpFilter]}
-                </button>
-                {selectedRequest && (
-                  <>
-                    <ChevronRight size={10} />
-                    <span className="font-mono text-gray-700 font-medium">{selectedRequest.request_number}</span>
-                  </>
-                )}
-              </div>
-              {/* User identity strip */}
-              {user && (
-                <div className="flex items-center gap-2 mt-1.5 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
-                    {user.fullName?.[0]?.toUpperCase() ?? 'U'}
-                  </div>
-                  <span className="text-sm font-semibold text-gray-800 truncate">{user.fullName}</span>
-                  {(user as any).govtEmployeeId && <span className="text-xs text-gray-400 font-mono hidden sm:inline">{(user as any).govtEmployeeId}</span>}
-                  {(user as any).govtDepartment && <span className="text-xs text-gray-400 truncate hidden md:inline">{(user as any).govtDepartment}</span>}
-                  {(user as any).bhkEntitlement && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">{(user as any).bhkEntitlement} Entitled</span>
-                  )}
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 flex-shrink-0 uppercase">{user.role}</span>
-                </div>
+        {/* ── Compact header — 2 rows ────────────────────────────────── */}
+        <div className="flex-none bg-white rounded-xl border border-gray-200 px-4 py-2 mb-2">
+          {/* Row 1: breadcrumb + action icons */}
+          <div className="flex items-center justify-between gap-2 min-h-0">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 text-xs text-gray-400 min-w-0 flex-wrap">
+              <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-blue-600 transition-colors flex-shrink-0"><Home size={11} /></button>
+              <ChevronRight size={9} className="flex-shrink-0" />
+              <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-blue-600 transition-colors flex-shrink-0">Workspace</button>
+              <ChevronRight size={9} className="flex-shrink-0" />
+              <button onClick={() => { setSelectedRequest(null); setDpFilter('allotted'); resetActionForm(); }} className="text-gray-600 font-medium hover:text-blue-600 transition-colors flex-shrink-0">Quarters</button>
+              <ChevronRight size={9} className="flex-shrink-0" />
+              <button onClick={() => { setSelectedRequest(null); resetActionForm(); }} className="text-gray-700 font-medium hover:text-blue-600 transition-colors truncate max-w-[80px]">{DP_LABELS[dpFilter]}</button>
+              {selectedRequest && (
+                <>
+                  <ChevronRight size={9} className="flex-shrink-0" />
+                  <span className="font-mono text-gray-700 font-medium truncate max-w-[100px]">{selectedRequest.request_number}</span>
+                </>
               )}
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                {isEO && eoMode === 'employee' ? 'Employee Allotments' : 'Quarter Requests'}
-              </h1>
             </div>
-            <div className="flex gap-2 shrink-0 items-center">
+
+            {/* Action buttons — icons only (with tooltips) */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {user && activeCycle && (
+                <span className="hidden md:flex items-center gap-1 text-[10px] text-gray-500 px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 flex-shrink-0">
+                  <Clock size={10} className="text-blue-500" />
+                  <span className="truncate max-w-[160px]">{activeCycle.cycle_name} · {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}</span>
+                </span>
+              )}
+
               {isEO && (
                 <button
                   onClick={() => { setEOMode(null); setSelectedRequest(null); resetActionForm(); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition-colors"
+                  title="Switch Mode"
+                  className="p-1.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors"
                 >
-                  <ShieldCheck size={13} /> Switch Mode
+                  <ShieldCheck size={14} />
                 </button>
               )}
-              {user && activeCycle && (
-                <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
-                  <Clock size={11} className="text-blue-500" />
-                  {activeCycle.cycle_name} · Closes {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}
-                </span>
-              )}
+
               <button
                 onClick={() => downloadPageAsHtml('/quarters/requests')}
                 title="Download Offline Copy"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
               >
-                <Download size={13} /> Download
+                <Download size={14} />
               </button>
+
               {!(isEO && eoMode === 'employee') && (
                 <>
-                  <button onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Eye size={13} /> Browse
+                  <button
+                    onClick={() => navigate(ROUTES.QUARTERS_FREEVIEW)}
+                    title="Browse Quarters"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                  >
+                    <Eye size={14} />
                   </button>
-                  <Button onClick={() => openNewModal()}>
-                    <Plus size={13} className="mr-1" /> New Request
+                  <Button onClick={() => openNewModal()} className="!py-1.5 !px-2.5 !text-xs">
+                    <Plus size={12} className="mr-1" /> New
                   </Button>
                 </>
               )}
+
               {isEO && eoMode === 'employee' && dpFilter === 'submitted' && (
                 <>
                   <button
                     onClick={() => { setShowCycleHistory(true); loadCycleHistory(); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    title="View Allocation Runs"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                   >
-                    <ClipboardList size={13} /> View Runs
+                    <ClipboardList size={14} />
                   </button>
                   <button
                     onClick={() => setShowRunAllocationPopup(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                    title="Run Allocation"
+                    className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
                   >
-                    <PlayCircle size={13} /> Run Allocation
+                    <PlayCircle size={14} />
                   </button>
                 </>
               )}
+
               {isEO && eoMode === 'employee' && dpFilter === 'allotted' && (
                 <button
                   onClick={() => setShowAllotRequestsPopup(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                  title="Allot Requests"
+                  className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
                 >
-                  <CheckSquare size={13} /> Allot Requests
+                  <CheckSquare size={14} />
                 </button>
               )}
             </div>
           </div>
+
+          {/* Row 2: user identity + page title */}
+          <div className="flex items-center gap-2 mt-1.5 min-w-0">
+            {user && (
+              <>
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0">
+                  {user.fullName?.[0]?.toUpperCase() ?? 'U'}
+                </div>
+                <span className="text-xs font-semibold text-gray-700 truncate max-w-[120px]">{user.fullName}</span>
+                {(user as any).govtEmployeeId && <span className="text-[10px] text-gray-400 font-mono hidden sm:inline flex-shrink-0">{(user as any).govtEmployeeId}</span>}
+                {(user as any).govtDepartment && <span className="text-[10px] text-gray-400 truncate hidden lg:inline max-w-[120px]">{(user as any).govtDepartment}</span>}
+                {(user as any).bhkEntitlement && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">{(user as any).bhkEntitlement} Entitled</span>
+                )}
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 flex-shrink-0 uppercase">{user.role}</span>
+                <span className="text-gray-200 mx-1 flex-shrink-0">|</span>
+              </>
+            )}
+            <h1 className="text-sm font-bold text-gray-900 leading-none flex-shrink-0">
+              {isEO && eoMode === 'employee' ? 'Employee Allotments' : 'Quarter Requests'}
+            </h1>
+          </div>
         </div>
 
         {/* ── Status summary cards — single-row slider ── */}
-        <div className="flex-none mb-4">
+        <div className="flex-none mb-2">
           <div className="flex items-center gap-2">
             {/* Left nav button — always reserves space so track width is stable */}
             <button
@@ -2196,7 +2204,7 @@ export const QuarterRequestsPage: React.FC = () => {
         ) : (
           <>
             {/* ── Search / Filter / Count — single row ── */}
-            <div className="flex-none mb-3 flex items-center gap-2">
+            <div className="flex-none mb-2 flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <MandatorySearchBar
                   fields={[
