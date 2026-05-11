@@ -22,6 +22,7 @@ import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { DocUpload } from '../components/ui/DocUpload';
 import { QuarterDetailCard } from '../components/quarters/QuarterDetailCard';
+import { QuarterListCard } from '../components/quarters/QuarterListCard';
 const QuarterDetailModal = React.lazy(() => import('../components/quarters/QuarterDetailModal').then(m => ({ default: m.QuarterDetailModal })));
 const QuarterOverrideModal = React.lazy(() => import('../components/quarters/QuarterOverrideModal').then(m => ({ default: m.QuarterOverrideModal })));
 import {
@@ -102,7 +103,7 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated' | 'availableQuarters';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
@@ -115,6 +116,7 @@ const DP_LABELS: Record<DPFilter, string> = {
   occupied: 'Occupied',
   tenantServices: 'Tenant Services',
   vacated: 'Vacated',
+  availableQuarters: 'Available Quarters',
 };
 
 interface PrefItem { quarter: Quarter; rank: number }
@@ -388,6 +390,16 @@ export const QuarterRequestsPage: React.FC = () => {
   const [allotmentChatFile, setAllotmentChatFile] = useState<File | null>(null);
   const [allotmentChatSubmitting, setAllotmentChatSubmitting] = useState(false);
 
+  // Available Quarters DP
+  const [availableQuarters, setAvailableQuarters] = useState<Quarter[]>([]);
+  const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
+  const [avqSearch, setAvqSearch] = useState('');
+  const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
+  const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
+  const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
+  const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const avqMenuRef = useRef<HTMLDivElement>(null);
+
   // Card-level dot-menu (portal-based to avoid scroll clipping)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -416,6 +428,21 @@ export const QuarterRequestsPage: React.FC = () => {
     return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
   }, []);
 
+  // Close avq menu on outside click or Escape
+  useEffect(() => {
+    const onMouse = (e: MouseEvent) => {
+      if (avqMenuRef.current && !avqMenuRef.current.contains(e.target as Node)) {
+        setAvqMenuId(null); setAvqMenuPos(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setAvqMenuId(null); setAvqMenuPos(null); }
+    };
+    document.addEventListener('mousedown', onMouse);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
+  }, []);
+
   function openMenu(e: React.MouseEvent, reqId: string) {
     e.stopPropagation();
     if (openMenuId === reqId) { setOpenMenuId(null); setMenuPos(null); return; }
@@ -427,6 +454,17 @@ export const QuarterRequestsPage: React.FC = () => {
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
     setMenuPos({ top, left: rect.right - 210 });
     setOpenMenuId(reqId);
+  }
+
+  function openAvqMenu(e: React.MouseEvent, quarterId: string) {
+    e.stopPropagation();
+    if (avqMenuId === quarterId) { setAvqMenuId(null); setAvqMenuPos(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuHeight = 60;
+    const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
+    setAvqMenuPos({ top, left: rect.right - 200 });
+    setAvqMenuId(quarterId);
   }
 
   // Inline action popup (card-level icons)
@@ -582,6 +620,15 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
+
+  // Load available quarters (always, for the Available Quarters DP)
+  useEffect(() => {
+    setAvailableQuartersLoading(true);
+    quartersService.getQuarters({ occupancy_status: 'AVAILABLE' })
+      .then(data => setAvailableQuarters(data))
+      .catch(() => {})
+      .finally(() => setAvailableQuartersLoading(false));
+  }, []);
 
   // DP scroll arrow visibility
   const updateDpScrollState = useCallback(() => {
@@ -1472,10 +1519,17 @@ export const QuarterRequestsPage: React.FC = () => {
       iconBg: 'bg-slate-100', textColor: 'text-slate-600', countColor: 'text-slate-700',
       icon: <Building2 size={20} className="text-slate-500" />,
     },
+    {
+      key: 'availableQuarters', label: 'Available Quarters', description: 'Ready for allotment',
+      count: availableQuarters.length,
+      gradient: 'from-cyan-500 to-sky-400',
+      iconBg: 'bg-cyan-100', textColor: 'text-cyan-700', countColor: 'text-cyan-900',
+      icon: <Key size={20} className="text-cyan-600" />,
+    },
   ];
 
-  // EM employee mode: show allotted + allocated_em + unapproved + accepted + occupied + vacated (hide draft)
-  // Govt official / EM self mode: show draft + submitted + allotted + occupied + vacated (hide EM-only cards + accepted)
+  // EM employee mode: show allotted + allocated_em + unapproved + accepted + occupied + vacated + availableQuarters (hide draft)
+  // Govt official / EM self mode: show draft + submitted + allotted + occupied + vacated + availableQuarters (hide EM-only cards + accepted)
   const STATUS_CARDS = (isEO && eoMode === 'employee')
     ? ALL_STATUS_CARDS.filter(c => c.key !== 'draft')
     : ALL_STATUS_CARDS.filter(c => c.key !== 'allocated_em' && c.key !== 'unapproved' && c.key !== 'accepted');
@@ -1551,6 +1605,21 @@ export const QuarterRequestsPage: React.FC = () => {
     reqBhkFilter !== 'ALL',
     reqSearch.trim().length > 0,
   ].filter(Boolean).length + reqToiletFilter.length + reqFloorFilter.length;
+
+  const filteredAvailableQuarters = React.useMemo(() => {
+    let result = [...availableQuarters];
+    if (avqBhkFilter !== 'ALL') result = result.filter(q => q.bhk_config === avqBhkFilter);
+    if (avqSearch.trim()) {
+      const s = avqSearch.toLowerCase();
+      result = result.filter(q =>
+        q.quarter_number?.toLowerCase().includes(s) ||
+        q.block_name?.toLowerCase().includes(s) ||
+        q.address?.toLowerCase().includes(s) ||
+        q.district?.toLowerCase().includes(s)
+      );
+    }
+    return result;
+  }, [availableQuarters, avqBhkFilter, avqSearch]);
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -2182,7 +2251,105 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
 
         {/* ── Main content ──────────────────────────────────────────────── */}
-        {loading ? (
+        {dpFilter === 'availableQuarters' ? (
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {/* Search / BHK filter row */}
+            <div className="flex-none mb-2">
+              <MandatorySearchBar
+                fields={[
+                  {
+                    key: 'search',
+                    label: 'Search',
+                    type: 'text',
+                    placeholder: 'Quarter no., block, area…',
+                    value: avqSearch,
+                    onChange: setAvqSearch,
+                    icon: <Search size={14} />,
+                  },
+                  {
+                    key: 'bhk',
+                    label: 'BHK Config',
+                    type: 'chips',
+                    value: avqBhkFilter,
+                    onChange: setAvqBhkFilter,
+                    options: [
+                      { value: 'ALL', label: 'Any' },
+                      { value: '1BHK', label: '1 BHK' },
+                      { value: '2BHK', label: '2 BHK' },
+                      { value: '3BHK', label: '3 BHK' },
+                      { value: '4BHK', label: '4 BHK' },
+                    ],
+                  },
+                ]}
+              />
+            </div>
+
+            {/* Result count */}
+            <div className="flex-none flex items-center gap-2 mb-2">
+              <span className="text-xs text-gray-500 font-medium">
+                {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
+                {(avqSearch || avqBhkFilter !== 'ALL') && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
+                  <span className="text-gray-400"> (filtered from {availableQuarters.length})</span>
+                )}
+              </span>
+              {(avqSearch || avqBhkFilter !== 'ALL') && (
+                <button
+                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
+                >
+                  <X size={11} /> Clear
+                </button>
+              )}
+            </div>
+
+            {/* Quarter list */}
+            <div className="flex-1 overflow-y-auto pr-1 pb-6">
+              {availableQuartersLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-48 animate-pulse" />)}
+                </div>
+              ) : filteredAvailableQuarters.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 py-20 text-center">
+                  <Key size={36} className="mx-auto text-gray-300 mb-3" />
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1">No available quarters found</h3>
+                  <p className="text-xs text-gray-500">
+                    {avqSearch || avqBhkFilter !== 'ALL'
+                      ? 'Try clearing your filters.'
+                      : 'All quarters are currently occupied or inactive.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredAvailableQuarters.map((q, idx) => (
+                    <div key={q.id} className="relative group">
+                      <QuarterListCard
+                        quarter={q}
+                        idx={idx}
+                        onView={() => setAvqDetailQuarterId(q.id)}
+                        onAddToRequest={(!isEO || eoMode === 'self') ? () => {
+                          openNewModal();
+                          setTimeout(() => addPref(q), 50);
+                        } : undefined}
+                      />
+                      {/* Three-dot action menu button */}
+                      <button
+                        onClick={e => openAvqMenu(e, q.id)}
+                        className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-colors z-10 ${
+                          avqMenuId === q.id
+                            ? 'bg-gray-100 border-gray-300 text-gray-700'
+                            : 'bg-white/90 border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 opacity-0 group-hover:opacity-100'
+                        }`}
+                        title="Actions"
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[1, 2].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 h-64 animate-pulse" />)}
           </div>
@@ -3815,6 +3982,63 @@ export const QuarterRequestsPage: React.FC = () => {
           />
         </Suspense>
       )}
+
+      {/* ── Available Quarters Detail Modal ────────────────────────────── */}
+      {avqDetailQuarterId && (
+        <Suspense fallback={null}>
+          <QuarterDetailModal
+            isOpen={true}
+            onClose={() => setAvqDetailQuarterId(null)}
+            quarterId={avqDetailQuarterId}
+          />
+        </Suspense>
+      )}
+
+      {/* ── Available Quarters action menu (portal) ────────────────────── */}
+      {avqMenuId && avqMenuPos && (() => {
+        const q = filteredAvailableQuarters.find(q => q.id === avqMenuId);
+        if (!q) return null;
+        return createPortal(
+          <div
+            ref={avqMenuRef}
+            style={{ position: 'fixed', top: avqMenuPos.top, left: avqMenuPos.left, zIndex: 9999, minWidth: 192 }}
+            className="bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Quarter Actions</div>
+              <div className="text-xs font-semibold text-gray-700 truncate">{q.quarter_number} · {q.bhk_config}</div>
+            </div>
+            <div className="py-1">
+              <button
+                onClick={() => { setAvqMenuId(null); setAvqMenuPos(null); setAvqDetailQuarterId(q.id); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-cyan-50 hover:text-cyan-700 transition-colors"
+              >
+                <span className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center shrink-0">
+                  <Eye size={12} className="text-cyan-600" />
+                </span>
+                Details
+              </button>
+              {(!isEO || eoMode === 'self') && (
+                <button
+                  onClick={() => {
+                    setAvqMenuId(null); setAvqMenuPos(null);
+                    openNewModal();
+                    setTimeout(() => addPref(q), 50);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                    <Plus size={12} className="text-blue-600" />
+                  </span>
+                  Add to Request
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* ── Image lightbox (allotted/occupied panel tiles) ─────────────── */}
       {lightboxOpen && (
