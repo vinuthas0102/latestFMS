@@ -625,7 +625,7 @@ export const QuarterRequestsPage: React.FC = () => {
   useEffect(() => {
     setAvailableQuartersLoading(true);
     quartersService.getQuarters({ occupancy_status: 'AVAILABLE' })
-      .then(data => setAvailableQuarters(data))
+      .then(data => setAvailableQuarters(data.filter(q => q.occupancy_status === 'AVAILABLE')))
       .catch(() => {})
       .finally(() => setAvailableQuartersLoading(false));
   }, []);
@@ -1457,6 +1457,13 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const ALL_STATUS_CARDS: StatusCard[] = [
     {
+      key: 'availableQuarters', label: 'Available Quarters', description: 'Ready for allotment',
+      count: availableQuarters.length,
+      gradient: 'from-cyan-500 to-sky-400',
+      iconBg: 'bg-cyan-100', textColor: 'text-cyan-700', countColor: 'text-cyan-900',
+      icon: <Key size={20} className="text-cyan-600" />,
+    },
+    {
       key: 'draft', label: 'Draft Requests', description: 'Not yet submitted',
       count: statCounts.draft,
       gradient: 'from-amber-500 to-yellow-400',
@@ -1518,13 +1525,6 @@ export const QuarterRequestsPage: React.FC = () => {
       gradient: 'from-slate-400 to-gray-400',
       iconBg: 'bg-slate-100', textColor: 'text-slate-600', countColor: 'text-slate-700',
       icon: <Building2 size={20} className="text-slate-500" />,
-    },
-    {
-      key: 'availableQuarters', label: 'Available Quarters', description: 'Ready for allotment',
-      count: availableQuarters.length,
-      gradient: 'from-cyan-500 to-sky-400',
-      iconBg: 'bg-cyan-100', textColor: 'text-cyan-700', countColor: 'text-cyan-900',
-      icon: <Key size={20} className="text-cyan-600" />,
     },
   ];
 
