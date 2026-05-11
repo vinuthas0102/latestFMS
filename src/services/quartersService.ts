@@ -34,6 +34,8 @@ export type {
   QuarterApprovalWorkflow,
   QuarterAllotmentApproval,
   QuarterApprovalChat,
+  QuarterRequestApproval,
+  QuarterRequestApprovalChat,
   QuarterInspection,
   QuarterInspectionChat,
   QuarterHandover,
@@ -55,6 +57,8 @@ import type {
   QuarterApprovalWorkflow,
   QuarterAllotmentApproval,
   QuarterApprovalChat,
+  QuarterRequestApproval,
+  QuarterRequestApprovalChat,
   QuarterInspection,
   QuarterInspectionChat,
   QuarterHandover,
@@ -1100,6 +1104,83 @@ export const quartersService = {
     await supabase.from('quarter_approval_chats').insert({
       approval_id: approvalId, author_id: senderId, author_role: 'eo',
       message: `Sent for clarification to level ${targetLevel}. ${remarks}`.trim(), document_urls: [],
+    });
+  },
+
+  // ─── Request-level Approval Workflow ────────────────────────────────────────
+
+  async getApprovalForRequest(_requestId: string): Promise<QuarterRequestApproval | null> {
+    if (DEMO_MODE) return Promise.resolve(null);
+    const { data, error } = await supabase
+      .from('quarter_request_approvals')
+      .select('*, workflow:quarter_approval_workflows(*)')
+      .eq('request_id', _requestId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data as QuarterRequestApproval | null;
+  },
+
+  async getRequestApprovalChats(_requestApprovalId: string): Promise<QuarterRequestApprovalChat[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const { data, error } = await supabase
+      .from('quarter_request_approval_chats')
+      .select('*')
+      .eq('request_approval_id', _requestApprovalId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as QuarterRequestApprovalChat[];
+  },
+
+  async submitRequestsForApproval(_requestIds: string[], _workflowId: string | null, _eoId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const now = new Date().toISOString();
+    const workflowId = _workflowId;
+    let maxLevel = 1;
+    if (workflowId) {
+      const { data: wfl } = await supabase.from('quarter_approval_workflows').select('levels').eq('id', workflowId).maybeSingle();
+      if (wfl) maxLevel = (wfl.levels as { level: number }[]).length;
+    }
+    for (const rid of _requestIds) {
+      const { data: inserted } = await supabase.from('quarter_request_approvals').insert({
+        request_id: rid, workflow_id: workflowId, current_level: 1, max_level: maxLevel,
+        status: 'PENDING', initiated_by: _eoId, updated_at: now,
+      }).select().maybeSingle();
+      if (inserted) {
+        await supabase.from('quarter_request_approval_chats').insert({
+          request_approval_id: inserted.id, author_id: _eoId, author_role: 'eo',
+          action_type: 'INITIATE', level_snapshot: 1,
+          message: `Approval workflow initiated (${maxLevel}-level).`, document_urls: [],
+        });
+      }
+    }
+  },
+
+  async approveRequestLevel(_requestApprovalId: string, _approverId: string, _remarks: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const { data: approval } = await supabase.from('quarter_request_approvals').select('*').eq('id', _requestApprovalId).maybeSingle();
+    if (!approval) throw new Error('Request approval record not found');
+    const now = new Date().toISOString();
+    const isLastLevel = approval.current_level >= approval.max_level;
+    const newStatus = isLastLevel ? 'APPROVED' : 'PENDING';
+    const newLevel = isLastLevel ? approval.current_level : approval.current_level + 1;
+    await supabase.from('quarter_request_approvals').update({ current_level: newLevel, status: newStatus, updated_at: now }).eq('id', _requestApprovalId);
+    await supabase.from('quarter_request_approval_chats').insert({
+      request_approval_id: _requestApprovalId, author_id: _approverId, author_role: 'approver',
+      action_type: 'APPROVE', level_snapshot: approval.current_level,
+      message: `Level ${approval.current_level} approved.${_remarks ? ` ${_remarks}` : ''}`, document_urls: [],
+    });
+  },
+
+  async sendRequestClarification(_requestApprovalId: string, _targetLevel: number, _remarks: string, _senderId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const now = new Date().toISOString();
+    await supabase.from('quarter_request_approvals').update({ current_level: _targetLevel, status: 'PENDING', updated_at: now }).eq('id', _requestApprovalId);
+    await supabase.from('quarter_request_approval_chats').insert({
+      request_approval_id: _requestApprovalId, author_id: _senderId, author_role: 'eo',
+      action_type: 'CLARIFY', level_snapshot: _targetLevel,
+      message: `Sent for clarification to level ${_targetLevel}.${_remarks ? ` ${_remarks}` : ''}`, document_urls: [],
     });
   },
 

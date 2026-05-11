@@ -254,6 +254,31 @@ export interface QuarterApprovalChat {
   created_at: string;
 }
 
+export interface QuarterRequestApproval {
+  id: string;
+  request_id: string;
+  workflow_id: string | null;
+  current_level: number;
+  max_level: number;
+  status: string;
+  initiated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  workflow?: QuarterApprovalWorkflow;
+}
+
+export interface QuarterRequestApprovalChat {
+  id: string;
+  request_approval_id: string;
+  author_id: string | null;
+  author_role: string;
+  message: string;
+  action_type: string;
+  level_snapshot: number | null;
+  document_urls: string[];
+  created_at: string;
+}
+
 export interface QuarterInspection {
   id: string;
   allotment_id: string;

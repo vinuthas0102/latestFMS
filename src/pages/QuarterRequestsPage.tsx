@@ -37,6 +37,8 @@ import {
   QuarterApprovalWorkflow,
   QuarterAllotmentApproval,
   QuarterApprovalChat,
+  QuarterRequestApproval,
+  QuarterRequestApprovalChat,
   QuarterInspection,
   QuarterInspectionChat,
   QuarterHandover,
@@ -266,6 +268,16 @@ export const QuarterRequestsPage: React.FC = () => {
   const [approvalRemarks, setApprovalRemarks] = useState('');
   const [approvalTargetLevel, setApprovalTargetLevel] = useState(1);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
+
+  // EO: Request-level approval (for SUBMITTED records)
+  const [requestApprovalRecord, setRequestApprovalRecord] = useState<QuarterRequestApproval | null>(null);
+  const [requestApprovalChats, setRequestApprovalChats] = useState<QuarterRequestApprovalChat[]>([]);
+  const [requestApprovalAction, setRequestApprovalAction] = useState<'approve' | 'clarify' | null>(null);
+  const [requestApprovalRemarks, setRequestApprovalRemarks] = useState('');
+  const [requestApprovalTargetLevel, setRequestApprovalTargetLevel] = useState(1);
+  const [requestApprovalSubmitting, setRequestApprovalSubmitting] = useState(false);
+  const [requestApprovalWorkflows, setRequestApprovalWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
+  const [initiatingRequestApproval, setInitiatingRequestApproval] = useState(false);
 
   // EO: Inspection panel
   const [inspections, setInspections] = useState<QuarterInspection[]>([]);
@@ -1292,6 +1304,28 @@ export const QuarterRequestsPage: React.FC = () => {
     }).catch(() => {});
   }, [selectedRequest?.allotment?.id, isEO, eoMode]);
 
+  // ─── EO: Load request-level approval for SUBMITTED records ────────────────
+  useEffect(() => {
+    const reqId = selectedRequest?.id;
+    if (!reqId || selectedRequest?.request_status !== 'SUBMITTED' || !(isEO && eoMode === 'employee')) {
+      setRequestApprovalRecord(null);
+      setRequestApprovalChats([]);
+      return;
+    }
+    quartersService.getApprovalForRequest(reqId).then(approval => {
+      setRequestApprovalRecord(approval);
+      if (approval) {
+        quartersService.getRequestApprovalChats(approval.id).then(setRequestApprovalChats).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [selectedRequest?.id, selectedRequest?.request_status, isEO, eoMode]);
+
+  // ─── EO: Load approval workflows once (for both allotment and request approvals) ───
+  useEffect(() => {
+    if (!(isEO && eoMode === 'employee')) return;
+    quartersService.getApprovalWorkflows().then(setRequestApprovalWorkflows).catch(() => {});
+  }, [isEO, eoMode]);
+
   // ─── EO: Load inspections for selected allotment ──────────────────────────
   useEffect(() => {
     const allotmentId = selectedRequest?.allotment?.id;
@@ -1372,6 +1406,61 @@ export const QuarterRequestsPage: React.FC = () => {
         setApprovalChats(chats);
       }
     } catch { addToast('Failed to send clarification', 'error'); } finally { setApprovalSubmitting(false); }
+  };
+
+  // ─── EO: Initiate request-level approval ─────────────────────────────────
+  const handleInitiateRequestApproval = async (workflowId: string | null) => {
+    if (!user || !selectedRequest) return;
+    setInitiatingRequestApproval(true);
+    try {
+      await quartersService.submitRequestsForApproval([selectedRequest.id], workflowId, user.id);
+      addToast('Approval workflow started', 'success');
+      const approval = await quartersService.getApprovalForRequest(selectedRequest.id);
+      setRequestApprovalRecord(approval);
+      if (approval) {
+        const chats = await quartersService.getRequestApprovalChats(approval.id);
+        setRequestApprovalChats(chats);
+        setEoRightMode('request_approval_chat');
+      }
+    } catch { addToast('Failed to start approval', 'error'); } finally { setInitiatingRequestApproval(false); }
+  };
+
+  // ─── EO: Approve request-level approval level ─────────────────────────────
+  const handleApproveRequestLevel = async () => {
+    if (!user || !requestApprovalRecord) return;
+    setRequestApprovalSubmitting(true);
+    try {
+      await quartersService.approveRequestLevel(requestApprovalRecord.id, user.id, requestApprovalRemarks);
+      addToast('Level approved', 'success');
+      setRequestApprovalAction(null);
+      setRequestApprovalRemarks('');
+      const updated = await quartersService.getApprovalForRequest(requestApprovalRecord.request_id);
+      setRequestApprovalRecord(updated);
+      if (updated) {
+        const chats = await quartersService.getRequestApprovalChats(updated.id);
+        setRequestApprovalChats(chats);
+      }
+    } catch { addToast('Failed to approve', 'error'); } finally { setRequestApprovalSubmitting(false); }
+  };
+
+  // ─── EO: Send request-level clarification ─────────────────────────────────
+  const handleSendRequestClarification = async () => {
+    if (!user || !requestApprovalRecord || !requestApprovalRemarks.trim()) {
+      addToast('Please provide clarification remarks', 'warning'); return;
+    }
+    setRequestApprovalSubmitting(true);
+    try {
+      await quartersService.sendRequestClarification(requestApprovalRecord.id, requestApprovalTargetLevel, requestApprovalRemarks, user.id);
+      addToast('Sent for clarification', 'success');
+      setRequestApprovalAction(null);
+      setRequestApprovalRemarks('');
+      const updated = await quartersService.getApprovalForRequest(requestApprovalRecord.request_id);
+      setRequestApprovalRecord(updated);
+      if (updated) {
+        const chats = await quartersService.getRequestApprovalChats(updated.id);
+        setRequestApprovalChats(chats);
+      }
+    } catch { addToast('Failed to send clarification', 'error'); } finally { setRequestApprovalSubmitting(false); }
   };
 
   // ─── EO: Start inspection ─────────────────────────────────────────────────
@@ -2509,6 +2598,20 @@ export const QuarterRequestsPage: React.FC = () => {
                   approvalSubmitting={approvalSubmitting}
                   handleApproveLevel={handleApproveLevel}
                   handleSendClarification={handleSendClarification}
+                  requestApprovalRecord={requestApprovalRecord}
+                  requestApprovalChats={requestApprovalChats}
+                  requestApprovalAction={requestApprovalAction}
+                  setRequestApprovalAction={setRequestApprovalAction}
+                  requestApprovalRemarks={requestApprovalRemarks}
+                  setRequestApprovalRemarks={setRequestApprovalRemarks}
+                  requestApprovalTargetLevel={requestApprovalTargetLevel}
+                  setRequestApprovalTargetLevel={setRequestApprovalTargetLevel}
+                  requestApprovalSubmitting={requestApprovalSubmitting}
+                  handleApproveRequestLevel={handleApproveRequestLevel}
+                  handleSendRequestClarification={handleSendRequestClarification}
+                  handleInitiateRequestApproval={handleInitiateRequestApproval}
+                  requestApprovalWorkflows={requestApprovalWorkflows}
+                  initiatingRequestApproval={initiatingRequestApproval}
                   inspections={inspections}
                   inspectionChats={inspectionChats}
                   selectedInspectionId={selectedInspectionId}
@@ -2960,7 +3063,8 @@ export const QuarterRequestsPage: React.FC = () => {
                               </>
                             )}
 
-                            {/* Inline chat icon */}
+                            {/* Inline chat icon — hidden for terminal/vacated statuses */}
+                            {!(['VACATED', 'WITHDRAWN', 'REJECTED', 'CANCELLED'] as string[]).includes(req.request_status) && (
                             <button
                               onClick={e => {
                                 e.stopPropagation();
@@ -2974,6 +3078,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             >
                               <MessageSquare size={13} />
                             </button>
+                            )}
 
                             {/* Expand / collapse icon */}
                             <button
