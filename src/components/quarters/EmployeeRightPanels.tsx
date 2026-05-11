@@ -736,6 +736,7 @@ export const RightPanelDraft: React.FC<{
 }) => {
   const [draftForm, setDraftForm] = useState({
     request_reason: selectedRequest.request_reason ?? '',
+    request_type: (selectedRequest.request_type ?? 'GENERAL') as 'GENERAL' | 'MEDICAL' | 'REFERENCE',
     preferred_location: selectedRequest.preferred_location ?? '',
     move_in_date: selectedRequest.move_in_date ?? '',
     employee_notes: selectedRequest.employee_notes ?? '',
@@ -751,6 +752,7 @@ export const RightPanelDraft: React.FC<{
         preferred_location: draftForm.preferred_location,
         move_in_date: draftForm.move_in_date || null,
         family_member_count: 1,
+        request_type: draftForm.request_type,
         employee_notes: draftForm.employee_notes,
       });
       addToast('Draft updated', 'success');
@@ -768,6 +770,7 @@ export const RightPanelDraft: React.FC<{
         preferred_location: draftForm.preferred_location,
         move_in_date: draftForm.move_in_date || null,
         family_member_count: 1,
+        request_type: draftForm.request_type,
         employee_notes: draftForm.employee_notes,
       });
       await quartersService.submitRequest(selectedRequest.id);
@@ -807,6 +810,15 @@ export const RightPanelDraft: React.FC<{
           <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason *</label>
           <textarea value={draftForm.request_reason} onChange={e => setDraftForm(f => ({ ...f, request_reason: e.target.value }))} rows={3} placeholder="e.g. Transfer-in" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Type of Request *</label>
+          <select value={draftForm.request_type} onChange={e => setDraftForm(f => ({ ...f, request_type: e.target.value as 'GENERAL' | 'MEDICAL' | 'REFERENCE' }))}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
+            <option value="GENERAL">General</option>
+            <option value="MEDICAL">Medical</option>
+            <option value="REFERENCE">Reference</option>
+          </select>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
@@ -842,9 +854,17 @@ export const RightPanelDraft: React.FC<{
               return (
                 <div key={pref.id} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
                   <span className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</span>
-                  <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
-                  {pq?.bhk_config && <span className="text-gray-500">{pq.bhk_config}</span>}
-                  {pq?.address && <span className="text-gray-400 truncate">{pq.address}</span>}
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
+                    {pq && (
+                      <div className="flex items-center flex-wrap gap-x-1 text-[10px] text-gray-400 mt-0.5">
+                        {pq.quarter_type && <span>{pq.quarter_type}</span>}
+                        {pq.block_name && <span>· Blk {pq.block_name}</span>}
+                        {pq.floor_number != null && <span>· Fl. {pq.floor_number}</span>}
+                        {pq.housing_style && <span>· {pq.housing_style}</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

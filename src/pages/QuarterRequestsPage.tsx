@@ -98,6 +98,12 @@ const DEMO_TP_PROFILES = [
   { id: 'TP-008', name: 'Sunaina Kapoor',    organization: 'FICCI',                      mobile: '9880008008', email: 's.kapoor@ficci.in',             pan: 'SNKPR1230H', type: 'Guest' },
 ];
 
+function getRequestTypeBadge(rt: string) {
+  if (rt === 'MEDICAL')   return { cls: 'bg-red-50 text-red-700 border-red-200',    label: 'Medical' };
+  if (rt === 'REFERENCE') return { cls: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Reference' };
+  return { cls: 'bg-gray-100 text-gray-600 border-gray-200', label: 'General' };
+}
+
 function getOccupancyBadge(status: string) {
   if (status === 'AVAILABLE') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (status === 'OCCUPIED')  return 'bg-red-50 text-red-700 border-red-200';
@@ -122,11 +128,14 @@ const DP_LABELS: Record<DPFilter, string> = {
 
 interface PrefItem { quarter: Quarter; rank: number }
 
+type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
+
 interface NewRequestForm {
   request_reason: string;
   preferred_location: string;
   move_in_date: string;
   employee_notes: string;
+  request_type: RequestType;
 }
 
 const DEFAULT_FORM: NewRequestForm = {
@@ -134,6 +143,7 @@ const DEFAULT_FORM: NewRequestForm = {
   preferred_location: '',
   move_in_date: '',
   employee_notes: '',
+  request_type: 'GENERAL',
 };
 
 // ─── Status dashboard card ─────────────────────────────────────────────────────
@@ -858,6 +868,7 @@ export const QuarterRequestsPage: React.FC = () => {
           preferred_location: form.preferred_location || '',
           move_in_date: form.move_in_date || null,
           family_member_count: 1,
+          request_type: form.request_type,
           employee_notes: form.employee_notes,
           preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
           ...buildRequestForPayload(),
@@ -888,6 +899,7 @@ export const QuarterRequestsPage: React.FC = () => {
         preferred_location: form.preferred_location || '',
         move_in_date: form.move_in_date || null,
         family_member_count: 1,
+        request_type: form.request_type,
         employee_notes: form.employee_notes,
         preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
         ...buildRequestForPayload(),
@@ -2739,37 +2751,36 @@ export const QuarterRequestsPage: React.FC = () => {
                           {/* Row 2: primary heading */}
                           <div className="mb-1">
                             <div className="font-bold text-gray-900 text-sm leading-tight truncate">
-                              {allottedQ ? allottedQ.quarter_number : (req.required_bhk_config || 'Any BHK')}
-                              {allottedQ && <span className="text-gray-500 font-normal ml-1.5">· {allottedQ.bhk_config}</span>}
+                              {allottedQ ? allottedQ.quarter_number : (prefQ?.quarter_number ?? req.preferred_location ?? 'No preference set')}
                             </div>
-                            <div className="text-[11px] text-gray-400 truncate mt-0.5">
-                              {allottedQ?.address ?? prefQ?.address ?? req.preferred_location ?? 'No location specified'}
-                            </div>
+                            {allottedQ ? (
+                              <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500 mt-0.5">
+                                {allottedQ.quarter_type && <span className="font-medium text-gray-700">{allottedQ.quarter_type}</span>}
+                                {allottedQ.block_name && <span>· Blk {allottedQ.block_name}</span>}
+                                {allottedQ.floor_number != null && <span>· Fl. {allottedQ.floor_number}</span>}
+                                {allottedQ.housing_style && <span>· {allottedQ.housing_style}</span>}
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-gray-400 truncate mt-0.5">
+                                {prefQ ? (
+                                  <>
+                                    {[prefQ.quarter_type, prefQ.block_name ? `Blk ${prefQ.block_name}` : null, prefQ.floor_number != null ? `Fl. ${prefQ.floor_number}` : null].filter(Boolean).join(' · ')}
+                                  </>
+                                ) : (req.preferred_location ?? 'No location specified')}
+                              </div>
+                            )}
                           </div>
 
-                          {/* Row 3: meta chips */}
+                          {/* Row 3: Type of Request badge + service tags */}
                           <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            {req.required_bhk_config && !allottedQ && (
-                              <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                                <Bed size={9} />{req.required_bhk_config}
-                              </span>
-                            )}
-                            <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                              <Users size={9} />Fam: {req.family_member_count ?? 1}
-                            </span>
-                            <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                              <Star size={9} />Prefs: {req.preferences?.length ?? 0}
-                            </span>
-                            {req.move_in_date && (
-                              <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                                <CalendarDays size={9} />{fmtDate(req.move_in_date)}
-                              </span>
-                            )}
-                            {req.employee_notes && (
-                              <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                                <Paperclip size={9} />Note
-                              </span>
-                            )}
+                            {(() => {
+                              const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
+                              return (
+                                <span className={`text-[10px] border px-1.5 py-0.5 rounded-md font-semibold ${rtb.cls}`}>
+                                  {rtb.label}
+                                </span>
+                              );
+                            })()}
                             {activeSvcs.length > 0 && (
                               <>
                                 <button
@@ -3035,12 +3046,13 @@ export const QuarterRequestsPage: React.FC = () => {
                                 <div className="font-semibold text-gray-800 leading-snug">{req.request_reason}</div>
                               </div>
                             )}
-                            {req.required_bhk_config && (
-                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">BHK</div>
-                                <div className="font-semibold text-gray-800">{req.required_bhk_config}</div>
-                              </div>
-                            )}
+                            <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                              <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Type of Request</div>
+                              {(() => {
+                                const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
+                                return <span className={`text-[10px] border px-1.5 py-0.5 rounded-md font-semibold ${rtb.cls}`}>{rtb.label}</span>;
+                              })()}
+                            </div>
                             {req.preferred_location && (
                               <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
                                 <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Location</div>
@@ -3053,15 +3065,38 @@ export const QuarterRequestsPage: React.FC = () => {
                                 <div className="font-semibold text-gray-800">{fmtDate(req.move_in_date)}</div>
                               </div>
                             )}
-                            <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                              <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Family</div>
-                              <div className="font-semibold text-gray-800">{req.family_member_count ?? 1}</div>
-                            </div>
                           </div>
+
+                          {/* Allotted quarter details */}
+                          {allottedQ && (
+                            <div className="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-[11px]">
+                              <div className="text-[9px] text-teal-600 font-bold uppercase tracking-wide mb-1.5">Quarter Details</div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                {allottedQ.quarter_type && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Type</span><div className="font-semibold text-teal-900">{allottedQ.quarter_type}</div></div>
+                                )}
+                                {allottedQ.block_name && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Block</span><div className="font-semibold text-teal-900">{allottedQ.block_name}</div></div>
+                                )}
+                                {allottedQ.floor_number != null && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Floor</span><div className="font-semibold text-teal-900">{allottedQ.floor_number}</div></div>
+                                )}
+                                {allottedQ.housing_style && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Style</span><div className="font-semibold text-teal-900">{allottedQ.housing_style}</div></div>
+                                )}
+                                {allottedQ.furnishing_status && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Furnishing</span><div className="font-semibold text-teal-900">{allottedQ.furnishing_status.replace('_', ' ')}</div></div>
+                                )}
+                                {allottedQ.area_sqft > 0 && (
+                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Area</span><div className="font-semibold text-teal-900">{allottedQ.area_sqft} sq.ft</div></div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {req.employee_notes && (
                             <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-[11px]">
-                              <div className="text-[9px] text-amber-500 font-bold uppercase tracking-wide mb-0.5">Notes</div>
+                              <div className="text-[9px] text-amber-500 font-bold uppercase tracking-wide mb-0.5">Remarks</div>
                               <div className="text-amber-900">{req.employee_notes}</div>
                             </div>
                           )}
@@ -3104,8 +3139,12 @@ export const QuarterRequestsPage: React.FC = () => {
                                         <div className="w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</div>
                                         <div className="flex-1 min-w-0">
                                           <span className="text-[11px] font-semibold text-gray-800">{pq.quarter_number}</span>
-                                          <span className="text-[10px] text-gray-400 ml-1.5">{pq.bhk_config}</span>
-                                          {pq.address && <div className="text-[10px] text-gray-400 truncate">{pq.address}</div>}
+                                          <div className="flex items-center flex-wrap gap-x-1 text-[10px] text-gray-400 mt-0.5">
+                                            {pq.quarter_type && <span>{pq.quarter_type}</span>}
+                                            {pq.block_name && <span>· Blk {pq.block_name}</span>}
+                                            {pq.floor_number != null && <span>· Fl. {pq.floor_number}</span>}
+                                            {pq.housing_style && <span>· {pq.housing_style}</span>}
+                                          </div>
                                         </div>
                                         <span className="text-[10px] font-semibold text-gray-600 shrink-0">{fmtINR(pq.monthly_rent)}/mo</span>
                                       </div>

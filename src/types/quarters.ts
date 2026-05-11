@@ -49,6 +49,8 @@ export interface Quarter {
   current_availability_status: string;
 }
 
+export type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
+
 export interface QuarterRequest {
   id: string;
   request_number: string;
@@ -60,6 +62,7 @@ export interface QuarterRequest {
   preferred_location: string;
   move_in_date: string | null;
   family_member_count: number;
+  request_type: RequestType;
   request_status: string;
   sub_status: string | null;
   employee_notes: string;
@@ -193,6 +196,7 @@ export interface CreateQuarterRequestInput {
   preferred_location: string;
   move_in_date: string | null;
   family_member_count: number;
+  request_type: RequestType;
   employee_notes: string;
   preferences: { quarter_id: string; preference_rank: number }[];
   request_for?: 'SELF' | 'EMPLOYEE' | 'TP';

@@ -11,11 +11,14 @@ import { downloadPageAsHtml } from '../../utils/downloadHtml';
 import { UserDTO } from '../../types';
 
 // Types needed
+type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
+
 interface NewRequestForm {
   request_reason: string;
   preferred_location: string;
   move_in_date: string;
   employee_notes: string;
+  request_type: RequestType;
 }
 
 export interface UploadedDoc {
@@ -220,11 +223,20 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
 
         {/* ── Top: Request details form (horizontal band) ── */}
         <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
               <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Type of Request <span className="text-red-500">*</span></label>
+              <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value as RequestType }))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
+                <option value="GENERAL">General</option>
+                <option value="MEDICAL">Medical</option>
+                <option value="REFERENCE">Reference</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
@@ -277,12 +289,11 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
             </div>
             {documents.length === 0 ? (
               <div
-                className="flex flex-col items-center justify-center py-5 text-gray-400 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-400 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload size={20} className="mb-1 opacity-40" />
-                <span className="text-xs">Click to upload or drag &amp; drop files</span>
-                <span className="text-[10px] text-gray-300 mt-0.5">PDF, DOC, JPG, PNG supported</span>
+                <Upload size={14} className="opacity-50 shrink-0" />
+                <span className="text-xs">No documents attached — click to upload (PDF, DOC, JPG, PNG)</span>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -492,12 +503,9 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search by number, block, address…"
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
-            <div className="text-xs text-gray-500 mt-2">
-              click <span className="font-medium text-blue-700">Add</span> to add preference
-              {(modalBhk || modalFurnishing || modalSortBy) && (
-                <span className="ml-2 text-blue-600 font-medium">· filters active</span>
-              )}
-            </div>
+            {(modalBhk || modalFurnishing || modalSortBy) && (
+              <div className="text-xs text-blue-600 font-medium mt-2">· filters active</div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {modalLoading ? (

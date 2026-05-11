@@ -190,6 +190,7 @@ export const quartersService = {
         preferred_location: input.preferred_location,
         move_in_date: input.move_in_date,
         family_member_count: input.family_member_count,
+        request_type: input.request_type ?? 'GENERAL',
         request_status: 'DRAFT',
         sub_status: null,
         employee_notes: input.employee_notes,
@@ -233,6 +234,7 @@ export const quartersService = {
         preferred_location: input.preferred_location,
         move_in_date: input.move_in_date,
         family_member_count: input.family_member_count,
+        request_type: input.request_type ?? 'GENERAL',
         employee_notes: input.employee_notes,
         request_status: 'DRAFT',
         request_for: input.request_for ?? 'SELF',
@@ -628,6 +630,7 @@ export const quartersService = {
       preferred_location?: string;
       move_in_date?: string | null;
       family_member_count?: number;
+      request_type?: string;
       employee_notes?: string;
     }
   ): Promise<void> {
