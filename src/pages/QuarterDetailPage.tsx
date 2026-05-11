@@ -290,14 +290,6 @@ export const QuarterDetailPage: React.FC = () => {
             )}
 
             <div className="flex items-center gap-2">
-              {canManage && (
-                <button
-                  onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition-all"
-                >
-                  <Settings size={13} /> Quarter Manager
-                </button>
-              )}
               {isGovtOfficial && isAvailable && (
                 <button
                   onClick={() => scrollToSection('action')}
@@ -638,12 +630,6 @@ export const QuarterDetailPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
-              >
-                <Settings size={16} /> Go to Quarter Manager
-              </button>
             </div>
           ) : isGovtOfficial ? (
             isAvailable ? (

@@ -290,14 +290,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                     <ExternalLink size={12} /> Full Page
                   </button>
                 )}
-                {canManage && quarter && (
-                  <button
-                    onClick={() => { navigate(ROUTES.QUARTERS_MANAGER); if (!inline) onClose(); }}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all"
-                  >
-                    <Settings size={12} /> Manager
-                  </button>
-                )}
                 {isGovtOfficial && quarter && isAvailable && (
                   <button
                     onClick={() => scrollToSection('action')}
@@ -668,12 +660,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                           </div>
                         ))}
                       </div>
-                      <button
-                        onClick={() => { navigate(ROUTES.QUARTERS_MANAGER); onClose(); }}
-                        className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
-                      >
-                        <Settings size={16} /> Go to Quarter Manager
-                      </button>
                     </div>
                   ) : isGovtOfficial ? (
                     isAvailable ? (

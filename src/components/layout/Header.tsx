@@ -92,7 +92,7 @@ export const Header: React.FC = () => {
     ? regularUserNavItems
     : [
         ...baseNavItems,
-        ...(isManager ? [...managerNavItems, quartersManagerNavItem] : []),
+        ...(isManager ? managerNavItems : []),
         ...(isAdmin ? adminNavItems : []),
       ];
 
