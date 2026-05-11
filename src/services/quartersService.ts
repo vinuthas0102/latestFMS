@@ -622,6 +622,19 @@ export const quartersService = {
     if (rErr) throw rErr;
   },
 
+  async getRequestDocUrls(_requestId: string): Promise<{ name: string; url: string }[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const requestId = _requestId;
+    const { data, error } = await supabase.storage
+      .from('quarter-docs')
+      .list(`request-docs/${requestId}`, { limit: 50 });
+    if (error || !data) return [];
+    return data.map(f => ({
+      name: f.name.replace(/^\d+-/, '').replace(/_/g, ' '),
+      url: supabase.storage.from('quarter-docs').getPublicUrl(`request-docs/${requestId}/${f.name}`).data.publicUrl,
+    }));
+  },
+
   async updateRequestHeader(
     _requestId: string,
     data: {

@@ -317,6 +317,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [dpCanScrollLeft, setDpCanScrollLeft] = useState(false);
   const [dpCanScrollRight, setDpCanScrollRight] = useState(false);
 
+  // Per-request uploaded document URLs (loaded when card is expanded)
+  const [requestDocUrls, setRequestDocUrls] = useState<Record<string, { name: string; url: string }[]>>({});
+
   // New-request full-screen
   const [showNewModal, setShowNewModal] = useState(false);
   const [form, setForm] = useState<NewRequestForm>(DEFAULT_FORM);
@@ -421,8 +424,19 @@ export const QuarterRequestsPage: React.FC = () => {
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [chatOpenForId, setChatOpenForId] = useState<string | null>(null);
   const [expandedSvcsCardId, setExpandedSvcsCardId] = useState<string | null>(null);
   const [expandedSvcDetailId, setExpandedSvcDetailId] = useState<string | null>(null);
+
+  // Fetch document URLs when a card is expanded
+  useEffect(() => {
+    if (!expandedCardId || requestDocUrls[expandedCardId]) return;
+    quartersService.getRequestDocUrls(expandedCardId).then(docs => {
+      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: docs }));
+    }).catch(() => {
+      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] }));
+    });
+  }, [expandedCardId]);
 
   // Lightbox for allotted panel image tiles
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -467,7 +481,12 @@ export const QuarterRequestsPage: React.FC = () => {
       : dpFilter === 'allotted' ? (isEO && eoMode === 'employee' ? 180 : 70)
       : dpFilter === 'accepted' ? 120 : 320;
     const spaceBelow = window.innerHeight - rect.bottom;
-    const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
+    // Always prefer below; only go above if genuinely not enough space AND there's room above
+    const fitsBelow = spaceBelow >= menuHeight + 8;
+    const fitsAbove = rect.top >= menuHeight + 8;
+    const top = fitsBelow ? rect.bottom + 4
+      : fitsAbove ? rect.top - menuHeight - 4
+      : rect.bottom + 4; // fallback: below with scroll
     setMenuPos({ top, left: rect.right - 210 });
     setOpenMenuId(reqId);
   }
@@ -2108,12 +2127,6 @@ export const QuarterRequestsPage: React.FC = () => {
 
             {/* Action buttons — icons only (with tooltips) */}
             <div className="flex items-center gap-1 flex-shrink-0">
-              {user && activeCycle && (
-                <span className="hidden md:flex items-center gap-1 text-[10px] text-gray-500 px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 flex-shrink-0">
-                  <Clock size={10} className="text-blue-500" />
-                  <span className="truncate max-w-[160px]">{activeCycle.cycle_name} · {new Date(activeCycle.end_date).toLocaleDateString('en-IN')}</span>
-                </span>
-              )}
 
               {isEO && (
                 <button
@@ -2636,6 +2649,14 @@ export const QuarterRequestsPage: React.FC = () => {
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
                     setIsPreviewOpen={setIsPreviewOpen}
+                    initialTab={chatOpenForId === selectedRequest.id ? 'chat' : 'services'}
+                    allotmentChats={allotmentChats}
+                    allotmentChatMessage={allotmentChatMessage}
+                    setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile}
+                    setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting}
+                    handleSendAllotmentChat={handleSendAllotmentChat}
                   />
                 </Suspense>
               );
@@ -2710,7 +2731,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   return (
                     <React.Fragment key={req.id}>
                     <div
-                      onClick={() => { setSelectedRequest(req); setSelectedServiceId(null); resetActionForm(); }}
+                      onClick={() => { setSelectedRequest(req); setSelectedServiceId(null); resetActionForm(); setChatOpenForId(null); }}
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <div className="flex min-h-[116px]">
@@ -2939,6 +2960,21 @@ export const QuarterRequestsPage: React.FC = () => {
                               </>
                             )}
 
+                            {/* Inline chat icon */}
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setChatOpenForId(req.id);
+                                setSelectedRequest(req);
+                                setSelectedServiceId(null);
+                                resetActionForm();
+                              }}
+                              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 transition-colors shrink-0"
+                              title="Open Chat"
+                            >
+                              <MessageSquare size={13} />
+                            </button>
+
                             {/* Expand / collapse icon */}
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
@@ -2997,125 +3033,98 @@ export const QuarterRequestsPage: React.FC = () => {
                       {/* Expand/collapse request details */}
                       {expandedCardId === req.id && (
                         <div
-                          className="border-t border-gray-100 bg-gray-50/80 px-4 py-3 space-y-3"
+                          className="border-t border-gray-100 bg-gray-50/80 px-4 py-3 space-y-2.5"
                           onClick={e => e.stopPropagation()}
                         >
-                          {/* Requester + on-behalf info */}
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 flex items-center gap-2 bg-white rounded-lg border border-gray-100 px-3 py-2">
-                              <div className="w-7 h-7 rounded-full bg-teal-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                                {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold text-gray-800 leading-tight truncate">{user?.fullName ?? '—'}</div>
-                                <div className="text-[10px] text-gray-400">{user?.govtEmployeeId ?? user?.email ?? '—'}</div>
-                                {user?.govtDepartment && <div className="text-[10px] text-gray-400">{user.govtDepartment}</div>}
-                              </div>
-                            </div>
-                            {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
-                              <div className="flex-1 flex items-center gap-2 bg-blue-50 rounded-lg border border-blue-100 px-3 py-2">
-                                <div className="w-7 h-7 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                                  {req.on_behalf_employee_name.charAt(0)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[9px] font-bold text-blue-400 uppercase tracking-wide">On Behalf</div>
-                                  <div className="text-xs font-semibold text-blue-900 truncate">{req.on_behalf_employee_name}</div>
-                                  <div className="text-[10px] text-blue-500">{req.on_behalf_employee_id}</div>
-                                </div>
-                              </div>
-                            )}
-                            {reqFor === 'TP' && req.tp_name && (
-                              <div className="flex-1 flex items-center gap-2 bg-amber-50 rounded-lg border border-amber-100 px-3 py-2">
-                                <div className="w-7 h-7 rounded-full bg-amber-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                                  {req.tp_name.charAt(0)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wide">Third Party</div>
-                                  <div className="text-xs font-semibold text-amber-900 truncate">{req.tp_name}</div>
-                                  <div className="text-[10px] text-amber-600 truncate">{req.tp_organization}</div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Key fields grid */}
-                          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                          {/* Request fields — label + value rows */}
+                          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden text-[11px]">
                             {req.request_reason && (
-                              <div className="col-span-2 bg-white rounded-lg border border-gray-100 px-3 py-2">
-                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Reason</div>
-                                <div className="font-semibold text-gray-800 leading-snug">{req.request_reason}</div>
+                              <div className="flex items-start gap-3 px-3 py-2 border-b border-gray-50">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-0.5">Reason</span>
+                                <span className="font-semibold text-gray-800 leading-snug">{req.request_reason}</span>
                               </div>
                             )}
-                            <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                              <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Type of Request</div>
+                            <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                              <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Type of Request</span>
                               {(() => {
                                 const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
                                 return <span className={`text-[10px] border px-1.5 py-0.5 rounded-md font-semibold ${rtb.cls}`}>{rtb.label}</span>;
                               })()}
                             </div>
                             {req.preferred_location && (
-                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Location</div>
-                                <div className="font-semibold text-gray-800 truncate">{req.preferred_location}</div>
+                              <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Preferred Location</span>
+                                <span className="font-semibold text-gray-800">{req.preferred_location}</span>
                               </div>
                             )}
                             {req.move_in_date && (
-                              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2">
-                                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Move-in</div>
-                                <div className="font-semibold text-gray-800">{fmtDate(req.move_in_date)}</div>
+                              <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Move-in Date</span>
+                                <span className="font-semibold text-gray-800">{fmtDate(req.move_in_date)}</span>
+                              </div>
+                            )}
+                            {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                              <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">On Behalf Of</span>
+                                <span className="font-semibold text-blue-800">{req.on_behalf_employee_name}{req.on_behalf_employee_id ? ` · ${req.on_behalf_employee_id}` : ''}</span>
+                              </div>
+                            )}
+                            {reqFor === 'TP' && req.tp_name && (
+                              <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Third Party</span>
+                                <span className="font-semibold text-amber-800">{req.tp_name}{req.tp_organization ? ` · ${req.tp_organization}` : ''}</span>
+                              </div>
+                            )}
+                            {req.employee_notes && (
+                              <div className="flex items-start gap-3 px-3 py-2">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-0.5">Remarks</span>
+                                <span className="text-amber-800 leading-snug">{req.employee_notes}</span>
                               </div>
                             )}
                           </div>
 
                           {/* Allotted quarter details */}
                           {allottedQ && (
-                            <div className="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-[11px]">
-                              <div className="text-[9px] text-teal-600 font-bold uppercase tracking-wide mb-1.5">Quarter Details</div>
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                {allottedQ.quarter_type && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Type</span><div className="font-semibold text-teal-900">{allottedQ.quarter_type}</div></div>
-                                )}
-                                {allottedQ.block_name && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Block</span><div className="font-semibold text-teal-900">{allottedQ.block_name}</div></div>
-                                )}
-                                {allottedQ.floor_number != null && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Floor</span><div className="font-semibold text-teal-900">{allottedQ.floor_number}</div></div>
-                                )}
-                                {allottedQ.housing_style && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Style</span><div className="font-semibold text-teal-900">{allottedQ.housing_style}</div></div>
-                                )}
-                                {allottedQ.furnishing_status && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Furnishing</span><div className="font-semibold text-teal-900">{allottedQ.furnishing_status.replace('_', ' ')}</div></div>
-                                )}
-                                {allottedQ.area_sqft > 0 && (
-                                  <div><span className="text-[9px] text-teal-400 uppercase tracking-wide">Area</span><div className="font-semibold text-teal-900">{allottedQ.area_sqft} sq.ft</div></div>
-                                )}
+                            <div className="bg-white rounded-xl border border-teal-100 overflow-hidden text-[11px]">
+                              <div className="px-3 py-1.5 bg-teal-50 border-b border-teal-100">
+                                <span className="text-[9px] font-bold text-teal-600 uppercase tracking-wide">Quarter Details</span>
                               </div>
-                            </div>
-                          )}
-
-                          {req.employee_notes && (
-                            <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-[11px]">
-                              <div className="text-[9px] text-amber-500 font-bold uppercase tracking-wide mb-0.5">Remarks</div>
-                              <div className="text-amber-900">{req.employee_notes}</div>
-                            </div>
-                          )}
-
-                          {/* Occupied: services shortcut */}
-                          {isOccupied && (
-                            <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-semibold text-teal-700">Active Services</span>
-                                {activeSvcs.length > 0 && (
-                                  <span className="text-[10px] bg-teal-600 text-white font-bold px-1.5 py-0.5 rounded-full">{activeSvcs.length}</span>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => { setSelectedRequest(req); resetActionForm(); }}
-                                className="text-[10px] text-teal-600 font-semibold hover:underline"
-                              >
-                                View in panel →
-                              </button>
+                              {allottedQ.quarter_type && (
+                                <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Type</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.quarter_type}</span>
+                                </div>
+                              )}
+                              {allottedQ.block_name && (
+                                <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Block</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.block_name}</span>
+                                </div>
+                              )}
+                              {allottedQ.floor_number != null && (
+                                <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Floor</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.floor_number}</span>
+                                </div>
+                              )}
+                              {allottedQ.housing_style && (
+                                <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Housing Style</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.housing_style}</span>
+                                </div>
+                              )}
+                              {allottedQ.furnishing_status && (
+                                <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Furnishing</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.furnishing_status.replace(/_/g, ' ')}</span>
+                                </div>
+                              )}
+                              {allottedQ.area_sqft > 0 && (
+                                <div className="flex items-center gap-3 px-3 py-2">
+                                  <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Area</span>
+                                  <span className="font-semibold text-gray-800">{allottedQ.area_sqft} sq.ft</span>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -3135,21 +3144,46 @@ export const QuarterRequestsPage: React.FC = () => {
                                     const pq = pref.quarter as Quarter | undefined;
                                     if (!pq) return null;
                                     return (
-                                      <div key={pref.id} className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-2.5 py-1.5">
-                                        <div className="w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</div>
-                                        <div className="flex-1 min-w-0">
+                                      <div key={pref.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
+                                          <div className="w-4 h-4 rounded-full bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</div>
                                           <span className="text-[11px] font-semibold text-gray-800">{pq.quarter_number}</span>
-                                          <div className="flex items-center flex-wrap gap-x-1 text-[10px] text-gray-400 mt-0.5">
-                                            {pq.quarter_type && <span>{pq.quarter_type}</span>}
-                                            {pq.block_name && <span>· Blk {pq.block_name}</span>}
-                                            {pq.floor_number != null && <span>· Fl. {pq.floor_number}</span>}
-                                            {pq.housing_style && <span>· {pq.housing_style}</span>}
-                                          </div>
+                                          <span className="ml-auto text-[10px] font-semibold text-gray-600 shrink-0">{fmtINR(pq.monthly_rent)}/mo</span>
                                         </div>
-                                        <span className="text-[10px] font-semibold text-gray-600 shrink-0">{fmtINR(pq.monthly_rent)}/mo</span>
+                                        <div className="px-3 py-1.5 text-[10px] space-y-0.5">
+                                          {pq.quarter_type && <div className="flex gap-2"><span className="text-gray-400 w-20 shrink-0">Type</span><span className="font-medium text-gray-700">{pq.quarter_type}</span></div>}
+                                          {pq.block_name && <div className="flex gap-2"><span className="text-gray-400 w-20 shrink-0">Block</span><span className="font-medium text-gray-700">{pq.block_name}</span></div>}
+                                          {pq.floor_number != null && <div className="flex gap-2"><span className="text-gray-400 w-20 shrink-0">Floor</span><span className="font-medium text-gray-700">{pq.floor_number}</span></div>}
+                                          {pq.housing_style && <div className="flex gap-2"><span className="text-gray-400 w-20 shrink-0">Style</span><span className="font-medium text-gray-700">{pq.housing_style}</span></div>}
+                                        </div>
                                       </div>
                                     );
                                   })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Uploaded documents */}
+                          {(requestDocUrls[req.id] ?? []).length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <Paperclip size={10} className="text-gray-400" />
+                                <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Documents</span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-2.5 py-1.5 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                                  >
+                                    <FileText size={11} className="text-blue-500 shrink-0" />
+                                    <span className="flex-1 text-[11px] font-medium text-gray-700 truncate group-hover:text-blue-700">{doc.name}</span>
+                                    <ExternalLink size={10} className="text-gray-300 group-hover:text-blue-500 shrink-0" />
+                                  </a>
+                                ))}
                               </div>
                             </div>
                           )}

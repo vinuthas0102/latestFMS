@@ -215,6 +215,15 @@ interface RightPanelOccupiedProps extends PanelBase {
   setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
   setPreviewQuarterId: (id: string | null) => void;
   setIsPreviewOpen: (v: boolean) => void;
+  // Chat tab
+  initialTab?: 'services' | 'chat';
+  allotmentChats?: Record<string, QuarterAllotmentChat[]>;
+  allotmentChatMessage?: string;
+  setAllotmentChatMessage?: (v: string) => void;
+  allotmentChatFile?: File | null;
+  setAllotmentChatFile?: (f: File | null) => void;
+  allotmentChatSubmitting?: boolean;
+  handleSendAllotmentChat?: () => void;
 }
 
 export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
@@ -227,9 +236,15 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   actionBhk, setActionBhk, actionDocUrl, setActionDocUrl,
   actionSubmitting, resetActionForm, handleTenantRequest, openActionPopup,
   setServiceChats, setPreviewQuarterId, setIsPreviewOpen,
+  initialTab = 'services',
+  allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
+  allotmentChatFile = null, setAllotmentChatFile,
+  allotmentChatSubmitting = false, handleSendAllotmentChat,
 }) => {
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
+  const allotmentChatFileRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(initialTab);
 
   if (!selectedRequest?.allotment) return null;
   const allotment = selectedRequest.allotment;
@@ -561,8 +576,8 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   }
 
   return (
-    <>
-      <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10 shrink-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
           <ThumbsUp size={18} className="text-white" />
         </div>
@@ -578,6 +593,75 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
 
       {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
 
+      {/* Tab switcher */}
+      <div className="flex border-b border-gray-200 shrink-0">
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'chat' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          <Send size={12} /> Chat
+        </button>
+        <button
+          onClick={() => setActiveTab('services')}
+          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          <Wrench size={12} /> Services
+        </button>
+      </div>
+
+      {/* Chat tab */}
+      {activeTab === 'chat' && (() => {
+        const chats = allotmentChats[allotment.id] ?? [];
+        return (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
+              {[...chats].reverse().map(chat => (
+                <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+              ))}
+              {chats.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center mb-2.5">
+                    <Send size={16} className="text-teal-400" />
+                  </div>
+                  <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Message the Estate Officer below</div>
+                </div>
+              )}
+            </div>
+            <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
+              {allotmentChatFile && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+                  <FileText size={13} className="text-blue-500 shrink-0" />
+                  <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+                  <button type="button" onClick={() => setAllotmentChatFile?.(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+                </div>
+              )}
+              <div className="flex items-end gap-2">
+                <button type="button" onClick={() => allotmentChatFileRef.current?.click()}
+                  className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors">
+                  <Paperclip size={15} />
+                </button>
+                <input ref={allotmentChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
+                <textarea value={allotmentChatMessage}
+                  onChange={e => setAllotmentChatMessage?.(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
+                  rows={1} placeholder="Message the Estate Officer… (Enter to send)"
+                  className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white leading-relaxed transition-colors"
+                  style={{ minHeight: '40px', maxHeight: '80px' }} />
+                <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+                  className="flex-none p-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+                  <Send size={15} />
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Services tab */}
+      {activeTab === 'services' && (
+      <div className="flex-1 overflow-y-auto">
       <div className="px-5 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">Raise New Service</span>
@@ -710,7 +794,9 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
           </div>
         )}
       </div>
-    </>
+      </div>
+      )}
+    </div>
   );
 };
 
