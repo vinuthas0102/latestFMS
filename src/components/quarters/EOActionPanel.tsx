@@ -269,13 +269,11 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
   const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
 
-  const hasRequestApproval = isSubmitted && !!requestApprovalRecord;
-
   type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
   const tabs: TabEntry[] = ([
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: false },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
-    { key: 'request_approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: hasRequestApproval },
+    { key: 'request_approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isSubmitted && isEO },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'inspection_chat' as EORightMode, label: 'Insp. Chat', icon: <MessageSquare size={12} />, show: isAccepted && !isOccupied && isEO && !!selectedInspectionId },
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
@@ -475,6 +473,40 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
         )}
 
         {/* Request Approval tab (SUBMITTED records) */}
+        {eoRightMode === 'request_approval_chat' && isSubmitted && isEO && !requestApprovalRecord && (
+          <div className="p-4">
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4">
+              <div className="flex items-center gap-2 mb-2">
+                <GitMerge size={14} className="text-blue-600 shrink-0" />
+                <span className="text-xs font-bold text-blue-800">Start Approval Workflow</span>
+              </div>
+              <p className="text-[11px] text-blue-600 mb-3 leading-relaxed">Route this request through a multi-level approval chain before allotting a quarter.</p>
+              <div className="space-y-2">
+                <select
+                  id="req-approval-workflow-select"
+                  className="w-full px-3 py-2 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/30 bg-white"
+                  defaultValue="none"
+                >
+                  <option value="none">No Workflow — Skip Approval</option>
+                  {requestApprovalWorkflows.map(wfl => (
+                    <option key={wfl.id} value={wfl.id}>{wfl.workflow_name} ({(wfl.levels as {level:number}[]).length} levels)</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    const sel = (document.getElementById('req-approval-workflow-select') as HTMLSelectElement | null)?.value ?? 'none';
+                    handleInitiateRequestApproval(sel === 'none' ? null : sel);
+                  }}
+                  disabled={initiatingRequestApproval}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  <PlayCircle size={12} />{initiatingRequestApproval ? 'Starting…' : 'Start Approval'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {eoRightMode === 'request_approval_chat' && requestApprovalRecord && (
           <div className="p-4 space-y-3">
             <div className={`rounded-xl border px-4 py-3 ${requestApprovalRecord.status === 'APPROVED' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
@@ -560,41 +592,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                 </div>
               )
             )}
-          </div>
-        )}
-
-        {/* Initiate Request Approval (SUBMITTED, no approval chain yet) */}
-        {eoRightMode === 'detail' && isSubmitted && isEO && !requestApprovalRecord && (
-          <div className="px-4 pb-4">
-            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-              <div className="flex items-center gap-2 mb-2">
-                <GitMerge size={14} className="text-blue-600 shrink-0" />
-                <span className="text-xs font-bold text-blue-800">Start Approval Workflow</span>
-              </div>
-              <p className="text-[11px] text-blue-600 mb-3 leading-relaxed">Route this request through a multi-level approval chain before allotting a quarter.</p>
-              <div className="space-y-2">
-                <select
-                  id="req-approval-workflow-select"
-                  className="w-full px-3 py-2 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/30 bg-white"
-                  defaultValue="none"
-                >
-                  <option value="none">No Workflow — Skip Approval</option>
-                  {requestApprovalWorkflows.map(wfl => (
-                    <option key={wfl.id} value={wfl.id}>{wfl.workflow_name} ({(wfl.levels as {level:number}[]).length} levels)</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => {
-                    const sel = (document.getElementById('req-approval-workflow-select') as HTMLSelectElement | null)?.value ?? 'none';
-                    handleInitiateRequestApproval(sel === 'none' ? null : sel);
-                  }}
-                  disabled={initiatingRequestApproval}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  <PlayCircle size={12} />{initiatingRequestApproval ? 'Starting…' : 'Start Approval'}
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

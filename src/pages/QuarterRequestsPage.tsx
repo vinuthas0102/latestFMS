@@ -713,7 +713,8 @@ export const QuarterRequestsPage: React.FC = () => {
     const isOcc = s ? isOccupiedStatus(s) : false;
     const hasPendingApproval = selectedRequest?.allotment?.approval_status === 'PENDING';
     const isSubOrAllot = s ? (s === 'SUBMITTED' || isAllottedStatus(s)) : false;
-    setEoRightMode(isOcc || isSubOrAllot ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
+    const isSubmittedForEO = s === 'SUBMITTED' && isEO;
+    setEoRightMode(isSubmittedForEO ? 'request_approval_chat' : isOcc || isSubOrAllot ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
     setApprovalAction(null);
     setApprovalRemarks('');
     setInspectionPanel('list');
