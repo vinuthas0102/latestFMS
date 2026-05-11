@@ -1,22 +1,26 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, Send, Zap, Search, Filter, Building2, Plus, Star, ArrowUp, ArrowDown, Trash2,
-  X, UserCheck, UserPlus, User, Users, CheckCircle, Bed, Ruler, Home, FileText,
-  Phone, Mail, CreditCard, Download,
+  X, UserCheck, UserPlus, User, Users, CheckCircle, Home, FileText,
+  Phone, Mail, CreditCard, Download, Paperclip, Upload,
 } from 'lucide-react';
 import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
 import { downloadPageAsHtml } from '../../utils/downloadHtml';
+import { UserDTO } from '../../types';
 
 // Types needed
 interface NewRequestForm {
   request_reason: string;
-  required_bhk_config: string;
   preferred_location: string;
   move_in_date: string;
-  family_member_count: number;
   employee_notes: string;
+}
+
+export interface UploadedDoc {
+  file: File;
+  document_name: string;
 }
 
 type RequestForType = 'SELF' | 'EMPLOYEE' | 'TP';
@@ -62,7 +66,9 @@ export interface NewRequestModalProps {
   isEO: boolean;
   eoMode: 'self' | 'employee' | null;
   userRole: string | undefined;
-  userBhkEntitlement: string | undefined;
+  user: UserDTO | null;
+  documents: UploadedDoc[];
+  setDocuments: React.Dispatch<React.SetStateAction<UploadedDoc[]>>;
   form: NewRequestForm;
   setForm: React.Dispatch<React.SetStateAction<NewRequestForm>>;
   prefs: PrefItem[];
@@ -124,8 +130,11 @@ export interface NewRequestModalProps {
 }
 
 export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const {
-    activeCycle, isEO, eoMode, userRole, userBhkEntitlement,
+    activeCycle, isEO, eoMode, userRole, user,
+    documents, setDocuments,
     form, setForm, prefs, addPref, removePref, movePref,
     modalQuarters, modalSearch, setModalSearch, modalLoading,
     modalBhk, setModalBhk, modalFurnishing, setModalFurnishing,
@@ -157,10 +166,21 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
         <div className="h-5 w-px bg-gray-200" />
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-bold text-gray-900">New Allotment Request</h1>
-          <div className="text-xs text-gray-500">
-            {activeCycle ? `Cycle: ${activeCycle.cycle_name} · Closes ${new Date(activeCycle.end_date).toLocaleDateString('en-IN')}` : 'No active cycle — will be saved as draft'}
-          </div>
         </div>
+        {user && (
+          <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+              {user.fullName?.charAt(0) ?? 'U'}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-blue-900 truncate">{user.fullName}</div>
+              <div className="text-[10px] text-blue-500 truncate">
+                {user.govtDepartment && <span>{user.govtDepartment}</span>}
+                {user.govtEmployeeId && <span className="ml-1 font-mono">· {user.govtEmployeeId}</span>}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => downloadPageAsHtml('/quarters/requests')}
@@ -200,15 +220,10 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
 
         {/* ── Top: Request details form (horizontal band) ── */}
         <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
               <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK</label>
-              <input value={form.required_bhk_config} onChange={e => setForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 3 BHK"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
             </div>
             <div>
@@ -222,15 +237,85 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Family Members</label>
-              <input type="number" min={1} value={form.family_member_count} onChange={e => setForm(f => ({ ...f, family_member_count: Number(e.target.value) }))}
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (optional)</label>
+              <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional remarks"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Notes (optional)</label>
-              <input value={form.employee_notes} onChange={e => setForm(f => ({ ...f, employee_notes: e.target.value }))} placeholder="Any additional notes"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
+          </div>
+
+          {/* ── Document Uploads ── */}
+          <div className="mt-4 border border-gray-200 rounded-xl bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-1.5">
+                <Paperclip size={13} className="text-gray-500" />
+                <span className="text-xs font-bold text-gray-700">Supporting Documents</span>
+                {documents.length > 0 && (
+                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full ml-1">{documents.length}</span>
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors"
+              >
+                <Upload size={12} /> Add Document
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                className="hidden"
+                onChange={e => {
+                  const newFiles = Array.from(e.target.files ?? []);
+                  setDocuments(prev => [
+                    ...prev,
+                    ...newFiles.map(f => ({ file: f, document_name: f.name.replace(/\.[^/.]+$/, '') })),
+                  ]);
+                  e.target.value = '';
+                }}
+              />
             </div>
+            {documents.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-5 text-gray-400 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={20} className="mb-1 opacity-40" />
+                <span className="text-xs">Click to upload or drag &amp; drop files</span>
+                <span className="text-[10px] text-gray-300 mt-0.5">PDF, DOC, JPG, PNG supported</span>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {documents.map((doc, idx) => (
+                  <div key={idx} className="flex items-center gap-3 px-4 py-2.5">
+                    <FileText size={15} className="text-blue-500 shrink-0" />
+                    <div className="flex-1 min-w-0 grid grid-cols-2 gap-2 items-center">
+                      <input
+                        value={doc.document_name}
+                        onChange={e => setDocuments(prev => prev.map((d, i) => i === idx ? { ...d, document_name: e.target.value } : d))}
+                        placeholder="Document name / description"
+                        className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white font-medium text-gray-800"
+                      />
+                      <span className="text-[10px] text-gray-400 truncate">{doc.file.name} · {(doc.file.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                    <button
+                      onClick={() => setDocuments(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-1 text-red-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors shrink-0"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+                <div className="px-4 py-2 bg-gray-50 flex justify-end">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <Plus size={10} /> Add more
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Request For strip — managers, admins, and EOs (My Allotment mode) */}
@@ -434,11 +519,13 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-sm">{q.quarter_number}</div>
-                    <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name} Block`}</div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
-                      <span className="flex items-center gap-0.5"><Bed size={10} />{q.bhk_config}</span>
-                      <span><Ruler size={10} className="inline mr-0.5" />{q.area_sqft} sq.ft</span>
-                      <span className="font-semibold text-gray-800">{fmtINR(q.monthly_rent)}</span>
+                    <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name ? `Block ${q.block_name}` : ''}`}</div>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-600 mt-0.5">
+                      {q.quarter_type && <span className="font-medium text-gray-700">{q.quarter_type}</span>}
+                      {q.block_name && <span>Block {q.block_name}</span>}
+                      {q.floor_number != null && <span>Fl. {q.floor_number}</span>}
+                      {q.housing_style && <span>{q.housing_style}</span>}
+                      <span className="font-semibold text-gray-900">{fmtINR(q.monthly_rent)}</span>
                     </div>
                   </div>
                   <button onClick={() => addPref(q)} disabled={prefs.length >= 5 || !!prefs.find(p => p.quarter.id === q.id)}
@@ -485,8 +572,12 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-sm truncate">{p.quarter.quarter_number}</div>
-                    <div className="text-xs text-gray-500 truncate">{p.quarter.bhk_config} · {fmtINR(p.quarter.monthly_rent)}/mo</div>
-                    {p.quarter.address && <div className="text-[10px] text-gray-400 truncate">{p.quarter.address}</div>}
+                    <div className="flex items-center flex-wrap gap-x-1.5 text-xs text-gray-500 truncate">
+                      {p.quarter.quarter_type && <span>{p.quarter.quarter_type}</span>}
+                      {p.quarter.block_name && <span>· Blk {p.quarter.block_name}</span>}
+                      {p.quarter.floor_number != null && <span>· Fl. {p.quarter.floor_number}</span>}
+                    </div>
+                    <div className="text-[10px] text-emerald-700 font-semibold">{fmtINR(p.quarter.monthly_rent)}/mo</div>
                   </div>
                   <div className="flex flex-col gap-0.5 shrink-0">
                     <button onClick={() => movePref(i, 'up')} disabled={i === 0}
@@ -622,9 +713,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-gray-900">Select Quarter to Allot Now</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {userBhkEntitlement ? `Cadre: ${userBhkEntitlement} · ` : ''}Showing available quarters
-                </p>
+                <p className="text-xs text-gray-400 mt-0.5">Showing available quarters</p>
               </div>
               <button onClick={() => setShowAllotNowPicker(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
             </div>
@@ -636,7 +725,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-teal-900">{allotNowQuarter.quarter_number}</div>
-                  <div className="text-[10px] text-teal-500">{allotNowQuarter.bhk_config} · {fmtINR(allotNowQuarter.monthly_rent)}/mo</div>
+                  <div className="text-[10px] text-teal-500">{allotNowQuarter.quarter_type} · {fmtINR(allotNowQuarter.monthly_rent)}/mo</div>
                 </div>
                 <span className="text-[10px] font-bold bg-teal-600 text-white px-2 py-0.5 rounded-full shrink-0">Selected</span>
               </div>
@@ -668,9 +757,11 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
                   <img src={getImage(q, i)} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-gray-900">{q.quarter_number}</div>
-                    <div className="text-xs text-gray-500 truncate">{q.address || `${q.block_name} Block`}</div>
+                    <div className="text-xs text-gray-500 truncate">{q.address || (q.block_name ? `Block ${q.block_name}` : '')}</div>
                     <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
-                      <span className="flex items-center gap-0.5"><Bed size={10} />{q.bhk_config}</span>
+                      {q.quarter_type && <span className="font-medium text-gray-700">{q.quarter_type}</span>}
+                      {q.block_name && <span>Blk {q.block_name}</span>}
+                      {q.floor_number != null && <span>Fl. {q.floor_number}</span>}
                       <span className="font-semibold text-gray-800">{fmtINR(q.monthly_rent)}/mo</span>
                     </div>
                   </div>

@@ -66,6 +66,7 @@ import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentMo
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
+import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -122,13 +123,17 @@ const DP_LABELS: Record<DPFilter, string> = {
 interface PrefItem { quarter: Quarter; rank: number }
 
 interface NewRequestForm {
-  request_reason: string; required_bhk_config: string; preferred_location: string;
-  move_in_date: string; family_member_count: number; employee_notes: string;
+  request_reason: string;
+  preferred_location: string;
+  move_in_date: string;
+  employee_notes: string;
 }
 
 const DEFAULT_FORM: NewRequestForm = {
-  request_reason: '', required_bhk_config: '', preferred_location: '',
-  move_in_date: '', family_member_count: 1, employee_notes: '',
+  request_reason: '',
+  preferred_location: '',
+  move_in_date: '',
+  employee_notes: '',
 };
 
 // ─── Status dashboard card ─────────────────────────────────────────────────────
@@ -306,6 +311,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [form, setForm] = useState<NewRequestForm>(DEFAULT_FORM);
   const [prefs, setPrefs] = useState<PrefItem[]>([]);
+  const [requestDocuments, setRequestDocuments] = useState<UploadedDoc[]>([]);
   const [modalQuarters, setModalQuarters] = useState<Quarter[]>([]);
   const [modalSearch, setModalSearch] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
@@ -825,6 +831,14 @@ export const QuarterRequestsPage: React.FC = () => {
     return { request_for: 'SELF' as const };
   }
 
+  const uploadRequestDocs = async (reqId: string): Promise<void> => {
+    for (const doc of requestDocuments) {
+      const ext = doc.file.name.split('.').pop() ?? 'bin';
+      const path = `request-docs/${reqId}/${Date.now()}-${doc.document_name.replace(/\s+/g, '_')}.${ext}`;
+      await supabase.storage.from('quarter-docs').upload(path, doc.file);
+    }
+  };
+
   const handleSaveDraft = async () => {
     if (!user) return;
     setSubmitting(true);
@@ -835,14 +849,15 @@ export const QuarterRequestsPage: React.FC = () => {
           selectedRequest.id,
           prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
         );
+        if (requestDocuments.length > 0) await uploadRequestDocs(selectedRequest.id);
       } else {
         const req = await quartersService.createRequest(user.id, {
           cycle_id: activeCycle?.id ?? null,
           request_reason: form.request_reason,
-          required_bhk_config: form.required_bhk_config || '',
+          required_bhk_config: '',
           preferred_location: form.preferred_location || '',
           move_in_date: form.move_in_date || null,
-          family_member_count: form.family_member_count,
+          family_member_count: 1,
           employee_notes: form.employee_notes,
           preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
           ...buildRequestForPayload(),
@@ -851,9 +866,11 @@ export const QuarterRequestsPage: React.FC = () => {
           req.id,
           prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
         );
+        if (requestDocuments.length > 0) await uploadRequestDocs(req.id);
       }
       addToast('Draft saved', 'success');
       setShowNewModal(false);
+      setRequestDocuments([]);
       loadData();
     } catch { addToast('Failed to save draft', 'error'); } finally { setSubmitting(false); }
   };
@@ -867,10 +884,10 @@ export const QuarterRequestsPage: React.FC = () => {
       const req = await quartersService.createRequest(user.id, {
         cycle_id: activeCycle?.id ?? null,
         request_reason: form.request_reason,
-        required_bhk_config: form.required_bhk_config || '',
+        required_bhk_config: '',
         preferred_location: form.preferred_location || '',
         move_in_date: form.move_in_date || null,
-        family_member_count: form.family_member_count,
+        family_member_count: 1,
         employee_notes: form.employee_notes,
         preferences: prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank })),
         ...buildRequestForPayload(),
@@ -879,9 +896,11 @@ export const QuarterRequestsPage: React.FC = () => {
         req.id,
         prefs.map(p => ({ quarter_id: p.quarter.id, preference_rank: p.rank }))
       );
+      if (requestDocuments.length > 0) await uploadRequestDocs(req.id);
       await quartersService.submitRequest(req.id);
       addToast('Request submitted successfully', 'success');
       setShowNewModal(false);
+      setRequestDocuments([]);
       loadData();
     } catch { addToast('Failed to submit request', 'error'); } finally { setSubmitting(false); }
   };
@@ -3881,7 +3900,9 @@ export const QuarterRequestsPage: React.FC = () => {
             isEO={isEO}
             eoMode={eoMode}
             userRole={user?.role}
-            userBhkEntitlement={user?.bhkEntitlement}
+            user={user ?? null}
+            documents={requestDocuments}
+            setDocuments={setRequestDocuments}
             form={form}
             setForm={setForm}
             prefs={prefs}
@@ -3935,7 +3956,7 @@ export const QuarterRequestsPage: React.FC = () => {
             setAllotNowQuarter={setAllotNowQuarter}
             setPreviewQuarterId={setPreviewQuarterId}
             setIsPreviewOpen={setIsPreviewOpen}
-            onClose={() => setShowNewModal(false)}
+            onClose={() => { setShowNewModal(false); setRequestDocuments([]); }}
             onSaveDraft={handleSaveDraft}
             onSubmit={handleSubmit}
             onAllotNow={handleAllotNow}

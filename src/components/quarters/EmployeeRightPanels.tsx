@@ -736,10 +736,8 @@ export const RightPanelDraft: React.FC<{
 }) => {
   const [draftForm, setDraftForm] = useState({
     request_reason: selectedRequest.request_reason ?? '',
-    required_bhk_config: selectedRequest.required_bhk_config ?? '',
     preferred_location: selectedRequest.preferred_location ?? '',
     move_in_date: selectedRequest.move_in_date ?? '',
-    family_member_count: selectedRequest.family_member_count ?? 1,
     employee_notes: selectedRequest.employee_notes ?? '',
   });
   const [draftSubmitting, setDraftSubmitting] = useState(false);
@@ -749,10 +747,10 @@ export const RightPanelDraft: React.FC<{
     try {
       await quartersService.updateRequestHeader(selectedRequest.id, {
         request_reason: draftForm.request_reason,
-        required_bhk_config: draftForm.required_bhk_config,
+        required_bhk_config: '',
         preferred_location: draftForm.preferred_location,
         move_in_date: draftForm.move_in_date || null,
-        family_member_count: draftForm.family_member_count,
+        family_member_count: 1,
         employee_notes: draftForm.employee_notes,
       });
       addToast('Draft updated', 'success');
@@ -766,10 +764,10 @@ export const RightPanelDraft: React.FC<{
     try {
       await quartersService.updateRequestHeader(selectedRequest.id, {
         request_reason: draftForm.request_reason,
-        required_bhk_config: draftForm.required_bhk_config,
+        required_bhk_config: '',
         preferred_location: draftForm.preferred_location,
         move_in_date: draftForm.move_in_date || null,
-        family_member_count: draftForm.family_member_count,
+        family_member_count: 1,
         employee_notes: draftForm.employee_notes,
       });
       await quartersService.submitRequest(selectedRequest.id);
@@ -811,10 +809,6 @@ export const RightPanelDraft: React.FC<{
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Required BHK Config</label>
-            <input value={draftForm.required_bhk_config} onChange={e => setDraftForm(f => ({ ...f, required_bhk_config: e.target.value }))} placeholder="e.g. 2BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-          </div>
-          <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
             <input value={draftForm.preferred_location} onChange={e => setDraftForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
           </div>
@@ -822,14 +816,10 @@ export const RightPanelDraft: React.FC<{
             <label className="block text-xs font-semibold text-gray-600 mb-1">Move-in Date</label>
             <input type="date" value={draftForm.move_in_date} onChange={e => setDraftForm(f => ({ ...f, move_in_date: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Family Member Count</label>
-            <input type="number" min={1} value={draftForm.family_member_count} onChange={e => setDraftForm(f => ({ ...f, family_member_count: Number(e.target.value) }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-          </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Employee Notes</label>
-          <textarea value={draftForm.employee_notes} onChange={e => setDraftForm(f => ({ ...f, employee_notes: e.target.value }))} rows={2} placeholder="Any additional notes" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks</label>
+          <textarea value={draftForm.employee_notes} onChange={e => setDraftForm(f => ({ ...f, employee_notes: e.target.value }))} rows={2} placeholder="Any additional remarks" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
         </div>
       </div>
 
