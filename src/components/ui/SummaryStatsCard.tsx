@@ -77,7 +77,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
           <div className="relative z-10 flex-1 px-3 py-3 flex flex-col justify-center min-w-0 gap-1">
             {/* Value + trend badge */}
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-2xl font-black text-white leading-none tabular-nums">
+              <p className="text-xl font-extrabold text-white leading-tight">
                 <CountUp end={value} duration={1200} />
               </p>
               {TrendIcon && trend != null && (

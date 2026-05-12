@@ -111,12 +111,23 @@ export const QuarterDetailPage: React.FC = () => {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const scrollingRef = useRef(false);
-  const scrollContainerRef = useRef<HTMLElement | null>(null);
 
-  // Resolve the <main> scroll container once on mount
-  useEffect(() => {
-    const el = document.querySelector('main.flex-1') as HTMLElement | null;
-    scrollContainerRef.current = el;
+  // Walk up from any element to find the nearest scrollable ancestor
+  const getScrollContainer = useCallback((): HTMLElement => {
+    for (const sId of ALL_SECTION_IDS) {
+      const el = sectionRefs.current[sId];
+      if (!el) continue;
+      let node: HTMLElement | null = el.parentElement;
+      while (node) {
+        const style = window.getComputedStyle(node);
+        const overflow = style.overflowY;
+        if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+    }
+    return document.documentElement;
   }, []);
 
   useEffect(() => {
@@ -130,7 +141,7 @@ export const QuarterDetailPage: React.FC = () => {
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
     if (!quarter) return;
-    const container = scrollContainerRef.current;
+    const container = getScrollContainer();
     const observers: IntersectionObserver[] = [];
 
     ALL_SECTION_IDS.forEach((sId) => {
@@ -159,7 +170,7 @@ export const QuarterDetailPage: React.FC = () => {
     });
 
     return () => observers.forEach(o => o.disconnect());
-  }, [quarter]);
+  }, [quarter, getScrollContainer]);
 
   // ── Programmatic scroll to section ─────────────────────────────
   const scrollToSection = useCallback((sId: SectionId) => {
@@ -174,19 +185,14 @@ export const QuarterDetailPage: React.FC = () => {
       btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
-    const container = scrollContainerRef.current;
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const offset = container.scrollTop + (elRect.top - containerRect.top) - HEADER_OFFSET;
-      container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
-    } else {
-      const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
+    const container = getScrollContainer();
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const offset = container.scrollTop + (elRect.top - containerRect.top) - HEADER_OFFSET;
+    container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
 
     setTimeout(() => { scrollingRef.current = false; }, 800);
-  }, []);
+  }, [getScrollContainer]);
 
   const canManage = !!(user && canManageProperties(user.role));
   const isGovtOfficial = user?.role === 'govt_official';
