@@ -112,7 +112,7 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'vacated' | 'availableQuarters';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'availableQuarters';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
@@ -124,7 +124,6 @@ const DP_LABELS: Record<DPFilter, string> = {
   accepted: 'Accepted',
   occupied: 'Occupied',
   tenantServices: 'Tenant Services',
-  vacated: 'Vacated',
   availableQuarters: 'Available Quarters',
 };
 
@@ -1589,7 +1588,6 @@ export const QuarterRequestsPage: React.FC = () => {
     unapproved:   requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
     accepted:     requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     occupied:     requests.filter(r => isOccupiedStatus(r.request_status)).length,
-    vacated:      requests.filter(r => r.request_status === 'VACATED').length,
   };
 
   // Govt official self view: total allotted = all isAllottedStatus regardless of approval
@@ -1659,13 +1657,6 @@ export const QuarterRequestsPage: React.FC = () => {
       iconBg: 'bg-teal-100', textColor: 'text-teal-700', countColor: 'text-teal-900',
       icon: <Home size={20} className="text-teal-600" />,
     },
-    {
-      key: 'vacated', label: 'Vacated', description: 'Historical records',
-      count: statCounts.vacated,
-      gradient: 'from-slate-400 to-gray-400',
-      iconBg: 'bg-slate-100', textColor: 'text-slate-600', countColor: 'text-slate-700',
-      icon: <Building2 size={20} className="text-slate-500" />,
-    },
   ];
 
   // EM employee mode: show allotted + allocated_em + unapproved + accepted + occupied + vacated + availableQuarters (hide draft)
@@ -1694,7 +1685,6 @@ export const QuarterRequestsPage: React.FC = () => {
     else if (dpFilter === 'unapproved') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
     else if (dpFilter === 'accepted') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
     else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
-    else if (dpFilter === 'vacated') result = result.filter(r => r.request_status === 'VACATED');
 
     if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
 
@@ -2339,7 +2329,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   accepted: HardHat,
                   occupied: Home,
                   tenantServices: RefreshCw,
-                  vacated: Building2,
+                  availableQuarters: Building2,
                 };
                 return (
                   <div
