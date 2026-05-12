@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Bed, Ruler, Layers, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
@@ -99,6 +99,7 @@ const SectionHeading: React.FC<{ icon: React.ReactNode; label: string; count?: s
 export const QuarterDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
 
   const [quarter, setQuarter] = useState<Quarter | null>(null);
@@ -110,6 +111,13 @@ export const QuarterDetailPage: React.FC = () => {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const scrollingRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+
+  // Resolve the <main> scroll container once on mount
+  useEffect(() => {
+    const el = document.querySelector('main.flex-1') as HTMLElement | null;
+    scrollContainerRef.current = el;
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -122,6 +130,7 @@ export const QuarterDetailPage: React.FC = () => {
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
     if (!quarter) return;
+    const container = scrollContainerRef.current;
     const observers: IntersectionObserver[] = [];
 
     ALL_SECTION_IDS.forEach((sId) => {
@@ -139,7 +148,11 @@ export const QuarterDetailPage: React.FC = () => {
             }
           }
         },
-        { rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`, threshold: 0 }
+        {
+          root: container,
+          rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`,
+          threshold: 0,
+        }
       );
       obs.observe(el);
       observers.push(obs);
@@ -161,8 +174,16 @@ export const QuarterDetailPage: React.FC = () => {
       btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
-    const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-    window.scrollTo({ top, behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const offset = container.scrollTop + (elRect.top - containerRect.top) - HEADER_OFFSET;
+      container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+    } else {
+      const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
 
     setTimeout(() => { scrollingRef.current = false; }, 800);
   }, []);
@@ -272,7 +293,13 @@ export const QuarterDetailPage: React.FC = () => {
           {/* Back / Identity / Action row */}
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                if (isGovtOfficial) {
+                  navigate((location.state as { from?: string } | null)?.from ?? ROUTES.QUARTERS_FREEVIEW);
+                } else {
+                  navigate(-1);
+                }
+              }}
               className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={16} /> Back

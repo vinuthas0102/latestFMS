@@ -284,7 +284,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
               <div className="flex items-center gap-2">
                 {quarter && (
                   <button
-                    onClick={() => { navigate(`/quarters/${quarterId}`); if (!inline) onClose(); }}
+                    onClick={() => { navigate(`/quarters/${quarterId}`, { state: { from: '/quarters' } }); if (!inline) onClose(); }}
                     className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
                   >
                     <ExternalLink size={12} /> Full Page
