@@ -2838,7 +2838,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       onClick={() => { setSelectedRequest(req); setSelectedServiceId(null); resetActionForm(); setChatOpenForId(null); }}
                       className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                     >
-                      <div className="flex min-h-[116px]">
+                      <div className="flex">
                         {/* Left status accent bar */}
                         <div className={`w-1 shrink-0 ${accentColor} rounded-l-xl`} />
 
@@ -2861,7 +2861,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
 
                         {/* Body */}
-                        <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-start gap-0">
+                        <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
                           {/* Row 1: req no (left) + status badge (right) */}
                           <div className="flex items-center justify-between gap-2 mb-1">
                             {!isOccupied
@@ -2927,7 +2927,7 @@ export const QuarterRequestsPage: React.FC = () => {
                           })()}
 
                           {/* Footer: svcs tags + for/tp badges + actions — single non-wrapping row */}
-                          <div className="flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
+                          <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
                             <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                               {/* Svcs button + service type tags */}
                               {activeSvcs.length > 0 && (
