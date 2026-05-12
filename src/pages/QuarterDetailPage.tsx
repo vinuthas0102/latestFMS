@@ -3,8 +3,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Bed, Ruler, Layers, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
-  Zap, Droplets, Shield, FileText, AlertCircle, Images,
+  Zap, Droplets, Shield, FileText, AlertCircle, Images, Download,
 } from 'lucide-react';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
@@ -323,6 +324,13 @@ export const QuarterDetailPage: React.FC = () => {
             )}
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadPageAsHtml(window.location.pathname)}
+                title="Download as HTML"
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+              >
+                <Download size={13} />
+              </button>
               {isGovtOfficial && isAvailable && (
                 <button
                   onClick={() => scrollToSection('action')}
