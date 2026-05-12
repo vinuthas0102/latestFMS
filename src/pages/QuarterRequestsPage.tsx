@@ -2851,80 +2851,28 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
 
                         {/* Body */}
-                        <div className="flex-1 px-3.5 py-2 min-w-0 flex flex-col justify-start gap-0">
-                          {/* Row 1: service tags (only when present) */}
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            {activeSvcs.length > 0 && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
-                                  }}
-                                  className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
-                                >
-                                  <span className="relative flex h-2 w-2 shrink-0">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                                  </span>
-                                  {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
-                                  {expandedSvcsCardId === req.id ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-                                </button>
-                                {/* Per-service-type informational tags */}
-                                {Array.from(new Set(activeSvcs.map(s => s.service_type))).map(stype => {
-                                  const tagCls = stype === 'GRIEVANCE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                    stype === 'MAINTENANCE' ? 'bg-slate-50 text-slate-600 border-slate-200' :
-                                    stype === 'EXTEND' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                    stype === 'UPGRADE' ? 'bg-sky-50 text-sky-700 border-sky-200' :
-                                    stype === 'VACATE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                    'bg-gray-50 text-gray-600 border-gray-200';
-                                  const tagLabel = stype === 'EXTEND' ? 'Extension' :
-                                    stype.charAt(0) + stype.slice(1).toLowerCase();
-                                  const count = activeSvcs.filter(s => s.service_type === stype).length;
-                                  return (
-                                    <span key={stype} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none ${tagCls}`}>
-                                      {tagLabel}{count > 1 ? ` ×${count}` : ''}
-                                    </span>
-                                  );
-                                })}
-                              </>
-                            )}
+                        <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-start gap-0">
+                          {/* Row 1: req no (left) + status badge (right) */}
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            {!isOccupied
+                              ? <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">{req.request_number}</span>
+                              : <span />
+                            }
+                            <div className="flex items-center gap-1 shrink-0">
+                              {req.sub_status === 'DECLINED' && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>
+                              )}
+                              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
+                            </div>
                           </div>
 
-                          {/* Details grid: req no + status + quarter fields */}
+                          {/* Row 2: quarter fields — flat, no background box */}
                           {(() => {
                             const dq = allottedQ ?? prefQ;
-                            const reqNoCell = !isOccupied ? (
-                              <div key="req-no" className="min-w-0">
-                                <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5">Req No.</div>
-                                <div className="text-[10.5px] font-bold text-gray-800 leading-tight truncate font-mono">{req.request_number || '—'}</div>
-                              </div>
-                            ) : null;
-                            const statusCell = (
-                              <div key="status" className="min-w-0">
-                                <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5">Status</div>
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  {req.sub_status === 'DECLINED' && (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>
-                                  )}
-                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 leading-none ${sc.cls}`}>{sc.icon}{sc.label}</span>
-                                </div>
-                              </div>
-                            );
                             if (!dq) {
                               return (
-                                <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-1.5 my-1">
-                                  <div className="grid grid-cols-4 gap-x-3 gap-y-1.5">
-                                    {reqNoCell}
-                                    {statusCell}
-                                    <div className="col-span-2 flex items-center gap-2">
-                                      <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                                      </div>
-                                      <span className="text-[10px] text-gray-400 italic">No quarter assigned</span>
-                                    </div>
-                                  </div>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="text-[10px] text-gray-400 italic">No quarter assigned — preference not set</span>
                                 </div>
                               );
                             }
@@ -2939,24 +2887,56 @@ export const QuarterRequestsPage: React.FC = () => {
                               { label: 'Raised By (Emp ID)', value: req.employee_id || '—' },
                             ];
                             return (
-                              <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-1.5 my-1">
-                                <div className="grid grid-cols-4 gap-x-3 gap-y-1.5">
-                                  {reqNoCell}
-                                  {statusCell}
-                                  {details.map((d, i) => (
-                                    <div key={i} className="min-w-0">
-                                      <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5 truncate">{d.label}</div>
-                                      <div className="text-[10.5px] font-medium text-gray-700 leading-tight truncate">{d.value}</div>
-                                    </div>
-                                  ))}
-                                </div>
+                              <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
+                                {details.map((d, i) => (
+                                  <div key={i} className="min-w-0">
+                                    <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
+                                    <div className="text-[10.5px] font-medium text-gray-700 leading-snug truncate">{d.value}</div>
+                                  </div>
+                                ))}
                               </div>
                             );
                           })()}
 
-                          {/* Footer: occupant info / requester + TP + actions — single row */}
+                          {/* Footer: svcs tags + for/tp badges + actions — single row */}
                           <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+                              {/* Svcs button + service type tags moved here */}
+                              {activeSvcs.length > 0 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
+                                    }}
+                                    className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
+                                  >
+                                    <span className="relative flex h-2 w-2 shrink-0">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                    </span>
+                                    {activeSvcs.length} svc{activeSvcs.length > 1 ? 's' : ''}
+                                    {expandedSvcsCardId === req.id ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                                  </button>
+                                  {Array.from(new Set(activeSvcs.map(s => s.service_type))).map(stype => {
+                                    const tagCls = stype === 'GRIEVANCE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                      stype === 'MAINTENANCE' ? 'bg-slate-50 text-slate-600 border-slate-200' :
+                                      stype === 'EXTEND' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                      stype === 'UPGRADE' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                                      stype === 'VACATE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                      'bg-gray-50 text-gray-600 border-gray-200';
+                                    const tagLabel = stype === 'EXTEND' ? 'Extension' :
+                                      stype.charAt(0) + stype.slice(1).toLowerCase();
+                                    const count = activeSvcs.filter(s => s.service_type === stype).length;
+                                    return (
+                                      <span key={stype} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none ${tagCls}`}>
+                                        {tagLabel}{count > 1 ? ` ×${count}` : ''}
+                                      </span>
+                                    );
+                                  })}
+                                </>
+                              )}
                               {!isOccupied && reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
                                 <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
                                   <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
