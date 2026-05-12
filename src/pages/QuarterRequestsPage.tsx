@@ -2869,34 +2869,10 @@ export const QuarterRequestsPage: React.FC = () => {
                             <div className="font-bold text-gray-900 text-sm leading-tight truncate">
                               {allottedQ ? allottedQ.quarter_number : (prefQ?.quarter_number ?? req.preferred_location ?? 'No preference set')}
                             </div>
-                            {allottedQ ? (
-                              <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500 mt-0.5">
-                                {allottedQ.quarter_type && <span className="font-medium text-gray-700">{allottedQ.quarter_type}</span>}
-                                {allottedQ.block_name && <span>· Blk {allottedQ.block_name}</span>}
-                                {allottedQ.floor_number != null && <span>· Fl. {allottedQ.floor_number}</span>}
-                                {allottedQ.housing_style && <span>· {allottedQ.housing_style}</span>}
-                              </div>
-                            ) : (
-                              <div className="text-[11px] text-gray-400 truncate mt-0.5">
-                                {prefQ ? (
-                                  <>
-                                    {[prefQ.quarter_type, prefQ.block_name ? `Blk ${prefQ.block_name}` : null, prefQ.floor_number != null ? `Fl. ${prefQ.floor_number}` : null].filter(Boolean).join(' · ')}
-                                  </>
-                                ) : (req.preferred_location ?? 'No location specified')}
-                              </div>
-                            )}
                           </div>
 
-                          {/* Row 3: Type of Request badge + service tags */}
+                          {/* Row 3: service tags */}
                           <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            {(() => {
-                              const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
-                              return (
-                                <span className={`text-[10px] border px-1.5 py-0.5 rounded-md font-semibold ${rtb.cls}`}>
-                                  {rtb.label}
-                                </span>
-                              );
-                            })()}
                             {activeSvcs.length > 0 && (
                               <>
                                 <button
@@ -2990,12 +2966,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                       <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                                         {occupantName.charAt(0).toUpperCase()}
                                       </div>
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="text-[9px] text-teal-600 font-semibold uppercase tracking-wide leading-none mb-0.5">Occupant</span>
-                                        <span className="text-[10px] text-gray-700 font-medium truncate leading-tight">
-                                          {occupantName}{occupantId ? ` · ${occupantId}` : ''}
-                                        </span>
-                                      </div>
+                                      <span className="text-[9px] text-teal-600 font-semibold uppercase tracking-wide leading-none">Occupant</span>
                                     </>
                                   );
                                 })()
@@ -3004,9 +2975,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                   <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                                     {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
                                   </div>
-                                  <span className="text-[10px] text-gray-500 font-medium truncate">
-                                    {user?.fullName ?? 'Me'}{user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
-                                  </span>
                                   {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
                                     <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
                                       <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
