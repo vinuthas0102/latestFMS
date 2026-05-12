@@ -2864,13 +2864,6 @@ export const QuarterRequestsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Row 2: primary heading */}
-                          <div className="mb-1">
-                            <div className="font-bold text-gray-900 text-sm leading-tight truncate">
-                              {allottedQ ? allottedQ.quarter_number : (prefQ?.quarter_number ?? req.preferred_location ?? 'No preference set')}
-                            </div>
-                          </div>
-
                           {/* Row 3: service tags */}
                           <div className="flex items-center gap-1.5 flex-wrap mb-2">
                             {activeSvcs.length > 0 && (
@@ -2951,41 +2944,15 @@ export const QuarterRequestsPage: React.FC = () => {
                           {/* Row 4: occupant info (occupied) or requester + TP (other statuses) + actions */}
                           <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                              {isOccupied ? (
-                                (() => {
-                                  const occupantName =
-                                    reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
-                                      ? req.on_behalf_employee_name
-                                      : reqFor === 'TP' && req.tp_name
-                                      ? req.tp_name
-                                      : user?.fullName ?? 'Occupant';
-                                  const occupantId =
-                                    reqFor === 'SELF' && user?.govtEmployeeId ? user.govtEmployeeId : null;
-                                  return (
-                                    <>
-                                      <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                                        {occupantName.charAt(0).toUpperCase()}
-                                      </div>
-                                      <span className="text-[9px] text-teal-600 font-semibold uppercase tracking-wide leading-none">Occupant</span>
-                                    </>
-                                  );
-                                })()
-                              ) : (
-                                <>
-                                  <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                                    {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
-                                  </div>
-                                  {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
-                                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
-                                      <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
-                                    </span>
-                                  )}
-                                  {reqFor === 'TP' && req.tp_name && (
-                                    <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
-                                      <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
-                                    </span>
-                                  )}
-                                </>
+                              {!isOccupied && reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                  <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
+                                </span>
+                              )}
+                              {!isOccupied && reqFor === 'TP' && req.tp_name && (
+                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                  <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
+                                </span>
                               )}
                             </div>
 
