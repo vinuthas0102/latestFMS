@@ -212,11 +212,13 @@ const FALLBACK = 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w
 export const PhotoGallery: React.FC<PhotoGalleryProps & {
   lightboxInfo?: React.ReactNode;
   heroHeight?: string;
+  fillHeight?: boolean;
 }> = ({
   images,
   alt = 'Photo',
   lightboxInfo,
   heroHeight = '420px',
+  fillHeight = false,
 }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxStart, setLightboxStart] = useState(0);
@@ -243,8 +245,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps & {
   return (
     <>
       <div
-        className="relative rounded-2xl overflow-hidden shadow-xl"
-        style={{ height: heroHeight }}
+        className={`relative rounded-2xl overflow-hidden shadow-xl ${fillHeight ? 'h-full' : ''}`}
+        style={fillHeight ? undefined : { height: heroHeight }}
       >
         {count === 0 ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-teal-500">

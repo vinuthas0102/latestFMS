@@ -333,56 +333,62 @@ export const QuarterDetailPage: React.FC = () => {
       {/* ── Main content ──────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-10 space-y-10">
 
-        {/* Photo gallery — always at top */}
-        <PhotoGallery
-          images={images}
-          alt={quarter.quarter_number}
-          heroHeight="400px"
-          lightboxInfo={lightboxInfoPanel}
-        />
-
-        {/* ── OVERVIEW ────────────────────────────────────────── */}
+        {/* ── Hero split: gallery (left) + overview (right) ── */}
         <section
           ref={(el) => { if (el) sectionRefs.current['overview'] = el; }}
-          className="scroll-mt-24 space-y-5"
+          className="scroll-mt-24"
         >
-          <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+          <div className="flex flex-col lg:flex-row gap-6" style={{ minHeight: 380 }}>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
-            <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
-            <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
-            <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
-            <SpecTile
-              icon={<IndianRupee size={14} />}
-              label="Monthly Rent"
-              value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
-              accent="bg-emerald-50 border-emerald-200"
-            />
-            <SpecTile
-              icon={<CheckCircle size={14} />}
-              label="Status"
-              value={
-                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-                  <CheckCircle size={10} />
-                  {isAvailable ? 'Available' : 'Occupied'}
-                </span>
-              }
-            />
-          </div>
-
-          {quarter.description && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
-                <Info size={14} className="text-blue-500" /> Description
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+            {/* Left: Photo gallery */}
+            <div className="lg:w-1/2 flex-shrink-0" style={{ minHeight: 320 }}>
+              <PhotoGallery
+                images={images}
+                alt={quarter.quarter_number}
+                fillHeight
+                lightboxInfo={lightboxInfoPanel}
+              />
             </div>
-          )}
+
+            {/* Right: Overview details */}
+            <div className="lg:w-1/2 flex flex-col gap-4 min-w-0">
+              <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
+                <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
+                <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
+                <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
+                <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
+                <SpecTile
+                  icon={<IndianRupee size={14} />}
+                  label="Monthly Rent"
+                  value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
+                  accent="bg-emerald-50 border-emerald-200"
+                />
+              </div>
+
+              <SpecTile
+                icon={<CheckCircle size={14} />}
+                label="Status"
+                value={
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+                    <CheckCircle size={10} />
+                    {isAvailable ? 'Available' : 'Occupied'}
+                  </span>
+                }
+              />
+
+              {quarter.description && (
+                <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+                    <Info size={14} className="text-blue-500" /> Description
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* ── FINANCIALS ──────────────────────────────────────── */}
