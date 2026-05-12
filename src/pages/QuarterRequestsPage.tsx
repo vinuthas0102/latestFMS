@@ -2824,7 +2824,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     ? { ...scBase, label: 'Occupied', cls: 'bg-teal-50 text-teal-700 border border-teal-200' }
                     : scBase;
                   const isSelected = selectedRequest?.id === req.id;
-                  const isOccupied = req.request_status === 'ACKNOWLEDGED';
+                  const isOccupied = isOccupiedStatus(req.request_status);
                   const allottedQ = req.allotment?.quarter as Quarter | undefined;
                   const prefQ = req.preferences?.[0]?.quarter as Quarter | undefined;
                   const thumbQ = allottedQ ?? prefQ;
@@ -2949,28 +2949,34 @@ export const QuarterRequestsPage: React.FC = () => {
                           <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
                               {isOccupied ? (
-                                <>
-                                  <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                                    {(reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
+                                (() => {
+                                  const occupantName =
+                                    reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
                                       ? req.on_behalf_employee_name
                                       : reqFor === 'TP' && req.tp_name
                                       ? req.tp_name
-                                      : user?.fullName ?? 'U').charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="text-[10px] text-gray-500 font-medium truncate">
-                                    {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
-                                      ? req.on_behalf_employee_name
-                                      : reqFor === 'TP' && req.tp_name
-                                      ? req.tp_name
-                                      : user?.fullName ?? 'Occupant'}
-                                    {reqFor === 'SELF' && user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
-                                  </span>
-                                  {req.allotment?.bhk_config && (
-                                    <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-md font-medium shrink-0">
-                                      {req.allotment.bhk_config}
-                                    </span>
-                                  )}
-                                </>
+                                      : user?.fullName ?? 'Occupant';
+                                  const occupantId =
+                                    reqFor === 'SELF' && user?.govtEmployeeId ? user.govtEmployeeId : null;
+                                  return (
+                                    <>
+                                      <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                                        {occupantName.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[9px] text-teal-600 font-semibold uppercase tracking-wide leading-none mb-0.5">Occupant</span>
+                                        <span className="text-[10px] text-gray-700 font-medium truncate leading-tight">
+                                          {occupantName}{occupantId ? ` · ${occupantId}` : ''}
+                                        </span>
+                                      </div>
+                                      {allottedQ?.bhk_config && (
+                                        <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-md font-medium shrink-0">
+                                          {allottedQ.bhk_config}
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()
                               ) : (
                                 <>
                                   <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
