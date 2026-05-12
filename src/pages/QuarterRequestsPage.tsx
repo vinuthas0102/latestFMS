@@ -112,7 +112,7 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'availableQuarters';
+type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'availableQuarters' | 'declined';
 
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
@@ -125,6 +125,7 @@ const DP_LABELS: Record<DPFilter, string> = {
   occupied: 'Occupied',
   tenantServices: 'Tenant Services',
   availableQuarters: 'Available Quarters',
+  declined: 'Declined',
 };
 
 interface PrefItem { quarter: Quarter; rank: number }
@@ -1588,6 +1589,7 @@ export const QuarterRequestsPage: React.FC = () => {
     unapproved:   requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING').length,
     accepted:     requests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     occupied:     requests.filter(r => isOccupiedStatus(r.request_status)).length,
+    declined:     requests.filter(r => r.sub_status === 'DECLINED').length,
   };
 
   // Govt official self view: total allotted = all isAllottedStatus regardless of approval
@@ -1657,6 +1659,13 @@ export const QuarterRequestsPage: React.FC = () => {
       iconBg: 'bg-teal-100', textColor: 'text-teal-700', countColor: 'text-teal-900',
       icon: <Home size={20} className="text-teal-600" />,
     },
+    {
+      key: 'declined', label: 'Declined', description: 'Allotment declined by employee',
+      count: statCounts.declined,
+      gradient: 'from-rose-600 to-red-500',
+      iconBg: 'bg-rose-100', textColor: 'text-rose-700', countColor: 'text-rose-900',
+      icon: <ThumbsDown size={20} className="text-rose-600" />,
+    },
   ];
 
   // EM employee mode: show allotted + allocated_em + unapproved + accepted + occupied + vacated + availableQuarters (hide draft)
@@ -1685,6 +1694,7 @@ export const QuarterRequestsPage: React.FC = () => {
     else if (dpFilter === 'unapproved') result = result.filter(r => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
     else if (dpFilter === 'accepted') result = result.filter(r => r.request_status === 'ACKNOWLEDGED');
     else if (dpFilter === 'occupied') result = result.filter(r => isOccupiedStatus(r.request_status));
+    else if (dpFilter === 'declined') result = result.filter(r => r.sub_status === 'DECLINED');
 
     if (reqBhkFilter !== 'ALL') result = result.filter(r => r.required_bhk_config?.includes(reqBhkFilter));
 
@@ -2866,15 +2876,11 @@ export const QuarterRequestsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Row 2: quarter fields — flat, no background box */}
-                          {(() => {
+                          {/* Row 2: quarter fields — flat, no background box (hidden for Submitted DP) */}
+                          {dpFilter !== 'submitted' && (() => {
                             const dq = allottedQ ?? prefQ;
                             if (!dq) {
-                              return (
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="text-[10px] text-gray-400 italic">No quarter assigned — preference not set</span>
-                                </div>
-                              );
+                              return null;
                             }
                             const details = [
                               { label: 'Quarter / Unit No.', value: [dq.quarter_number, dq.unit_number].filter(Boolean).join(' / ') || '—' },
@@ -2899,8 +2905,8 @@ export const QuarterRequestsPage: React.FC = () => {
                           })()}
 
                           {/* Footer: svcs tags + for/tp badges + actions — single row */}
-                          <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+                          <div className="flex items-center gap-1 pt-1 border-t border-gray-100 overflow-hidden">
+                            <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                               {/* Svcs button + service type tags moved here */}
                               {activeSvcs.length > 0 && (
                                 <>
@@ -2938,12 +2944,12 @@ export const QuarterRequestsPage: React.FC = () => {
                                 </>
                               )}
                               {!isOccupied && reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
-                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                                   <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
                                 </span>
                               )}
                               {!isOccupied && reqFor === 'TP' && req.tp_name && (
-                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                                   <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
                                 </span>
                               )}
@@ -3173,6 +3179,17 @@ export const QuarterRequestsPage: React.FC = () => {
                             )}
                           </div>
 
+                          {/* Decline remarks — shown when allotment was declined */}
+                          {req.sub_status === 'DECLINED' && req.allotment?.rejection_reason && (
+                            <div className="bg-rose-50 rounded-xl border border-rose-200 overflow-hidden text-[11px]">
+                              <div className="px-3 py-1.5 bg-rose-100 border-b border-rose-200 flex items-center gap-1.5">
+                                <ThumbsDown size={10} className="text-rose-600" />
+                                <span className="text-[9px] font-bold text-rose-700 uppercase tracking-wide">Decline Remarks</span>
+                              </div>
+                              <div className="px-3 py-2 text-rose-800 leading-snug">{req.allotment.rejection_reason}</div>
+                            </div>
+                          )}
+
                           {/* Allotted quarter details */}
                           {allottedQ && (
                             <div className="bg-white rounded-xl border border-teal-100 overflow-hidden text-[11px]">
@@ -3253,12 +3270,14 @@ export const QuarterRequestsPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Uploaded documents */}
-                          {(requestDocUrls[req.id] ?? []).length > 0 && (
+                          {/* Uploaded documents — only for MEDICAL and REFERENCE request types */}
+                          {(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 && (
                             <div>
                               <div className="flex items-center gap-1.5 mb-1.5">
-                                <Paperclip size={10} className="text-gray-400" />
-                                <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Documents</span>
+                                <Paperclip size={10} className={req.request_type === 'MEDICAL' ? 'text-rose-400' : 'text-amber-400'} />
+                                <span className={`text-[9px] font-bold uppercase tracking-wide ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-600'}`}>
+                                  Supporting Document — {req.request_type === 'MEDICAL' ? 'Medical' : 'Reference/Special'}
+                                </span>
                               </div>
                               <div className="flex flex-col gap-1">
                                 {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
@@ -3267,11 +3286,11 @@ export const QuarterRequestsPage: React.FC = () => {
                                     href={doc.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-2.5 py-1.5 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                                    className={`flex items-center gap-2 bg-white border rounded-lg px-2.5 py-1.5 transition-colors group ${req.request_type === 'MEDICAL' ? 'border-rose-100 hover:border-rose-300 hover:bg-rose-50' : 'border-amber-100 hover:border-amber-300 hover:bg-amber-50'}`}
                                   >
-                                    <FileText size={11} className="text-blue-500 shrink-0" />
-                                    <span className="flex-1 text-[11px] font-medium text-gray-700 truncate group-hover:text-blue-700">{doc.name}</span>
-                                    <ExternalLink size={10} className="text-gray-300 group-hover:text-blue-500 shrink-0" />
+                                    <FileText size={11} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
+                                    <span className={`flex-1 text-[11px] font-medium truncate ${req.request_type === 'MEDICAL' ? 'text-rose-700 group-hover:text-rose-800' : 'text-amber-700 group-hover:text-amber-800'}`}>{doc.name}</span>
+                                    <ExternalLink size={10} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-300 group-hover:text-rose-500' : 'text-amber-300 group-hover:text-amber-500'}`} />
                                   </a>
                                 ))}
                               </div>
