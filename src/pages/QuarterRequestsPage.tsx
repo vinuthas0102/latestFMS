@@ -2841,7 +2841,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             src={thumbQ ? getImage(thumbQ, reqIdx) : PLACEHOLDER_IMAGES[reqIdx % PLACEHOLDER_IMAGES.length]}
                             alt=""
                             className="w-full h-full object-cover"
-                            style={{ minHeight: 116 }}
+                            style={{ minHeight: 88 }}
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition-colors flex items-center justify-center">
                             <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 rounded-full p-1.5 shadow-md">
@@ -2851,21 +2851,9 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
 
                         {/* Body */}
-                        <div className="flex-1 px-3.5 py-3 min-w-0 flex flex-col justify-start gap-0">
-                          {/* Row 1: request number + status */}
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            {!isOccupied && <span className="font-mono text-[11px] font-semibold text-gray-400 tracking-wide">{req.request_number}</span>}
-                            {isOccupied && <span />}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {req.sub_status === 'DECLINED' && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">Declined</span>
-                              )}
-                              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
-                            </div>
-                          </div>
-
-                          {/* Row 3: service tags */}
-                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                        <div className="flex-1 px-3.5 py-2 min-w-0 flex flex-col justify-start gap-0">
+                          {/* Row 1: service tags (only when present) */}
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
                             {activeSvcs.length > 0 && (
                               <>
                                 <button
@@ -2904,16 +2892,39 @@ export const QuarterRequestsPage: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Row 3.5: Quarter details mini-grid */}
+                          {/* Details grid: req no + status + quarter fields */}
                           {(() => {
                             const dq = allottedQ ?? prefQ;
+                            const reqNoCell = !isOccupied ? (
+                              <div key="req-no" className="min-w-0">
+                                <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5">Req No.</div>
+                                <div className="text-[10.5px] font-bold text-gray-800 leading-tight truncate font-mono">{req.request_number || '—'}</div>
+                              </div>
+                            ) : null;
+                            const statusCell = (
+                              <div key="status" className="min-w-0">
+                                <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5">Status</div>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {req.sub_status === 'DECLINED' && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>
+                                  )}
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 leading-none ${sc.cls}`}>{sc.icon}{sc.label}</span>
+                                </div>
+                              </div>
+                            );
                             if (!dq) {
                               return (
-                                <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 my-1.5 flex items-center gap-2">
-                                  <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-1.5 my-1">
+                                  <div className="grid grid-cols-4 gap-x-3 gap-y-1.5">
+                                    {reqNoCell}
+                                    {statusCell}
+                                    <div className="col-span-2 flex items-center gap-2">
+                                      <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                      </div>
+                                      <span className="text-[10px] text-gray-400 italic">No quarter assigned</span>
+                                    </div>
                                   </div>
-                                  <span className="text-[10px] text-gray-400 italic">No quarter assigned — preference not set</span>
                                 </div>
                               );
                             }
@@ -2928,8 +2939,10 @@ export const QuarterRequestsPage: React.FC = () => {
                               { label: 'Raised By (Emp ID)', value: req.employee_id || '—' },
                             ];
                             return (
-                              <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 my-1.5">
-                                <div className="grid grid-cols-4 gap-x-3 gap-y-2">
+                              <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-1.5 my-1">
+                                <div className="grid grid-cols-4 gap-x-3 gap-y-1.5">
+                                  {reqNoCell}
+                                  {statusCell}
                                   {details.map((d, i) => (
                                     <div key={i} className="min-w-0">
                                       <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5 truncate">{d.label}</div>
@@ -2941,8 +2954,8 @@ export const QuarterRequestsPage: React.FC = () => {
                             );
                           })()}
 
-                          {/* Row 4: occupant info (occupied) or requester + TP (other statuses) + actions */}
-                          <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
+                          {/* Footer: occupant info / requester + TP + actions — single row */}
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
                               {!isOccupied && reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
                                 <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
@@ -2962,14 +2975,14 @@ export const QuarterRequestsPage: React.FC = () => {
                               <>
                                 <button
                                   onClick={e => { e.stopPropagation(); setSelectedRequest(req); setManualAllotPickerOpen(true); setManualAllotSearch(''); }}
-                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-teal-600 text-white text-[10px] font-semibold hover:bg-teal-700 transition-colors shrink-0"
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-semibold hover:bg-teal-700 transition-colors shrink-0"
                                   title="Allot Quarter"
                                 >
                                   <Home size={11} /> Allot
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); setRejectModalReqId(req.id); setRejectModalReason(''); setRejectModalDocFile(null); }}
-                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[10px] font-semibold hover:bg-red-100 transition-colors shrink-0"
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[10px] font-semibold hover:bg-red-100 transition-colors shrink-0"
                                   title="Reject Request"
                                 >
                                   <XCircle size={11} /> Reject
@@ -2982,7 +2995,7 @@ export const QuarterRequestsPage: React.FC = () => {
                               <div className="relative shrink-0">
                                 <button
                                   onClick={e => { e.stopPropagation(); setOverrideMenuCardId(overrideMenuCardId === req.id ? null : req.id); }}
-                                  className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-semibold transition-colors shrink-0 ${overrideMenuCardId === req.id ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'}`}
+                                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-semibold transition-colors shrink-0 ${overrideMenuCardId === req.id ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'}`}
                                   title="Override Actions"
                                 >
                                   <RefreshCw size={11} /> Override
@@ -3040,14 +3053,14 @@ export const QuarterRequestsPage: React.FC = () => {
                               <>
                                 <button
                                   onClick={e => { e.stopPropagation(); setAcceptCardId(req.id); setAcceptCardRemarks(''); }}
-                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
                                   title="Accept Allotment"
                                 >
                                   <ThumbsUp size={11} /> Accept
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); setDeclineModalReqId(req.id); setDeclineModalRemarks(''); setDeclineModalDocUrl(null); }}
-                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[10px] font-semibold hover:bg-red-100 transition-colors shrink-0"
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[10px] font-semibold hover:bg-red-100 transition-colors shrink-0"
                                   title="Decline Allotment"
                                 >
                                   <ThumbsDown size={11} /> Decline
@@ -3065,30 +3078,30 @@ export const QuarterRequestsPage: React.FC = () => {
                                 setSelectedServiceId(null);
                                 resetActionForm();
                               }}
-                              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 transition-colors shrink-0"
+                              className="p-1 rounded-lg border border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 transition-colors shrink-0"
                               title="Open Chat"
                             >
-                              <MessageSquare size={13} />
+                              <MessageSquare size={12} />
                             </button>
                             )}
 
                             {/* Expand / collapse icon */}
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
-                              className={`p-1.5 rounded-lg border transition-colors shrink-0 ${expandedCardId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                              className={`p-1 rounded-lg border transition-colors shrink-0 ${expandedCardId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
                               title={expandedCardId === req.id ? 'Collapse' : 'Expand'}
                             >
-                              {expandedCardId === req.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              {expandedCardId === req.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                             </button>
 
                             {/* Action menu — hidden for ALLOTTED (unless in allotted/allocated_em filter) and terminal statuses */}
                             {(!(req.request_status === 'ALLOTTED') || dpFilter === 'allotted' || dpFilter === 'allocated_em') && !['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
                               <button
                                 onClick={e => openMenu(e, req.id)}
-                                className={`p-1.5 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                className={`p-1 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
                                 title="Actions"
                               >
-                                <MoreVertical size={13} />
+                                <MoreVertical size={12} />
                               </button>
                             )}
                           </div>
