@@ -155,6 +155,8 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
     onClose, onSaveDraft, onSubmit, onAllotNow, addToast,
   } = props;
 
+  const docsRequired = form.request_type === 'MEDICAL' || form.request_type === 'REFERENCE';
+
   return createPortal(
     <div className="fixed inset-0 z-[1000] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
       {/* Header bar */}
@@ -199,7 +201,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           </button>
           {/* Submit — not shown for EO TP flow (TP reviews + submits themselves) */}
           {!(isEO && requestFor === 'TP') && (
-            <button onClick={onSubmit} disabled={submitting || allotNowSubmitting || prefs.length === 0}
+            <button onClick={onSubmit} disabled={submitting || allotNowSubmitting || prefs.length === 0 || (docsRequired && documents.length === 0)}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
               <Send size={14} />Submit Request
             </button>
@@ -208,7 +210,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           {isEO && (
             <button
               onClick={() => setShowAllotNowPicker(true)}
-              disabled={submitting || allotNowSubmitting || !form.request_reason.trim()}
+              disabled={submitting || allotNowSubmitting || !form.request_reason.trim() || (docsRequired && documents.length === 0)}
               className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
               title="Allot Now — pick a quarter and allot immediately (VVIP/priority cases)"
             >
@@ -223,7 +225,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
 
         {/* ── Top: Request details form (horizontal band) ── */}
         <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason <span className="text-red-500">*</span></label>
               <input value={form.request_reason} onChange={e => setForm(f => ({ ...f, request_reason: e.target.value }))} placeholder="e.g. Transfer-in"
@@ -234,14 +236,9 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value as RequestType }))}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
                 <option value="GENERAL">General</option>
-                <option value="MEDICAL">Medical</option>
-                <option value="REFERENCE">Reference</option>
+                <option value="MEDICAL">Medical grounds</option>
+                <option value="REFERENCE">Special/Priority Request</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
-              <input value={form.preferred_location} onChange={e => setForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Move-in Date</label>
@@ -261,6 +258,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               <div className="flex items-center gap-1.5">
                 <Paperclip size={13} className="text-gray-500" />
                 <span className="text-xs font-bold text-gray-700">Supporting Documents</span>
+                {docsRequired && <span className="text-red-500 text-xs font-bold">*</span>}
                 {documents.length > 0 && (
                   <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full ml-1">{documents.length}</span>
                 )}
@@ -289,11 +287,15 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
             </div>
             {documents.length === 0 ? (
               <div
-                className="flex items-center gap-2 px-4 py-2.5 text-gray-400 cursor-pointer hover:bg-gray-50 transition-colors"
+                className={`flex items-center gap-2 px-4 py-2.5 cursor-pointer transition-colors ${docsRequired ? 'bg-red-50 hover:bg-red-100 border-t border-red-100' : 'text-gray-400 hover:bg-gray-50'}`}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload size={14} className="opacity-50 shrink-0" />
-                <span className="text-xs">No documents attached — click to upload (PDF, DOC, JPG, PNG)</span>
+                <Upload size={14} className={`shrink-0 ${docsRequired ? 'text-red-400' : 'opacity-50 text-gray-400'}`} />
+                {docsRequired ? (
+                  <span className="text-xs text-red-600 font-medium">Supporting documents are required for this request type — click to upload (PDF, DOC, JPG, PNG)</span>
+                ) : (
+                  <span className="text-xs text-gray-400">No documents attached — click to upload (PDF, DOC, JPG, PNG)</span>
+                )}
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
