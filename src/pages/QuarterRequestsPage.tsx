@@ -2864,7 +2864,8 @@ export const QuarterRequestsPage: React.FC = () => {
                         <div className="flex-1 px-3.5 py-3 min-w-0 flex flex-col justify-between">
                           {/* Row 1: request number + status */}
                           <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <span className="font-mono text-[11px] font-semibold text-gray-400 tracking-wide">{req.request_number}</span>
+                            {!isOccupied && <span className="font-mono text-[11px] font-semibold text-gray-400 tracking-wide">{req.request_number}</span>}
+                            {isOccupied && <span />}
                             <div className="flex items-center gap-1.5 shrink-0">
                               {req.sub_status === 'DECLINED' && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">Declined</span>
@@ -2944,24 +2945,51 @@ export const QuarterRequestsPage: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Row 4: requester + TP + actions */}
+                          {/* Row 4: occupant info (occupied) or requester + TP (other statuses) + actions */}
                           <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                              <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                                {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
-                              </div>
-                              <span className="text-[10px] text-gray-500 font-medium truncate">
-                                {user?.fullName ?? 'Me'}{user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
-                              </span>
-                              {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
-                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
-                                  <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
-                                </span>
-                              )}
-                              {reqFor === 'TP' && req.tp_name && (
-                                <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
-                                  <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
-                                </span>
+                              {isOccupied ? (
+                                <>
+                                  <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                                    {(reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
+                                      ? req.on_behalf_employee_name
+                                      : reqFor === 'TP' && req.tp_name
+                                      ? req.tp_name
+                                      : user?.fullName ?? 'U').charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-[10px] text-gray-500 font-medium truncate">
+                                    {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name
+                                      ? req.on_behalf_employee_name
+                                      : reqFor === 'TP' && req.tp_name
+                                      ? req.tp_name
+                                      : user?.fullName ?? 'Occupant'}
+                                    {reqFor === 'SELF' && user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
+                                  </span>
+                                  {req.allotment?.bhk_config && (
+                                    <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-md font-medium shrink-0">
+                                      {req.allotment.bhk_config}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-5 h-5 rounded-full bg-teal-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                                    {(user?.fullName ?? 'U').charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-[10px] text-gray-500 font-medium truncate">
+                                    {user?.fullName ?? 'Me'}{user?.govtEmployeeId ? ` · ${user.govtEmployeeId}` : ''}
+                                  </span>
+                                  {reqFor === 'EMPLOYEE' && req.on_behalf_employee_name && (
+                                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                      <UserCheck size={8} />For: {req.on_behalf_employee_name.split(' ')[0]}
+                                    </span>
+                                  )}
+                                  {reqFor === 'TP' && req.tp_name && (
+                                    <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0">
+                                      <UserPlus size={8} />TP: {req.tp_name.split(' ')[0]}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
 
@@ -3553,37 +3581,23 @@ export const QuarterRequestsPage: React.FC = () => {
                                         )}
                                       </div>
 
-                                      {/* EO Approve / Reject actions — only in EO employee mode */}
-                                      {isEO && eoMode === 'employee' && svc.request_status === 'PENDING' && (() => {
-                                        const isActing = eoTrId === svc.id;
-                                        return isActing && eoTrAction ? (
-                                          <div className="space-y-2 pt-1 border-t border-gray-200">
-                                            <textarea value={eoTrNotes} onChange={e => setEoTrNotes(e.target.value)} rows={2}
-                                              placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
-                                              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800" />
-                                            <div className="flex gap-2">
-                                              <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }}
-                                                className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
-                                              {eoTrAction === 'approve'
-                                                ? <button onClick={() => handleEOActionTR('approve')} disabled={eoTrSubmitting}
-                                                    className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
-                                                : <button onClick={() => handleEOActionTR('reject')} disabled={eoTrSubmitting}
-                                                    className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
-                                            </div>
+                                      {/* EO confirm form — shown after selecting Approve/Reject from action menu */}
+                                      {isEO && eoMode === 'employee' && svc.request_status === 'PENDING' && eoTrId === svc.id && eoTrAction && (
+                                        <div className="space-y-2 pt-1 border-t border-gray-200">
+                                          <textarea value={eoTrNotes} onChange={e => setEoTrNotes(e.target.value)} rows={2}
+                                            placeholder={eoTrAction === 'reject' ? 'Rejection reason (required)…' : 'EO notes (optional)…'}
+                                            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none bg-white text-gray-800" />
+                                          <div className="flex gap-2">
+                                            <button onClick={() => { setEoTrId(null); setEoTrAction(null); setEoTrNotes(''); }}
+                                              className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-white">Cancel</button>
+                                            {eoTrAction === 'approve'
+                                              ? <button onClick={() => handleEOActionTR('approve')} disabled={eoTrSubmitting}
+                                                  className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Approve'}</button>
+                                              : <button onClick={() => handleEOActionTR('reject')} disabled={eoTrSubmitting}
+                                                  className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold disabled:opacity-50">{eoTrSubmitting ? '…' : 'Reject'}</button>}
                                           </div>
-                                        ) : (
-                                          <div className="flex gap-2 pt-1 border-t border-gray-200">
-                                            <button onClick={e => { e.stopPropagation(); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); }}
-                                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
-                                              <ThumbsUp size={11} />Approve
-                                            </button>
-                                            <button onClick={e => { e.stopPropagation(); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); }}
-                                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700">
-                                              <ThumbsDown size={11} />Reject
-                                            </button>
-                                          </div>
-                                        );
-                                      })()}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>

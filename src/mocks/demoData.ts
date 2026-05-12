@@ -729,6 +729,25 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
     updated_at: '2025-03-05T17:00:00Z',
     allotment: DEMO_ALLOTMENT_OCCUPIED_2,
   },
+  // Vacate request for B-310 (allot-002)
+  {
+    id: 'tr-007',
+    allotment_id: 'allot-002',
+    employee_id: 'demo-user-001',
+    service_type: 'VACATE',
+    request_status: 'PENDING',
+    remarks: 'Retiring from service on 30 June 2025. Requesting initiation of vacating formalities and handing over of quarters on or before the retirement date.',
+    reason: 'Retirement — superannuation on 30 June 2025.',
+    document_url: '',
+    requested_date: '2025-06-30',
+    required_bhk_config: '',
+    eo_notes: '',
+    grievance_subject: '',
+    urgency_level: 'NORMAL',
+    created_at: '2025-05-10T11:00:00Z',
+    updated_at: '2025-05-10T11:00:00Z',
+    allotment: DEMO_ALLOTMENT_OCCUPIED,
+  },
 ];
 
 // ─── Demo chat data ────────────────────────────────────────────────────────────
