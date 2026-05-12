@@ -2959,11 +2959,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                           {occupantName}{occupantId ? ` · ${occupantId}` : ''}
                                         </span>
                                       </div>
-                                      {allottedQ?.bhk_config && (
-                                        <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-md font-medium shrink-0">
-                                          {allottedQ.bhk_config}
-                                        </span>
-                                      )}
                                     </>
                                   );
                                 })()
@@ -3424,11 +3419,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                             <CalendarDays size={9} />{fmtDate(svc.requested_date)}
                                           </span>
                                         )}
-                                        {svc.required_bhk_config && (
-                                          <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                                            <Bed size={9} />{svc.required_bhk_config}
-                                          </span>
-                                        )}
                                         {svc.document_url && (
                                           <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
                                             <Paperclip size={9} />Doc
@@ -3559,12 +3549,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                               {svc.service_type === 'EXTEND' ? 'Extension Until' : svc.service_type === 'VACATE' ? 'Vacate By' : 'Requested Date'}
                                             </div>
                                             <div className="text-[11px] text-gray-800 flex items-center gap-0.5"><CalendarDays size={10} className="text-gray-400" />{fmtDate(svc.requested_date)}</div>
-                                          </div>
-                                        )}
-                                        {svc.required_bhk_config && (
-                                          <div>
-                                            <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5 font-semibold">Required BHK</div>
-                                            <div className="text-[11px] text-gray-800 flex items-center gap-0.5"><Bed size={10} className="text-gray-400" />{svc.required_bhk_config}</div>
                                           </div>
                                         )}
                                         {svc.document_url && (
