@@ -2289,13 +2289,10 @@ export const QuarterRequestsPage: React.FC = () => {
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0">
                   {user.fullName?.[0]?.toUpperCase() ?? 'U'}
                 </div>
-                <span className="text-xs font-semibold text-gray-700 truncate max-w-[120px]">{user.fullName}</span>
-                {(user as any).govtEmployeeId && <span className="text-[10px] text-gray-400 font-mono hidden sm:inline flex-shrink-0">{(user as any).govtEmployeeId}</span>}
-                {(user as any).govtDepartment && <span className="text-[10px] text-gray-400 truncate hidden lg:inline max-w-[120px]">{(user as any).govtDepartment}</span>}
-                {(user as any).bhkEntitlement && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">{(user as any).bhkEntitlement} Entitled</span>
+                <span className="text-xs font-semibold text-gray-700 truncate max-w-[140px]">{user.fullName}</span>
+                {(user as any).govtEmployeeId && (
+                  <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{(user as any).govtEmployeeId}</span>
                 )}
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 flex-shrink-0 uppercase">{user.role}</span>
                 <span className="text-gray-200 mx-1 flex-shrink-0">|</span>
               </>
             )}

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
-import { downloadPageAsHtml } from '../../utils/downloadHtml';
+import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { UserDTO } from '../../types';
 
 // Types needed
@@ -134,6 +134,7 @@ export interface NewRequestModalProps {
 
 export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const {
     activeCycle, isEO, eoMode, userRole, user,
@@ -158,7 +159,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
   const docsRequired = form.request_type === 'MEDICAL' || form.request_type === 'REFERENCE';
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
+    <div ref={modalRef} className="fixed inset-0 z-[1000] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
       {/* Header bar */}
       <div className="flex items-center gap-4 px-6 py-3.5 bg-white border-b border-gray-200 shadow-sm shrink-0">
         <button
@@ -188,7 +189,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
         )}
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => downloadPageAsHtml('/quarters/requests')}
+            onClick={() => modalRef.current && downloadElementAsHtml(modalRef.current, 'New Allotment Request', 'New_Allotment_Request')}
             title="Download Offline Copy"
             className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-1.5"
           >

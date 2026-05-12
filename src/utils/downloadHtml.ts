@@ -149,6 +149,29 @@ export interface DownloadHtmlOptions {
   includeTimestamp?: boolean;
 }
 
+export function downloadElementAsHtml(
+  element: HTMLElement,
+  title: string,
+  filenameBase: string = 'FMS_Export',
+): void {
+  const inlineStyles = collectInlineStyles();
+  const rawHtml = cleanHtml(element.outerHTML);
+  const bodyContent = `<body>${rawHtml}</body>`;
+  const datePart = new Date().toISOString().slice(0, 10);
+  const filename = `${filenameBase}_${datePart}.html`;
+  const html = buildDocument(bodyContent, title, '', inlineStyles);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function downloadPageAsHtml(
   pathname: string = window.location.pathname,
   options: DownloadHtmlOptions = {},

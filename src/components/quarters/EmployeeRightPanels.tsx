@@ -3,8 +3,9 @@ import {
   CheckCircle, Send, Paperclip, X, FileText, ChevronLeft, Clock,
   ThumbsUp, Bell, Wrench, RefreshCw, ArrowRightCircle, LogOut, IndianRupee,
   AlertCircle, ExternalLink, CalendarDays, Bed, Eye, Star, Plus,
-  Ruler, ArrowLeft, XCircle, Send as SendIcon,
+  Ruler, ArrowLeft, XCircle, Send as SendIcon, Download,
 } from 'lucide-react';
+import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { Button } from '../ui/Button';
 import { QuarterDetailCard } from './QuarterDetailCard';
 import { DocUpload } from '../ui/DocUpload';
@@ -55,6 +56,7 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
 }) => {
   const allotmentChatFileRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   if (!selectedRequest?.allotment) return null;
   const allotment = selectedRequest.allotment;
@@ -68,7 +70,7 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
     : 'bg-white/20 text-white';
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={panelRef} className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-t-xl shrink-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
@@ -81,6 +83,13 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${approvalBadgeColor}`}>
           {allotment.approval_status}
         </span>
+        <button
+          onClick={() => panelRef.current && downloadElementAsHtml(panelRef.current, `Allotment — ${selectedRequest.request_number}`, `Allotment_${selectedRequest.request_number}`)}
+          title="Download as HTML"
+          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors shrink-0"
+        >
+          <Download size={14} />
+        </button>
         {panelControls}
       </div>
 

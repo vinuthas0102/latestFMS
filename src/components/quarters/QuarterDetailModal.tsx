@@ -4,8 +4,9 @@ import {
   X, ArrowLeft, MapPin, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
   Zap, Droplets, Shield, FileText, AlertCircle, ExternalLink,
-  Images, Bed, Ruler, Layers, FlaskConical,
+  Images, Bed, Ruler, Layers, FlaskConical, Download,
 } from 'lucide-react';
+import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { PhotoGallery, PhotoLightbox } from '../ui/PhotoGallery';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../maps/NearbyPlacesPanel';
@@ -95,6 +96,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const scrollingRef = useRef(false);
 
@@ -254,6 +256,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
   const panelContent = (
         <div
+          ref={contentRef}
           className={inline ? "relative bg-gray-50 w-full h-full flex flex-col overflow-hidden" : "relative bg-gray-50 w-full max-w-5xl h-full sm:h-[94vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl"}
           onClick={(e) => e.stopPropagation()}
         >
@@ -283,12 +286,21 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
               <div className="flex items-center gap-2">
                 {quarter && (
-                  <button
-                    onClick={() => { navigate(`/quarters/${quarterId}`, { state: { from: '/quarters' } }); if (!inline) onClose(); }}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
-                  >
-                    <ExternalLink size={12} /> Full Page
-                  </button>
+                  <>
+                    <button
+                      onClick={() => { navigate(`/quarters/${quarterId}`, { state: { from: '/quarters' } }); if (!inline) onClose(); }}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+                    >
+                      <ExternalLink size={12} /> Full Page
+                    </button>
+                    <button
+                      onClick={() => contentRef.current && downloadElementAsHtml(contentRef.current, quarter.quarter_number, `Quarter_${quarter.quarter_number}`)}
+                      title="Download as HTML"
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+                    >
+                      <Download size={12} />
+                    </button>
+                  </>
                 )}
                 {isGovtOfficial && quarter && isAvailable && (
                   <button
