@@ -2851,7 +2851,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         </div>
 
                         {/* Body */}
-                        <div className="flex-1 px-3.5 py-3 min-w-0 flex flex-col justify-between">
+                        <div className="flex-1 px-3.5 py-3 min-w-0 flex flex-col justify-start gap-0">
                           {/* Row 1: request number + status */}
                           <div className="flex items-center justify-between gap-2 mb-1.5">
                             {!isOccupied && <span className="font-mono text-[11px] font-semibold text-gray-400 tracking-wide">{req.request_number}</span>}
@@ -2934,6 +2934,43 @@ export const QuarterRequestsPage: React.FC = () => {
                               </>
                             )}
                           </div>
+
+                          {/* Row 3.5: Quarter details mini-grid */}
+                          {(() => {
+                            const dq = allottedQ ?? prefQ;
+                            if (!dq) {
+                              return (
+                                <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 my-1.5 flex items-center gap-2">
+                                  <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                  </div>
+                                  <span className="text-[10px] text-gray-400 italic">No quarter assigned — preference not set</span>
+                                </div>
+                              );
+                            }
+                            const details = [
+                              { label: 'Quarter / Unit No.', value: [dq.quarter_number, dq.unit_number].filter(Boolean).join(' / ') || '—' },
+                              { label: 'Housing Style', value: dq.housing_style || '—' },
+                              { label: 'Floor Details', value: dq.floor_number != null ? (dq.total_floors ? `Fl. ${dq.floor_number} of ${dq.total_floors}` : `Floor ${dq.floor_number}`) : '—' },
+                              { label: 'Resident Type', value: dq.resident_type || '—' },
+                              { label: 'Quota', value: dq.quota || '—' },
+                              { label: 'Quarter Type', value: dq.quarter_type || '—' },
+                              { label: 'Location', value: [dq.region, dq.location_area].filter(Boolean).join(' / ') || dq.district || '—' },
+                              { label: 'Raised By (Emp ID)', value: req.employee_id || '—' },
+                            ];
+                            return (
+                              <div className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 my-1.5">
+                                <div className="grid grid-cols-4 gap-x-3 gap-y-2">
+                                  {details.map((d, i) => (
+                                    <div key={i} className="min-w-0">
+                                      <div className="text-[8.5px] font-semibold text-gray-400 uppercase tracking-wide leading-none mb-0.5 truncate">{d.label}</div>
+                                      <div className="text-[10.5px] font-medium text-gray-700 leading-tight truncate">{d.value}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Row 4: occupant info (occupied) or requester + TP (other statuses) + actions */}
                           <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100">
