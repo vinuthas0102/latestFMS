@@ -2876,8 +2876,30 @@ export const QuarterRequestsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Row 2: quarter fields — flat, no background box (hidden for Submitted DP) */}
-                          {dpFilter !== 'submitted' && (() => {
+                          {/* Row 2a: request summary fields — shown for Draft/Submitted (no quarter assigned yet) */}
+                          {(dpFilter === 'submitted' || dpFilter === 'draft') && (() => {
+                            const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
+                            const reqDetails: { label: string; value: React.ReactNode }[] = [
+                              { label: 'Request Type', value: <span className={`text-[9.5px] border px-1 py-0.5 rounded font-semibold ${rtb.cls}`}>{rtb.label}</span> },
+                              ...(req.required_bhk_config ? [{ label: 'BHK Config', value: req.required_bhk_config }] : []),
+                              ...(req.preferred_location ? [{ label: 'Pref. Location', value: req.preferred_location }] : []),
+                              ...(req.move_in_date ? [{ label: 'Move-in Date', value: fmtDate(req.move_in_date) }] : []),
+                              ...(req.employee_id ? [{ label: 'Emp ID', value: req.employee_id }] : []),
+                            ];
+                            return (
+                              <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
+                                {reqDetails.map((d, i) => (
+                                  <div key={i} className="min-w-0">
+                                    <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
+                                    <div className="text-[10.5px] font-medium text-gray-700 leading-snug">{d.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Row 2b: quarter fields — flat, no background box (hidden for Draft/Submitted) */}
+                          {dpFilter !== 'submitted' && dpFilter !== 'draft' && (() => {
                             const dq = allottedQ ?? prefQ;
                             if (!dq) {
                               return null;
@@ -2904,10 +2926,10 @@ export const QuarterRequestsPage: React.FC = () => {
                             );
                           })()}
 
-                          {/* Footer: svcs tags + for/tp badges + actions — single row */}
-                          <div className="flex items-center gap-1 pt-1 border-t border-gray-100 overflow-hidden">
+                          {/* Footer: svcs tags + for/tp badges + actions — single non-wrapping row */}
+                          <div className="flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
                             <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                              {/* Svcs button + service type tags moved here */}
+                              {/* Svcs button + service type tags */}
                               {activeSvcs.length > 0 && (
                                 <>
                                   <button
@@ -2916,7 +2938,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                       e.stopPropagation();
                                       setExpandedSvcsCardId(prev => prev === req.id ? null : req.id);
                                     }}
-                                    className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
+                                    className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors shrink-0 whitespace-nowrap ${expandedSvcsCardId === req.id ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}
                                   >
                                     <span className="relative flex h-2 w-2 shrink-0">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -2932,11 +2954,13 @@ export const QuarterRequestsPage: React.FC = () => {
                                       stype === 'UPGRADE' ? 'bg-sky-50 text-sky-700 border-sky-200' :
                                       stype === 'VACATE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                                       'bg-gray-50 text-gray-600 border-gray-200';
-                                    const tagLabel = stype === 'EXTEND' ? 'Extension' :
+                                    const tagLabel = stype === 'EXTEND' ? 'Ext' :
+                                      stype === 'MAINTENANCE' ? 'Maint' :
+                                      stype === 'GRIEVANCE' ? 'Grievance' :
                                       stype.charAt(0) + stype.slice(1).toLowerCase();
                                     const count = activeSvcs.filter(s => s.service_type === stype).length;
                                     return (
-                                      <span key={stype} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none ${tagCls}`}>
+                                      <span key={stype} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none shrink-0 whitespace-nowrap ${tagCls}`}>
                                         {tagLabel}{count > 1 ? ` ×${count}` : ''}
                                       </span>
                                     );
