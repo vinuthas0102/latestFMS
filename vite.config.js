@@ -11,9 +11,22 @@ export default defineConfig({
       'react-router-dom',
       'zustand',
     ],
-    exclude: ['lucide-react'],
+    exclude: ['lucide-react', 'framer-motion'],
     entries: ['index.html'],
     force: false,
+  },
+  server: {
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/monolith_archive/**',
+        '**/*.txt',
+      ],
+    },
+    hmr: {
+      overlay: false,
+    },
   },
   build: {
     chunkSizeWarningLimit: 1000,
