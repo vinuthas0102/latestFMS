@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Building2, Bell, LogOut, UserCheck, Calendar, Settings,
   Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
-  LayoutDashboard, Home, Download, MapPin, CreditCard, BadgeCheck, X,
+  LayoutDashboard, Home, Download,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
@@ -17,15 +17,10 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value?: string }> = ({ icon, label, value }) => (
-  <div className="flex items-center gap-3">
-    <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
-      {icon}
-    </div>
-    <div className="min-w-0">
-      <div className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold leading-none mb-0.5">{label}</div>
-      <div className="text-[13px] font-semibold text-gray-800 leading-tight truncate">{value || '—'}</div>
-    </div>
+const ChipField: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
+  <div className="text-left leading-none">
+    <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">{label}</div>
+    <div className="text-[12px] font-semibold text-gray-800 whitespace-nowrap mt-0.5">{value || '—'}</div>
   </div>
 );
 
@@ -36,9 +31,6 @@ export const Header: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
-  const [showUserPanel, setShowUserPanel] = useState(false);
-  const userPanelRef = useRef<HTMLDivElement>(null);
-
   const handleLogout = async () => {
     await logout();
     navigate(ROUTES.LOGIN);
@@ -65,17 +57,6 @@ export const Header: React.FC = () => {
       window.removeEventListener('resize', checkScroll);
     };
   }, [isManager, isAdmin]);
-
-  useEffect(() => {
-    if (!showUserPanel) return;
-    const handler = (e: MouseEvent) => {
-      if (userPanelRef.current && !userPanelRef.current.contains(e.target as Node)) {
-        setShowUserPanel(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showUserPanel]);
 
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
@@ -209,56 +190,26 @@ export const Header: React.FC = () => {
                 </button>
 
                 {/* User identity */}
-                <div className="relative" ref={userPanelRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowUserPanel(v => !v)}
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-blue-300 transition-colors cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 select-none">
-                      {initials}
+                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 select-none">
+                    {initials}
+                  </div>
+                  <div className="text-left hidden sm:block leading-snug">
+                    <div className="text-[13px] font-semibold text-gray-900 whitespace-nowrap leading-tight">
+                      {user.fullName || user.email}
                     </div>
-                    <div className="text-left hidden sm:block leading-snug">
-                      <div className="text-[13px] font-semibold text-gray-900 whitespace-nowrap leading-tight">
-                        {user.fullName || user.email}
-                      </div>
-                      <div className="text-[11px] text-gray-500 whitespace-nowrap leading-tight">
-                        {user.govtEmployeeId && <span className="font-mono">{user.govtEmployeeId}</span>}
-                        {user.govtEmployeeId && ' · '}
-                        {ROLE_LABELS[user.role]}
-                      </div>
+                    <div className="text-[11px] text-gray-500 whitespace-nowrap leading-tight">
+                      {ROLE_LABELS[user.role]}
                     </div>
-                  </button>
-
-                  {/* Info popover */}
-                  {showUserPanel && (
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl border border-gray-200 shadow-2xl z-50 overflow-hidden">
-                      {/* Header */}
-                      <div className="px-5 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold flex-shrink-0 border-2 border-white/40">
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-white font-bold text-sm leading-tight truncate">{user.fullName || user.email}</div>
-                          <div className="text-blue-100 text-[11px] mt-0.5">{ROLE_LABELS[user.role]}</div>
-                        </div>
-                        <button
-                          onClick={() => setShowUserPanel(false)}
-                          className="ml-auto text-white/70 hover:text-white transition-colors flex-shrink-0"
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-
-                      {/* Fields */}
-                      <div className="px-5 py-4 space-y-3">
-                        <InfoRow icon={<BadgeCheck size={13} />} label="EMP ID" value={user.govtEmployeeId} />
-                        <InfoRow icon={<BadgeCheck size={13} />} label="EMP Name" value={user.fullName} />
-                        <InfoRow icon={<MapPin size={13} />} label="Project Location" value={user.projectLocation} />
-                        <InfoRow icon={<CreditCard size={13} />} label="SAP ID" value={user.sapId} />
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  {/* Always-visible identity fields */}
+                  <div className="hidden md:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                    <ChipField label="EMP ID" value={user.govtEmployeeId} />
+                    <div className="w-px h-6 bg-gray-200 mx-2" />
+                    <ChipField label="Location" value={user.projectLocation} />
+                    <div className="w-px h-6 bg-gray-200 mx-2" />
+                    <ChipField label="SAP ID" value={user.sapId} />
+                  </div>
                 </div>
 
                 {/* Logout */}
