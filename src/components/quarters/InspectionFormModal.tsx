@@ -93,17 +93,14 @@ function ChecklistSection({
 
             {/* Quantity */}
             <div className="flex items-center gap-1">
-              {item.default_qty !== null ? (
-                <input
-                  type="number"
-                  min={0}
-                  value={item.actual_qty ?? ''}
-                  onChange={e => setItem(idx, { actual_qty: e.target.value === '' ? null : parseInt(e.target.value) })}
-                  className="w-full text-center text-xs font-semibold border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400"
-                />
-              ) : (
-                <span className="text-[10px] text-gray-300 w-full text-center">—</span>
-              )}
+              <input
+                type="number"
+                min={0}
+                value={item.actual_qty ?? ''}
+                onChange={e => setItem(idx, { actual_qty: e.target.value === '' ? null : parseInt(e.target.value) })}
+                placeholder="—"
+                className="w-full text-center text-xs font-semibold border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 placeholder-gray-300"
+              />
             </div>
 
             {/* Remarks */}
