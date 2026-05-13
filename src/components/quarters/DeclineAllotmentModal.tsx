@@ -28,7 +28,7 @@ export function DeclineAllotmentModal({
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-bold text-gray-900">Decline Allotment</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Your request will return to Submitted status</p>
+            <p className="text-xs text-red-500 mt-0.5">Please note: Once you decline the allotted quarter, the allotment will be cancelled, and you will not be eligible for any allotment for the next two years from the date of rejection.</p>
           </div>
           <button
             onClick={onClose}
