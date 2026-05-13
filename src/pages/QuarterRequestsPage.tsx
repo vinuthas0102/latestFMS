@@ -353,6 +353,18 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalBhk, setModalBhk] = useState('');
   const [modalFurnishing, setModalFurnishing] = useState('');
   const [modalSortBy, setModalSortBy] = useState('');
+  const [modalGroundFloor, setModalGroundFloor] = useState(false);
+  const [modalRecentlyRenovated, setModalRecentlyRenovated] = useState(false);
+  const [modalLocationArea, setModalLocationArea] = useState('');
+  const [modalWesternToilet, setModalWesternToilet] = useState(false);
+  const [modalIndianToilet, setModalIndianToilet] = useState(false);
+  const [modalCarParking, setModalCarParking] = useState(false);
+  const [modalPoojaRoom, setModalPoojaRoom] = useState(false);
+  const [modalBalcony, setModalBalcony] = useState(false);
+  const [modalKitchenExhaust, setModalKitchenExhaust] = useState(false);
+  const [modalLiftAccess, setModalLiftAccess] = useState(false);
+  const [modalIndependentHouse, setModalIndependentHouse] = useState(false);
+  const [modalHousingStyle, setModalHousingStyle] = useState('');
   const modalFilterRef = useRef<HTMLDivElement>(null);
 
   // Decline allotment modal (card-level)
@@ -809,6 +821,24 @@ export const QuarterRequestsPage: React.FC = () => {
         furnishing_status: modalFurnishing || undefined,
       });
       let filtered = data.filter(q => !prefs.find(p => p.quarter.id === q.id));
+      // Apply extended boolean/string filters
+      if (modalGroundFloor) filtered = filtered.filter(q => q.floor_number === 0);
+      if (modalRecentlyRenovated) filtered = filtered.filter(q => q.renovation_status?.toLowerCase().includes('renovated'));
+      if (modalLocationArea.trim()) {
+        const la = modalLocationArea.trim().toLowerCase();
+        filtered = filtered.filter(q =>
+          q.location_area?.toLowerCase().includes(la) || q.region?.toLowerCase().includes(la)
+        );
+      }
+      if (modalWesternToilet) filtered = filtered.filter(q => q.toilet_western === true);
+      if (modalIndianToilet) filtered = filtered.filter(q => q.toilet_indian === true);
+      if (modalCarParking) filtered = filtered.filter(q => !!q.parking_details?.trim());
+      if (modalPoojaRoom) filtered = filtered.filter(q => q.pooja_room === true);
+      if (modalBalcony) filtered = filtered.filter(q => q.balcony === true);
+      if (modalKitchenExhaust) filtered = filtered.filter(q => q.kitchen_exhaust === true);
+      if (modalLiftAccess) filtered = filtered.filter(q => q.lift_access === true);
+      if (modalIndependentHouse) filtered = filtered.filter(q => q.housing_style?.toLowerCase().includes('independent'));
+      if (modalHousingStyle) filtered = filtered.filter(q => q.housing_style === modalHousingStyle);
       if (modalSortBy === 'rent_asc') filtered = [...filtered].sort((a, b) => a.monthly_rent - b.monthly_rent);
       else if (modalSortBy === 'rent_desc') filtered = [...filtered].sort((a, b) => b.monthly_rent - a.monthly_rent);
       setModalQuarters(filtered);
@@ -817,14 +847,26 @@ export const QuarterRequestsPage: React.FC = () => {
     } finally {
       setModalLoading(false);
     }
-  }, [modalSearch, modalBhk, modalFurnishing, modalSortBy, prefs, addToast]);
+  }, [
+    modalSearch, modalBhk, modalFurnishing, modalSortBy,
+    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+    modalWesternToilet, modalIndianToilet, modalCarParking,
+    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+    prefs, addToast,
+  ]);
 
   useEffect(() => {
     if (showNewModal) {
       const t = setTimeout(loadModalQuarters, 300);
       return () => clearTimeout(t);
     }
-  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy, loadModalQuarters]);
+  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy,
+    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+    modalWesternToilet, modalIndianToilet, modalCarParking,
+    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+    loadModalQuarters]);
 
   // Close filter popup on outside click
   useEffect(() => {
@@ -4241,6 +4283,30 @@ export const QuarterRequestsPage: React.FC = () => {
             setModalFurnishing={setModalFurnishing}
             modalSortBy={modalSortBy}
             setModalSortBy={setModalSortBy}
+            modalGroundFloor={modalGroundFloor}
+            setModalGroundFloor={setModalGroundFloor}
+            modalRecentlyRenovated={modalRecentlyRenovated}
+            setModalRecentlyRenovated={setModalRecentlyRenovated}
+            modalLocationArea={modalLocationArea}
+            setModalLocationArea={setModalLocationArea}
+            modalWesternToilet={modalWesternToilet}
+            setModalWesternToilet={setModalWesternToilet}
+            modalIndianToilet={modalIndianToilet}
+            setModalIndianToilet={setModalIndianToilet}
+            modalCarParking={modalCarParking}
+            setModalCarParking={setModalCarParking}
+            modalPoojaRoom={modalPoojaRoom}
+            setModalPoojaRoom={setModalPoojaRoom}
+            modalBalcony={modalBalcony}
+            setModalBalcony={setModalBalcony}
+            modalKitchenExhaust={modalKitchenExhaust}
+            setModalKitchenExhaust={setModalKitchenExhaust}
+            modalLiftAccess={modalLiftAccess}
+            setModalLiftAccess={setModalLiftAccess}
+            modalIndependentHouse={modalIndependentHouse}
+            setModalIndependentHouse={setModalIndependentHouse}
+            modalHousingStyle={modalHousingStyle}
+            setModalHousingStyle={setModalHousingStyle}
             modalFilterOpen={modalFilterOpen}
             setModalFilterOpen={setModalFilterOpen}
             modalFilterRef={modalFilterRef}
