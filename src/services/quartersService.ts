@@ -627,7 +627,18 @@ export const quartersService = {
   },
 
   async getRequestDocUrls(_requestId: string): Promise<{ name: string; url: string }[]> {
-    if (DEMO_MODE) return Promise.resolve([]);
+    if (DEMO_MODE) {
+      const DEMO_DOCS: Record<string, { name: string; url: string }[]> = {
+        'req-004': [
+          { name: 'Medical Certificate.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+          { name: 'Hospital Discharge Summary.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
+        'req-006': [
+          { name: 'Reference Letter - Ministry.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
+      };
+      return Promise.resolve(DEMO_DOCS[_requestId] ?? []);
+    }
     const requestId = _requestId;
     const { data, error } = await supabase.storage
       .from('quarter-docs')

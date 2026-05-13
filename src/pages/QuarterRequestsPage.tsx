@@ -3193,9 +3193,30 @@ export const QuarterRequestsPage: React.FC = () => {
                               </div>
                             )}
                             {req.employee_notes && (
-                              <div className="flex items-start gap-3 px-3 py-2">
+                              <div className={`flex items-start gap-3 px-3 py-2 ${(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 ? 'border-b border-gray-50' : ''}`}>
                                 <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-0.5">Remarks</span>
                                 <span className="text-amber-800 leading-snug">{req.employee_notes}</span>
+                              </div>
+                            )}
+                            {(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 && (
+                              <div className="flex items-start gap-3 px-3 py-2">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-1">Documents</span>
+                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                  {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={doc.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border transition-colors group ${req.request_type === 'MEDICAL' ? 'bg-rose-50 border-rose-100 hover:border-rose-300 hover:bg-rose-100' : 'bg-amber-50 border-amber-100 hover:border-amber-300 hover:bg-amber-100'}`}
+                                    >
+                                      <FileText size={11} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
+                                      <span className={`flex-1 text-[11px] font-medium truncate ${req.request_type === 'MEDICAL' ? 'text-rose-700' : 'text-amber-700'}`}>{doc.name}</span>
+                                      <Download size={10} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-400 group-hover:text-rose-600' : 'text-amber-400 group-hover:text-amber-600'}`} />
+                                    </a>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
