@@ -66,6 +66,7 @@ const RightPanelPreferences = React.lazy(() => import('../components/quarters/Em
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
+import { InspectionFormModal } from '../components/quarters/InspectionFormModal';
 import { buildDefaultChecklist } from '../constants/inspectionChecklist';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
@@ -403,7 +404,9 @@ export const QuarterRequestsPage: React.FC = () => {
   // New Inspection modal (Accepted DP filter)
   const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
   const [inspectRemarks, setInspectRemarks] = useState('');
+  const [inspectInspectorName, setInspectInspectorName] = useState('');
   const [inspectCondition, setInspectCondition] = useState('GOOD');
+  const [inspectChecklist, setInspectChecklist] = useState(() => buildDefaultChecklist());
   const [inspectSubmitting, setInspectSubmitting] = useState(false);
 
   // Quarter preview modal (photo click)
@@ -1599,13 +1602,19 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const handleStartAcceptedInspection = async () => {
     if (!inspectTarget?.allotment?.id || !user) return;
+    if (!inspectInspectorName.trim()) { addToast('Please enter inspector name', 'warning'); return; }
     setInspectSubmitting(true);
     try {
-      await quartersService.startInspection(inspectTarget.allotment.id, user.id, inspectRemarks);
+      const insp = await quartersService.startInspection(
+        inspectTarget.allotment.id, user.id, inspectRemarks, inspectInspectorName.trim()
+      );
+      await quartersService.saveChecklistItems(insp.id, inspectChecklist);
       addToast('Inspection started', 'success');
       setInspectTarget(null);
       setInspectRemarks('');
+      setInspectInspectorName('');
       setInspectCondition('GOOD');
+      setInspectChecklist(buildDefaultChecklist());
       loadData();
     } catch {
       addToast('Failed to start inspection', 'error');
@@ -3900,66 +3909,27 @@ export const QuarterRequestsPage: React.FC = () => {
 
       {/* ── New Inspection Modal (Accepted DP filter) ────────────────────── */}
       {inspectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 bg-sky-700 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                  <HardHat size={16} className="text-white" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white">New Inspection</div>
-                  <div className="text-[11px] text-sky-200">{inspectTarget.request_number} · {inspectTarget.allotment?.quarter?.quarter_number ?? '—'}</div>
-                </div>
-              </div>
-              <button onClick={() => setInspectTarget(null)} className="p-1.5 rounded-lg text-sky-200 hover:text-white hover:bg-white/10 transition-colors">
-                <X size={15} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Opening Remarks</label>
-                <textarea
-                  value={inspectRemarks}
-                  onChange={e => setInspectRemarks(e.target.value)}
-                  rows={3}
-                  placeholder="Describe the purpose of this inspection…"
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400 resize-none transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Initial Condition</label>
-                <div className="flex gap-2 flex-wrap">
-                  {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setInspectCondition(c)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${inspectCondition === c ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
-                    >
-                      {c.replace('_', ' ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="px-5 pb-5 flex gap-3">
-              <button
-                onClick={() => setInspectTarget(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleStartAcceptedInspection}
-                disabled={inspectSubmitting || !inspectRemarks.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <PlayCircle size={14} />
-                {inspectSubmitting ? 'Starting…' : 'Start Inspection'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InspectionFormModal
+          requestRef={inspectTarget.request_number}
+          quarterRef={inspectTarget.allotment?.quarter?.quarter_number ?? undefined}
+          inspectorName={inspectInspectorName}
+          openingRemarks={inspectRemarks}
+          condition={inspectCondition}
+          checklist={inspectChecklist}
+          submitting={inspectSubmitting}
+          onInspectorNameChange={setInspectInspectorName}
+          onOpeningRemarksChange={setInspectRemarks}
+          onConditionChange={setInspectCondition}
+          onChecklistChange={setInspectChecklist}
+          onClose={() => {
+            setInspectTarget(null);
+            setInspectRemarks('');
+            setInspectInspectorName('');
+            setInspectCondition('GOOD');
+            setInspectChecklist(buildDefaultChecklist());
+          }}
+          onSubmit={handleStartAcceptedInspection}
+        />
       )}
 
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
