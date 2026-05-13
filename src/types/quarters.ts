@@ -165,6 +165,8 @@ export interface QuarterTenantRequest {
   urgency_level: string;
   retention_reason: string;
   requested_months: number | null;
+  upgrade_mode: 'AUTO' | 'SELECTED' | null;
+  target_quarter_id: string | null;
   created_at: string;
   updated_at: string;
   allotment?: QuarterAllotment;
@@ -181,6 +183,8 @@ export interface CreateTenantRequestInput {
   urgency_level?: string;
   retention_reason?: string;
   requested_months?: number | null;
+  upgrade_mode?: 'AUTO' | 'SELECTED';
+  target_quarter_id?: string | null;
 }
 
 export interface QuarterFilters {

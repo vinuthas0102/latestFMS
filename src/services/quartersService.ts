@@ -426,6 +426,8 @@ export const quartersService = {
         urgency_level: input.urgency_level ?? 'NORMAL',
         retention_reason: input.retention_reason ?? '',
         requested_months: input.requested_months ?? null,
+        upgrade_mode: input.upgrade_mode ?? null,
+        target_quarter_id: input.target_quarter_id ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -448,6 +450,8 @@ export const quartersService = {
         urgency_level: input.urgency_level ?? 'NORMAL',
         retention_reason: input.retention_reason ?? '',
         requested_months: input.requested_months ?? null,
+        upgrade_mode: input.upgrade_mode ?? null,
+        target_quarter_id: input.target_quarter_id ?? null,
       })
       .select()
       .single();

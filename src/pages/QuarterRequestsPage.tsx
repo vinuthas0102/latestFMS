@@ -72,6 +72,7 @@ import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
+import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -388,7 +389,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
 
   // Right-panel action state
-  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'upgrade' | 'vacate';
+  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'vacate';
   const [rightAction, setRightAction] = useState<RightAction>(null);
   const [actionRemarks, setActionRemarks] = useState('');
   const [actionReason, setActionReason] = useState('');
@@ -547,6 +548,43 @@ export const QuarterRequestsPage: React.FC = () => {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
+
+  // ─── Upgrade Request Modal ─────────────────────────────────────────────────
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
+  const [upgradeModalLoading, setUpgradeModalLoading] = useState(false);
+
+  const openUpgradeModal = async () => {
+    setShowUpgradeModal(true);
+    setUpgradeModalLoading(true);
+    try {
+      const quarters = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });
+      setUpgradeModalQuarters(quarters);
+    } catch {
+      setUpgradeModalQuarters([]);
+    } finally {
+      setUpgradeModalLoading(false);
+    }
+  };
+
+  const handleUpgradeSubmit = async (input: {
+    reason: string; remarks: string; required_bhk_config: string; move_in_date: string;
+    document_url?: string; upgrade_mode: 'AUTO' | 'SELECTED'; target_quarter_id: string | null;
+  }) => {
+    if (!user || !selectedRequest?.allotment) return;
+    await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, {
+      service_type: 'UPGRADE',
+      reason: input.reason,
+      remarks: input.remarks,
+      document_url: input.document_url,
+      required_bhk_config: input.required_bhk_config || undefined,
+      upgrade_mode: input.upgrade_mode,
+      target_quarter_id: input.target_quarter_id,
+    });
+    addToast('Upgrade request submitted successfully', 'success');
+    setShowUpgradeModal(false);
+    loadData();
+  };
 
   // ─── shared file-upload helper ──────────────────────────────────────────────
 
@@ -1001,7 +1039,7 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to reject', 'error'); } finally { setActionSubmitting(false); }
   };
 
-  const handleTenantRequest = async (serviceType: 'EXTEND' | 'UPGRADE' | 'VACATE') => {
+  const handleTenantRequest = async (serviceType: 'EXTEND' | 'VACATE') => {
     if (!user || !selectedRequest?.allotment) return;
     if (!actionReason.trim()) { addToast('Please provide a reason', 'warning'); return; }
     setActionSubmitting(true);
@@ -1009,7 +1047,6 @@ export const QuarterRequestsPage: React.FC = () => {
       const input: CreateTenantRequestInput = {
         service_type: serviceType, remarks: actionRemarks, reason: actionReason,
         document_url: actionDocUrl?.name || undefined, requested_date: actionDate || null,
-        required_bhk_config: actionBhk || undefined,
       };
       await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, input);
       addToast('Request submitted successfully', 'success');
@@ -2813,13 +2850,12 @@ export const QuarterRequestsPage: React.FC = () => {
                     setActionRemarks={setActionRemarks}
                     actionDate={actionDate}
                     setActionDate={setActionDate}
-                    actionBhk={actionBhk}
-                    setActionBhk={setActionBhk}
                     actionDocUrl={actionDocUrl}
                     setActionDocUrl={setActionDocUrl}
                     actionSubmitting={actionSubmitting}
                     resetActionForm={resetActionForm}
                     handleTenantRequest={handleTenantRequest}
+                    onUpgradeClick={openUpgradeModal}
                     openActionPopup={openActionPopup as any}
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
@@ -3863,7 +3899,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                 Extension/Retention
                               </button>
                               <button
-                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); openUpgradeModal(); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
@@ -4298,6 +4334,19 @@ export const QuarterRequestsPage: React.FC = () => {
           />
         );
       })()}
+
+      {/* ── Upgrade Request Modal ─────────────────────────────────────── */}
+      {showUpgradeModal && (
+        <UpgradeRequestModal
+          user={user}
+          currentQuarter={selectedRequest?.allotment?.quarter ?? null}
+          availableQuarters={upgradeModalQuarters}
+          quartersLoading={upgradeModalLoading}
+          onClose={() => setShowUpgradeModal(false)}
+          onSubmit={handleUpgradeSubmit}
+          addToast={addToast}
+        />
+      )}
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (

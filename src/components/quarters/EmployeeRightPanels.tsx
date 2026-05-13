@@ -213,13 +213,12 @@ interface RightPanelOccupiedProps extends PanelBase {
   setActionRemarks: (v: string) => void;
   actionDate: string;
   setActionDate: (v: string) => void;
-  actionBhk: string;
-  setActionBhk: (v: string) => void;
   actionDocUrl: File | null;
   setActionDocUrl: (f: File | null) => void;
   actionSubmitting: boolean;
   resetActionForm: () => void;
-  handleTenantRequest: (type: 'EXTEND' | 'VACATE' | 'UPGRADE') => void;
+  handleTenantRequest: (type: 'EXTEND' | 'VACATE') => void;
+  onUpgradeClick: () => void;
   openActionPopup: (type: 'GRIEVANCE' | 'MAINTENANCE' | 'VACATE', requestId: string, allotmentId: string) => void;
   setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
   setPreviewQuarterId: (id: string | null) => void;
@@ -243,8 +242,8 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   chatSubmitting, handleSendChat, handleCloseService,
   rightAction, setRightAction, actionReason, setActionReason,
   actionRemarks, setActionRemarks, actionDate, setActionDate,
-  actionBhk, setActionBhk, actionDocUrl, setActionDocUrl,
-  actionSubmitting, resetActionForm, handleTenantRequest, openActionPopup,
+  actionDocUrl, setActionDocUrl,
+  actionSubmitting, resetActionForm, handleTenantRequest, onUpgradeClick, openActionPopup,
   setServiceChats, setPreviewQuarterId, setIsPreviewOpen,
   isEO = false,
   initialTab,
@@ -714,7 +713,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
                 )}
                 {!hasActiveSvc && (
                   <button
-                    onClick={() => setRightAction('upgrade')}
+                    onClick={() => onUpgradeClick()}
                     className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
                   >
                     <ArrowRightCircle size={14} /><span>Upgrade</span>
@@ -784,29 +783,6 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
           );
         })()}
 
-        {rightAction === 'upgrade' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
-              <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
-              <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-              <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
-            </div>
-            <DocUpload value={actionDocUrl} onChange={setActionDocUrl} label="Document" optional />
-            <div className="flex gap-2 pt-1">
-              <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
-                {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       </div>
       )}
