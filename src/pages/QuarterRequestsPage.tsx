@@ -609,18 +609,20 @@ export const QuarterRequestsPage: React.FC = () => {
     */
   }, [selectedServiceId]);
 
-  // Load allotment chats when an allotted request is selected
+  // Load allotment chats when a request is selected
   useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
     const s = selectedRequest?.request_status;
-    const hasAllotment = s ? (isAllottedStatus(s) || isOccupiedStatus(s)) : false;
-    if (!allotmentId || !hasAllotment) return;
+    if (!s || !selectedRequest) return;
+    const isDraftOrSubmitted = s === 'DRAFT' || s === 'SUBMITTED';
+    const hasAllotment = isAllottedStatus(s) || isOccupiedStatus(s);
+    if (!isDraftOrSubmitted && !hasAllotment) return;
+    const chatKey = isDraftOrSubmitted ? selectedRequest.id : (selectedRequest.allotment?.id ?? selectedRequest.id);
     /* DEMO_MODE: service call disabled
-    quartersService.getAllotmentChats(allotmentId).then(chats => {
-      setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
+    quartersService.getAllotmentChats(chatKey).then(chats => {
+      setAllotmentChats(prev => ({ ...prev, [chatKey]: chats }));
     }).catch(() => {});
     */
-  }, [selectedRequest?.allotment?.id, selectedRequest?.request_status]);
+  }, [selectedRequest?.id, selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
@@ -2678,12 +2680,18 @@ export const QuarterRequestsPage: React.FC = () => {
               const s = selectedRequest.request_status;
               if (s === 'DRAFT') return (
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
-                  <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal} />
+                  <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal}
+                    allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat} />
                 </Suspense>
               );
               if (s === 'SUBMITTED') return (
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
-                  <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw} />
+                  <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw}
+                    allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat} />
                 </Suspense>
               );
               const panelFallback = <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
@@ -2728,6 +2736,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <RightPanelOccupied
                     panelControls={controls}
                     selectedRequest={selectedRequest}
+                    isEO={isEO}
                     tenantRequests={tenantRequests}
                     serviceChats={serviceChats}
                     selectedServiceId={selectedServiceId}
@@ -2871,10 +2880,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
                           {/* Row 1: req no (left) + status badge (right) */}
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            {!isOccupied
-                              ? <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">{req.request_number}</span>
-                              : <span />
-                            }
+                            <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">{req.request_number}</span>
                             <div className="flex items-center gap-1 shrink-0">
                               {req.sub_status === 'DECLINED' && (
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>

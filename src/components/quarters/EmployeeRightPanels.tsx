@@ -224,6 +224,7 @@ interface RightPanelOccupiedProps extends PanelBase {
   setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
   setPreviewQuarterId: (id: string | null) => void;
   setIsPreviewOpen: (v: boolean) => void;
+  isEO?: boolean;
   // Chat tab
   initialTab?: 'services' | 'chat';
   allotmentChats?: Record<string, QuarterAllotmentChat[]>;
@@ -245,7 +246,8 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   actionBhk, setActionBhk, actionDocUrl, setActionDocUrl,
   actionSubmitting, resetActionForm, handleTenantRequest, openActionPopup,
   setServiceChats, setPreviewQuarterId, setIsPreviewOpen,
-  initialTab = 'services',
+  isEO = false,
+  initialTab,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
@@ -253,7 +255,8 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
   const allotmentChatFileRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(initialTab);
+  const resolvedInitialTab: 'services' | 'chat' = initialTab ?? (isEO ? 'services' : 'chat');
+  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(resolvedInitialTab);
 
   if (!selectedRequest?.allotment) return null;
   const allotment = selectedRequest.allotment;
@@ -610,12 +613,14 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         >
           <Send size={12} /> Chat
         </button>
-        <button
-          onClick={() => setActiveTab('services')}
-          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <Wrench size={12} /> Services
-        </button>
+        {isEO && (
+          <button
+            onClick={() => setActiveTab('services')}
+            className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <Wrench size={12} /> Services
+          </button>
+        )}
       </div>
 
       {/* Chat tab */}
@@ -826,9 +831,20 @@ export const RightPanelDraft: React.FC<{
   loadData: () => void;
   setSelectedRequest: (req: QuarterRequest | null) => void;
   openNewModal: (req: QuarterRequest) => void;
+  allotmentChats?: Record<string, QuarterAllotmentChat[]>;
+  allotmentChatMessage?: string;
+  setAllotmentChatMessage?: (v: string) => void;
+  allotmentChatFile?: File | null;
+  setAllotmentChatFile?: (f: File | null) => void;
+  allotmentChatSubmitting?: boolean;
+  handleSendAllotmentChat?: () => void;
 }> = ({
   panelControls, selectedRequest, addToast, loadData, setSelectedRequest, openNewModal,
+  allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
+  allotmentChatFile = null, setAllotmentChatFile,
+  allotmentChatSubmitting = false, handleSendAllotmentChat,
 }) => {
+  const draftChatFileRef = useRef<HTMLInputElement>(null);
   const [draftForm, setDraftForm] = useState({
     request_reason: selectedRequest.request_reason ?? '',
     request_type: (selectedRequest.request_type ?? 'GENERAL') as 'GENERAL' | 'MEDICAL' | 'REFERENCE',
@@ -965,6 +981,55 @@ export const RightPanelDraft: React.FC<{
             })}
           </div>
         )}
+      </div>
+
+      {/* Chat with Estate Officer */}
+      <div className="border-t border-gray-100">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
+          {(allotmentChats[selectedRequest.id] ?? []).length > 0 && (
+            <span className="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{(allotmentChats[selectedRequest.id] ?? []).length}</span>
+          )}
+        </div>
+        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+          {[...(allotmentChats[selectedRequest.id] ?? [])].reverse().map(chat => (
+            <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+          ))}
+          {(allotmentChats[selectedRequest.id] ?? []).length === 0 && (
+            <div className="flex flex-col items-center justify-center py-6">
+              <Send size={16} className="text-amber-300 mb-1.5" />
+              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            </div>
+          )}
+        </div>
+        <div className="px-4 pb-4 pt-3 bg-white">
+          {allotmentChatFile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+              <FileText size={13} className="text-blue-500 shrink-0" />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+              <button type="button" onClick={() => setAllotmentChatFile?.(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button type="button" onClick={() => draftChatFileRef.current?.click()}
+              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50 transition-colors">
+              <Paperclip size={15} />
+            </button>
+            <input ref={draftChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
+            <textarea value={allotmentChatMessage}
+              onChange={e => setAllotmentChatMessage?.(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
+              rows={1} placeholder="Message the Estate Officer… (Enter to send)"
+              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 bg-white leading-relaxed transition-colors"
+              style={{ minHeight: '40px', maxHeight: '80px' }} />
+            <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+              className="flex-none p-2.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+              <Send size={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-2">
@@ -1119,42 +1184,108 @@ export const RightPanelSubmitted: React.FC<{
   selectedRequest: QuarterRequest;
   user: UserDTO | null;
   handleWithdraw: (requestId: string) => void;
-}> = ({ panelControls, selectedRequest, user, handleWithdraw }) => (
-  <>
-    <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
-        <Send size={16} className="text-white" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
-        <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
-      </div>
-      <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
-        Submitted {fmtDate(selectedRequest.created_at)}
-      </span>
-      {panelControls}
-    </div>
+  allotmentChats?: Record<string, QuarterAllotmentChat[]>;
+  allotmentChatMessage?: string;
+  setAllotmentChatMessage?: (v: string) => void;
+  allotmentChatFile?: File | null;
+  setAllotmentChatFile?: (f: File | null) => void;
+  allotmentChatSubmitting?: boolean;
+  handleSendAllotmentChat?: () => void;
+}> = ({
+  panelControls, selectedRequest, user, handleWithdraw,
+  allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
+  allotmentChatFile = null, setAllotmentChatFile,
+  allotmentChatSubmitting = false, handleSendAllotmentChat,
+}) => {
+  const submittedChatFileRef = useRef<HTMLInputElement>(null);
+  const chats = allotmentChats[selectedRequest.id] ?? [];
 
-    <div className="mx-5 mt-4 mb-1 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-      <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
-      <div>
-        <div className="text-xs font-semibold text-blue-800">Request under review</div>
-        <div className="text-[11px] text-blue-600 mt-0.5 leading-relaxed">
-          Your request has been submitted and is pending review by the Estate Officer. You will be notified once a decision is made.
+  return (
+    <>
+      <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+          <Send size={16} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
+          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+        </div>
+        <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
+          Submitted {fmtDate(selectedRequest.created_at)}
+        </span>
+        {panelControls}
+      </div>
+
+      <div className="mx-5 mt-4 mb-1 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
+        <div>
+          <div className="text-xs font-semibold text-blue-800">Request under review</div>
+          <div className="text-[11px] text-blue-600 mt-0.5 leading-relaxed">
+            Your request has been submitted and is pending review by the Estate Officer. You will be notified once a decision is made.
+          </div>
         </div>
       </div>
-    </div>
 
-    <RequestSummaryBlock req={selectedRequest} user={user} />
+      <RequestSummaryBlock req={selectedRequest} user={user} />
 
-    <div className="px-5 py-4">
-      <button
-        onClick={() => handleWithdraw(selectedRequest.id)}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-      >
-        <XCircle size={15} /> Withdraw Request
-      </button>
-      <p className="text-[10px] text-gray-400 text-center mt-2">Withdrawing will permanently cancel this request.</p>
-    </div>
-  </>
-);
+      {/* Chat with Estate Officer */}
+      <div className="border-t border-gray-100 mt-2">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
+          {chats.length > 0 && (
+            <span className="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{chats.length}</span>
+          )}
+        </div>
+        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+          {[...chats].reverse().map(chat => (
+            <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+          ))}
+          {chats.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-6">
+              <Send size={16} className="text-blue-300 mb-1.5" />
+              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            </div>
+          )}
+        </div>
+        <div className="px-4 pb-4 pt-3 bg-white">
+          {allotmentChatFile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+              <FileText size={13} className="text-blue-500 shrink-0" />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+              <button type="button" onClick={() => setAllotmentChatFile?.(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button type="button" onClick={() => submittedChatFileRef.current?.click()}
+              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+              <Paperclip size={15} />
+            </button>
+            <input ref={submittedChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
+            <textarea value={allotmentChatMessage}
+              onChange={e => setAllotmentChatMessage?.(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
+              rows={1} placeholder="Message the Estate Officer… (Enter to send)"
+              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 bg-white leading-relaxed transition-colors"
+              style={{ minHeight: '40px', maxHeight: '80px' }} />
+            <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+              className="flex-none p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+              <Send size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-gray-100">
+        <button
+          onClick={() => handleWithdraw(selectedRequest.id)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+        >
+          <XCircle size={15} /> Withdraw Request
+        </button>
+        <p className="text-[10px] text-gray-400 text-center mt-2">Withdrawing will permanently cancel this request.</p>
+      </div>
+    </>
+  );
+};
