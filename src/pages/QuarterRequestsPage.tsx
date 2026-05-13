@@ -2683,7 +2683,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal}
                     allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
                     allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
-                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat} />
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat}
+                    scrollToChat={chatOpenForId === selectedRequest.id} />
                 </Suspense>
               );
               if (s === 'SUBMITTED') return (
@@ -2691,7 +2692,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw}
                     allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
                     allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
-                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat} />
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat}
+                    scrollToChat={chatOpenForId === selectedRequest.id} />
                 </Suspense>
               );
               const panelFallback = <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;

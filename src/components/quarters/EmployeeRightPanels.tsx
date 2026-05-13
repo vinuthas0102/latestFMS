@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle, Send, Paperclip, X, FileText, ChevronLeft, Clock,
   ThumbsUp, Bell, Wrench, RefreshCw, ArrowRightCircle, LogOut, IndianRupee,
@@ -838,13 +838,21 @@ export const RightPanelDraft: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
+  scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, addToast, loadData, setSelectedRequest, openNewModal,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
-  allotmentChatSubmitting = false, handleSendAllotmentChat,
+  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
 }) => {
   const draftChatFileRef = useRef<HTMLInputElement>(null);
+  const draftChatSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollToChat && draftChatSectionRef.current) {
+      draftChatSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [scrollToChat]);
   const [draftForm, setDraftForm] = useState({
     request_reason: selectedRequest.request_reason ?? '',
     request_type: (selectedRequest.request_type ?? 'GENERAL') as 'GENERAL' | 'MEDICAL' | 'REFERENCE',
@@ -984,7 +992,7 @@ export const RightPanelDraft: React.FC<{
       </div>
 
       {/* Chat with Estate Officer */}
-      <div className="border-t border-gray-100">
+      <div ref={draftChatSectionRef} className="border-t border-gray-100">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
           {(allotmentChats[selectedRequest.id] ?? []).length > 0 && (
@@ -1191,14 +1199,22 @@ export const RightPanelSubmitted: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
+  scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, user, handleWithdraw,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
-  allotmentChatSubmitting = false, handleSendAllotmentChat,
+  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
 }) => {
   const submittedChatFileRef = useRef<HTMLInputElement>(null);
+  const submittedChatSectionRef = useRef<HTMLDivElement>(null);
   const chats = allotmentChats[selectedRequest.id] ?? [];
+
+  useEffect(() => {
+    if (scrollToChat && submittedChatSectionRef.current) {
+      submittedChatSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [scrollToChat]);
 
   return (
     <>
@@ -1229,7 +1245,7 @@ export const RightPanelSubmitted: React.FC<{
       <RequestSummaryBlock req={selectedRequest} user={user} />
 
       {/* Chat with Estate Officer */}
-      <div className="border-t border-gray-100 mt-2">
+      <div ref={submittedChatSectionRef} className="border-t border-gray-100 mt-2">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
           {chats.length > 0 && (
