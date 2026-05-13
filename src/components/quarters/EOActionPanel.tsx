@@ -13,6 +13,7 @@ import {
 } from '../../services/quartersService';
 import { UserDTO } from '../../types';
 import { QuarterOverrideModal } from './QuarterOverrideModal';
+import { InspectionFormModal } from './InspectionFormModal';
 import {
   fmtINR, fmtDate, statusConfig, isAllottedStatus, isOccupiedStatus,
   ChatBubble, CompactQuarterRow, RequestSummaryBlock, getImage,
@@ -94,6 +95,12 @@ export interface EOActionPanelProps {
   setInspectionPanel: (v: 'list' | 'chat' | 'new') => void;
   inspectionOpeningRemark: string;
   setInspectionOpeningRemark: (v: string) => void;
+  inspectionInspectorName: string;
+  setInspectionInspectorName: (v: string) => void;
+  inspectionInitialCondition: string;
+  setInspectionInitialCondition: (v: string) => void;
+  inspectionChecklist: import('../../constants/inspectionChecklist').ChecklistItemDraft[];
+  setInspectionChecklist: (items: import('../../constants/inspectionChecklist').ChecklistItemDraft[]) => void;
   inspectionChatMsg: string;
   setInspectionChatMsg: (v: string) => void;
   inspectionSubmitting: boolean;
@@ -217,6 +224,12 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   setInspectionCloseRemarks,
   inspectionCondition,
   setInspectionCondition,
+  inspectionInspectorName,
+  setInspectionInspectorName,
+  inspectionInitialCondition,
+  setInspectionInitialCondition,
+  inspectionChecklist,
+  setInspectionChecklist,
   handleStartInspection,
   handleSendInspectionChat,
   handleCloseInspection,
@@ -626,21 +639,21 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
               </>
             )}
             {inspectionPanel === 'new' && (
-              <div className="space-y-3">
-                <button onClick={() => setInspectionPanel('list')} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
-                  <ArrowLeft size={12} />Back
-                </button>
-                <textarea
-                  value={inspectionOpeningRemark}
-                  onChange={e => setInspectionOpeningRemark(e.target.value)}
-                  rows={4}
-                  placeholder="Opening remarks / inspection purpose…"
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
-                />
-                <button onClick={handleStartInspection} disabled={inspectionSubmitting || !inspectionOpeningRemark.trim()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                  <PlayCircle size={14} />{inspectionSubmitting ? 'Starting…' : 'Start Inspection'}
-                </button>
-              </div>
+              <InspectionFormModal
+                requestRef={selectedRequest.request_no ?? undefined}
+                quarterRef={selectedRequest.allotment?.quarter?.quarter_number ?? undefined}
+                inspectorName={inspectionInspectorName}
+                openingRemarks={inspectionOpeningRemark}
+                condition={inspectionInitialCondition}
+                checklist={inspectionChecklist}
+                submitting={inspectionSubmitting}
+                onInspectorNameChange={setInspectionInspectorName}
+                onOpeningRemarksChange={setInspectionOpeningRemark}
+                onConditionChange={setInspectionInitialCondition}
+                onChecklistChange={setInspectionChecklist}
+                onClose={() => setInspectionPanel('list')}
+                onSubmit={handleStartInspection}
+              />
             )}
             {inspectionPanel === 'chat' && selectedInspectionId && (
               <div className="space-y-3">

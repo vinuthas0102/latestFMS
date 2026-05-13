@@ -66,6 +66,7 @@ const RightPanelPreferences = React.lazy(() => import('../components/quarters/Em
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
+import { buildDefaultChecklist } from '../constants/inspectionChecklist';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
@@ -285,6 +286,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [inspectionPanel, setInspectionPanel] = useState<'list' | 'chat' | 'new'>('list');
   const [inspectionOpeningRemark, setInspectionOpeningRemark] = useState('');
+  const [inspectionInspectorName, setInspectionInspectorName] = useState('');
+  const [inspectionInitialCondition, setInspectionInitialCondition] = useState('GOOD');
+  const [inspectionChecklist, setInspectionChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
   const [inspectionChatMsg, setInspectionChatMsg] = useState('');
   const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
@@ -527,7 +531,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [popupUrgency, setPopupUrgency] = useState('NORMAL');
   const [popupSubmitting, setPopupSubmitting] = useState(false);
   const [popupInspectorName, setPopupInspectorName] = useState('');
-  const [popupCondition, setPopupCondition] = useState('');
+  const [popupOpeningRemarks, setPopupOpeningRemarks] = useState('');
+  const [popupChecklist, setPopupChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
+  const [popupCondition, setPopupCondition] = useState('GOOD');
   const [popupKeyNumber, setPopupKeyNumber] = useState('');
   const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
   const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
@@ -1168,8 +1174,13 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       if (actionPopup.type === 'INSPECTION') {
         if (!popupInspectorName.trim()) { addToast('Please enter inspector name', 'warning'); setPopupSubmitting(false); return; }
-        await quartersService.startInspection(actionPopup.allotmentId, user.id, popupInspectorName.trim() + (popupCondition ? ` — Condition: ${popupCondition}` : '') + (popupRemarks ? ` — ${popupRemarks}` : ''));
+        const insp = await quartersService.startInspection(actionPopup.allotmentId, user.id, popupOpeningRemarks, popupInspectorName.trim());
+        await quartersService.saveChecklistItems(insp.id, popupChecklist);
         addToast('Inspection started', 'success');
+        setPopupInspectorName('');
+        setPopupOpeningRemarks('');
+        setPopupChecklist(buildDefaultChecklist());
+        setPopupCondition('GOOD');
         closeActionPopup();
         loadData();
         return;
@@ -1478,14 +1489,27 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // ─── EO: Start inspection ─────────────────────────────────────────────────
   const handleStartInspection = async () => {
-    if (!user || !selectedRequest?.allotment?.id || !inspectionOpeningRemark.trim()) {
-      addToast('Please provide opening remarks', 'warning'); return;
+    if (!user || !selectedRequest?.allotment?.id) {
+      addToast('No allotment selected', 'warning'); return;
+    }
+    if (!inspectionInspectorName.trim()) {
+      addToast('Please enter inspector name', 'warning'); return;
     }
     setInspectionSubmitting(true);
     try {
-      const insp = await quartersService.startInspection(selectedRequest.allotment.id, user.id, inspectionOpeningRemark);
+      const insp = await quartersService.startInspection(
+        selectedRequest.allotment.id,
+        user.id,
+        inspectionOpeningRemark,
+        inspectionInspectorName,
+      );
+      // Persist checklist items
+      await quartersService.saveChecklistItems(insp.id, inspectionChecklist);
       addToast('Inspection started', 'success');
       setInspectionOpeningRemark('');
+      setInspectionInspectorName('');
+      setInspectionInitialCondition('GOOD');
+      setInspectionChecklist(buildDefaultChecklist());
       setInspectionPanel('chat');
       setSelectedInspectionId(insp.id);
       const list = await quartersService.getInspections(selectedRequest.allotment.id);
@@ -2637,6 +2661,12 @@ export const QuarterRequestsPage: React.FC = () => {
                   setInspectionPanel={setInspectionPanel}
                   inspectionOpeningRemark={inspectionOpeningRemark}
                   setInspectionOpeningRemark={setInspectionOpeningRemark}
+                  inspectionInspectorName={inspectionInspectorName}
+                  setInspectionInspectorName={setInspectionInspectorName}
+                  inspectionInitialCondition={inspectionInitialCondition}
+                  setInspectionInitialCondition={setInspectionInitialCondition}
+                  inspectionChecklist={inspectionChecklist}
+                  setInspectionChecklist={setInspectionChecklist}
                   inspectionChatMsg={inspectionChatMsg}
                   setInspectionChatMsg={setInspectionChatMsg}
                   inspectionSubmitting={inspectionSubmitting}
@@ -4266,7 +4296,9 @@ export const QuarterRequestsPage: React.FC = () => {
             subject={popupSubject}
             urgency={popupUrgency}
             inspectorName={popupInspectorName}
+            openingRemarks={popupOpeningRemarks}
             condition={popupCondition}
+            checklist={popupChecklist}
             keyNumber={popupKeyNumber}
             handoverDeadline={popupHandoverDeadline}
             retentionReason={popupRetentionReason}
@@ -4277,9 +4309,11 @@ export const QuarterRequestsPage: React.FC = () => {
             onDocChange={setPopupDocUrl}
             onDateChange={setPopupDate}
             onSubjectChange={setPopupSubject}
-            onUrgencyChange={setPopupUrgency}
+            onUrgencyChange={setPopupUrgency as (v: 'LOW' | 'NORMAL' | 'HIGH') => void}
             onInspectorNameChange={setPopupInspectorName}
+            onOpeningRemarksChange={setPopupOpeningRemarks}
             onConditionChange={setPopupCondition}
+            onChecklistChange={setPopupChecklist}
             onKeyNumberChange={setPopupKeyNumber}
             onHandoverDeadlineChange={setPopupHandoverDeadline}
             onRetentionReasonChange={setPopupRetentionReason}

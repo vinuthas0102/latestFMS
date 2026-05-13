@@ -288,11 +288,25 @@ export interface QuarterInspection {
   allotment_id: string;
   created_by: string;
   status: string;
+  inspector_name: string;
   opening_remarks: string;
   closing_remarks: string;
   property_condition: string;
   created_at: string;
   closed_at: string | null;
+}
+
+export interface QuarterInspectionChecklistItem {
+  id: string;
+  inspection_id: string;
+  category: 'CIVIL' | 'ELECTRICAL';
+  item_name: string;
+  default_qty: number | null;
+  actual_qty: number | null;
+  qty_label: string | null;
+  is_checked: boolean;
+  remarks: string;
+  created_at: string;
 }
 
 export interface QuarterInspectionChat {

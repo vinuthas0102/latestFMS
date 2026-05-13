@@ -1,11 +1,13 @@
 import React, { useRef, useState } from 'react';
 import {
-  RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key,
+  RefreshCw, LogOut, AlertCircle, Wrench, Key,
   CalendarDays, Info, Paperclip, X, ChevronDown, ChevronUp,
   Building2, FileText, CheckCircle2,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DocUpload } from '../ui/DocUpload';
+import { InspectionFormModal } from './InspectionFormModal';
+import type { ChecklistItemDraft } from '../../constants/inspectionChecklist';
 
 type ActionType = 'EXTEND' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'INSPECTION' | 'HANDOVER';
 
@@ -33,7 +35,9 @@ interface Props {
   subject: string;
   urgency: 'LOW' | 'NORMAL' | 'HIGH';
   inspectorName: string;
+  openingRemarks: string;
   condition: string;
+  checklist: ChecklistItemDraft[];
   keyNumber: string;
   handoverDeadline: string;
   retentionReason: string;
@@ -46,7 +50,9 @@ interface Props {
   onSubjectChange: (v: string) => void;
   onUrgencyChange: (v: 'LOW' | 'NORMAL' | 'HIGH') => void;
   onInspectorNameChange: (v: string) => void;
+  onOpeningRemarksChange: (v: string) => void;
   onConditionChange: (v: string) => void;
+  onChecklistChange: (items: ChecklistItemDraft[]) => void;
   onKeyNumberChange: (v: string) => void;
   onHandoverDeadlineChange: (v: string) => void;
   onRetentionReasonChange: (v: string) => void;
@@ -390,14 +396,35 @@ function ExtendForm({
 export function ActionPopupModal({
   actionPopup, onClose, onSubmit, submitting,
   reason, remarks, docUrl, date, subject, urgency,
-  inspectorName, condition, keyNumber, handoverDeadline,
+  inspectorName, openingRemarks, condition, checklist, keyNumber, handoverDeadline,
   retentionReason, requestedMonths, allotmentInfo,
   onReasonChange, onRemarksChange, onDocChange, onDateChange,
   onSubjectChange, onUrgencyChange, onInspectorNameChange,
-  onConditionChange, onKeyNumberChange, onHandoverDeadlineChange,
+  onOpeningRemarksChange, onConditionChange, onChecklistChange,
+  onKeyNumberChange, onHandoverDeadlineChange,
   onRetentionReasonChange, onRequestedMonthsChange,
 }: Props) {
   const type = actionPopup.type;
+
+  if (type === 'INSPECTION') {
+    return (
+      <InspectionFormModal
+        requestRef={actionPopup.requestId ?? undefined}
+        quarterRef={undefined}
+        inspectorName={inspectorName}
+        openingRemarks={openingRemarks}
+        condition={condition}
+        checklist={checklist}
+        submitting={submitting}
+        onInspectorNameChange={onInspectorNameChange}
+        onOpeningRemarksChange={onOpeningRemarksChange}
+        onConditionChange={onConditionChange}
+        onChecklistChange={onChecklistChange}
+        onClose={onClose}
+        onSubmit={onSubmit}
+      />
+    );
+  }
 
   if (type === 'EXTEND') {
     return (
@@ -429,7 +456,6 @@ export function ActionPopupModal({
         const cfg = TYPE_CONFIG[type];
         const isGrievance   = type === 'GRIEVANCE';
         const isMaintenance = type === 'MAINTENANCE';
-        const isInspection  = type === 'INSPECTION';
         const isHandover    = type === 'HANDOVER';
 
         return (
@@ -443,38 +469,6 @@ export function ActionPopupModal({
                 <X size={16} />
               </button>
             </div>
-
-            {isInspection && (
-              <>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Inspector Name *</label>
-                  <input value={inspectorName} onChange={e => onInspectorNameChange(e.target.value)}
-                    placeholder="Name of the inspecting officer"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Property Condition</label>
-                  <div className="flex gap-2">
-                    {(['Good', 'Fair', 'Poor'] as const).map(c => (
-                      <button key={c} onClick={() => onConditionChange(c)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
-                          condition === c
-                            ? c === 'Good' ? 'bg-emerald-600 text-white border-emerald-600' : c === 'Poor' ? 'bg-red-600 text-white border-red-600' : 'bg-amber-500 text-white border-amber-500'
-                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
-                        }`}>
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Opening Remarks</label>
-                  <textarea value={remarks} onChange={e => onRemarksChange(e.target.value)} rows={2}
-                    placeholder="Any initial observations…"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-                </div>
-              </>
-            )}
 
             {isHandover && (
               <>
@@ -516,7 +510,7 @@ export function ActionPopupModal({
               </>
             )}
 
-            {!isInspection && !isHandover && (
+            {!isHandover && (
               <>
                 {isGrievance && (
                   <div>
