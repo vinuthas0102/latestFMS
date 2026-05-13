@@ -24,6 +24,7 @@ import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import { QuarterCard } from '../components/quarters/QuarterCard';
 import { VIEW_MODE_OPTIONS } from '../components/ui/ViewModeIcons';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
+import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 
 // ── Role-aware welcome banner config ────────────────────────────
 
@@ -370,7 +371,7 @@ export const QuarterFreeviewPage: React.FC = () => {
                 },
                 {
                   key: 'bhk',
-                  label: 'BHK Config',
+                  label: 'Quarter Type',
                   type: 'chips',
                   value: sidebarFilters.bhkConfigs.length === 1 ? sidebarFilters.bhkConfigs[0] : 'all',
                   onChange: (v) => setSidebarFilters(prev => ({
@@ -379,10 +380,7 @@ export const QuarterFreeviewPage: React.FC = () => {
                   })),
                   options: [
                     { value: 'all', label: 'All' },
-                    { value: '1BHK', label: '1BHK' },
-                    { value: '2BHK', label: '2BHK' },
-                    { value: '3BHK', label: '3BHK' },
-                    { value: '4BHK', label: '4BHK' },
+                    ...QUARTER_TYPE_OPTIONS.map(t => ({ value: t, label: t })),
                   ],
                 },
               ]}

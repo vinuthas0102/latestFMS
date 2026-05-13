@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Quarter } from '../../services/quartersService';
 import { MiniMapComponent } from '../maps/MiniMapComponent';
+import { QUARTER_TYPE_OPTIONS } from '../../utils/quarterDisplay';
 
 export type QuarterSortOrder = 'default' | 'rent_asc' | 'rent_desc' | 'area_desc';
 
@@ -42,7 +43,6 @@ interface QuarterFilterSidebarProps {
 }
 
 const QUARTER_TYPES = ['Type-I', 'Type-II', 'Type-III', 'Type-IV', 'Type-V', 'Type-VI'];
-const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK'];
 const FURNISHING_OPTIONS = ['Unfurnished', 'Semi-Furnished', 'Furnished'];
 
 const SORT_OPTIONS: { value: QuarterSortOrder; label: string }[] = [
@@ -345,11 +345,11 @@ export const QuarterFilterSidebar: React.FC<QuarterFilterSidebarProps> = ({
           </div>
         </div>
 
-        {/* BHK Configuration */}
+        {/* Quarter Type */}
         <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">BHK configuration</label>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Quarter Type</label>
           <div className="space-y-2">
-            {BHK_OPTIONS.map((b) => (
+            {QUARTER_TYPE_OPTIONS.map((b) => (
               <CheckboxRow
                 key={b}
                 checked={filters.bhkConfigs.includes(b)}

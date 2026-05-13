@@ -626,7 +626,7 @@ export const QuarterManagerPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Sl. No.', 'Quarter', 'Request No.', 'BHK / Rent', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
+                      {['Sl. No.', 'Quarter', 'Request No.', 'Type / Rent', 'Pref Used', 'Allotted On', 'Overridden', 'Status', ''].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -712,7 +712,7 @@ export const QuarterManagerPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Request No.', 'Quarter', 'BHK / Location', 'Move-in', 'Family', 'Status',
+                      {['Request No.', 'Quarter', 'Type / Location', 'Move-in', 'Family', 'Status',
                         dpFilter === 'allotted_pending' ? 'Override' : dpFilter === 'accepted' ? 'Actions' : 'Updated'
                       ].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>

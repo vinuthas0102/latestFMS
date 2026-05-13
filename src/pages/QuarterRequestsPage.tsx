@@ -69,6 +69,7 @@ import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 import { InspectionFormModal } from '../components/quarters/InspectionFormModal';
 import { buildDefaultChecklist } from '../constants/inspectionChecklist';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
+import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 
@@ -2153,7 +2154,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             <div className="font-semibold text-gray-800 text-sm">{req.request_reason || '—'}</div>
                           </div>
                           <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
-                            <div className="text-[10px] text-gray-400 mb-0.5">BHK Required</div>
+                            <div className="text-[10px] text-gray-400 mb-0.5">Quarter Type Required</div>
                             <div className="font-semibold text-gray-800">{req.required_bhk_config || '—'}</div>
                           </div>
                           <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
@@ -2449,16 +2450,13 @@ export const QuarterRequestsPage: React.FC = () => {
                   },
                   {
                     key: 'bhk',
-                    label: 'BHK Config',
+                    label: 'Quarter Type',
                     type: 'chips',
                     value: avqBhkFilter,
                     onChange: setAvqBhkFilter,
                     options: [
                       { value: 'ALL', label: 'Any' },
-                      { value: '1BHK', label: '1 BHK' },
-                      { value: '2BHK', label: '2 BHK' },
-                      { value: '3BHK', label: '3 BHK' },
-                      { value: '4BHK', label: '4 BHK' },
+                      ...QUARTER_TYPE_OPTIONS.map(t => ({ value: t, label: t })),
                     ],
                   },
                 ]}
@@ -2562,23 +2560,20 @@ export const QuarterRequestsPage: React.FC = () => {
                       key: 'search',
                       label: 'Search',
                       type: 'text',
-                      placeholder: 'Request no., BHK, location…',
+                      placeholder: 'Request no., type, location…',
                       value: reqSearch,
                       onChange: setReqSearch,
                       icon: <Search size={14} />,
                     },
                     {
                       key: 'bhk',
-                      label: 'BHK Config',
+                      label: 'Quarter Type',
                       type: 'chips',
                       value: reqBhkFilter,
                       onChange: setReqBhkFilter,
                       options: [
                         { value: 'ALL', label: 'Any' },
-                        { value: '1BHK', label: '1 BHK' },
-                        { value: '2BHK', label: '2 BHK' },
-                        { value: '3BHK', label: '3 BHK' },
-                        { value: '4BHK', label: '4 BHK' },
+                        ...QUARTER_TYPE_OPTIONS.map(t => ({ value: t, label: t })),
                       ],
                     },
                     {
@@ -2942,7 +2937,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
                             const reqDetails: { label: string; value: React.ReactNode }[] = [
                               { label: 'Request Type', value: <span className={`text-[9.5px] border px-1 py-0.5 rounded font-semibold ${rtb.cls}`}>{rtb.label}</span> },
-                              ...(req.required_bhk_config ? [{ label: 'BHK Config', value: req.required_bhk_config }] : []),
+                              ...(req.required_bhk_config ? [{ label: 'Quarter Type', value: req.required_bhk_config }] : []),
                               ...(req.preferred_location ? [{ label: 'Pref. Location', value: req.preferred_location }] : []),
                               ...(req.move_in_date ? [{ label: 'Move-in Date', value: fmtDate(req.move_in_date) }] : []),
                               ...(req.employee_id ? [{ label: 'Emp ID', value: req.employee_id }] : []),
@@ -4055,14 +4050,14 @@ export const QuarterRequestsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-gray-700 mb-2">Search</label>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Number, BHK, location…" value={reqSearch} onChange={e => setReqSearch(e.target.value)}
+              <input type="text" placeholder="Number, type, location…" value={reqSearch} onChange={e => setReqSearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">BHK Config</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
             <div className="flex flex-wrap gap-2">
-              {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+              {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                 <button key={v} onClick={() => setReqBhkFilter(v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                   {v === 'ALL' ? 'Any' : v}
@@ -4126,9 +4121,9 @@ export const QuarterRequestsPage: React.FC = () => {
       >
         <div className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">BHK Config</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
             <div className="flex flex-wrap gap-2">
-              {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+              {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                 <button key={v} onClick={() => setAvqBhkFilter(v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                   {v === 'ALL' ? 'Any' : v}

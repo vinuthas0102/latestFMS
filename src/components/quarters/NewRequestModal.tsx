@@ -9,6 +9,7 @@ import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { UserDTO } from '../../types';
+import { QUARTER_TYPE_OPTIONS } from '../../utils/quarterDisplay';
 
 // Types needed
 type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
@@ -436,11 +437,11 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
 
                 {modalFilterOpen && (
                   <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl border border-gray-200 shadow-xl z-50 p-4 space-y-4">
-                    {/* BHK */}
+                    {/* Quarter Type */}
                     <div>
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">BHK</div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quarter Type</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {['', '1 BHK', '2 BHK', '4 BHK'].map(v => (
+                        {(['', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                           <button key={v} onClick={() => setModalBhk(v)}
                             className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
                               modalBhk === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
