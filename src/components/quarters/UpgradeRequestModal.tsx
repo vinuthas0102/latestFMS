@@ -437,6 +437,3 @@ const ComparisonCard: React.FC<{ quarter: Quarter; index: number; variant: 'from
     </div>
   </div>
 );
-
-
-export { UpgradeRequestModal }
