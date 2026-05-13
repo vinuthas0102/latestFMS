@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
-  RefreshCw, LogOut, AlertCircle, Wrench, Key,
+  RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key,
   CalendarDays, Info, Paperclip, X, ChevronDown, ChevronUp,
   Building2, FileText, CheckCircle2,
 } from 'lucide-react';
