@@ -917,78 +917,11 @@ export const RightPanelDraft: React.FC<{
           <FileText size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Edit Draft Request</div>
+          <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Draft Request</div>
           <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
         </div>
         <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">Draft</span>
         {panelControls}
-      </div>
-
-      <div className="p-5 space-y-4 border-b border-gray-100">
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason *</label>
-          <textarea value={draftForm.request_reason} onChange={e => setDraftForm(f => ({ ...f, request_reason: e.target.value }))} rows={3} placeholder="e.g. Transfer-in" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Type of Request *</label>
-          <select value={draftForm.request_type} onChange={e => setDraftForm(f => ({ ...f, request_type: e.target.value as 'GENERAL' | 'MEDICAL' | 'REFERENCE' }))}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
-            <option value="GENERAL">General</option>
-            <option value="MEDICAL">Medical</option>
-            <option value="REFERENCE">Reference</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
-            <input value={draftForm.preferred_location} onChange={e => setDraftForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Move-in Date</label>
-            <input type="date" value={draftForm.move_in_date} onChange={e => setDraftForm(f => ({ ...f, move_in_date: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks</label>
-          <textarea value={draftForm.employee_notes} onChange={e => setDraftForm(f => ({ ...f, employee_notes: e.target.value }))} rows={2} placeholder="Any additional remarks" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
-        </div>
-      </div>
-
-      <div className="p-5 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preferences</div>
-          <button onClick={() => openNewModal(selectedRequest)} className="flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
-            <Plus size={12} /> Add / Reorder
-          </button>
-        </div>
-        {draftPrefs.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <Star size={24} className="mx-auto mb-1 opacity-30" />
-            <p className="text-xs">No preferences added yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {draftPrefs.map(pref => {
-              const pq = pref.quarter as Quarter | undefined;
-              return (
-                <div key={pref.id} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                  <span className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
-                    {pq && (
-                      <div className="flex items-center flex-wrap gap-x-1 text-[10px] text-gray-400 mt-0.5">
-                        {pq.quarter_type && <span>{pq.quarter_type}</span>}
-                        {pq.block_name && <span>· Blk {pq.block_name}</span>}
-                        {pq.floor_number != null && <span>· Fl. {pq.floor_number}</span>}
-                        {pq.housing_style && <span>· {pq.housing_style}</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Chat with Estate Officer */}
@@ -1040,17 +973,6 @@ export const RightPanelDraft: React.FC<{
         </div>
       </div>
 
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-2">
-        <button onClick={handleUpdate} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors">
-          {draftSubmitting ? 'Saving…' : 'Update'}
-        </button>
-        <button onClick={handleSubmitDraft} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-          <span className="flex items-center justify-center gap-1.5"><Send size={13} /> Submit</span>
-        </button>
-        <button onClick={handleCancelDraft} disabled={draftSubmitting} className="py-2 px-3 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors">
-          Cancel
-        </button>
-      </div>
     </>
   );
 };
@@ -1242,8 +1164,6 @@ export const RightPanelSubmitted: React.FC<{
         </div>
       </div>
 
-      <RequestSummaryBlock req={selectedRequest} user={user} />
-
       {/* Chat with Estate Officer */}
       <div ref={submittedChatSectionRef} className="border-t border-gray-100 mt-2">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
@@ -1293,15 +1213,6 @@ export const RightPanelSubmitted: React.FC<{
         </div>
       </div>
 
-      <div className="px-5 py-4 border-t border-gray-100">
-        <button
-          onClick={() => handleWithdraw(selectedRequest.id)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-        >
-          <XCircle size={15} /> Withdraw Request
-        </button>
-        <p className="text-[10px] text-gray-400 text-center mt-2">Withdrawing will permanently cancel this request.</p>
-      </div>
     </>
   );
 };
