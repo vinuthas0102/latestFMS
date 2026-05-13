@@ -9,6 +9,7 @@ import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { UserDTO } from '../../types';
+import { QUARTER_TYPE_OPTIONS } from '../../utils/quarterDisplay';
 
 // Types needed
 type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
@@ -88,6 +89,30 @@ export interface NewRequestModalProps {
   setModalFurnishing: (v: string) => void;
   modalSortBy: string;
   setModalSortBy: (v: string) => void;
+  modalGroundFloor: boolean;
+  setModalGroundFloor: (v: boolean) => void;
+  modalRecentlyRenovated: boolean;
+  setModalRecentlyRenovated: (v: boolean) => void;
+  modalLocationArea: string;
+  setModalLocationArea: (v: string) => void;
+  modalWesternToilet: boolean;
+  setModalWesternToilet: (v: boolean) => void;
+  modalIndianToilet: boolean;
+  setModalIndianToilet: (v: boolean) => void;
+  modalCarParking: boolean;
+  setModalCarParking: (v: boolean) => void;
+  modalPoojaRoom: boolean;
+  setModalPoojaRoom: (v: boolean) => void;
+  modalBalcony: boolean;
+  setModalBalcony: (v: boolean) => void;
+  modalKitchenExhaust: boolean;
+  setModalKitchenExhaust: (v: boolean) => void;
+  modalLiftAccess: boolean;
+  setModalLiftAccess: (v: boolean) => void;
+  modalIndependentHouse: boolean;
+  setModalIndependentHouse: (v: boolean) => void;
+  modalHousingStyle: string;
+  setModalHousingStyle: (v: string) => void;
   modalFilterOpen: boolean;
   setModalFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   modalFilterRef: React.RefObject<HTMLDivElement>;
@@ -142,7 +167,20 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
     form, setForm, prefs, addPref, removePref, movePref,
     modalQuarters, modalSearch, setModalSearch, modalLoading,
     modalBhk, setModalBhk, modalFurnishing, setModalFurnishing,
-    modalSortBy, setModalSortBy, modalFilterOpen, setModalFilterOpen, modalFilterRef,
+    modalSortBy, setModalSortBy,
+    modalGroundFloor, setModalGroundFloor,
+    modalRecentlyRenovated, setModalRecentlyRenovated,
+    modalLocationArea, setModalLocationArea,
+    modalWesternToilet, setModalWesternToilet,
+    modalIndianToilet, setModalIndianToilet,
+    modalCarParking, setModalCarParking,
+    modalPoojaRoom, setModalPoojaRoom,
+    modalBalcony, setModalBalcony,
+    modalKitchenExhaust, setModalKitchenExhaust,
+    modalLiftAccess, setModalLiftAccess,
+    modalIndependentHouse, setModalIndependentHouse,
+    modalHousingStyle, setModalHousingStyle,
+    modalFilterOpen, setModalFilterOpen, modalFilterRef,
     requestFor, setRequestFor, selectedEmployee, setSelectedEmployee,
     showEmployeePicker, setShowEmployeePicker, employeeSearch, setEmployeeSearch,
     employeeDeptFilter, setEmployeeDeptFilter,
@@ -174,16 +212,28 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           <h1 className="text-base font-bold text-gray-900">New Allotment Request</h1>
         </div>
         {user && (
-          <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl shrink-0">
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
               {user.fullName?.charAt(0) ?? 'U'}
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-blue-900 truncate">{user.fullName}</div>
-              <div className="text-[10px] text-blue-500 truncate">
-                {user.govtDepartment && <span>{user.govtDepartment}</span>}
-                {user.govtEmployeeId && <span className="ml-1 font-mono">· {user.govtEmployeeId}</span>}
-              </div>
+            <div className="text-left leading-snug">
+              <div className="text-[13px] font-semibold text-blue-900 whitespace-nowrap leading-tight">{user.fullName}</div>
+              <div className="text-[11px] text-blue-500 whitespace-nowrap leading-tight">{user.govtDepartment || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">EMP ID</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.govtEmployeeId || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">Location</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.projectLocation || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">SAP ID</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.sapId || '—'}</div>
             </div>
           </div>
         )}
@@ -419,85 +469,165 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               </h2>
               {/* Filter icon + popup */}
               <div className="relative" ref={modalFilterRef}>
-                <button
-                  onClick={() => setModalFilterOpen(v => !v)}
-                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                    (modalBhk || modalFurnishing || modalSortBy)
-                      ? 'bg-blue-50 border-blue-200 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Filter size={13} />
-                  Filters
-                  {(modalBhk || modalFurnishing || modalSortBy) && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 absolute -top-0.5 -right-0.5" />
-                  )}
-                </button>
-
-                {modalFilterOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl border border-gray-200 shadow-xl z-50 p-4 space-y-4">
-                    {/* BHK */}
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">BHK</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['', '1 BHK', '2 BHK', '4 BHK'].map(v => (
-                          <button key={v} onClick={() => setModalBhk(v)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                              modalBhk === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                            }`}>
-                            {v || 'Any'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Furnishing */}
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Furnishing</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['', 'Furnished', 'Semi-Furnished', 'Unfurnished'].map(v => (
-                          <button key={v} onClick={() => setModalFurnishing(v)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                              modalFurnishing === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                            }`}>
-                            {v || 'Any'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Sort */}
-                    <div>
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sort by</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          { value: '', label: 'Default' },
-                          { value: 'rent_asc', label: 'Rent ↑' },
-                          { value: 'rent_desc', label: 'Rent ↓' },
-                        ].map(({ value, label }) => (
-                          <button key={value} onClick={() => setModalSortBy(value)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                              modalSortBy === value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                            }`}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                      <button onClick={() => { setModalBhk(''); setModalFurnishing(''); setModalSortBy(''); }}
-                        className="text-xs text-gray-500 hover:text-gray-800 transition-colors">
-                        Clear all
+                {(() => {
+                  const hasExtendedFilters = modalGroundFloor || modalRecentlyRenovated || !!modalLocationArea.trim() ||
+                    modalWesternToilet || modalIndianToilet || modalCarParking || modalPoojaRoom ||
+                    modalBalcony || modalKitchenExhaust || modalLiftAccess || modalIndependentHouse || !!modalHousingStyle;
+                  const hasAnyFilter = !!(modalBhk || modalFurnishing || modalSortBy) || hasExtendedFilters;
+                  return (
+                    <>
+                      <button
+                        onClick={() => setModalFilterOpen(v => !v)}
+                        className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                          hasAnyFilter
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Filter size={13} />
+                        Filters
+                        {hasAnyFilter && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 absolute -top-0.5 -right-0.5" />
+                        )}
                       </button>
-                      <button onClick={() => setModalFilterOpen(false)}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                        Done
-                      </button>
-                    </div>
-                  </div>
-                )}
+
+                      {modalFilterOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-gray-200 shadow-xl z-50 flex flex-col" style={{ maxHeight: '80vh' }}>
+                          <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+                            <div className="text-xs font-bold text-gray-700">Filter Quarters</div>
+                          </div>
+                          <div className="overflow-y-auto flex-1 p-4 space-y-4">
+
+                            {/* Quarter Type */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Quarter Type</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {(['', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
+                                  <button key={v} onClick={() => setModalBhk(v)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                      modalBhk === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                    }`}>
+                                    {v || 'Any'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Furnishing */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Furnishing</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {['', 'Furnished', 'Semi-Furnished', 'Unfurnished'].map(v => (
+                                  <button key={v} onClick={() => setModalFurnishing(v)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                      modalFurnishing === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                    }`}>
+                                    {v || 'Any'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Location / Area */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Location (Region) / Area</div>
+                              <input
+                                value={modalLocationArea}
+                                onChange={e => setModalLocationArea(e.target.value)}
+                                placeholder="e.g. North Delhi, Sector 5…"
+                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                              />
+                            </div>
+
+                            {/* Housing Style */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Housing Style</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {['', 'Apartment', 'Independent', 'Row House', 'Duplex', 'Studio'].map(v => (
+                                  <button key={v} onClick={() => setModalHousingStyle(v)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                      modalHousingStyle === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                    }`}>
+                                    {v || 'Any'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Amenities & Features — toggles */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities &amp; Features</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {([
+                                  { label: 'Ground Floor Access', value: modalGroundFloor, set: setModalGroundFloor },
+                                  { label: 'Recently Renovated', value: modalRecentlyRenovated, set: setModalRecentlyRenovated },
+                                  { label: 'Western Toilet', value: modalWesternToilet, set: setModalWesternToilet },
+                                  { label: 'Indian Toilet', value: modalIndianToilet, set: setModalIndianToilet },
+                                  { label: 'Dedicated Car Parking', value: modalCarParking, set: setModalCarParking },
+                                  { label: 'Pooja Room', value: modalPoojaRoom, set: setModalPoojaRoom },
+                                  { label: 'Sitting Balcony', value: modalBalcony, set: setModalBalcony },
+                                  { label: 'Kitchen Exhaust Fan', value: modalKitchenExhaust, set: setModalKitchenExhaust },
+                                  { label: 'Lift Required', value: modalLiftAccess, set: setModalLiftAccess },
+                                  { label: 'Independent House', value: modalIndependentHouse, set: setModalIndependentHouse },
+                                ] as { label: string; value: boolean; set: (v: boolean) => void }[]).map(({ label, value, set }) => (
+                                  <button
+                                    key={label}
+                                    onClick={() => set(!value)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                      value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Sort */}
+                            <div>
+                              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Sort by</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  { value: '', label: 'Default' },
+                                  { value: 'rent_asc', label: 'Rent ↑' },
+                                  { value: 'rent_desc', label: 'Rent ↓' },
+                                ].map(({ value, label }) => (
+                                  <button key={value} onClick={() => setModalSortBy(value)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                      modalSortBy === value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                    }`}>
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl shrink-0">
+                            <button onClick={() => {
+                              setModalBhk(''); setModalFurnishing(''); setModalSortBy('');
+                              setModalGroundFloor(false); setModalRecentlyRenovated(false);
+                              setModalLocationArea(''); setModalWesternToilet(false);
+                              setModalIndianToilet(false); setModalCarParking(false);
+                              setModalPoojaRoom(false); setModalBalcony(false);
+                              setModalKitchenExhaust(false); setModalLiftAccess(false);
+                              setModalIndependentHouse(false); setModalHousingStyle('');
+                            }}
+                              className="text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                              Clear all
+                            </button>
+                            <button onClick={() => setModalFilterOpen(false)}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -506,7 +636,10 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               <input value={modalSearch} onChange={e => setModalSearch(e.target.value)} placeholder="Search by number, block, address…"
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
-            {(modalBhk || modalFurnishing || modalSortBy) && (
+            {(modalBhk || modalFurnishing || modalSortBy || modalGroundFloor || modalRecentlyRenovated ||
+              !!modalLocationArea.trim() || modalWesternToilet || modalIndianToilet || modalCarParking ||
+              modalPoojaRoom || modalBalcony || modalKitchenExhaust || modalLiftAccess ||
+              modalIndependentHouse || !!modalHousingStyle) && (
               <div className="text-xs text-blue-600 font-medium mt-2">· filters active</div>
             )}
           </div>

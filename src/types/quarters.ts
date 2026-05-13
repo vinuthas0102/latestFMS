@@ -163,6 +163,10 @@ export interface QuarterTenantRequest {
   eo_notes: string;
   grievance_subject: string;
   urgency_level: string;
+  retention_reason: string;
+  requested_months: number | null;
+  upgrade_mode: 'AUTO' | 'SELECTED' | null;
+  target_quarter_id: string | null;
   created_at: string;
   updated_at: string;
   allotment?: QuarterAllotment;
@@ -177,6 +181,10 @@ export interface CreateTenantRequestInput {
   required_bhk_config?: string;
   grievance_subject?: string;
   urgency_level?: string;
+  retention_reason?: string;
+  requested_months?: number | null;
+  upgrade_mode?: 'AUTO' | 'SELECTED';
+  target_quarter_id?: string | null;
 }
 
 export interface QuarterFilters {
@@ -284,11 +292,25 @@ export interface QuarterInspection {
   allotment_id: string;
   created_by: string;
   status: string;
+  inspector_name: string;
   opening_remarks: string;
   closing_remarks: string;
   property_condition: string;
   created_at: string;
   closed_at: string | null;
+}
+
+export interface QuarterInspectionChecklistItem {
+  id: string;
+  inspection_id: string;
+  category: 'CIVIL' | 'ELECTRICAL';
+  item_name: string;
+  default_qty: number | null;
+  actual_qty: number | null;
+  qty_label: string | null;
+  is_checked: boolean;
+  remarks: string;
+  created_at: string;
 }
 
 export interface QuarterInspectionChat {

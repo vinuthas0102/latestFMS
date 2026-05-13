@@ -17,6 +17,13 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+const ChipField: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
+  <div className="text-left leading-none">
+    <div className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">{label}</div>
+    <div className="text-[12px] font-semibold text-gray-800 whitespace-nowrap mt-0.5">{value || '—'}</div>
+  </div>
+);
+
 export const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -24,7 +31,6 @@ export const Header: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
-
   const handleLogout = async () => {
     await logout();
     navigate(ROUTES.LOGIN);
@@ -195,6 +201,14 @@ export const Header: React.FC = () => {
                     <div className="text-[11px] text-gray-500 whitespace-nowrap leading-tight">
                       {ROLE_LABELS[user.role]}
                     </div>
+                  </div>
+                  {/* Always-visible identity fields */}
+                  <div className="hidden sm:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                    <ChipField label="EMP ID" value={user.govtEmployeeId} />
+                    <div className="w-px h-6 bg-gray-200 mx-2" />
+                    <ChipField label="Location" value={user.projectLocation} />
+                    <div className="w-px h-6 bg-gray-200 mx-2" />
+                    <ChipField label="SAP ID" value={user.sapId} />
                   </div>
                 </div>
 

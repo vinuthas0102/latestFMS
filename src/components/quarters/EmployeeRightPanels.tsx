@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle, Send, Paperclip, X, FileText, ChevronLeft, Clock,
   ThumbsUp, Bell, Wrench, RefreshCw, ArrowRightCircle, LogOut, IndianRupee,
@@ -213,17 +213,17 @@ interface RightPanelOccupiedProps extends PanelBase {
   setActionRemarks: (v: string) => void;
   actionDate: string;
   setActionDate: (v: string) => void;
-  actionBhk: string;
-  setActionBhk: (v: string) => void;
   actionDocUrl: File | null;
   setActionDocUrl: (f: File | null) => void;
   actionSubmitting: boolean;
   resetActionForm: () => void;
-  handleTenantRequest: (type: 'EXTEND' | 'VACATE' | 'UPGRADE') => void;
+  handleTenantRequest: (type: 'EXTEND' | 'VACATE') => void;
+  onUpgradeClick: () => void;
   openActionPopup: (type: 'GRIEVANCE' | 'MAINTENANCE' | 'VACATE', requestId: string, allotmentId: string) => void;
   setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
   setPreviewQuarterId: (id: string | null) => void;
   setIsPreviewOpen: (v: boolean) => void;
+  isEO?: boolean;
   // Chat tab
   initialTab?: 'services' | 'chat';
   allotmentChats?: Record<string, QuarterAllotmentChat[]>;
@@ -242,10 +242,11 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   chatSubmitting, handleSendChat, handleCloseService,
   rightAction, setRightAction, actionReason, setActionReason,
   actionRemarks, setActionRemarks, actionDate, setActionDate,
-  actionBhk, setActionBhk, actionDocUrl, setActionDocUrl,
-  actionSubmitting, resetActionForm, handleTenantRequest, openActionPopup,
+  actionDocUrl, setActionDocUrl,
+  actionSubmitting, resetActionForm, handleTenantRequest, onUpgradeClick, openActionPopup,
   setServiceChats, setPreviewQuarterId, setIsPreviewOpen,
-  initialTab = 'services',
+  isEO = false,
+  initialTab,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
@@ -253,7 +254,8 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
   const allotmentChatFileRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(initialTab);
+  const resolvedInitialTab: 'services' | 'chat' = initialTab ?? (isEO ? 'services' : 'chat');
+  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(resolvedInitialTab);
 
   if (!selectedRequest?.allotment) return null;
   const allotment = selectedRequest.allotment;
@@ -610,12 +612,14 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         >
           <Send size={12} /> Chat
         </button>
-        <button
-          onClick={() => setActiveTab('services')}
-          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <Wrench size={12} /> Services
-        </button>
+        {isEO && (
+          <button
+            onClick={() => setActiveTab('services')}
+            className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <Wrench size={12} /> Services
+          </button>
+        )}
       </div>
 
       {/* Chat tab */}
@@ -709,7 +713,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
                 )}
                 {!hasActiveSvc && (
                   <button
-                    onClick={() => setRightAction('upgrade')}
+                    onClick={() => onUpgradeClick()}
                     className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
                   >
                     <ArrowRightCircle size={14} /><span>Upgrade</span>
@@ -779,29 +783,6 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
           );
         })()}
 
-        {rightAction === 'upgrade' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold text-sky-700 flex items-center gap-1.5"><ArrowRightCircle size={14} /> Upgrade Quarter</span>
-              <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Required BHK Config *</label>
-              <input value={actionBhk} onChange={e => setActionBhk(e.target.value)} placeholder="e.g. 3 BHK" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-              <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for upgrade…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none" />
-            </div>
-            <DocUpload value={actionDocUrl} onChange={setActionDocUrl} label="Document" optional />
-            <div className="flex gap-2 pt-1">
-              <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={() => handleTenantRequest('UPGRADE')} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50 transition-colors">
-                {actionSubmitting ? 'Submitting…' : 'Submit Upgrade Request'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       </div>
       )}
@@ -826,9 +807,28 @@ export const RightPanelDraft: React.FC<{
   loadData: () => void;
   setSelectedRequest: (req: QuarterRequest | null) => void;
   openNewModal: (req: QuarterRequest) => void;
+  allotmentChats?: Record<string, QuarterAllotmentChat[]>;
+  allotmentChatMessage?: string;
+  setAllotmentChatMessage?: (v: string) => void;
+  allotmentChatFile?: File | null;
+  setAllotmentChatFile?: (f: File | null) => void;
+  allotmentChatSubmitting?: boolean;
+  handleSendAllotmentChat?: () => void;
+  scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, addToast, loadData, setSelectedRequest, openNewModal,
+  allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
+  allotmentChatFile = null, setAllotmentChatFile,
+  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
 }) => {
+  const draftChatFileRef = useRef<HTMLInputElement>(null);
+  const draftChatSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollToChat && draftChatSectionRef.current) {
+      draftChatSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [scrollToChat]);
   const [draftForm, setDraftForm] = useState({
     request_reason: selectedRequest.request_reason ?? '',
     request_type: (selectedRequest.request_type ?? 'GENERAL') as 'GENERAL' | 'MEDICAL' | 'REFERENCE',
@@ -893,91 +893,62 @@ export const RightPanelDraft: React.FC<{
           <FileText size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Edit Draft Request</div>
+          <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Draft Request</div>
           <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
         </div>
         <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">Draft</span>
         {panelControls}
       </div>
 
-      <div className="p-5 space-y-4 border-b border-gray-100">
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Request Reason *</label>
-          <textarea value={draftForm.request_reason} onChange={e => setDraftForm(f => ({ ...f, request_reason: e.target.value }))} rows={3} placeholder="e.g. Transfer-in" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
+      {/* Chat with Estate Officer */}
+      <div ref={draftChatSectionRef} className="border-t border-gray-100">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
+          {(allotmentChats[selectedRequest.id] ?? []).length > 0 && (
+            <span className="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{(allotmentChats[selectedRequest.id] ?? []).length}</span>
+          )}
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Type of Request *</label>
-          <select value={draftForm.request_type} onChange={e => setDraftForm(f => ({ ...f, request_type: e.target.value as 'GENERAL' | 'MEDICAL' | 'REFERENCE' }))}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
-            <option value="GENERAL">General</option>
-            <option value="MEDICAL">Medical</option>
-            <option value="REFERENCE">Reference</option>
-          </select>
+        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+          {[...(allotmentChats[selectedRequest.id] ?? [])].reverse().map(chat => (
+            <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+          ))}
+          {(allotmentChats[selectedRequest.id] ?? []).length === 0 && (
+            <div className="flex flex-col items-center justify-center py-6">
+              <Send size={16} className="text-amber-300 mb-1.5" />
+              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            </div>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Preferred Location</label>
-            <input value={draftForm.preferred_location} onChange={e => setDraftForm(f => ({ ...f, preferred_location: e.target.value }))} placeholder="e.g. Block A" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
+        <div className="px-4 pb-4 pt-3 bg-white">
+          {allotmentChatFile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+              <FileText size={13} className="text-blue-500 shrink-0" />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+              <button type="button" onClick={() => setAllotmentChatFile?.(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button type="button" onClick={() => draftChatFileRef.current?.click()}
+              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50 transition-colors">
+              <Paperclip size={15} />
+            </button>
+            <input ref={draftChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
+            <textarea value={allotmentChatMessage}
+              onChange={e => setAllotmentChatMessage?.(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
+              rows={1} placeholder="Message the Estate Officer… (Enter to send)"
+              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 bg-white leading-relaxed transition-colors"
+              style={{ minHeight: '40px', maxHeight: '80px' }} />
+            <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+              className="flex-none p-2.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+              <Send size={15} />
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Move-in Date</label>
-            <input type="date" value={draftForm.move_in_date} onChange={e => setDraftForm(f => ({ ...f, move_in_date: e.target.value }))} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks</label>
-          <textarea value={draftForm.employee_notes} onChange={e => setDraftForm(f => ({ ...f, employee_notes: e.target.value }))} rows={2} placeholder="Any additional remarks" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none" />
         </div>
       </div>
 
-      <div className="p-5 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preferences</div>
-          <button onClick={() => openNewModal(selectedRequest)} className="flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
-            <Plus size={12} /> Add / Reorder
-          </button>
-        </div>
-        {draftPrefs.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <Star size={24} className="mx-auto mb-1 opacity-30" />
-            <p className="text-xs">No preferences added yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {draftPrefs.map(pref => {
-              const pq = pref.quarter as Quarter | undefined;
-              return (
-                <div key={pref.id} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                  <span className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{pref.preference_rank}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-gray-800">{pq?.quarter_number ?? '—'}</span>
-                    {pq && (
-                      <div className="flex items-center flex-wrap gap-x-1 text-[10px] text-gray-400 mt-0.5">
-                        {pq.quarter_type && <span>{pq.quarter_type}</span>}
-                        {pq.block_name && <span>· Blk {pq.block_name}</span>}
-                        {pq.floor_number != null && <span>· Fl. {pq.floor_number}</span>}
-                        {pq.housing_style && <span>· {pq.housing_style}</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-2">
-        <button onClick={handleUpdate} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors">
-          {draftSubmitting ? 'Saving…' : 'Update'}
-        </button>
-        <button onClick={handleSubmitDraft} disabled={draftSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-          <span className="flex items-center justify-center gap-1.5"><Send size={13} /> Submit</span>
-        </button>
-        <button onClick={handleCancelDraft} disabled={draftSubmitting} className="py-2 px-3 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors">
-          Cancel
-        </button>
-      </div>
     </>
   );
 };
@@ -1119,42 +1090,105 @@ export const RightPanelSubmitted: React.FC<{
   selectedRequest: QuarterRequest;
   user: UserDTO | null;
   handleWithdraw: (requestId: string) => void;
-}> = ({ panelControls, selectedRequest, user, handleWithdraw }) => (
-  <>
-    <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
-        <Send size={16} className="text-white" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
-        <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
-      </div>
-      <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
-        Submitted {fmtDate(selectedRequest.created_at)}
-      </span>
-      {panelControls}
-    </div>
+  allotmentChats?: Record<string, QuarterAllotmentChat[]>;
+  allotmentChatMessage?: string;
+  setAllotmentChatMessage?: (v: string) => void;
+  allotmentChatFile?: File | null;
+  setAllotmentChatFile?: (f: File | null) => void;
+  allotmentChatSubmitting?: boolean;
+  handleSendAllotmentChat?: () => void;
+  scrollToChat?: boolean;
+}> = ({
+  panelControls, selectedRequest, user, handleWithdraw,
+  allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
+  allotmentChatFile = null, setAllotmentChatFile,
+  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
+}) => {
+  const submittedChatFileRef = useRef<HTMLInputElement>(null);
+  const submittedChatSectionRef = useRef<HTMLDivElement>(null);
+  const chats = allotmentChats[selectedRequest.id] ?? [];
 
-    <div className="mx-5 mt-4 mb-1 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-      <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
-      <div>
-        <div className="text-xs font-semibold text-blue-800">Request under review</div>
-        <div className="text-[11px] text-blue-600 mt-0.5 leading-relaxed">
-          Your request has been submitted and is pending review by the Estate Officer. You will be notified once a decision is made.
+  useEffect(() => {
+    if (scrollToChat && submittedChatSectionRef.current) {
+      submittedChatSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [scrollToChat]);
+
+  return (
+    <>
+      <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+          <Send size={16} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
+          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+        </div>
+        <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
+          Submitted {fmtDate(selectedRequest.created_at)}
+        </span>
+        {panelControls}
+      </div>
+
+      <div className="mx-5 mt-4 mb-1 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
+        <div>
+          <div className="text-xs font-semibold text-blue-800">Request under review</div>
+          <div className="text-[11px] text-blue-600 mt-0.5 leading-relaxed">
+            Your request has been submitted and is pending review by the Estate Officer. You will be notified once a decision is made.
+          </div>
         </div>
       </div>
-    </div>
 
-    <RequestSummaryBlock req={selectedRequest} user={user} />
+      {/* Chat with Estate Officer */}
+      <div ref={submittedChatSectionRef} className="border-t border-gray-100 mt-2">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Chat with Estate Officer</span>
+          {chats.length > 0 && (
+            <span className="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{chats.length}</span>
+          )}
+        </div>
+        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+          {[...chats].reverse().map(chat => (
+            <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
+          ))}
+          {chats.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-6">
+              <Send size={16} className="text-blue-300 mb-1.5" />
+              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            </div>
+          )}
+        </div>
+        <div className="px-4 pb-4 pt-3 bg-white">
+          {allotmentChatFile && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
+              <FileText size={13} className="text-blue-500 shrink-0" />
+              <span className="flex-1 min-w-0 text-[12px] font-medium text-blue-800 truncate">{allotmentChatFile.name}</span>
+              <button type="button" onClick={() => setAllotmentChatFile?.(null)} className="p-0.5 rounded text-blue-400 hover:text-red-500 transition-colors shrink-0"><X size={12} /></button>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button type="button" onClick={() => submittedChatFileRef.current?.click()}
+              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+              <Paperclip size={15} />
+            </button>
+            <input ref={submittedChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
+            <textarea value={allotmentChatMessage}
+              onChange={e => setAllotmentChatMessage?.(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
+              rows={1} placeholder="Message the Estate Officer… (Enter to send)"
+              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 bg-white leading-relaxed transition-colors"
+              style={{ minHeight: '40px', maxHeight: '80px' }} />
+            <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
+              className="flex-none p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+              <Send size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
 
-    <div className="px-5 py-4">
-      <button
-        onClick={() => handleWithdraw(selectedRequest.id)}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-      >
-        <XCircle size={15} /> Withdraw Request
-      </button>
-      <p className="text-[10px] text-gray-400 text-center mt-2">Withdrawing will permanently cancel this request.</p>
-    </div>
-  </>
-);
+    </>
+  );
+};

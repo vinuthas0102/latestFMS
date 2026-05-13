@@ -1,5 +1,17 @@
 import type { Quarter } from '../types/quarters';
 
+export const QUARTER_TYPE_OPTIONS = [
+  'Type-I',
+  'Type-II',
+  'Type-III',
+  'Type-III Hi Tech and specific colony',
+  'Type-III Double Storey',
+  'Type-IV',
+  'Type-V',
+] as const;
+
+export type QuarterTypeOption = typeof QUARTER_TYPE_OPTIONS[number];
+
 export const QUARTER_PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
   'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80',

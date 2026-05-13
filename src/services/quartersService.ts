@@ -38,6 +38,7 @@ export type {
   QuarterRequestApprovalChat,
   QuarterInspection,
   QuarterInspectionChat,
+  QuarterInspectionChecklistItem,
   QuarterHandover,
   QuarterGuestInfo,
 } from '../types/quarters';
@@ -61,10 +62,13 @@ import type {
   QuarterRequestApprovalChat,
   QuarterInspection,
   QuarterInspectionChat,
+  QuarterInspectionChecklistItem,
   QuarterHandover,
   QuarterGuestInfo,
   QuarterRequestPreference,
 } from '../types/quarters';
+
+import type { ChecklistItemDraft } from '../constants/inspectionChecklist';
 
 export const quartersService = {
   async getQuarters(_filters: QuarterFilters = {}): Promise<Quarter[]> {
@@ -420,6 +424,10 @@ export const quartersService = {
         eo_notes: '',
         grievance_subject: input.grievance_subject ?? '',
         urgency_level: input.urgency_level ?? 'NORMAL',
+        retention_reason: input.retention_reason ?? '',
+        requested_months: input.requested_months ?? null,
+        upgrade_mode: input.upgrade_mode ?? null,
+        target_quarter_id: input.target_quarter_id ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -440,6 +448,10 @@ export const quartersService = {
         required_bhk_config: input.required_bhk_config ?? '',
         grievance_subject: input.grievance_subject ?? '',
         urgency_level: input.urgency_level ?? 'NORMAL',
+        retention_reason: input.retention_reason ?? '',
+        requested_months: input.requested_months ?? null,
+        upgrade_mode: input.upgrade_mode ?? null,
+        target_quarter_id: input.target_quarter_id ?? null,
       })
       .select()
       .single();
@@ -627,7 +639,18 @@ export const quartersService = {
   },
 
   async getRequestDocUrls(_requestId: string): Promise<{ name: string; url: string }[]> {
-    if (DEMO_MODE) return Promise.resolve([]);
+    if (DEMO_MODE) {
+      const DEMO_DOCS: Record<string, { name: string; url: string }[]> = {
+        'req-004': [
+          { name: 'Medical Certificate.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+          { name: 'Hospital Discharge Summary.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
+        'req-006': [
+          { name: 'Reference Letter - Ministry.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
+      };
+      return Promise.resolve(DEMO_DOCS[_requestId] ?? []);
+    }
     const requestId = _requestId;
     const { data, error } = await supabase.storage
       .from('quarter-docs')
@@ -1196,14 +1219,15 @@ export const quartersService = {
     return (data ?? []) as QuarterInspection[];
   },
 
-  async startInspection(_allotmentId: string, _createdBy: string, _openingRemarks: string): Promise<QuarterInspection> {
-    if (DEMO_MODE) return Promise.resolve({ id: `insp-demo-${Date.now()}`, allotment_id: _allotmentId, created_by: _createdBy, status: 'OPEN', opening_remarks: _openingRemarks, closing_remarks: '', property_condition: '', created_at: new Date().toISOString(), closed_at: null });
-    const allotmentId = _allotmentId;
-    const createdBy = _createdBy;
-    const openingRemarks = _openingRemarks;
+  async startInspection(_allotmentId: string, _createdBy: string, _openingRemarks: string, _inspectorName = ''): Promise<QuarterInspection> {
+    if (DEMO_MODE) return Promise.resolve({ id: `insp-demo-${Date.now()}`, allotment_id: _allotmentId, created_by: _createdBy, status: 'OPEN', inspector_name: _inspectorName, opening_remarks: _openingRemarks, closing_remarks: '', property_condition: '', created_at: new Date().toISOString(), closed_at: null });
     const { data, error } = await supabase.from('quarter_inspections').insert({
-      allotment_id: allotmentId, created_by: createdBy, status: 'OPEN',
-      opening_remarks: openingRemarks, property_condition: '',
+      allotment_id: _allotmentId,
+      created_by: _createdBy,
+      status: 'OPEN',
+      inspector_name: _inspectorName,
+      opening_remarks: _openingRemarks,
+      property_condition: '',
     }).select().single();
     if (error) throw error;
     return data as QuarterInspection;
@@ -1235,14 +1259,45 @@ export const quartersService = {
 
   async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = []): Promise<void> {
     if (DEMO_MODE) return Promise.resolve();
-    const inspectionId = _inspectionId;
-    const authorId = _authorId;
-    const authorRole = _authorRole;
-    const message = _message;
-    const docUrls = _docUrls;
     const { error } = await supabase.from('quarter_inspection_chats').insert({
-      inspection_id: inspectionId, author_id: authorId, author_role: authorRole, message, document_urls: docUrls,
+      inspection_id: _inspectionId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _docUrls,
     });
+    if (error) throw error;
+  },
+
+  async saveChecklistItems(_inspectionId: string, _items: ChecklistItemDraft[]): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const rows = _items.map(item => ({
+      inspection_id: _inspectionId,
+      category: item.category,
+      item_name: item.item_name,
+      default_qty: item.default_qty,
+      actual_qty: item.actual_qty,
+      qty_label: item.qty_label,
+      is_checked: item.is_checked,
+      remarks: item.remarks,
+    }));
+    const { error } = await supabase.from('quarter_inspection_checklist_items').insert(rows);
+    if (error) throw error;
+  },
+
+  async getChecklistItems(_inspectionId: string): Promise<QuarterInspectionChecklistItem[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const { data, error } = await supabase
+      .from('quarter_inspection_checklist_items')
+      .select('*')
+      .eq('inspection_id', _inspectionId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as QuarterInspectionChecklistItem[];
+  },
+
+  async updateChecklistItem(_itemId: string, patch: Partial<Pick<QuarterInspectionChecklistItem, 'actual_qty' | 'is_checked' | 'remarks'>>): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const { error } = await supabase
+      .from('quarter_inspection_checklist_items')
+      .update(patch)
+      .eq('id', _itemId);
     if (error) throw error;
   },
 

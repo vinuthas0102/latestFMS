@@ -66,9 +66,13 @@ const RightPanelPreferences = React.lazy(() => import('../components/quarters/Em
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
+import { InspectionFormModal } from '../components/quarters/InspectionFormModal';
+import { buildDefaultChecklist } from '../constants/inspectionChecklist';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
+import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
+import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -285,6 +289,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [inspectionPanel, setInspectionPanel] = useState<'list' | 'chat' | 'new'>('list');
   const [inspectionOpeningRemark, setInspectionOpeningRemark] = useState('');
+  const [inspectionInspectorName, setInspectionInspectorName] = useState('');
+  const [inspectionInitialCondition, setInspectionInitialCondition] = useState('GOOD');
+  const [inspectionChecklist, setInspectionChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
   const [inspectionChatMsg, setInspectionChatMsg] = useState('');
   const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
@@ -346,6 +353,18 @@ export const QuarterRequestsPage: React.FC = () => {
   const [modalBhk, setModalBhk] = useState('');
   const [modalFurnishing, setModalFurnishing] = useState('');
   const [modalSortBy, setModalSortBy] = useState('');
+  const [modalGroundFloor, setModalGroundFloor] = useState(false);
+  const [modalRecentlyRenovated, setModalRecentlyRenovated] = useState(false);
+  const [modalLocationArea, setModalLocationArea] = useState('');
+  const [modalWesternToilet, setModalWesternToilet] = useState(false);
+  const [modalIndianToilet, setModalIndianToilet] = useState(false);
+  const [modalCarParking, setModalCarParking] = useState(false);
+  const [modalPoojaRoom, setModalPoojaRoom] = useState(false);
+  const [modalBalcony, setModalBalcony] = useState(false);
+  const [modalKitchenExhaust, setModalKitchenExhaust] = useState(false);
+  const [modalLiftAccess, setModalLiftAccess] = useState(false);
+  const [modalIndependentHouse, setModalIndependentHouse] = useState(false);
+  const [modalHousingStyle, setModalHousingStyle] = useState('');
   const modalFilterRef = useRef<HTMLDivElement>(null);
 
   // Decline allotment modal (card-level)
@@ -382,7 +401,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
 
   // Right-panel action state
-  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'upgrade' | 'vacate';
+  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'vacate';
   const [rightAction, setRightAction] = useState<RightAction>(null);
   const [actionRemarks, setActionRemarks] = useState('');
   const [actionReason, setActionReason] = useState('');
@@ -399,7 +418,9 @@ export const QuarterRequestsPage: React.FC = () => {
   // New Inspection modal (Accepted DP filter)
   const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
   const [inspectRemarks, setInspectRemarks] = useState('');
+  const [inspectInspectorName, setInspectInspectorName] = useState('');
   const [inspectCondition, setInspectCondition] = useState('GOOD');
+  const [inspectChecklist, setInspectChecklist] = useState(() => buildDefaultChecklist());
   const [inspectSubmitting, setInspectSubmitting] = useState(false);
 
   // Quarter preview modal (photo click)
@@ -426,6 +447,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
   const [avqSearch, setAvqSearch] = useState('');
   const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
+  const [avqToiletFilter, setAvqToiletFilter] = useState<string[]>([]);
+  const [avqFloorFilter, setAvqFloorFilter] = useState<number[]>([]);
+  const [avqFilterDrawerOpen, setAvqFilterDrawerOpen] = useState(false);
   const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
   const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
   const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -524,14 +548,55 @@ export const QuarterRequestsPage: React.FC = () => {
   const [popupUrgency, setPopupUrgency] = useState('NORMAL');
   const [popupSubmitting, setPopupSubmitting] = useState(false);
   const [popupInspectorName, setPopupInspectorName] = useState('');
-  const [popupCondition, setPopupCondition] = useState('');
+  const [popupOpeningRemarks, setPopupOpeningRemarks] = useState('');
+  const [popupChecklist, setPopupChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
+  const [popupCondition, setPopupCondition] = useState('GOOD');
   const [popupKeyNumber, setPopupKeyNumber] = useState('');
   const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
+  const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
+  const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
 
   function resetActionForm() {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
+
+  // ─── Upgrade Request Modal ─────────────────────────────────────────────────
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
+  const [upgradeModalLoading, setUpgradeModalLoading] = useState(false);
+
+  const openUpgradeModal = async () => {
+    setShowUpgradeModal(true);
+    setUpgradeModalLoading(true);
+    try {
+      const quarters = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });
+      setUpgradeModalQuarters(quarters);
+    } catch {
+      setUpgradeModalQuarters([]);
+    } finally {
+      setUpgradeModalLoading(false);
+    }
+  };
+
+  const handleUpgradeSubmit = async (input: {
+    reason: string; remarks: string; required_bhk_config: string; move_in_date: string;
+    document_url?: string; upgrade_mode: 'AUTO' | 'SELECTED'; target_quarter_id: string | null;
+  }) => {
+    if (!user || !selectedRequest?.allotment) return;
+    await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, {
+      service_type: 'UPGRADE',
+      reason: input.reason,
+      remarks: input.remarks,
+      document_url: input.document_url,
+      required_bhk_config: input.required_bhk_config || undefined,
+      upgrade_mode: input.upgrade_mode,
+      target_quarter_id: input.target_quarter_id,
+    });
+    addToast('Upgrade request submitted successfully', 'success');
+    setShowUpgradeModal(false);
+    loadData();
+  };
 
   // ─── shared file-upload helper ──────────────────────────────────────────────
 
@@ -606,24 +671,27 @@ export const QuarterRequestsPage: React.FC = () => {
     */
   }, [selectedServiceId]);
 
-  // Load allotment chats when an allotted request is selected
+  // Load allotment chats when a request is selected
   useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
     const s = selectedRequest?.request_status;
-    const hasAllotment = s ? (isAllottedStatus(s) || isOccupiedStatus(s)) : false;
-    if (!allotmentId || !hasAllotment) return;
+    if (!s || !selectedRequest) return;
+    const isDraftOrSubmitted = s === 'DRAFT' || s === 'SUBMITTED';
+    const hasAllotment = isAllottedStatus(s) || isOccupiedStatus(s);
+    if (!isDraftOrSubmitted && !hasAllotment) return;
+    const chatKey = isDraftOrSubmitted ? selectedRequest.id : (selectedRequest.allotment?.id ?? selectedRequest.id);
     /* DEMO_MODE: service call disabled
-    quartersService.getAllotmentChats(allotmentId).then(chats => {
-      setAllotmentChats(prev => ({ ...prev, [allotmentId]: chats }));
+    quartersService.getAllotmentChats(chatKey).then(chats => {
+      setAllotmentChats(prev => ({ ...prev, [chatKey]: chats }));
     }).catch(() => {});
     */
-  }, [selectedRequest?.allotment?.id, selectedRequest?.request_status]);
+  }, [selectedRequest?.id, selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
     setPopupReason(''); setPopupRemarks(''); setPopupDocUrl(null);
     setPopupDate(''); setPopupSubject(''); setPopupUrgency('NORMAL');
     setPopupInspectorName(''); setPopupCondition(''); setPopupKeyNumber(''); setPopupHandoverDeadline('');
+    setPopupRetentionReason('On retirement'); setPopupRequestedMonths(2);
   }
 
   function closeActionPopup() {
@@ -753,6 +821,24 @@ export const QuarterRequestsPage: React.FC = () => {
         furnishing_status: modalFurnishing || undefined,
       });
       let filtered = data.filter(q => !prefs.find(p => p.quarter.id === q.id));
+      // Apply extended boolean/string filters
+      if (modalGroundFloor) filtered = filtered.filter(q => q.floor_number === 0);
+      if (modalRecentlyRenovated) filtered = filtered.filter(q => q.renovation_status?.toLowerCase().includes('renovated'));
+      if (modalLocationArea.trim()) {
+        const la = modalLocationArea.trim().toLowerCase();
+        filtered = filtered.filter(q =>
+          q.location_area?.toLowerCase().includes(la) || q.region?.toLowerCase().includes(la)
+        );
+      }
+      if (modalWesternToilet) filtered = filtered.filter(q => q.toilet_western === true);
+      if (modalIndianToilet) filtered = filtered.filter(q => q.toilet_indian === true);
+      if (modalCarParking) filtered = filtered.filter(q => !!q.parking_details?.trim());
+      if (modalPoojaRoom) filtered = filtered.filter(q => q.pooja_room === true);
+      if (modalBalcony) filtered = filtered.filter(q => q.balcony === true);
+      if (modalKitchenExhaust) filtered = filtered.filter(q => q.kitchen_exhaust === true);
+      if (modalLiftAccess) filtered = filtered.filter(q => q.lift_access === true);
+      if (modalIndependentHouse) filtered = filtered.filter(q => q.housing_style?.toLowerCase().includes('independent'));
+      if (modalHousingStyle) filtered = filtered.filter(q => q.housing_style === modalHousingStyle);
       if (modalSortBy === 'rent_asc') filtered = [...filtered].sort((a, b) => a.monthly_rent - b.monthly_rent);
       else if (modalSortBy === 'rent_desc') filtered = [...filtered].sort((a, b) => b.monthly_rent - a.monthly_rent);
       setModalQuarters(filtered);
@@ -761,14 +847,26 @@ export const QuarterRequestsPage: React.FC = () => {
     } finally {
       setModalLoading(false);
     }
-  }, [modalSearch, modalBhk, modalFurnishing, modalSortBy, prefs, addToast]);
+  }, [
+    modalSearch, modalBhk, modalFurnishing, modalSortBy,
+    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+    modalWesternToilet, modalIndianToilet, modalCarParking,
+    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+    prefs, addToast,
+  ]);
 
   useEffect(() => {
     if (showNewModal) {
       const t = setTimeout(loadModalQuarters, 300);
       return () => clearTimeout(t);
     }
-  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy, loadModalQuarters]);
+  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy,
+    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+    modalWesternToilet, modalIndianToilet, modalCarParking,
+    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+    loadModalQuarters]);
 
   // Close filter popup on outside click
   useEffect(() => {
@@ -983,7 +1081,7 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to reject', 'error'); } finally { setActionSubmitting(false); }
   };
 
-  const handleTenantRequest = async (serviceType: 'EXTEND' | 'UPGRADE' | 'VACATE') => {
+  const handleTenantRequest = async (serviceType: 'EXTEND' | 'VACATE') => {
     if (!user || !selectedRequest?.allotment) return;
     if (!actionReason.trim()) { addToast('Please provide a reason', 'warning'); return; }
     setActionSubmitting(true);
@@ -991,7 +1089,6 @@ export const QuarterRequestsPage: React.FC = () => {
       const input: CreateTenantRequestInput = {
         service_type: serviceType, remarks: actionRemarks, reason: actionReason,
         document_url: actionDocUrl?.name || undefined, requested_date: actionDate || null,
-        required_bhk_config: actionBhk || undefined,
       };
       await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, input);
       addToast('Request submitted successfully', 'success');
@@ -1160,8 +1257,13 @@ export const QuarterRequestsPage: React.FC = () => {
     try {
       if (actionPopup.type === 'INSPECTION') {
         if (!popupInspectorName.trim()) { addToast('Please enter inspector name', 'warning'); setPopupSubmitting(false); return; }
-        await quartersService.startInspection(actionPopup.allotmentId, user.id, popupInspectorName.trim() + (popupCondition ? ` — Condition: ${popupCondition}` : '') + (popupRemarks ? ` — ${popupRemarks}` : ''));
+        const insp = await quartersService.startInspection(actionPopup.allotmentId, user.id, popupOpeningRemarks, popupInspectorName.trim());
+        await quartersService.saveChecklistItems(insp.id, popupChecklist);
         addToast('Inspection started', 'success');
+        setPopupInspectorName('');
+        setPopupOpeningRemarks('');
+        setPopupChecklist(buildDefaultChecklist());
+        setPopupCondition('GOOD');
         closeActionPopup();
         loadData();
         return;
@@ -1192,6 +1294,10 @@ export const QuarterRequestsPage: React.FC = () => {
         requested_date: popupDate || null,
         grievance_subject: popupSubject || undefined,
         urgency_level: popupUrgency,
+        ...(actionPopup.type === 'EXTEND' ? {
+          retention_reason: popupRetentionReason,
+          requested_months: popupRequestedMonths,
+        } : {}),
       };
       await quartersService.createTenantRequest(user.id, actionPopup.allotmentId, input);
       addToast('Request submitted successfully', 'success');
@@ -1466,14 +1572,27 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // ─── EO: Start inspection ─────────────────────────────────────────────────
   const handleStartInspection = async () => {
-    if (!user || !selectedRequest?.allotment?.id || !inspectionOpeningRemark.trim()) {
-      addToast('Please provide opening remarks', 'warning'); return;
+    if (!user || !selectedRequest?.allotment?.id) {
+      addToast('No allotment selected', 'warning'); return;
+    }
+    if (!inspectionInspectorName.trim()) {
+      addToast('Please enter inspector name', 'warning'); return;
     }
     setInspectionSubmitting(true);
     try {
-      const insp = await quartersService.startInspection(selectedRequest.allotment.id, user.id, inspectionOpeningRemark);
+      const insp = await quartersService.startInspection(
+        selectedRequest.allotment.id,
+        user.id,
+        inspectionOpeningRemark,
+        inspectionInspectorName,
+      );
+      // Persist checklist items
+      await quartersService.saveChecklistItems(insp.id, inspectionChecklist);
       addToast('Inspection started', 'success');
       setInspectionOpeningRemark('');
+      setInspectionInspectorName('');
+      setInspectionInitialCondition('GOOD');
+      setInspectionChecklist(buildDefaultChecklist());
       setInspectionPanel('chat');
       setSelectedInspectionId(insp.id);
       const list = await quartersService.getInspections(selectedRequest.allotment.id);
@@ -1563,13 +1682,19 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const handleStartAcceptedInspection = async () => {
     if (!inspectTarget?.allotment?.id || !user) return;
+    if (!inspectInspectorName.trim()) { addToast('Please enter inspector name', 'warning'); return; }
     setInspectSubmitting(true);
     try {
-      await quartersService.startInspection(inspectTarget.allotment.id, user.id, inspectRemarks);
+      const insp = await quartersService.startInspection(
+        inspectTarget.allotment.id, user.id, inspectRemarks, inspectInspectorName.trim()
+      );
+      await quartersService.saveChecklistItems(insp.id, inspectChecklist);
       addToast('Inspection started', 'success');
       setInspectTarget(null);
       setInspectRemarks('');
+      setInspectInspectorName('');
       setInspectCondition('GOOD');
+      setInspectChecklist(buildDefaultChecklist());
       loadData();
     } catch {
       addToast('Failed to start inspection', 'error');
@@ -1749,6 +1874,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const filteredAvailableQuarters = React.useMemo(() => {
     let result = [...availableQuarters];
     if (avqBhkFilter !== 'ALL') result = result.filter(q => q.bhk_config === avqBhkFilter);
+    if (avqToiletFilter.length > 0) result = result.filter(q => avqToiletFilter.includes(q.toilet_type ?? 'Western'));
+    if (avqFloorFilter.length > 0) result = result.filter(q => {
+      const floor = q.floor_number ?? 0;
+      return avqFloorFilter.some(f => f === 4 ? floor >= 4 : floor === f);
+    });
     if (avqSearch.trim()) {
       const s = avqSearch.toLowerCase();
       result = result.filter(q =>
@@ -1759,7 +1889,7 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
     return result;
-  }, [availableQuarters, avqBhkFilter, avqSearch]);
+  }, [availableQuarters, avqBhkFilter, avqToiletFilter, avqFloorFilter, avqSearch]);
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -2103,7 +2233,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             <div className="font-semibold text-gray-800 text-sm">{req.request_reason || '—'}</div>
                           </div>
                           <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
-                            <div className="text-[10px] text-gray-400 mb-0.5">BHK Required</div>
+                            <div className="text-[10px] text-gray-400 mb-0.5">Quarter Type Required</div>
                             <div className="font-semibold text-gray-800">{req.required_bhk_config || '—'}</div>
                           </div>
                           <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
@@ -2290,8 +2420,20 @@ export const QuarterRequestsPage: React.FC = () => {
                   {user.fullName?.[0]?.toUpperCase() ?? 'U'}
                 </div>
                 <span className="text-xs font-semibold text-gray-700 truncate max-w-[140px]">{user.fullName}</span>
-                {(user as any).govtEmployeeId && (
-                  <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{(user as any).govtEmployeeId}</span>
+                {user.govtEmployeeId && (
+                  <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{user.govtEmployeeId}</span>
+                )}
+                {user.projectLocation && (
+                  <>
+                    <span className="text-gray-200 flex-shrink-0">·</span>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">{user.projectLocation}</span>
+                  </>
+                )}
+                {user.sapId && (
+                  <>
+                    <span className="text-gray-200 flex-shrink-0">·</span>
+                    <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{user.sapId}</span>
+                  </>
                 )}
                 <span className="text-gray-200 mx-1 flex-shrink-0">|</span>
               </>
@@ -2399,19 +2541,18 @@ export const QuarterRequestsPage: React.FC = () => {
                   },
                   {
                     key: 'bhk',
-                    label: 'BHK Config',
+                    label: 'Quarter Type',
                     type: 'chips',
                     value: avqBhkFilter,
                     onChange: setAvqBhkFilter,
                     options: [
                       { value: 'ALL', label: 'Any' },
-                      { value: '1BHK', label: '1 BHK' },
-                      { value: '2BHK', label: '2 BHK' },
-                      { value: '3BHK', label: '3 BHK' },
-                      { value: '4BHK', label: '4 BHK' },
+                      ...QUARTER_TYPE_OPTIONS.map(t => ({ value: t, label: t })),
                     ],
                   },
                 ]}
+                filterCount={avqToiletFilter.length + avqFloorFilter.length}
+                onFilterOpen={() => setAvqFilterDrawerOpen(true)}
               />
             </div>
 
@@ -2419,13 +2560,13 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
-                {(avqSearch || avqBhkFilter !== 'ALL') && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
+                {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
                   <span className="text-gray-400"> (filtered from {availableQuarters.length})</span>
                 )}
               </span>
-              {(avqSearch || avqBhkFilter !== 'ALL') && (
+              {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && (
                 <button
-                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); }}
+                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
@@ -2444,7 +2585,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <Key size={36} className="mx-auto text-gray-300 mb-3" />
                   <h3 className="text-sm font-semibold text-gray-700 mb-1">No available quarters found</h3>
                   <p className="text-xs text-gray-500">
-                    {avqSearch || avqBhkFilter !== 'ALL'
+                    {avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0
                       ? 'Try clearing your filters.'
                       : 'All quarters are currently occupied or inactive.'}
                   </p>
@@ -2510,23 +2651,20 @@ export const QuarterRequestsPage: React.FC = () => {
                       key: 'search',
                       label: 'Search',
                       type: 'text',
-                      placeholder: 'Request no., BHK, location…',
+                      placeholder: 'Request no., type, location…',
                       value: reqSearch,
                       onChange: setReqSearch,
                       icon: <Search size={14} />,
                     },
                     {
                       key: 'bhk',
-                      label: 'BHK Config',
+                      label: 'Quarter Type',
                       type: 'chips',
                       value: reqBhkFilter,
                       onChange: setReqBhkFilter,
                       options: [
                         { value: 'ALL', label: 'Any' },
-                        { value: '1BHK', label: '1 BHK' },
-                        { value: '2BHK', label: '2 BHK' },
-                        { value: '3BHK', label: '3 BHK' },
-                        { value: '4BHK', label: '4 BHK' },
+                        ...QUARTER_TYPE_OPTIONS.map(t => ({ value: t, label: t })),
                       ],
                     },
                     {
@@ -2618,6 +2756,12 @@ export const QuarterRequestsPage: React.FC = () => {
                   setInspectionPanel={setInspectionPanel}
                   inspectionOpeningRemark={inspectionOpeningRemark}
                   setInspectionOpeningRemark={setInspectionOpeningRemark}
+                  inspectionInspectorName={inspectionInspectorName}
+                  setInspectionInspectorName={setInspectionInspectorName}
+                  inspectionInitialCondition={inspectionInitialCondition}
+                  setInspectionInitialCondition={setInspectionInitialCondition}
+                  inspectionChecklist={inspectionChecklist}
+                  setInspectionChecklist={setInspectionChecklist}
                   inspectionChatMsg={inspectionChatMsg}
                   setInspectionChatMsg={setInspectionChatMsg}
                   inspectionSubmitting={inspectionSubmitting}
@@ -2668,12 +2812,20 @@ export const QuarterRequestsPage: React.FC = () => {
               const s = selectedRequest.request_status;
               if (s === 'DRAFT') return (
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
-                  <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal} />
+                  <RightPanelDraft panelControls={controls} selectedRequest={selectedRequest} addToast={addToast} loadData={loadData} setSelectedRequest={setSelectedRequest} openNewModal={openNewModal}
+                    allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat}
+                    scrollToChat={chatOpenForId === selectedRequest.id} />
                 </Suspense>
               );
               if (s === 'SUBMITTED') return (
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
-                  <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw} />
+                  <RightPanelSubmitted panelControls={controls} selectedRequest={selectedRequest} user={user} handleWithdraw={handleWithdraw}
+                    allotmentChats={allotmentChats} allotmentChatMessage={allotmentChatMessage} setAllotmentChatMessage={setAllotmentChatMessage}
+                    allotmentChatFile={allotmentChatFile} setAllotmentChatFile={setAllotmentChatFile}
+                    allotmentChatSubmitting={allotmentChatSubmitting} handleSendAllotmentChat={handleSendAllotmentChat}
+                    scrollToChat={chatOpenForId === selectedRequest.id} />
                 </Suspense>
               );
               const panelFallback = <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
@@ -2718,6 +2870,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <RightPanelOccupied
                     panelControls={controls}
                     selectedRequest={selectedRequest}
+                    isEO={isEO}
                     tenantRequests={tenantRequests}
                     serviceChats={serviceChats}
                     selectedServiceId={selectedServiceId}
@@ -2739,13 +2892,12 @@ export const QuarterRequestsPage: React.FC = () => {
                     setActionRemarks={setActionRemarks}
                     actionDate={actionDate}
                     setActionDate={setActionDate}
-                    actionBhk={actionBhk}
-                    setActionBhk={setActionBhk}
                     actionDocUrl={actionDocUrl}
                     setActionDocUrl={setActionDocUrl}
                     actionSubmitting={actionSubmitting}
                     resetActionForm={resetActionForm}
                     handleTenantRequest={handleTenantRequest}
+                    onUpgradeClick={openUpgradeModal}
                     openActionPopup={openActionPopup as any}
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
@@ -2861,10 +3013,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
                           {/* Row 1: req no (left) + status badge (right) */}
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            {!isOccupied
-                              ? <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">{req.request_number}</span>
-                              : <span />
-                            }
+                            <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">{req.request_number}</span>
                             <div className="flex items-center gap-1 shrink-0">
                               {req.sub_status === 'DECLINED' && (
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>
@@ -2878,7 +3027,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
                             const reqDetails: { label: string; value: React.ReactNode }[] = [
                               { label: 'Request Type', value: <span className={`text-[9.5px] border px-1 py-0.5 rounded font-semibold ${rtb.cls}`}>{rtb.label}</span> },
-                              ...(req.required_bhk_config ? [{ label: 'BHK Config', value: req.required_bhk_config }] : []),
+                              ...(req.required_bhk_config ? [{ label: 'Quarter Type', value: req.required_bhk_config }] : []),
                               ...(req.preferred_location ? [{ label: 'Pref. Location', value: req.preferred_location }] : []),
                               ...(req.move_in_date ? [{ label: 'Move-in Date', value: fmtDate(req.move_in_date) }] : []),
                               ...(req.employee_id ? [{ label: 'Emp ID', value: req.employee_id }] : []),
@@ -3193,9 +3342,30 @@ export const QuarterRequestsPage: React.FC = () => {
                               </div>
                             )}
                             {req.employee_notes && (
-                              <div className="flex items-start gap-3 px-3 py-2">
+                              <div className={`flex items-start gap-3 px-3 py-2 ${(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 ? 'border-b border-gray-50' : ''}`}>
                                 <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-0.5">Remarks</span>
                                 <span className="text-amber-800 leading-snug">{req.employee_notes}</span>
+                              </div>
+                            )}
+                            {(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 && (
+                              <div className="flex items-start gap-3 px-3 py-2">
+                                <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium pt-1">Documents</span>
+                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                  {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={doc.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border transition-colors group ${req.request_type === 'MEDICAL' ? 'bg-rose-50 border-rose-100 hover:border-rose-300 hover:bg-rose-100' : 'bg-amber-50 border-amber-100 hover:border-amber-300 hover:bg-amber-100'}`}
+                                    >
+                                      <FileText size={11} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
+                                      <span className={`flex-1 text-[11px] font-medium truncate ${req.request_type === 'MEDICAL' ? 'text-rose-700' : 'text-amber-700'}`}>{doc.name}</span>
+                                      <Download size={10} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-400 group-hover:text-rose-600' : 'text-amber-400 group-hover:text-amber-600'}`} />
+                                    </a>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -3768,10 +3938,10 @@ export const QuarterRequestsPage: React.FC = () => {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
-                                Extend Lease
+                                Extension/Retention
                               </button>
                               <button
-                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); openUpgradeModal(); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-sky-50 hover:text-sky-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
@@ -3824,66 +3994,27 @@ export const QuarterRequestsPage: React.FC = () => {
 
       {/* ── New Inspection Modal (Accepted DP filter) ────────────────────── */}
       {inspectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 bg-sky-700 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                  <HardHat size={16} className="text-white" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white">New Inspection</div>
-                  <div className="text-[11px] text-sky-200">{inspectTarget.request_number} · {inspectTarget.allotment?.quarter?.quarter_number ?? '—'}</div>
-                </div>
-              </div>
-              <button onClick={() => setInspectTarget(null)} className="p-1.5 rounded-lg text-sky-200 hover:text-white hover:bg-white/10 transition-colors">
-                <X size={15} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Opening Remarks</label>
-                <textarea
-                  value={inspectRemarks}
-                  onChange={e => setInspectRemarks(e.target.value)}
-                  rows={3}
-                  placeholder="Describe the purpose of this inspection…"
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400 resize-none transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Initial Condition</label>
-                <div className="flex gap-2 flex-wrap">
-                  {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setInspectCondition(c)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${inspectCondition === c ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
-                    >
-                      {c.replace('_', ' ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="px-5 pb-5 flex gap-3">
-              <button
-                onClick={() => setInspectTarget(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleStartAcceptedInspection}
-                disabled={inspectSubmitting || !inspectRemarks.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <PlayCircle size={14} />
-                {inspectSubmitting ? 'Starting…' : 'Start Inspection'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InspectionFormModal
+          requestRef={inspectTarget.request_number}
+          quarterRef={inspectTarget.allotment?.quarter?.quarter_number ?? undefined}
+          inspectorName={inspectInspectorName}
+          openingRemarks={inspectRemarks}
+          condition={inspectCondition}
+          checklist={inspectChecklist}
+          submitting={inspectSubmitting}
+          onInspectorNameChange={setInspectInspectorName}
+          onOpeningRemarksChange={setInspectRemarks}
+          onConditionChange={setInspectCondition}
+          onChecklistChange={setInspectChecklist}
+          onClose={() => {
+            setInspectTarget(null);
+            setInspectRemarks('');
+            setInspectInspectorName('');
+            setInspectCondition('GOOD');
+            setInspectChecklist(buildDefaultChecklist());
+          }}
+          onSubmit={handleStartAcceptedInspection}
+        />
       )}
 
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
@@ -4009,14 +4140,14 @@ export const QuarterRequestsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-gray-700 mb-2">Search</label>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Number, BHK, location…" value={reqSearch} onChange={e => setReqSearch(e.target.value)}
+              <input type="text" placeholder="Number, type, location…" value={reqSearch} onChange={e => setReqSearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">BHK Config</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
             <div className="flex flex-wrap gap-2">
-              {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+              {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                 <button key={v} onClick={() => setReqBhkFilter(v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                   {v === 'ALL' ? 'Any' : v}
@@ -4070,6 +4201,61 @@ export const QuarterRequestsPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
+      {/* ── Available Quarters filter drawer ─────────────────────────────── */}
+      <FilterDrawer
+        isOpen={avqFilterDrawerOpen}
+        onClose={() => setAvqFilterDrawerOpen(false)}
+        title="Filter Quarters"
+        activeFilterCount={avqToiletFilter.length + avqFloorFilter.length}
+        onClearAll={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
+            <div className="flex flex-wrap gap-2">
+              {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
+                <button key={v} onClick={() => setAvqBhkFilter(v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v === 'ALL' ? 'Any' : v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {['Indian', 'Western', 'Both'].map(v => (
+                <button key={v} onClick={() => setAvqToiletFilter(prev =>
+                  prev.includes(v) ? prev.filter(t => t !== v) : [...prev, v]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqToiletFilter.includes(v) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Floor</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 0, label: 'Ground' },
+                { value: 1, label: '1st' },
+                { value: 2, label: '2nd' },
+                { value: 3, label: '3rd' },
+                { value: 4, label: '4th+' },
+              ].map(({ value, label }) => (
+                <button key={value} onClick={() => setAvqFloorFilter(prev =>
+                  prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqFloorFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </FilterDrawer>
+
       {/* ── New/Modify Request — Full Screen ─────────────────────────────── */}
       {showNewModal && (
         <Suspense fallback={null}>
@@ -4097,6 +4283,30 @@ export const QuarterRequestsPage: React.FC = () => {
             setModalFurnishing={setModalFurnishing}
             modalSortBy={modalSortBy}
             setModalSortBy={setModalSortBy}
+            modalGroundFloor={modalGroundFloor}
+            setModalGroundFloor={setModalGroundFloor}
+            modalRecentlyRenovated={modalRecentlyRenovated}
+            setModalRecentlyRenovated={setModalRecentlyRenovated}
+            modalLocationArea={modalLocationArea}
+            setModalLocationArea={setModalLocationArea}
+            modalWesternToilet={modalWesternToilet}
+            setModalWesternToilet={setModalWesternToilet}
+            modalIndianToilet={modalIndianToilet}
+            setModalIndianToilet={setModalIndianToilet}
+            modalCarParking={modalCarParking}
+            setModalCarParking={setModalCarParking}
+            modalPoojaRoom={modalPoojaRoom}
+            setModalPoojaRoom={setModalPoojaRoom}
+            modalBalcony={modalBalcony}
+            setModalBalcony={setModalBalcony}
+            modalKitchenExhaust={modalKitchenExhaust}
+            setModalKitchenExhaust={setModalKitchenExhaust}
+            modalLiftAccess={modalLiftAccess}
+            setModalLiftAccess={setModalLiftAccess}
+            modalIndependentHouse={modalIndependentHouse}
+            setModalIndependentHouse={setModalIndependentHouse}
+            modalHousingStyle={modalHousingStyle}
+            setModalHousingStyle={setModalHousingStyle}
             modalFilterOpen={modalFilterOpen}
             setModalFilterOpen={setModalFilterOpen}
             modalFilterRef={modalFilterRef}
@@ -4144,32 +4354,65 @@ export const QuarterRequestsPage: React.FC = () => {
       )}
 
       {/* ── Inline Action Popup (Extension / Vacate / Grievance / Maintenance / Inspection / Handover) ── */}
-      <ActionPopupModal
-        actionPopup={actionPopup}
-        onClose={closeActionPopup}
-        onSubmit={handlePopupSubmit}
-        submitting={popupSubmitting}
-        reason={popupReason}
-        remarks={popupRemarks}
-        docUrl={popupDocUrl}
-        date={popupDate}
-        subject={popupSubject}
-        urgency={popupUrgency}
-        inspectorName={popupInspectorName}
-        condition={popupCondition}
-        keyNumber={popupKeyNumber}
-        handoverDeadline={popupHandoverDeadline}
-        onReasonChange={setPopupReason}
-        onRemarksChange={setPopupRemarks}
-        onDocChange={setPopupDocUrl}
-        onDateChange={setPopupDate}
-        onSubjectChange={setPopupSubject}
-        onUrgencyChange={setPopupUrgency}
-        onInspectorNameChange={setPopupInspectorName}
-        onConditionChange={setPopupCondition}
-        onKeyNumberChange={setPopupKeyNumber}
-        onHandoverDeadlineChange={setPopupHandoverDeadline}
-      />
+      {(() => {
+        const popupReq = actionPopup.requestId ? requests.find(r => r.id === actionPopup.requestId) : undefined;
+        const pq = popupReq?.allotment?.quarter;
+        const allotmentInfo = pq ? {
+          quarterNumber: pq.quarter_number ?? '',
+          block: pq.block_name ?? '',
+          quarterType: pq.quarter_type ?? '',
+        } : undefined;
+        return (
+          <ActionPopupModal
+            actionPopup={actionPopup}
+            onClose={closeActionPopup}
+            onSubmit={handlePopupSubmit}
+            submitting={popupSubmitting}
+            reason={popupReason}
+            remarks={popupRemarks}
+            docUrl={popupDocUrl}
+            date={popupDate}
+            subject={popupSubject}
+            urgency={popupUrgency}
+            inspectorName={popupInspectorName}
+            openingRemarks={popupOpeningRemarks}
+            condition={popupCondition}
+            checklist={popupChecklist}
+            keyNumber={popupKeyNumber}
+            handoverDeadline={popupHandoverDeadline}
+            retentionReason={popupRetentionReason}
+            requestedMonths={popupRequestedMonths}
+            allotmentInfo={allotmentInfo}
+            onReasonChange={setPopupReason}
+            onRemarksChange={setPopupRemarks}
+            onDocChange={setPopupDocUrl}
+            onDateChange={setPopupDate}
+            onSubjectChange={setPopupSubject}
+            onUrgencyChange={setPopupUrgency as (v: 'LOW' | 'NORMAL' | 'HIGH') => void}
+            onInspectorNameChange={setPopupInspectorName}
+            onOpeningRemarksChange={setPopupOpeningRemarks}
+            onConditionChange={setPopupCondition}
+            onChecklistChange={setPopupChecklist}
+            onKeyNumberChange={setPopupKeyNumber}
+            onHandoverDeadlineChange={setPopupHandoverDeadline}
+            onRetentionReasonChange={setPopupRetentionReason}
+            onRequestedMonthsChange={setPopupRequestedMonths}
+          />
+        );
+      })()}
+
+      {/* ── Upgrade Request Modal ─────────────────────────────────────── */}
+      {showUpgradeModal && (
+        <UpgradeRequestModal
+          user={user}
+          currentQuarter={selectedRequest?.allotment?.quarter ?? null}
+          availableQuarters={upgradeModalQuarters}
+          quartersLoading={upgradeModalLoading}
+          onClose={() => setShowUpgradeModal(false)}
+          onSubmit={handleUpgradeSubmit}
+          addToast={addToast}
+        />
+      )}
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (
