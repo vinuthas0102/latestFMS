@@ -49,6 +49,8 @@ export interface Quarter {
   current_availability_status: string;
 }
 
+export type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
+
 export interface QuarterRequest {
   id: string;
   request_number: string;
@@ -60,6 +62,7 @@ export interface QuarterRequest {
   preferred_location: string;
   move_in_date: string | null;
   family_member_count: number;
+  request_type: RequestType;
   request_status: string;
   sub_status: string | null;
   employee_notes: string;
@@ -193,6 +196,7 @@ export interface CreateQuarterRequestInput {
   preferred_location: string;
   move_in_date: string | null;
   family_member_count: number;
+  request_type: RequestType;
   employee_notes: string;
   preferences: { quarter_id: string; preference_rank: number }[];
   request_for?: 'SELF' | 'EMPLOYEE' | 'TP';
@@ -246,6 +250,31 @@ export interface QuarterApprovalChat {
   author_id: string;
   author_role: string;
   message: string;
+  document_urls: string[];
+  created_at: string;
+}
+
+export interface QuarterRequestApproval {
+  id: string;
+  request_id: string;
+  workflow_id: string | null;
+  current_level: number;
+  max_level: number;
+  status: string;
+  initiated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  workflow?: QuarterApprovalWorkflow;
+}
+
+export interface QuarterRequestApprovalChat {
+  id: string;
+  request_approval_id: string;
+  author_id: string | null;
+  author_role: string;
+  message: string;
+  action_type: string;
+  level_snapshot: number | null;
   document_urls: string[];
   created_at: string;
 }

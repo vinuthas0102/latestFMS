@@ -5,6 +5,7 @@ import {
   FileCheck, XCircle, Send, PauseCircle, BarChart3, RefreshCw,
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
+  HardHat, MoreVertical, MessageSquare, PlayCircle, X, Download,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -20,10 +21,13 @@ import {
   QuarterRequest,
   QuarterAllotment,
   QuarterTenantRequest,
+  QuarterInspection,
+  QuarterInspectionChat,
   Quarter,
 } from '../services/quartersService';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 
 const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
@@ -130,7 +134,7 @@ export const QuarterManagerPage: React.FC = () => {
   const [loadingAll, setLoadingAll] = useState(false);
   const [loadingTenant, setLoadingTenant] = useState(false);
 
-  type DPFilter = 'all' | 'occupied' | 'allotted' | 'allocated' | 'submitted' | 'draft';
+  type DPFilter = 'all' | 'occupied' | 'accepted' | 'allotted' | 'allotted_pending' | 'submitted' | 'draft';
   const [dpFilter, setDpFilter] = useState<DPFilter>('all');
   const [quartersSummary, setQuartersSummary] = useState<{ total: number; available: number; occupied: number } | null>(null);
 
@@ -151,6 +155,23 @@ export const QuarterManagerPage: React.FC = () => {
   const [eoNotesMap, setEoNotesMap] = useState<Record<string, string>>({});
   const [processingTenant, setProcessingTenant] = useState<string | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<QuarterAllotment | null>(null);
+
+  // Accepted DP filter — inspection state
+  const [dpInspections, setDpInspections] = useState<Record<string, QuarterInspection[]>>({});
+  const [dpInspectionChats, setDpInspectionChats] = useState<QuarterInspectionChat[]>([]);
+  const [dpSelectedInspectionId, setDpSelectedInspectionId] = useState<string | null>(null);
+  const [dpExpandedInspRowId, setDpExpandedInspRowId] = useState<string | null>(null);
+  const [dpActionMenuReqId, setDpActionMenuReqId] = useState<string | null>(null);
+  const dpActionMenuRef = useRef<HTMLDivElement>(null);
+
+  // New Inspection popup
+  const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
+  const [inspectRemarks, setInspectRemarks] = useState('');
+  const [inspectCondition, setInspectCondition] = useState('GOOD');
+  const [inspectSubmitting, setInspectSubmitting] = useState(false);
+
+  // Inspection chat message
+  const [dpInspChatMsg, setDpInspChatMsg] = useState('');
 
   const loadCycles = useCallback(async () => {
     setLoading(true);
@@ -235,6 +256,26 @@ export const QuarterManagerPage: React.FC = () => {
     }
   }, [miniMenuTarget]);
 
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dpActionMenuRef.current && !dpActionMenuRef.current.contains(e.target as Node)) {
+        setDpActionMenuReqId(null);
+      }
+    }
+    if (dpActionMenuReqId) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [dpActionMenuReqId]);
+
+  useEffect(() => {
+    if (dpFilter === 'accepted') {
+      const accepted = allRequests.filter(r => r.request_status === 'ACKNOWLEDGED');
+      if (accepted.length > 0) loadDpInspections(accepted);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dpFilter, allRequests]);
+
   const handleFinaliseCycle = async () => {
     if (!selectedCycle || !user) return;
     try {
@@ -300,6 +341,62 @@ export const QuarterManagerPage: React.FC = () => {
     }
   };
 
+  // Load inspections for all ACKNOWLEDGED requests when 'accepted' filter is active
+  const loadDpInspections = useCallback(async (requests: QuarterRequest[]) => {
+    const toLoad = requests.filter(r => r.allotment?.id && !dpInspections[r.allotment.id]);
+    if (toLoad.length === 0) return;
+    const results = await Promise.all(
+      toLoad.map(r => quartersService.getInspections(r.allotment!.id).then(ins => ({ id: r.allotment!.id, ins })))
+    );
+    setDpInspections(prev => {
+      const next = { ...prev };
+      results.forEach(({ id, ins }) => { next[id] = ins; });
+      return next;
+    });
+  }, [dpInspections]);
+
+  const handleStartDpInspection = async () => {
+    if (!inspectTarget?.allotment?.id || !user) return;
+    setInspectSubmitting(true);
+    try {
+      const insp = await quartersService.startInspection(inspectTarget.allotment.id, user.id, inspectRemarks);
+      setDpInspections(prev => ({
+        ...prev,
+        [inspectTarget.allotment!.id]: [insp, ...(prev[inspectTarget.allotment!.id] ?? [])],
+      }));
+      addToast('Inspection started', 'success');
+      setInspectTarget(null);
+      setInspectRemarks('');
+      setInspectCondition('GOOD');
+    } catch {
+      addToast('Failed to start inspection', 'error');
+    } finally {
+      setInspectSubmitting(false);
+    }
+  };
+
+  const handleSelectDpInspection = async (inspectionId: string) => {
+    setDpSelectedInspectionId(inspectionId);
+    try {
+      const chats = await quartersService.getInspectionChats(inspectionId);
+      setDpInspectionChats(chats);
+    } catch {
+      addToast('Failed to load inspection chat', 'error');
+    }
+  };
+
+  const handleSendDpInspChat = async () => {
+    if (!dpSelectedInspectionId || !user || !dpInspChatMsg.trim()) return;
+    try {
+      await quartersService.addInspectionChat(dpSelectedInspectionId, user.id, 'eo', dpInspChatMsg);
+      setDpInspChatMsg('');
+      const chats = await quartersService.getInspectionChats(dpSelectedInspectionId);
+      setDpInspectionChats(chats);
+    } catch {
+      addToast('Failed to send message', 'error');
+    }
+  };
+
   const filteredAllRequests = React.useMemo(() => {
     let r = [...allRequests];
     if (allReqStatus !== 'ALL') r = r.filter(x => x.request_status === allReqStatus);
@@ -335,18 +432,20 @@ export const QuarterManagerPage: React.FC = () => {
   }, [allRequests]);
 
   const dpCounts = React.useMemo(() => ({
+    accepted:  allRequests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     occupied:  allRequests.filter(r => r.request_status === 'ACKNOWLEDGED').length,
     allotted:  allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status !== 'PENDING').length,
-    allocated: allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING').length,
+    allotted_pending: allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING').length,
     submitted: allRequests.filter(r => r.request_status === 'SUBMITTED').length,
     draft:     allRequests.filter(r => r.request_status === 'DRAFT').length,
   }), [allRequests]);
 
   const dpFilteredRequests = React.useMemo(() => {
     if (dpFilter === 'all') return [];
+    if (dpFilter === 'accepted')  return allRequests.filter(r => r.request_status === 'ACKNOWLEDGED');
     if (dpFilter === 'occupied')  return allRequests.filter(r => r.request_status === 'ACKNOWLEDGED');
     if (dpFilter === 'allotted')  return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status !== 'PENDING');
-    if (dpFilter === 'allocated') return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING');
+    if (dpFilter === 'allotted_pending') return allRequests.filter(r => r.request_status === 'ALLOTTED' && r.allotment?.approval_status === 'PENDING');
     if (dpFilter === 'submitted') return allRequests.filter(r => r.request_status === 'SUBMITTED');
     if (dpFilter === 'draft')     return allRequests.filter(r => r.request_status === 'DRAFT');
     return [];
@@ -368,17 +467,26 @@ export const QuarterManagerPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Quarters Management</h1>
             <p className="text-sm text-gray-500 mt-1">Manage allotment cycles, review requests, and process tenant services.</p>
           </div>
-          <button
-            onClick={() => setViewMode(v => v === 'allocation' ? 'dp' : 'allocation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              viewMode === 'allocation'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-            }`}
-          >
-            <BarChart3 size={15} />
-            Allocation
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadPageAsHtml('/quarters/manager')}
+              title="Download Offline Copy"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <Download size={15} /> Download
+            </button>
+            <button
+              onClick={() => setViewMode(v => v === 'allocation' ? 'dp' : 'allocation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'allocation'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              <BarChart3 size={15} />
+              Allocation
+            </button>
+          </div>
         </div>
 
         {/* DP Summary Cards */}
@@ -407,16 +515,16 @@ export const QuarterManagerPage: React.FC = () => {
                 trend={quartersSummary.total > 0 ? Math.round((quartersSummary.available / quartersSummary.total) * 100) : 0}
               />
             )}
-            {dpCounts.occupied > 0 && (
+            {dpCounts.accepted > 0 && (
               <SummaryStatsCard
-                label="Occupied"
-                value={dpCounts.occupied}
-                icon={ThumbsUp}
-                gradient="bg-gradient-to-r from-teal-500 to-emerald-600"
-                onClick={() => setDpFilter(dpFilter === 'occupied' ? 'all' : 'occupied')}
-                isActive={dpFilter === 'occupied'}
+                label="Accepted"
+                value={dpCounts.accepted}
+                icon={HardHat}
+                gradient="bg-gradient-to-r from-sky-500 to-blue-600"
+                onClick={() => setDpFilter(dpFilter === 'accepted' ? 'all' : 'accepted')}
+                isActive={dpFilter === 'accepted'}
                 delay={75}
-                subtitle="Currently occupied"
+                subtitle="Awaiting inspection"
               />
             )}
             {dpCounts.allotted > 0 && (
@@ -431,14 +539,14 @@ export const QuarterManagerPage: React.FC = () => {
                 subtitle="Confirmed allotments"
               />
             )}
-            {dpCounts.allocated > 0 && (
+            {dpCounts.allotted_pending > 0 && (
               <SummaryStatsCard
-                label="Allocated"
-                value={dpCounts.allocated}
+                label="Allotted"
+                value={dpCounts.allotted_pending}
                 icon={Clock}
                 gradient="bg-gradient-to-r from-amber-500 to-orange-400"
-                onClick={() => setDpFilter(dpFilter === 'allocated' ? 'all' : 'allocated')}
-                isActive={dpFilter === 'allocated'}
+                onClick={() => setDpFilter(dpFilter === 'allotted_pending' ? 'all' : 'allotted_pending')}
+                isActive={dpFilter === 'allotted_pending'}
                 delay={175}
                 subtitle="Pending check-in"
               />
@@ -590,7 +698,7 @@ export const QuarterManagerPage: React.FC = () => {
           <div className="mb-5 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-900">{dpFilter.charAt(0).toUpperCase() + dpFilter.slice(1)} Requests</span>
+                <span className="text-sm font-semibold text-gray-900">{{ all: 'All', accepted: 'Accepted', occupied: 'Occupied', allotted: 'Allotted', allotted_pending: 'Allotted', submitted: 'Submitted', draft: 'Draft' }[dpFilter]} Requests</span>
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{dpFilteredRequests.length}</span>
               </div>
               <button onClick={() => setDpFilter('all')} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
@@ -604,61 +712,221 @@ export const QuarterManagerPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Request No.', 'Quarter', 'BHK / Location', 'Move-in', 'Family', 'Status', dpFilter === 'allocated' ? 'Override' : 'Updated'].map(h => (
+                      {['Request No.', 'Quarter', 'BHK / Location', 'Move-in', 'Family', 'Status',
+                        dpFilter === 'allotted_pending' ? 'Override' : dpFilter === 'accepted' ? 'Actions' : 'Updated'
+                      ].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {dpFilteredRequests.map((req, i) => {
                       const sc = reqStatusConfig(req.request_status);
                       const q = req.allotment?.quarter;
-                      const isAllocated = dpFilter === 'allocated';
+                      const isAllocated = dpFilter === 'allotted_pending';
+                      const isAccepted = dpFilter === 'accepted';
+                      const allotmentId = req.allotment?.id;
+                      const rowInspections = allotmentId ? (dpInspections[allotmentId] ?? []) : [];
+                      const isExpanded = dpExpandedInspRowId === req.id;
+
                       return (
-                        <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">{req.request_number}</td>
-                          <td className="px-4 py-3">
-                            {q ? (
-                              <div className="flex items-center gap-2">
-                                <img src={getImage(q, i)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
-                                <div>
-                                  <div className="text-xs font-medium text-gray-800">{q.quarter_number}</div>
-                                  <div className="text-[10px] text-gray-400">{q.bhk_config}</div>
-                                </div>
-                              </div>
-                            ) : <span className="text-xs text-gray-400">Not allotted</span>}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
-                            <div>{req.required_bhk_config || '—'}</div>
-                            <div className="text-gray-400">{req.preferred_location || '—'}</div>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                            {req.move_in_date ? fmtDate(req.move_in_date) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">{req.family_member_count ?? '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit ${sc.cls}`}>
-                              {sc.icon}{sc.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap relative">
-                            {isAllocated && req.allotment ? (
-                              <div className="relative inline-block">
+                        <React.Fragment key={req.id}>
+                          <tr className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${isExpanded ? 'bg-sky-50/40' : ''}`}>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">
+                              <div>{req.request_number}</div>
+                              {isAccepted && rowInspections.length > 0 && (
                                 <button
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setMiniMenuTarget(
-                                      miniMenuTarget?.req.id === req.id ? null : { req, allotment: req.allotment! }
-                                    );
-                                  }}
-                                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
+                                  onClick={() => setDpExpandedInspRowId(isExpanded ? null : req.id)}
+                                  className={`mt-1 flex items-center gap-1 text-[10px] font-semibold transition-colors ${isExpanded ? 'text-sky-700' : 'text-sky-500 hover:text-sky-700'}`}
                                 >
-                                  <Settings size={12} /> Override
+                                  <HardHat size={9} />
+                                  {rowInspections.length} inspection{rowInspections.length > 1 ? 's' : ''}
                                 </button>
-                              </div>
-                            ) : fmtDate(req.updated_at)}
-                          </td>
-                        </tr>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {q ? (
+                                <div className="flex items-center gap-2">
+                                  <img src={getImage(q, i)} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                                  <div>
+                                    <div className="text-xs font-medium text-gray-800">{q.quarter_number}</div>
+                                    <div className="text-[10px] text-gray-400">{q.bhk_config}</div>
+                                  </div>
+                                </div>
+                              ) : <span className="text-xs text-gray-400">Not allotted</span>}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              <div>{req.required_bhk_config || '—'}</div>
+                              <div className="text-gray-400">{req.preferred_location || '—'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                              {req.move_in_date ? fmtDate(req.move_in_date) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">{req.family_member_count ?? '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 w-fit ${sc.cls}`}>
+                                {sc.icon}{sc.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap relative">
+                              {isAllocated && req.allotment ? (
+                                <div className="relative inline-block">
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setMiniMenuTarget(
+                                        miniMenuTarget?.req.id === req.id ? null : { req, allotment: req.allotment! }
+                                      );
+                                    }}
+                                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors font-medium"
+                                  >
+                                    <Settings size={12} /> Override
+                                  </button>
+                                </div>
+                              ) : isAccepted ? (
+                                <div className="relative inline-block" ref={dpActionMenuReqId === req.id ? dpActionMenuRef : undefined}>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setDpActionMenuReqId(dpActionMenuReqId === req.id ? null : req.id); }}
+                                    className={`p-1.5 rounded-lg border transition-colors ${dpActionMenuReqId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700'}`}
+                                    title="Actions"
+                                  >
+                                    <MoreVertical size={13} />
+                                  </button>
+                                  {dpActionMenuReqId === req.id && (
+                                    <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                                      <button
+                                        onClick={() => setDpActionMenuReqId(null)}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors group"
+                                      >
+                                        <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center shrink-0"><Eye size={11} className="text-gray-600" /></div>
+                                        <span className="text-xs font-semibold text-gray-800">Detail</span>
+                                      </button>
+                                      <div className="mx-2 border-t border-gray-100" />
+                                      <button
+                                        onClick={() => { setDpActionMenuReqId(null); setInspectTarget(req); setInspectRemarks(''); setInspectCondition('GOOD'); }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-sky-50 transition-colors group"
+                                      >
+                                        <div className="w-6 h-6 rounded-lg bg-sky-50 flex items-center justify-center shrink-0 group-hover:bg-sky-100"><HardHat size={11} className="text-sky-600" /></div>
+                                        <span className="text-xs font-semibold text-gray-800">New Inspection</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : fmtDate(req.updated_at)}
+                            </td>
+                          </tr>
+
+                          {/* Inspection sub-rows — indented tree style */}
+                          {isAccepted && isExpanded && rowInspections.length > 0 && (
+                            <tr>
+                              <td colSpan={7} className="px-0 py-0 bg-sky-50/30">
+                                <div className="relative ml-8 my-2 mr-4">
+                                  {/* Vertical connector */}
+                                  <div className="absolute left-0 top-0 bottom-4 w-0.5 bg-sky-200 rounded-full" />
+                                  <div className="space-y-1.5 pl-5">
+                                    {rowInspections.map((insp, inspIdx) => {
+                                      const isLast = inspIdx === rowInspections.length - 1;
+                                      const isInspSelected = dpSelectedInspectionId === insp.id;
+                                      return (
+                                        <div key={insp.id} className="relative">
+                                          {/* Horizontal nub */}
+                                          <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-sky-200 rounded-full" />
+                                          {/* Junction dot */}
+                                          <div className={`absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 transition-colors ${isInspSelected ? 'bg-sky-600 border-sky-600' : 'bg-white border-sky-300'}`} />
+                                          {isLast && (
+                                            <div className="absolute -left-[1px] top-1/2 bottom-0 w-0.5 bg-sky-50/30" />
+                                          )}
+                                          {/* Inspection card */}
+                                          <div
+                                            onClick={() => {
+                                              handleSelectDpInspection(insp.id);
+                                              setDpExpandedInspRowId(req.id);
+                                            }}
+                                            className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md ${isInspSelected ? 'border-sky-400 ring-2 ring-sky-100' : 'border-gray-200 hover:border-sky-200'}`}
+                                          >
+                                            <div className="flex min-h-[72px]">
+                                              {/* Left accent */}
+                                              <div className={`w-1 shrink-0 rounded-l-xl ${insp.status === 'CLOSED' ? 'bg-gray-300' : 'bg-sky-500'}`} />
+                                              {/* Icon zone */}
+                                              <div className={`w-12 shrink-0 flex items-center justify-center ${insp.status === 'CLOSED' ? 'bg-gray-50' : 'bg-sky-50'}`}>
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${insp.status === 'CLOSED' ? 'bg-gray-100 text-gray-400' : 'bg-sky-100 text-sky-600'}`}>
+                                                  <HardHat size={14} />
+                                                </div>
+                                              </div>
+                                              {/* Body */}
+                                              <div className="flex-1 px-3 py-2.5 min-w-0">
+                                                <div className="flex items-center justify-between gap-2 mb-1">
+                                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${insp.status === 'CLOSED' ? 'bg-gray-100 text-gray-500' : 'bg-sky-100 text-sky-700'}`}>{insp.status}</span>
+                                                  <span className="text-[10px] text-gray-400">{fmtDate(insp.created_at)}</span>
+                                                </div>
+                                                {insp.opening_remarks && (
+                                                  <p className="text-xs text-gray-700 font-medium truncate">{insp.opening_remarks}</p>
+                                                )}
+                                                {insp.property_condition && (
+                                                  <p className="text-[10px] text-gray-400 mt-0.5">Condition: {insp.property_condition}</p>
+                                                )}
+                                                <div className="flex items-center gap-1.5 mt-1.5">
+                                                  <span className="text-[10px] bg-sky-50 text-sky-600 border border-sky-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
+                                                    <MessageSquare size={9} />Chat
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Inspection chat panel — shown when an inspection is selected under this row */}
+                                {dpSelectedInspectionId && rowInspections.some(i => i.id === dpSelectedInspectionId) && (
+                                  <div className="mx-4 mb-3 bg-white rounded-xl border border-sky-200 overflow-hidden shadow-sm">
+                                    <div className="px-4 py-2.5 border-b border-sky-100 bg-sky-50 flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <MessageSquare size={13} className="text-sky-600" />
+                                        <span className="text-xs font-semibold text-sky-800">Inspection Chat</span>
+                                      </div>
+                                      <button onClick={() => setDpSelectedInspectionId(null)} className="p-1 rounded text-sky-400 hover:text-sky-700 transition-colors">
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                    <div className="p-3 space-y-2 max-h-48 overflow-y-auto bg-gray-50">
+                                      {dpInspectionChats.length === 0 && (
+                                        <p className="text-xs text-gray-400 text-center italic py-4">No messages yet. Start the conversation.</p>
+                                      )}
+                                      {dpInspectionChats.map(chat => (
+                                        <div key={chat.id} className={`flex ${chat.author_role === 'eo' ? 'justify-end' : 'justify-start'}`}>
+                                          <div className={`max-w-[75%] rounded-xl px-3 py-2 text-xs ${chat.author_role === 'eo' ? 'bg-sky-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
+                                            <div className={`text-[9px] font-bold mb-0.5 capitalize ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-sky-600'}`}>{chat.author_role}</div>
+                                            <p>{chat.message}</p>
+                                            <div className={`text-[9px] mt-0.5 ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="p-3 border-t border-sky-100 flex gap-2">
+                                      <input
+                                        value={dpInspChatMsg}
+                                        onChange={e => setDpInspChatMsg(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter' && dpInspChatMsg.trim()) handleSendDpInspChat(); }}
+                                        placeholder="Add observation…"
+                                        className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400"
+                                      />
+                                      <button
+                                        onClick={handleSendDpInspChat}
+                                        disabled={!dpInspChatMsg.trim()}
+                                        className="px-3 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-40 transition-colors"
+                                      >
+                                        <Send size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -890,6 +1158,70 @@ export const QuarterManagerPage: React.FC = () => {
           loadAllRequests();
         }}
       />
+
+      {/* New Inspection Popup */}
+      {inspectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 bg-sky-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <HardHat size={16} className="text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white">New Inspection</div>
+                  <div className="text-[11px] text-sky-200">{inspectTarget.request_number} · {inspectTarget.allotment?.quarter?.quarter_number ?? '—'}</div>
+                </div>
+              </div>
+              <button onClick={() => setInspectTarget(null)} className="p-1.5 rounded-lg text-sky-200 hover:text-white hover:bg-white/10 transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Opening Remarks</label>
+                <textarea
+                  value={inspectRemarks}
+                  onChange={e => setInspectRemarks(e.target.value)}
+                  rows={3}
+                  placeholder="Describe the purpose of this inspection…"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400 resize-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Initial Condition</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setInspectCondition(c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${inspectCondition === c ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                      {c.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setInspectTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartDpInspection}
+                disabled={inspectSubmitting || !inspectRemarks.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <PlayCircle size={14} />
+                {inspectSubmitting ? 'Starting…' : 'Start Inspection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

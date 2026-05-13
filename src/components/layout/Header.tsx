@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Building2, Bell, LogOut, UserCheck, Calendar, Settings,
   Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
-  LayoutDashboard, Home,
+  LayoutDashboard, Home, Download,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
+import { downloadPageAsHtml } from '../../utils/downloadHtml';
 
 interface NavItem {
   route: string;
@@ -91,7 +92,7 @@ export const Header: React.FC = () => {
     ? regularUserNavItems
     : [
         ...baseNavItems,
-        ...(isManager ? [...managerNavItems, quartersManagerNavItem] : []),
+        ...(isManager ? managerNavItems : []),
         ...(isAdmin ? adminNavItems : []),
       ];
 
@@ -170,6 +171,16 @@ export const Header: React.FC = () => {
                 <button className="header-icon-btn relative" aria-label="Notifications">
                   <Bell size={19} />
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                </button>
+
+                {/* Download offline copy */}
+                <button
+                  className="header-icon-btn"
+                  aria-label="Download offline copy"
+                  title="Download Offline Copy"
+                  onClick={() => downloadPageAsHtml(location.pathname)}
+                >
+                  <Download size={17} />
                 </button>
 
                 {/* User identity */}

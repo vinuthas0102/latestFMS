@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, Home,
   MapPin, ChevronRight, Plus, Eye, SlidersHorizontal,
-  RotateCcw, Shield, History, Search, Navigation, X,
+  RotateCcw, Shield, History, Search, Navigation, X, Download,
 } from 'lucide-react';
 import { ViewMode } from '../components/ui/ViewSwitcher';
 import { QuarterListCard } from '../components/quarters/QuarterListCard';
@@ -23,6 +23,7 @@ import SplitLayout from '../components/ui/SplitLayout';
 import { QuarterDetailModal } from '../components/quarters/QuarterDetailModal';
 import { QuarterCard } from '../components/quarters/QuarterCard';
 import { VIEW_MODE_OPTIONS } from '../components/ui/ViewModeIcons';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 
 // ── Role-aware welcome banner config ────────────────────────────
 
@@ -323,6 +324,14 @@ export const QuarterFreeviewPage: React.FC = () => {
                   ))}
                 </div>
 
+                <button
+                  onClick={() => downloadPageAsHtml('/quarters')}
+                  title="Download Offline Copy"
+                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-xs md:text-sm transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                >
+                  <Download size={15} />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
                 <button
                   onClick={() => navigate(ROUTES.QUARTERS_REQUESTS)}
                   className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 hover:border-white/50 text-white rounded-xl font-medium text-xs md:text-sm transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"

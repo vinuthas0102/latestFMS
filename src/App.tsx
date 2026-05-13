@@ -187,7 +187,7 @@ function App() {
             <Route
               path="/quarters/manager"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                <ProtectedRoute allowedRoles={['admin']}>
                   <AppLayout><QuarterManagerPage /></AppLayout>
                 </ProtectedRoute>
               }

@@ -4,7 +4,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react-router-dom',
+      'zustand',
+    ],
     exclude: ['lucide-react'],
+    entries: ['index.html'],
+    force: false,
   },
   build: {
     chunkSizeWarningLimit: 1000,
@@ -14,9 +23,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-state': ['zustand'],
-          'vendor-maps': ['@googlemaps/js-api-loader'],
           'vendor-icons': ['lucide-react'],
-          'vendor-http': ['axios'],
         },
       },
     },

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Bed, Ruler, Layers, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
-  Zap, Droplets, Shield, FileText, AlertCircle, Images,
+  Zap, Droplets, Shield, FileText, AlertCircle, Images, Download,
 } from 'lucide-react';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { PhotoGallery, PhotoLightbox } from '../components/ui/PhotoGallery';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
@@ -99,6 +100,7 @@ const SectionHeading: React.FC<{ icon: React.ReactNode; label: string; count?: s
 export const QuarterDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
 
   const [quarter, setQuarter] = useState<Quarter | null>(null);
@@ -111,6 +113,24 @@ export const QuarterDetailPage: React.FC = () => {
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const scrollingRef = useRef(false);
 
+  // Walk up from any element to find the nearest scrollable ancestor
+  const getScrollContainer = useCallback((): HTMLElement => {
+    for (const sId of ALL_SECTION_IDS) {
+      const el = sectionRefs.current[sId];
+      if (!el) continue;
+      let node: HTMLElement | null = el.parentElement;
+      while (node) {
+        const style = window.getComputedStyle(node);
+        const overflow = style.overflowY;
+        if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+    }
+    return document.documentElement;
+  }, []);
+
   useEffect(() => {
     if (!id) return;
     quartersService.getQuarterById(id)
@@ -122,6 +142,7 @@ export const QuarterDetailPage: React.FC = () => {
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
     if (!quarter) return;
+    const container = getScrollContainer();
     const observers: IntersectionObserver[] = [];
 
     ALL_SECTION_IDS.forEach((sId) => {
@@ -139,14 +160,18 @@ export const QuarterDetailPage: React.FC = () => {
             }
           }
         },
-        { rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`, threshold: 0 }
+        {
+          root: container,
+          rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`,
+          threshold: 0,
+        }
       );
       obs.observe(el);
       observers.push(obs);
     });
 
     return () => observers.forEach(o => o.disconnect());
-  }, [quarter]);
+  }, [quarter, getScrollContainer]);
 
   // ── Programmatic scroll to section ─────────────────────────────
   const scrollToSection = useCallback((sId: SectionId) => {
@@ -161,11 +186,14 @@ export const QuarterDetailPage: React.FC = () => {
       btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     }
 
-    const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-    window.scrollTo({ top, behavior: 'smooth' });
+    const container = getScrollContainer();
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const offset = container.scrollTop + (elRect.top - containerRect.top) - HEADER_OFFSET;
+    container.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
 
     setTimeout(() => { scrollingRef.current = false; }, 800);
-  }, []);
+  }, [getScrollContainer]);
 
   const canManage = !!(user && canManageProperties(user.role));
   const isGovtOfficial = user?.role === 'govt_official';
@@ -272,7 +300,13 @@ export const QuarterDetailPage: React.FC = () => {
           {/* Back / Identity / Action row */}
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                if (isGovtOfficial) {
+                  navigate((location.state as { from?: string } | null)?.from ?? ROUTES.QUARTERS_FREEVIEW);
+                } else {
+                  navigate(-1);
+                }
+              }}
               className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={16} /> Back
@@ -290,14 +324,13 @@ export const QuarterDetailPage: React.FC = () => {
             )}
 
             <div className="flex items-center gap-2">
-              {canManage && (
-                <button
-                  onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg font-semibold text-xs shadow-sm transition-all"
-                >
-                  <Settings size={13} /> Quarter Manager
-                </button>
-              )}
+              <button
+                onClick={() => downloadPageAsHtml(window.location.pathname)}
+                title="Download as HTML"
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+              >
+                <Download size={13} />
+              </button>
               {isGovtOfficial && isAvailable && (
                 <button
                   onClick={() => scrollToSection('action')}
@@ -341,56 +374,62 @@ export const QuarterDetailPage: React.FC = () => {
       {/* ── Main content ──────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-10 space-y-10">
 
-        {/* Photo gallery — always at top */}
-        <PhotoGallery
-          images={images}
-          alt={quarter.quarter_number}
-          heroHeight="400px"
-          lightboxInfo={lightboxInfoPanel}
-        />
-
-        {/* ── OVERVIEW ────────────────────────────────────────── */}
+        {/* ── Hero split: gallery (left) + overview (right) ── */}
         <section
           ref={(el) => { if (el) sectionRefs.current['overview'] = el; }}
-          className="scroll-mt-24 space-y-5"
+          className="scroll-mt-24"
         >
-          <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+          <div className="flex flex-col lg:flex-row gap-6" style={{ minHeight: 380 }}>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
-            <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
-            <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
-            <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
-            <SpecTile
-              icon={<IndianRupee size={14} />}
-              label="Monthly Rent"
-              value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
-              accent="bg-emerald-50 border-emerald-200"
-            />
-            <SpecTile
-              icon={<CheckCircle size={14} />}
-              label="Status"
-              value={
-                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-                  <CheckCircle size={10} />
-                  {isAvailable ? 'Available' : 'Occupied'}
-                </span>
-              }
-            />
-          </div>
-
-          {quarter.description && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
-                <Info size={14} className="text-blue-500" /> Description
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+            {/* Left: Photo gallery */}
+            <div className="lg:w-1/2 flex-shrink-0" style={{ minHeight: 320 }}>
+              <PhotoGallery
+                images={images}
+                alt={quarter.quarter_number}
+                fillHeight
+                lightboxInfo={lightboxInfoPanel}
+              />
             </div>
-          )}
+
+            {/* Right: Overview details */}
+            <div className="lg:w-1/2 flex flex-col gap-4 min-w-0">
+              <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
+                <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
+                <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
+                <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
+                <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
+                <SpecTile
+                  icon={<IndianRupee size={14} />}
+                  label="Monthly Rent"
+                  value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
+                  accent="bg-emerald-50 border-emerald-200"
+                />
+              </div>
+
+              <SpecTile
+                icon={<CheckCircle size={14} />}
+                label="Status"
+                value={
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+                    <CheckCircle size={10} />
+                    {isAvailable ? 'Available' : 'Occupied'}
+                  </span>
+                }
+              />
+
+              {quarter.description && (
+                <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1.5">
+                    <Info size={14} className="text-blue-500" /> Description
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* ── FINANCIALS ──────────────────────────────────────── */}
@@ -638,12 +677,6 @@ export const QuarterDetailPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => navigate(ROUTES.QUARTERS_MANAGER)}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
-              >
-                <Settings size={16} /> Go to Quarter Manager
-              </button>
             </div>
           ) : isGovtOfficial ? (
             isAvailable ? (

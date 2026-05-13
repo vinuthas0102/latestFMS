@@ -70,7 +70,7 @@ interface QuarterListCardProps {
   quarter: Quarter;
   idx: number;
   onView: (q: Quarter) => void;
-  onAddToRequest: (q: Quarter) => void;
+  onAddToRequest?: (q: Quarter) => void;
 }
 
 export const QuarterListCard: React.FC<QuarterListCardProps> = ({
@@ -309,7 +309,7 @@ export const QuarterListCard: React.FC<QuarterListCardProps> = ({
         </div>
 
         <div className="mt-4 flex flex-col gap-2">
-          {isAvailable && (
+          {isAvailable && onAddToRequest && (
             <button
               onClick={(e) => { e.stopPropagation(); onAddToRequest(quarter); }}
               className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"

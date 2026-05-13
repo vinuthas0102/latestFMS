@@ -448,7 +448,7 @@ export const PropertiesPage: React.FC = () => {
           minLeft={40}
           maxLeft={80}
           onClose={() => setSelectedProperty(null)}
-          right={selectedProperty ? (
+          right={selectedProperty != null ? (
             <div className="flex flex-col">
               {/* Image tiles */}
               <div className="flex-none px-5 pt-4">
@@ -551,14 +551,7 @@ export const PropertiesPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="hidden lg:flex flex-col h-full bg-gray-50/60 items-center justify-center text-center p-8">
-              <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center mb-4">
-                <Building2 size={28} className="text-gray-300" />
-              </div>
-              <div className="text-sm font-semibold text-gray-400 mb-1">Select a property</div>
-            </div>
-          )}
+          ) : null}
           left={
           <div>
             {loading ? (

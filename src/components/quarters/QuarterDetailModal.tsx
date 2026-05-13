@@ -4,8 +4,9 @@ import {
   X, ArrowLeft, MapPin, Info, Map, Plus, Home,
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
   Zap, Droplets, Shield, FileText, AlertCircle, ExternalLink,
-  Images, Bed, Ruler, Layers, FlaskConical,
+  Images, Bed, Ruler, Layers, FlaskConical, Download,
 } from 'lucide-react';
+import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { PhotoGallery, PhotoLightbox } from '../ui/PhotoGallery';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../maps/NearbyPlacesPanel';
@@ -95,6 +96,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
   const scrollingRef = useRef(false);
 
@@ -254,6 +256,7 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
   const panelContent = (
         <div
+          ref={contentRef}
           className={inline ? "relative bg-gray-50 w-full h-full flex flex-col overflow-hidden" : "relative bg-gray-50 w-full max-w-5xl h-full sm:h-[94vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl"}
           onClick={(e) => e.stopPropagation()}
         >
@@ -283,20 +286,21 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
 
               <div className="flex items-center gap-2">
                 {quarter && (
-                  <button
-                    onClick={() => { navigate(`/quarters/${quarterId}`); if (!inline) onClose(); }}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
-                  >
-                    <ExternalLink size={12} /> Full Page
-                  </button>
-                )}
-                {canManage && quarter && (
-                  <button
-                    onClick={() => { navigate(ROUTES.QUARTERS_MANAGER); if (!inline) onClose(); }}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200 transition-all"
-                  >
-                    <Settings size={12} /> Manager
-                  </button>
+                  <>
+                    <button
+                      onClick={() => { navigate(`/quarters/${quarterId}`, { state: { from: '/quarters' } }); if (!inline) onClose(); }}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+                    >
+                      <ExternalLink size={12} /> Full Page
+                    </button>
+                    <button
+                      onClick={() => contentRef.current && downloadElementAsHtml(contentRef.current, quarter.quarter_number, `Quarter_${quarter.quarter_number}`)}
+                      title="Download as HTML"
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-teal-600 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 border border-gray-200 hover:border-teal-200 transition-all"
+                    >
+                      <Download size={12} />
+                    </button>
+                  </>
                 )}
                 {isGovtOfficial && quarter && isAvailable && (
                   <button
@@ -362,71 +366,78 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
             ) : (
               <div className="p-5 pb-8 space-y-8">
 
-                {/* Photo gallery */}
-                <PhotoGallery
-                  images={images}
-                  alt={quarter.quarter_number}
-                  heroHeight="360px"
-                  lightboxInfo={lightboxInfo}
-                />
-
-                {/* ── OVERVIEW ─────────────────────────────────── */}
+                {/* ── Hero split: gallery (left) + overview (right) ── */}
                 <section
                   ref={(el) => { if (el) sectionRefs.current['overview'] = el; }}
-                  className="space-y-4"
                 >
-                  <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+                  <div className="flex flex-col lg:flex-row gap-5" style={{ minHeight: 340 }}>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
-                    <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
-                    <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
-                    <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
-                    <SpecTile icon={<FlaskConical size={14} />} label="Toilet Type" value={quarter.toilet_type || 'Western'} />
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
-                    <SpecTile
-                      icon={<IndianRupee size={14} />}
-                      label="Monthly Rent"
-                      value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
-                      accent="bg-emerald-50 border-emerald-200"
-                    />
-                    <SpecTile
-                      icon={<CheckCircle size={14} />}
-                      label="Status"
-                      value={
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
-                          <CheckCircle size={10} />
-                          {isAvailable ? 'Available' : 'Occupied'}
-                        </span>
-                      }
-                    />
-                  </div>
-
-                  {quarter.description && (
-                    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                      <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                        <Info size={13} className="text-blue-500" /> Description
-                      </h4>
-                      <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+                    {/* Left: Photo gallery */}
+                    <div className="lg:w-1/2 flex-shrink-0" style={{ minHeight: 280 }}>
+                      <PhotoGallery
+                        images={images}
+                        alt={quarter.quarter_number}
+                        fillHeight
+                        lightboxInfo={lightboxInfo}
+                      />
                     </div>
-                  )}
 
-                  <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <MapPin size={13} className="text-rose-500" /> Location
-                    </h4>
-                    <p className="text-sm text-gray-600">{quarter.address || 'Address not available'}</p>
-                    {hasLocation && (
-                      <button
-                        onClick={() => scrollToSection('location')}
-                        className="mt-2 text-xs text-teal-600 hover:underline font-medium"
-                      >
-                        View on map →
-                      </button>
-                    )}
+                    {/* Right: Overview details */}
+                    <div className="lg:w-1/2 flex flex-col gap-3 min-w-0">
+                      <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Quarter Specifications" />
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        <SpecTile icon={<Bed size={14} />} label="Configuration" value={quarter.bhk_config} />
+                        <SpecTile icon={<Ruler size={14} />} label="Area" value={`${quarter.area_sqft} sq.ft`} />
+                        <SpecTile icon={<Building2 size={14} />} label="Block / Floor" value={`${quarter.block_name || '—'} / Fl. ${quarter.floor_number}`} />
+                        <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
+                        <SpecTile icon={<FlaskConical size={14} />} label="Toilet Type" value={quarter.toilet_type || 'Western'} />
+                        <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <SpecTile
+                          icon={<IndianRupee size={14} />}
+                          label="Monthly Rent"
+                          value={<span className="text-emerald-700">{fmtINR(quarter.monthly_rent)}</span>}
+                          accent="bg-emerald-50 border-emerald-200"
+                        />
+                        <SpecTile
+                          icon={<CheckCircle size={14} />}
+                          label="Status"
+                          value={
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${getOccupancyBadge(quarter.occupancy_status)}`}>
+                              <CheckCircle size={10} />
+                              {isAvailable ? 'Available' : 'Occupied'}
+                            </span>
+                          }
+                        />
+                      </div>
+
+                      {quarter.description && (
+                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <Info size={13} className="text-blue-500" /> Description
+                          </h4>
+                          <p className="text-sm text-gray-600 leading-relaxed">{quarter.description}</p>
+                        </div>
+                      )}
+
+                      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mt-auto">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                          <MapPin size={13} className="text-rose-500" /> Location
+                        </h4>
+                        <p className="text-sm text-gray-600">{quarter.address || 'Address not available'}</p>
+                        {hasLocation && (
+                          <button
+                            onClick={() => scrollToSection('location')}
+                            className="mt-2 text-xs text-teal-600 hover:underline font-medium"
+                          >
+                            View on map →
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </section>
 
@@ -668,12 +679,6 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                           </div>
                         ))}
                       </div>
-                      <button
-                        onClick={() => { navigate(ROUTES.QUARTERS_MANAGER); onClose(); }}
-                        className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-sm transition-colors shadow-md"
-                      >
-                        <Settings size={16} /> Go to Quarter Manager
-                      </button>
                     </div>
                   ) : isGovtOfficial ? (
                     isAvailable ? (
