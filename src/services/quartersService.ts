@@ -420,6 +420,8 @@ export const quartersService = {
         eo_notes: '',
         grievance_subject: input.grievance_subject ?? '',
         urgency_level: input.urgency_level ?? 'NORMAL',
+        retention_reason: input.retention_reason ?? '',
+        requested_months: input.requested_months ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -440,6 +442,8 @@ export const quartersService = {
         required_bhk_config: input.required_bhk_config ?? '',
         grievance_subject: input.grievance_subject ?? '',
         urgency_level: input.urgency_level ?? 'NORMAL',
+        retention_reason: input.retention_reason ?? '',
+        requested_months: input.requested_months ?? null,
       })
       .select()
       .single();

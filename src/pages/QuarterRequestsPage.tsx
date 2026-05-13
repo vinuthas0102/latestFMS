@@ -530,6 +530,8 @@ export const QuarterRequestsPage: React.FC = () => {
   const [popupCondition, setPopupCondition] = useState('');
   const [popupKeyNumber, setPopupKeyNumber] = useState('');
   const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
+  const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
+  const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
 
   function resetActionForm() {
     setRightAction(null); setActionRemarks(''); setActionReason('');
@@ -629,6 +631,7 @@ export const QuarterRequestsPage: React.FC = () => {
     setPopupReason(''); setPopupRemarks(''); setPopupDocUrl(null);
     setPopupDate(''); setPopupSubject(''); setPopupUrgency('NORMAL');
     setPopupInspectorName(''); setPopupCondition(''); setPopupKeyNumber(''); setPopupHandoverDeadline('');
+    setPopupRetentionReason('On retirement'); setPopupRequestedMonths(2);
   }
 
   function closeActionPopup() {
@@ -1197,6 +1200,10 @@ export const QuarterRequestsPage: React.FC = () => {
         requested_date: popupDate || null,
         grievance_subject: popupSubject || undefined,
         urgency_level: popupUrgency,
+        ...(actionPopup.type === 'EXTEND' ? {
+          retention_reason: popupRetentionReason,
+          requested_months: popupRequestedMonths,
+        } : {}),
       };
       await quartersService.createTenantRequest(user.id, actionPopup.allotmentId, input);
       addToast('Request submitted successfully', 'success');
@@ -3807,7 +3814,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
-                                Extend Lease
+                                Extension/Retention
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); resetActionForm(); setRightAction('upgrade'); }}
@@ -4238,32 +4245,48 @@ export const QuarterRequestsPage: React.FC = () => {
       )}
 
       {/* ── Inline Action Popup (Extension / Vacate / Grievance / Maintenance / Inspection / Handover) ── */}
-      <ActionPopupModal
-        actionPopup={actionPopup}
-        onClose={closeActionPopup}
-        onSubmit={handlePopupSubmit}
-        submitting={popupSubmitting}
-        reason={popupReason}
-        remarks={popupRemarks}
-        docUrl={popupDocUrl}
-        date={popupDate}
-        subject={popupSubject}
-        urgency={popupUrgency}
-        inspectorName={popupInspectorName}
-        condition={popupCondition}
-        keyNumber={popupKeyNumber}
-        handoverDeadline={popupHandoverDeadline}
-        onReasonChange={setPopupReason}
-        onRemarksChange={setPopupRemarks}
-        onDocChange={setPopupDocUrl}
-        onDateChange={setPopupDate}
-        onSubjectChange={setPopupSubject}
-        onUrgencyChange={setPopupUrgency}
-        onInspectorNameChange={setPopupInspectorName}
-        onConditionChange={setPopupCondition}
-        onKeyNumberChange={setPopupKeyNumber}
-        onHandoverDeadlineChange={setPopupHandoverDeadline}
-      />
+      {(() => {
+        const popupReq = actionPopup.requestId ? requests.find(r => r.id === actionPopup.requestId) : undefined;
+        const pq = popupReq?.allotment?.quarter;
+        const allotmentInfo = pq ? {
+          quarterNumber: pq.quarter_number ?? '',
+          block: pq.block_name ?? '',
+          quarterType: pq.quarter_type ?? '',
+        } : undefined;
+        return (
+          <ActionPopupModal
+            actionPopup={actionPopup}
+            onClose={closeActionPopup}
+            onSubmit={handlePopupSubmit}
+            submitting={popupSubmitting}
+            reason={popupReason}
+            remarks={popupRemarks}
+            docUrl={popupDocUrl}
+            date={popupDate}
+            subject={popupSubject}
+            urgency={popupUrgency}
+            inspectorName={popupInspectorName}
+            condition={popupCondition}
+            keyNumber={popupKeyNumber}
+            handoverDeadline={popupHandoverDeadline}
+            retentionReason={popupRetentionReason}
+            requestedMonths={popupRequestedMonths}
+            allotmentInfo={allotmentInfo}
+            onReasonChange={setPopupReason}
+            onRemarksChange={setPopupRemarks}
+            onDocChange={setPopupDocUrl}
+            onDateChange={setPopupDate}
+            onSubjectChange={setPopupSubject}
+            onUrgencyChange={setPopupUrgency}
+            onInspectorNameChange={setPopupInspectorName}
+            onConditionChange={setPopupCondition}
+            onKeyNumberChange={setPopupKeyNumber}
+            onHandoverDeadlineChange={setPopupHandoverDeadline}
+            onRetentionReasonChange={setPopupRetentionReason}
+            onRequestedMonthsChange={setPopupRequestedMonths}
+          />
+        );
+      })()}
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (

@@ -163,6 +163,8 @@ export interface QuarterTenantRequest {
   eo_notes: string;
   grievance_subject: string;
   urgency_level: string;
+  retention_reason: string;
+  requested_months: number | null;
   created_at: string;
   updated_at: string;
   allotment?: QuarterAllotment;
@@ -177,6 +179,8 @@ export interface CreateTenantRequestInput {
   required_bhk_config?: string;
   grievance_subject?: string;
   urgency_level?: string;
+  retention_reason?: string;
+  requested_months?: number | null;
 }
 
 export interface QuarterFilters {
