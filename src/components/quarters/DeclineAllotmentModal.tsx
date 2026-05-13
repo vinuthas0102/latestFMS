@@ -53,6 +53,9 @@ export function DeclineAllotmentModal({
             />
           </div>
           <DocUpload value={docUrl} onChange={onDocChange} label="Supporting Document" optional />
+          <p className="text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            Please note: This action is final and cannot be undone once submitted.
+          </p>
         </div>
 
         <div className="px-5 pb-5 flex gap-2.5">
