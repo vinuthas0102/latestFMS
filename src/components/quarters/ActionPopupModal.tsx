@@ -1,5 +1,9 @@
-import React, { useRef } from 'react';
-import { RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key, CalendarDays, Info, Paperclip, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key,
+  CalendarDays, Info, Paperclip, X, ChevronDown, ChevronUp,
+  Building2, FileText, CheckCircle2,
+} from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DocUpload } from '../ui/DocUpload';
 
@@ -50,12 +54,12 @@ interface Props {
 }
 
 const TYPE_CONFIG: Record<ActionType, { title: string; color: string; icon: React.ReactNode }> = {
-  EXTEND:      { title: 'Extension/Retention Request', color: 'text-amber-700',   icon: <RefreshCw size={16} className="text-amber-600" /> },
-  VACATE:      { title: 'Vacate Request',               color: 'text-rose-700',    icon: <LogOut size={16} className="text-rose-600" /> },
-  GRIEVANCE:   { title: 'Raise Grievance',              color: 'text-slate-700',   icon: <AlertCircle size={16} className="text-slate-600" /> },
-  MAINTENANCE: { title: 'Maintenance Request',          color: 'text-teal-700',    icon: <Wrench size={16} className="text-teal-600" /> },
-  INSPECTION:  { title: 'Start Inspection',             color: 'text-blue-700',    icon: <HardHat size={16} className="text-blue-600" /> },
-  HANDOVER:    { title: 'Record Handover',              color: 'text-emerald-700', icon: <Key size={16} className="text-emerald-600" /> },
+  EXTEND:      { title: 'Extension/Retention Request', color: 'text-amber-700',   icon: <RefreshCw size={18} className="text-amber-600" /> },
+  VACATE:      { title: 'Vacate Request',               color: 'text-rose-700',    icon: <LogOut size={18} className="text-rose-600" /> },
+  GRIEVANCE:   { title: 'Raise Grievance',              color: 'text-slate-700',   icon: <AlertCircle size={18} className="text-slate-600" /> },
+  MAINTENANCE: { title: 'Maintenance Request',          color: 'text-teal-700',    icon: <Wrench size={18} className="text-teal-600" /> },
+  INSPECTION:  { title: 'Start Inspection',             color: 'text-blue-700',    icon: <HardHat size={18} className="text-blue-600" /> },
+  HANDOVER:    { title: 'Record Handover',              color: 'text-emerald-700', icon: <Key size={18} className="text-emerald-600" /> },
 };
 
 const RETENTION_REASONS = [
@@ -110,189 +114,273 @@ function ExtendForm({
   onSubmit: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [refExpanded, setRefExpanded] = useState(false);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-        <RefreshCw size={16} className="text-amber-600" />
-        <h3 className="text-base font-bold text-amber-700">Extension/Retention Request</h3>
+    <div className="flex flex-col" style={{ maxHeight: '88vh' }}>
+
+      {/* ── Sticky Header ───────────────────────────────────── */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+            <RefreshCw size={16} className="text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-900 leading-tight">Extension / Retention Request</h2>
+            <p className="text-xs text-gray-400 mt-0.5 leading-tight">Submit a request to retain your quarter beyond the allotment period</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all shrink-0 ml-4"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
       </div>
 
-      {/* Allocation Info */}
-      {allotmentInfo && (
-        <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-          <Info size={14} className="text-blue-500 shrink-0 mt-0.5" />
-          <div>
-            <div className="text-[10px] font-bold text-blue-500 uppercase tracking-wide mb-1.5">Allocation Data</div>
-            <div className="flex flex-wrap gap-x-6 gap-y-1">
+      {/* ── Scrollable Body ─────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+        {/* Allocation Data */}
+        {allotmentInfo && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-amber-100">
+              <Building2 size={13} className="text-amber-600 shrink-0" />
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Allocation Data</span>
+              <span className="ml-auto text-[10px] text-amber-400 font-medium">Read-only</span>
+            </div>
+            <div className="px-4 py-3 grid grid-cols-3 gap-4">
               <div>
-                <span className="text-[9px] font-semibold text-blue-400 uppercase tracking-wide block">Quarter ID</span>
-                <span className="text-xs font-semibold text-blue-800">{allotmentInfo.quarterNumber || '—'}</span>
+                <p className="text-[9px] font-semibold text-amber-500 uppercase tracking-wider mb-1">Quarter ID</p>
+                <p className="text-sm font-bold text-gray-800">{allotmentInfo.quarterNumber || '—'}</p>
               </div>
               <div>
-                <span className="text-[9px] font-semibold text-blue-400 uppercase tracking-wide block">Block</span>
-                <span className="text-xs font-semibold text-blue-800">{allotmentInfo.block || '—'}</span>
+                <p className="text-[9px] font-semibold text-amber-500 uppercase tracking-wider mb-1">Block</p>
+                <p className="text-sm font-bold text-gray-800">{allotmentInfo.block || '—'}</p>
               </div>
               <div>
-                <span className="text-[9px] font-semibold text-blue-400 uppercase tracking-wide block">Type</span>
-                <span className="text-xs font-semibold text-blue-800">{allotmentInfo.quarterType || '—'}</span>
+                <p className="text-[9px] font-semibold text-amber-500 uppercase tracking-wider mb-1">Quarter Type</p>
+                <p className="text-sm font-bold text-gray-800">{allotmentInfo.quarterType || '—'}</p>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Retention Details section heading */}
-      <div className="border-l-4 border-amber-400 pl-3">
-        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Retention Details</span>
-      </div>
-
-      {/* Eligibility Period Table */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <Info size={12} className="text-blue-500 shrink-0" />
-          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wide">Eligibility Period for Housing Acquisition</span>
-        </div>
+        {/* Reference Info — collapsible */}
         <div className="rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide w-7">SL.</th>
-                <th className="text-left px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Description</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap">Eligibility Period</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ELIGIBILITY_ROWS.map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
-                  <td className="px-3 py-2 text-gray-400 font-medium">{i + 1}</td>
-                  <td className="px-3 py-2 text-gray-700">{row.desc}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className="inline-block bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full text-[10px]">{row.period}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Penal Rent Table B */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <Info size={12} className="text-rose-500 shrink-0" />
-          <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wide">Penal Rent Applicable (Table B)</span>
-        </div>
-        <div className="rounded-xl border border-rose-100 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-rose-50 border-b border-rose-100">
-                <th className="text-left px-3 py-2 text-[10px] font-bold text-rose-400 uppercase tracking-wide w-7">SL.</th>
-                <th className="text-left px-3 py-2 text-[10px] font-bold text-rose-400 uppercase tracking-wide">Type of House</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold text-rose-400 uppercase tracking-wide">Penal Rent / Month</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PENAL_RENT_ROWS.map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-rose-50/30'}>
-                  <td className="px-3 py-2 text-gray-400 font-medium">{i + 1}</td>
-                  <td className="px-3 py-2 text-gray-700 font-medium">{row.type}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className="inline-block bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full text-[10px]">{row.rent}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed px-1">
-          Penal rent is applicable after the eligible period. It will be increased by 50% every six months on a cumulative basis.
-        </p>
-      </div>
-
-      {/* Reason for Retention */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-          Reason for Retention <span className="text-red-500">*</span>
-        </label>
-        <select
-          value={retentionReason}
-          onChange={e => onRetentionReasonChange(e.target.value)}
-          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white"
-        >
-          {RETENTION_REASONS.map(r => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Requested Extension (Months) */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-          Requested Extension (Months) <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={24}
-          value={requestedMonths}
-          onChange={e => onRequestedMonthsChange(Math.max(1, parseInt(e.target.value) || 1))}
-          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-        />
-      </div>
-
-      {/* Justification */}
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Justification / Remarks</label>
-        <textarea
-          value={remarks}
-          onChange={e => onRemarksChange(e.target.value)}
-          rows={3}
-          placeholder="Provide detailed justification for retaining the quarter…"
-          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none"
-        />
-      </div>
-
-      {/* Attach Proof Document */}
-      <div>
-        {docUrl ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
-            <Paperclip size={13} className="text-amber-500 shrink-0" />
-            <span className="flex-1 min-w-0 text-xs font-medium text-amber-800 truncate">{docUrl.name}</span>
-            <button type="button" onClick={() => onDocChange(null)} className="p-0.5 rounded text-amber-400 hover:text-red-500 transition-colors shrink-0">
-              <X size={12} />
-            </button>
-          </div>
-        ) : (
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-gray-300 text-xs font-semibold text-gray-600 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50 transition-colors w-full"
+            onClick={() => setRefExpanded(p => !p)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
           >
-            <Paperclip size={14} className="shrink-0" />
-            <span>Attach Proof Document</span>
-            <span className="text-gray-400 font-normal">— Upload medical certificate, school admission proof, or transfer order (PDF/JPG)</span>
+            <div className="flex items-center gap-2">
+              <Info size={13} className="text-blue-500 shrink-0" />
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Retention Reference — Eligibility & Penal Rent Tables</span>
+            </div>
+            {refExpanded
+              ? <ChevronUp size={15} className="text-gray-400 shrink-0" />
+              : <ChevronDown size={15} className="text-gray-400 shrink-0" />
+            }
           </button>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/pdf,image/*"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0] ?? null; onDocChange(f); e.target.value = ''; }}
-        />
+
+          {refExpanded && (
+            <div className="divide-y divide-gray-100">
+              {/* Eligibility Table */}
+              <div className="px-4 pt-3 pb-4">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2.5">Eligibility Period for Housing Acquisition</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-8">SL.</th>
+                      <th className="text-left pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Description</th>
+                      <th className="text-right pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Eligibility</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {ELIGIBILITY_ROWS.map((row, i) => (
+                      <tr key={i}>
+                        <td className="py-2 text-gray-300 font-medium text-xs">{i + 1}</td>
+                        <td className="py-2 text-gray-700">{row.desc}</td>
+                        <td className="py-2 text-right">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">{row.period}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Penal Rent Table */}
+              <div className="px-4 pt-3 pb-4">
+                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-2.5">Penal Rent Applicable (Table B)</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-8">SL.</th>
+                      <th className="text-left pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Type of House</th>
+                      <th className="text-right pb-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Penal Rent / Month</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {PENAL_RENT_ROWS.map((row, i) => (
+                      <tr key={i}>
+                        <td className="py-2 text-gray-300 font-medium text-xs">{i + 1}</td>
+                        <td className="py-2 text-gray-700 font-medium">{row.type}</td>
+                        <td className="py-2 text-right">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700">{row.rent}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-3 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
+                  Penal rent applies after the eligible free-retention period and increases by <strong className="text-gray-600">50% every six months</strong> on a cumulative basis.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Form Fields ─────────────────────────────────── */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-100" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0">Your Request Details</span>
+            <div className="h-px flex-1 bg-gray-100" />
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Reason for Retention
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={retentionReason}
+                onChange={e => onRetentionReasonChange(e.target.value)}
+                className="w-full appearance-none px-4 py-3 pr-10 text-sm text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 bg-white transition-colors"
+              >
+                {RETENTION_REASONS.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Requested Months */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Requested Extension
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="relative w-36">
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={requestedMonths}
+                  onChange={e => onRequestedMonthsChange(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-4 py-3 text-sm font-semibold text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 text-center"
+                />
+              </div>
+              <span className="text-sm text-gray-500 font-medium">month{requestedMonths !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-100">Max: 24 months</span>
+            </div>
+          </div>
+
+          {/* Justification */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Justification / Remarks</label>
+            <textarea
+              value={remarks}
+              onChange={e => onRemarksChange(e.target.value)}
+              rows={4}
+              placeholder="Provide a detailed justification for retaining the quarter beyond the allotment period. Include any supporting circumstances relevant to your reason above."
+              className="w-full px-4 py-3 text-sm text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 resize-none placeholder-gray-300 transition-colors"
+            />
+            <p className="mt-1.5 text-xs text-gray-400">{remarks.length} characters entered</p>
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Supporting Document
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(Optional — medical certificate, transfer order, etc.)</span>
+            </label>
+            {docUrl ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                  <FileText size={14} className="text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{docUrl.name}</p>
+                  <p className="text-xs text-gray-400">{(docUrl.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDocChange(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-amber-400 hover:bg-amber-50/40 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-amber-100 flex items-center justify-center transition-colors">
+                  <Paperclip size={18} className="text-gray-400 group-hover:text-amber-600 transition-colors" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-600 group-hover:text-amber-700 transition-colors">Click to upload document</p>
+                  <p className="text-xs text-gray-400 mt-0.5">PDF, JPG, PNG — up to 10 MB</p>
+                </div>
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; onDocChange(f); e.target.value = ''; }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3 pt-1">
-        <button onClick={onClose}
-          className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+      {/* ── Sticky Footer ────────────────────────────────── */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex items-center gap-3 shrink-0">
+        <button
+          onClick={onClose}
+          className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+        >
           Cancel
         </button>
-        <button onClick={onSubmit} disabled={submitting}
-          className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors">
-          {submitting ? 'Submitting…' : 'Submit Request'}
+        <button
+          onClick={onSubmit}
+          disabled={submitting}
+          className="flex-1 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+        >
+          {submitting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Submitting…
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={16} />
+              Submit Request
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -313,22 +401,25 @@ export function ActionPopupModal({
 
   if (type === 'EXTEND') {
     return (
-      <Modal isOpen={true} onClose={onClose} size="md" noPadding={false}>
-        <ExtendForm
-          allotmentInfo={allotmentInfo}
-          retentionReason={retentionReason}
-          requestedMonths={requestedMonths}
-          remarks={remarks}
-          docUrl={docUrl}
-          submitting={submitting}
-          onRetentionReasonChange={onRetentionReasonChange}
-          onRequestedMonthsChange={onRequestedMonthsChange}
-          onRemarksChange={onRemarksChange}
-          onDocChange={onDocChange}
-          onClose={onClose}
-          onSubmit={onSubmit}
-        />
-      </Modal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col" style={{ maxHeight: '88vh' }}>
+          <ExtendForm
+            allotmentInfo={allotmentInfo}
+            retentionReason={retentionReason}
+            requestedMonths={requestedMonths}
+            remarks={remarks}
+            docUrl={docUrl}
+            submitting={submitting}
+            onRetentionReasonChange={onRetentionReasonChange}
+            onRequestedMonthsChange={onRequestedMonthsChange}
+            onRemarksChange={onRemarksChange}
+            onDocChange={onDocChange}
+            onClose={onClose}
+            onSubmit={onSubmit}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -343,9 +434,14 @@ export function ActionPopupModal({
 
         return (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-              {cfg.icon}
-              <h3 className={`text-base font-bold ${cfg.color}`}>{cfg.title}</h3>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                {cfg.icon}
+                <h3 className={`text-base font-bold ${cfg.color}`}>{cfg.title}</h3>
+              </div>
+              <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
+                <X size={16} />
+              </button>
             </div>
 
             {isInspection && (
