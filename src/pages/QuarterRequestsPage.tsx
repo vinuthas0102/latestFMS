@@ -2341,8 +2341,20 @@ export const QuarterRequestsPage: React.FC = () => {
                   {user.fullName?.[0]?.toUpperCase() ?? 'U'}
                 </div>
                 <span className="text-xs font-semibold text-gray-700 truncate max-w-[140px]">{user.fullName}</span>
-                {(user as any).govtEmployeeId && (
-                  <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{(user as any).govtEmployeeId}</span>
+                {user.govtEmployeeId && (
+                  <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{user.govtEmployeeId}</span>
+                )}
+                {user.projectLocation && (
+                  <>
+                    <span className="text-gray-200 flex-shrink-0">·</span>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">{user.projectLocation}</span>
+                  </>
+                )}
+                {user.sapId && (
+                  <>
+                    <span className="text-gray-200 flex-shrink-0">·</span>
+                    <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{user.sapId}</span>
+                  </>
                 )}
                 <span className="text-gray-200 mx-1 flex-shrink-0">|</span>
               </>
