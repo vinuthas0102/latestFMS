@@ -2,24 +2,49 @@ import { supabase, validateSession, refreshSession } from '../lib/supabase';
 import { UserDTO, LoginCredentials, CreateUserDTO } from '../types';
 import { DEMO_MODE } from '../mocks/demoData';
 
-const DEMO_USER: UserDTO = {
+const DEMO_GOVT_OFFICIAL: UserDTO = {
   id: 'demo-user-001',
   email: 'demo@fms.gov',
-  fullName: 'Demo EO User',
-  phone: '9999999999',
-  role: 'estate_officer',
-  govtDepartment: 'Ministry of Housing',
-  govtEmployeeId: 'EMP-001',
-  bhkEntitlement: '2BHK',
+  fullName: 'Rajan Kumar',
+  phone: '9876543210',
+  role: 'govt_official',
+  govtDepartment: 'NMDC Limited',
+  govtEmployeeId: 'EMP-384621',
+  projectLocation: 'Bacheli',
+  sapId: 'SAP-284719',
+  bhkEntitlement: 'Type-II',
   assignedEstateId: 'estate-1',
   metadata: {},
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
 
+const DEMO_EO_USER: UserDTO = {
+  id: 'demo-user-002',
+  email: 'eo@fms.gov',
+  fullName: 'Shankar',
+  phone: '9876541230',
+  role: 'manager',
+  govtDepartment: 'NMDC Limited',
+  govtEmployeeId: 'EMP-572034',
+  projectLocation: 'Bacheli',
+  sapId: 'SAP-193047',
+  assignedEstateId: 'estate-1',
+  metadata: {},
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+function getDemoUser(role?: string): UserDTO {
+  if (role === 'manager' || role === 'admin') return { ...DEMO_EO_USER, role: role as UserDTO['role'] };
+  if (role === 'govt_official') return DEMO_GOVT_OFFICIAL;
+  if (role === 'public' || role === 'dept_user') return { ...DEMO_GOVT_OFFICIAL, role: role as UserDTO['role'] };
+  return DEMO_GOVT_OFFICIAL;
+}
+
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<{ user: UserDTO; token: string }> => {
-    if (DEMO_MODE) return Promise.resolve({ user: { ...DEMO_USER, role: (credentials.role ?? DEMO_USER.role) as UserDTO['role'] }, token: 'demo-token' });
+    if (DEMO_MODE) return Promise.resolve({ user: getDemoUser(credentials.role), token: 'demo-token' });
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
@@ -66,7 +91,7 @@ export const authService = {
   },
 
   register: async (userData: CreateUserDTO): Promise<{ user: UserDTO; token: string }> => {
-    if (DEMO_MODE) return Promise.resolve({ user: DEMO_USER, token: 'demo-token' });
+    if (DEMO_MODE) return Promise.resolve({ user: getDemoUser(), token: 'demo-token' });
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -116,7 +141,7 @@ export const authService = {
   },
 
   getCurrentUser: async (): Promise<UserDTO | null> => {
-    if (DEMO_MODE) return Promise.resolve(DEMO_USER);
+    if (DEMO_MODE) return Promise.resolve(getDemoUser());
     try {
       const validation = await validateSession();
 
@@ -156,7 +181,7 @@ export const authService = {
   },
 
   updateProfile: async (userId: string, updates: Partial<UserDTO>): Promise<UserDTO> => {
-    if (DEMO_MODE) return Promise.resolve({ ...DEMO_USER, ...updates });
+    if (DEMO_MODE) return Promise.resolve({ ...getDemoUser(), ...updates });
     const { data, error } = await supabase
       .from('users')
       .update({
@@ -203,6 +228,8 @@ function mapUserFromDb(dbUser: any): UserDTO {
     role: dbUser.role || 'public',
     govtDepartment: dbUser.govt_department,
     govtEmployeeId: dbUser.govt_employee_id,
+    projectLocation: dbUser.project_location ?? undefined,
+    sapId: dbUser.sap_id ?? undefined,
     bhkEntitlement: dbUser.bhk_entitlement ?? undefined,
     assignedEstateId: dbUser.assigned_estate_id,
     metadata: dbUser.metadata || {},
