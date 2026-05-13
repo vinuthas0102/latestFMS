@@ -426,6 +426,9 @@ export const QuarterRequestsPage: React.FC = () => {
   const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
   const [avqSearch, setAvqSearch] = useState('');
   const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
+  const [avqToiletFilter, setAvqToiletFilter] = useState<string[]>([]);
+  const [avqFloorFilter, setAvqFloorFilter] = useState<number[]>([]);
+  const [avqFilterDrawerOpen, setAvqFilterDrawerOpen] = useState(false);
   const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
   const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
   const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -1749,6 +1752,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const filteredAvailableQuarters = React.useMemo(() => {
     let result = [...availableQuarters];
     if (avqBhkFilter !== 'ALL') result = result.filter(q => q.bhk_config === avqBhkFilter);
+    if (avqToiletFilter.length > 0) result = result.filter(q => avqToiletFilter.includes(q.toilet_type ?? 'Western'));
+    if (avqFloorFilter.length > 0) result = result.filter(q => {
+      const floor = q.floor_number ?? 0;
+      return avqFloorFilter.some(f => f === 4 ? floor >= 4 : floor === f);
+    });
     if (avqSearch.trim()) {
       const s = avqSearch.toLowerCase();
       result = result.filter(q =>
@@ -1759,7 +1767,7 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
     return result;
-  }, [availableQuarters, avqBhkFilter, avqSearch]);
+  }, [availableQuarters, avqBhkFilter, avqToiletFilter, avqFloorFilter, avqSearch]);
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -2412,6 +2420,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     ],
                   },
                 ]}
+                filterCount={avqToiletFilter.length + avqFloorFilter.length}
+                onFilterOpen={() => setAvqFilterDrawerOpen(true)}
               />
             </div>
 
@@ -2419,13 +2429,13 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
-                {(avqSearch || avqBhkFilter !== 'ALL') && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
+                {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
                   <span className="text-gray-400"> (filtered from {availableQuarters.length})</span>
                 )}
               </span>
-              {(avqSearch || avqBhkFilter !== 'ALL') && (
+              {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && (
                 <button
-                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); }}
+                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
@@ -2444,7 +2454,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <Key size={36} className="mx-auto text-gray-300 mb-3" />
                   <h3 className="text-sm font-semibold text-gray-700 mb-1">No available quarters found</h3>
                   <p className="text-xs text-gray-500">
-                    {avqSearch || avqBhkFilter !== 'ALL'
+                    {avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0
                       ? 'Try clearing your filters.'
                       : 'All quarters are currently occupied or inactive.'}
                   </p>
@@ -4083,6 +4093,61 @@ export const QuarterRequestsPage: React.FC = () => {
               {[{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }].map(({ value, label }) => (
                 <button key={value} onClick={() => setReqSort(value as 'newest' | 'oldest')}
                   className={`w-full px-4 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${reqSort === value ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </FilterDrawer>
+
+      {/* ── Available Quarters filter drawer ─────────────────────────────── */}
+      <FilterDrawer
+        isOpen={avqFilterDrawerOpen}
+        onClose={() => setAvqFilterDrawerOpen(false)}
+        title="Filter Quarters"
+        activeFilterCount={avqToiletFilter.length + avqFloorFilter.length}
+        onClearAll={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">BHK Config</label>
+            <div className="flex flex-wrap gap-2">
+              {['ALL', '1BHK', '2BHK', '3BHK', '4BHK'].map(v => (
+                <button key={v} onClick={() => setAvqBhkFilter(v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqBhkFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v === 'ALL' ? 'Any' : v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {['Indian', 'Western', 'Both'].map(v => (
+                <button key={v} onClick={() => setAvqToiletFilter(prev =>
+                  prev.includes(v) ? prev.filter(t => t !== v) : [...prev, v]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqToiletFilter.includes(v) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Floor</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 0, label: 'Ground' },
+                { value: 1, label: '1st' },
+                { value: 2, label: '2nd' },
+                { value: 3, label: '3rd' },
+                { value: 4, label: '4th+' },
+              ].map(({ value, label }) => (
+                <button key={value} onClick={() => setAvqFloorFilter(prev =>
+                  prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
+                )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqFloorFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                   {label}
                 </button>
               ))}
