@@ -175,16 +175,28 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           <h1 className="text-base font-bold text-gray-900">New Allotment Request</h1>
         </div>
         {user && (
-          <div className="hidden sm:flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl shrink-0">
             <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
               {user.fullName?.charAt(0) ?? 'U'}
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-blue-900 truncate">{user.fullName}</div>
-              <div className="text-[10px] text-blue-500 truncate">
-                {user.govtDepartment && <span>{user.govtDepartment}</span>}
-                {user.govtEmployeeId && <span className="ml-1 font-mono">· {user.govtEmployeeId}</span>}
-              </div>
+            <div className="text-left leading-snug">
+              <div className="text-[13px] font-semibold text-blue-900 whitespace-nowrap leading-tight">{user.fullName}</div>
+              <div className="text-[11px] text-blue-500 whitespace-nowrap leading-tight">{user.govtDepartment || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">EMP ID</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.govtEmployeeId || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">Location</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.projectLocation || '—'}</div>
+            </div>
+            <div className="w-px h-8 bg-blue-200 mx-1" />
+            <div className="text-left leading-none">
+              <div className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">SAP ID</div>
+              <div className="text-[12px] font-semibold text-blue-900 whitespace-nowrap mt-0.5">{user.sapId || '—'}</div>
             </div>
           </div>
         )}

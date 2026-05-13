@@ -203,7 +203,7 @@ export const Header: React.FC = () => {
                     </div>
                   </div>
                   {/* Always-visible identity fields */}
-                  <div className="hidden md:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                  <div className="hidden sm:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
                     <ChipField label="EMP ID" value={user.govtEmployeeId} />
                     <div className="w-px h-6 bg-gray-200 mx-2" />
                     <ChipField label="Location" value={user.projectLocation} />
