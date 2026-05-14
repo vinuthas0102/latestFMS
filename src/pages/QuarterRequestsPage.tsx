@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
   ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
@@ -149,7 +149,6 @@ const DEFAULT_FORM: NewRequestForm = {
 // ─── component ────────────────────────────────────────────────────────────────
 
 export const QuarterRequestsPage: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
@@ -273,7 +272,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const isEO = user?.role === 'manager';
 
   // ─── Data-loading callbacks + data effects ────────────────────────────────
-  const { loadData, loadModalQuarters, loadAllotNowQuarters, loadManualAllotQuarters, loadGuestInfo, updateDpScrollState } =
+  const { loadData, loadGuestInfo, updateDpScrollState } =
     useQuarterRequestsData(
       { setRequests, setActiveCycle, setTenantRequests, setDpFilter, setLoading, addToast, isEO, eoMode, user: user ?? null },
       {
@@ -314,13 +313,13 @@ export const QuarterRequestsPage: React.FC = () => {
         selectedRequestId: selectedRequest?.id,
         selectedRequestAllotmentId: selectedRequest?.allotment?.id,
         selectedRequestStatus: selectedRequest?.request_status,
-        setServiceChats: (updater) => setServiceChats(prev => updater(prev)),
-        setAllotmentChats: (updater) => setAllotmentChats(prev => updater(prev)),
+        setServiceChats,
+        setAllotmentChats,
       },
       {
         expandedCardId,
         requestDocUrls,
-        setRequestDocUrls: (updater) => setRequestDocUrls(prev => updater(prev)),
+        setRequestDocUrls,
       },
     );
 

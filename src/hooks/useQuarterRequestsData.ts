@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import {
   quartersService,
@@ -137,14 +137,14 @@ interface ChatsCtx {
   selectedRequestId: string | undefined;
   selectedRequestAllotmentId: string | undefined;
   selectedRequestStatus: string | undefined;
-  setServiceChats: (v: (prev: Record<string, QuarterServiceChat[]>) => Record<string, QuarterServiceChat[]>) => void;
-  setAllotmentChats: (v: (prev: Record<string, QuarterAllotmentChat[]>) => Record<string, QuarterAllotmentChat[]>) => void;
+  setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
+  setAllotmentChats: React.Dispatch<React.SetStateAction<Record<string, QuarterAllotmentChat[]>>>;
 }
 
 interface DocUrlsCtx {
   expandedCardId: string | null;
   requestDocUrls: Record<string, { name: string; url: string }[]>;
-  setRequestDocUrls: (v: (prev: Record<string, { name: string; url: string }[]>) => Record<string, { name: string; url: string }[]>) => void;
+  setRequestDocUrls: React.Dispatch<React.SetStateAction<Record<string, { name: string; url: string }[]>>>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -464,12 +464,5 @@ export function useQuarterRequestsData(
       .catch(() => setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] })));
   }, [docUrls_.expandedCardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return {
-    loadData,
-    loadModalQuarters,
-    loadAllotNowQuarters,
-    loadManualAllotQuarters,
-    loadGuestInfo,
-    updateDpScrollState,
-  };
+  return { loadData, loadGuestInfo, updateDpScrollState };
 }
