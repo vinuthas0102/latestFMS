@@ -47,6 +47,8 @@ export interface Quarter {
   renovation_status: string;
   resident_type: string;
   current_availability_status: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
@@ -327,6 +329,8 @@ export interface CreateQuarterInput {
   furnishing_status: string;
   description: string;
   estate_id: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface QuarterInspection {

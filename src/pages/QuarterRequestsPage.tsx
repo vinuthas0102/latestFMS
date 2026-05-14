@@ -1444,11 +1444,20 @@ export const QuarterRequestsPage: React.FC = () => {
     avqPoojaRoom || avqBalcony || avqKitchenExhaust || avqLiftAccess || !!avqHousingStyle;
 
   // ─── EM: Create new quarter ────────────────────────────────────────────────
-  const handleCreateQuarter = async (input: import('../types/quarters').CreateQuarterInput) => {
+  const handleCreateQuarter = async (input: import('../types/quarters').CreateQuarterInput, imageFiles: File[]) => {
     if (!user) return;
     setNewQuarterSubmitting(true);
     try {
-      await quartersService.createQuarter(input);
+      const created = await quartersService.createQuarter(input);
+      if (imageFiles.length > 0) {
+        const uploads = await Promise.all(
+          imageFiles.map(f => uploadChatFile(f, `quarters/${created.id}/images`))
+        );
+        const urls = uploads.filter(Boolean) as string[];
+        if (urls.length > 0) {
+          await quartersService.updateQuarterImages(created.id, urls);
+        }
+      }
       addToast('Quarter created successfully', 'success');
       setShowNewQuarterModal(false);
       const fresh = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });

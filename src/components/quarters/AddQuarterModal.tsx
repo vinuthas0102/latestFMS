@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   ArrowLeft, Building2, MapPin, Layers, Bath, IndianRupee,
-  Zap, Droplets, Home, CheckCircle, Info, Wind, Flame,
-  Plus,
+  CheckCircle, Info, Plus, Camera, X, Upload, Navigation,
+  Loader2, AlertCircle,
 } from 'lucide-react';
 import type { CreateQuarterInput } from '../../types/quarters';
 
 interface Props {
   onClose: () => void;
-  onSubmit: (input: CreateQuarterInput) => Promise<void>;
+  onSubmit: (input: CreateQuarterInput, imageFiles: File[]) => Promise<void>;
   submitting: boolean;
 }
 
@@ -21,6 +21,8 @@ const WATER_HEATING_OPTIONS = ['Electric Geyser', 'Solar', 'Gas', 'None'];
 const RENOVATION_OPTIONS = ['Good', 'Needs Minor Repair', 'Recently Renovated', 'Under Renovation'];
 const AVAILABILITY_OPTIONS = ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'UNDER_MAINTENANCE'];
 const RESIDENT_TYPES = ['Permanent', 'Temporary', 'Transit'];
+const MAX_IMAGES = 10;
+const MAX_FILE_MB = 10;
 
 const defaultForm = (): CreateQuarterInput => ({
   unit_number: '',
@@ -62,17 +64,20 @@ const defaultForm = (): CreateQuarterInput => ({
   furnishing_status: '',
   description: '',
   estate_id: null,
+  latitude: null,
+  longitude: null,
 });
 
-type StepId = 'basic' | 'location' | 'structure' | 'toilet' | 'financials' | 'features';
+type StepId = 'basic' | 'location' | 'structure' | 'toilet' | 'financials' | 'features' | 'images';
 
 const STEPS: { id: StepId; label: string; icon: React.ReactNode }[] = [
-  { id: 'basic',      label: 'Basic Info',       icon: <Info size={14} /> },
-  { id: 'location',   label: 'Location',         icon: <MapPin size={14} /> },
-  { id: 'structure',  label: 'Structure',        icon: <Layers size={14} /> },
-  { id: 'toilet',     label: 'Toilet & Parking', icon: <Bath size={14} /> },
-  { id: 'financials', label: 'Financials',       icon: <IndianRupee size={14} /> },
-  { id: 'features',   label: 'Features',         icon: <CheckCircle size={14} /> },
+  { id: 'basic',      label: 'Basic Info',       icon: <Info size={13} /> },
+  { id: 'location',   label: 'Location',         icon: <MapPin size={13} /> },
+  { id: 'structure',  label: 'Structure',        icon: <Layers size={13} /> },
+  { id: 'toilet',     label: 'Toilet & Parking', icon: <Bath size={13} /> },
+  { id: 'financials', label: 'Financials',       icon: <IndianRupee size={13} /> },
+  { id: 'features',   label: 'Features',         icon: <CheckCircle size={13} /> },
+  { id: 'images',     label: 'Photos',           icon: <Camera size={13} /> },
 ];
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -123,6 +128,16 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
   const [activeStep, setActiveStep] = useState<StepId>('basic');
   const [error, setError] = useState('');
 
+  // Image state
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Geo state
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState('');
+
   function set<K extends keyof CreateQuarterInput>(key: K, value: CreateQuarterInput[K]) {
     setForm(prev => ({ ...prev, [key]: value }));
   }
@@ -132,12 +147,69 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
     set(key, (isNaN(n) ? 0 : n) as CreateQuarterInput[K]);
   }
 
+  function handleGetCurrentLocation() {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by this browser.');
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        set('latitude', pos.coords.latitude);
+        set('longitude', pos.coords.longitude);
+        setGeoLoading(false);
+      },
+      err => {
+        setGeoError(
+          err.code === 1 ? 'Location permission denied. Please allow access and try again.'
+          : err.code === 2 ? 'Location unavailable. Please enter coordinates manually.'
+          : 'Location request timed out. Please try again.'
+        );
+        setGeoLoading(false);
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  const addImageFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const toAdd: File[] = [];
+    const newPreviews: string[] = [];
+    const remaining = MAX_IMAGES - imageFiles.length;
+    Array.from(files).slice(0, remaining).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      if (file.size > MAX_FILE_MB * 1024 * 1024) return;
+      toAdd.push(file);
+    });
+    if (!toAdd.length) return;
+
+    let loaded = 0;
+    toAdd.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        newPreviews[i] = e.target?.result as string;
+        loaded++;
+        if (loaded === toAdd.length) {
+          setImageFiles(prev => [...prev, ...toAdd]);
+          setImagePreviews(prev => [...prev, ...newPreviews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [imageFiles.length]);
+
+  function removeImage(idx: number) {
+    setImageFiles(prev => prev.filter((_, i) => i !== idx));
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx));
+  }
+
   async function handleSubmit() {
     if (!form.quarter_number.trim()) { setError('Quarter number is required.'); setActiveStep('basic'); return; }
     if (!form.quarter_type) { setError('Quarter type is required.'); setActiveStep('basic'); return; }
     if (!form.bhk_config) { setError('BHK configuration is required.'); setActiveStep('basic'); return; }
     setError('');
-    await onSubmit(form);
+    await onSubmit(form, imageFiles);
   }
 
   const stepIdx = STEPS.findIndex(s => s.id === activeStep);
@@ -187,8 +259,8 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
       </div>
 
       {/* ── Step nav ─────────────────────────────────────────────── */}
-      <div className="flex-none bg-white border-b border-gray-100 px-6 py-0">
-        <div className="flex">
+      <div className="flex-none bg-white border-b border-gray-100 px-6 py-0 overflow-x-auto">
+        <div className="flex min-w-max">
           {STEPS.map((s, i) => (
             <button
               key={s.id}
@@ -238,7 +310,7 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
                     {BHK_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </Field>
-                <Field label="QUOTA">
+                <Field label="Quota">
                   <input className={inputCls} value={form.quota} onChange={e => set('quota', e.target.value)} placeholder="e.g. EQ, SS, GENERAL" />
                 </Field>
                 <Field label="Counter No.">
@@ -278,27 +350,108 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
 
           {/* LOCATION */}
           {activeStep === 'location' && (
-            <SectionCard title="Location Details" icon={<MapPin size={13} />}>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Sector / Region">
-                  <input className={inputCls} value={form.region} onChange={e => set('region', e.target.value)} placeholder="e.g. North Delhi" />
-                </Field>
-                <Field label="Location / Area">
-                  <input className={inputCls} value={form.location_area} onChange={e => set('location_area', e.target.value)} placeholder="e.g. Sector 12" />
-                </Field>
-                <Field label="District">
-                  <input className={inputCls} value={form.district} onChange={e => set('district', e.target.value)} placeholder="District name" />
-                </Field>
-                <Field label="PIN Code">
-                  <input className={inputCls} value={form.pin_code} onChange={e => set('pin_code', e.target.value)} placeholder="6-digit PIN" maxLength={6} />
-                </Field>
+            <>
+              <SectionCard title="Address Details" icon={<MapPin size={13} />}>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Sector / Region">
+                    <input className={inputCls} value={form.region} onChange={e => set('region', e.target.value)} placeholder="e.g. North Delhi" />
+                  </Field>
+                  <Field label="Location / Area">
+                    <input className={inputCls} value={form.location_area} onChange={e => set('location_area', e.target.value)} placeholder="e.g. Sector 12" />
+                  </Field>
+                  <Field label="District">
+                    <input className={inputCls} value={form.district} onChange={e => set('district', e.target.value)} placeholder="District name" />
+                  </Field>
+                  <Field label="PIN Code">
+                    <input className={inputCls} value={form.pin_code} onChange={e => set('pin_code', e.target.value)} placeholder="6-digit PIN" maxLength={6} />
+                  </Field>
+                </div>
+                <div className="mt-4">
+                  <Field label="Full Address">
+                    <textarea className={inputCls} rows={3} value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full postal address…" />
+                  </Field>
+                </div>
+              </SectionCard>
+
+              {/* Geo-location card */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-1">
+                  <span className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+                    <Navigation size={13} />
+                  </span>
+                  GPS Coordinates
+                  <span className="ml-auto text-[11px] font-normal text-gray-400">Optional — enables map pin on quarter detail</span>
+                </h3>
+                <p className="text-xs text-gray-400 mb-5">Tag the exact location of this quarter for map-based search.</p>
+
+                <div className="flex items-start gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={handleGetCurrentLocation}
+                    disabled={geoLoading}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-60 transition-colors shadow-sm flex-shrink-0"
+                  >
+                    {geoLoading
+                      ? <><Loader2 size={14} className="animate-spin" /> Detecting…</>
+                      : <><Navigation size={14} /> Use Current Location</>
+                    }
+                  </button>
+                  {form.latitude != null && form.longitude != null && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-teal-50 border border-teal-200 rounded-xl text-xs font-medium text-teal-700">
+                      <CheckCircle size={13} className="text-teal-500 flex-shrink-0" />
+                      {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
+                      <button
+                        type="button"
+                        onClick={() => { set('latitude', null); set('longitude', null); }}
+                        className="ml-1 text-teal-400 hover:text-teal-700"
+                        title="Clear coordinates"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {geoError && (
+                  <div className="flex items-start gap-2 mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                    <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                    {geoError}
+                  </div>
+                )}
+
+                <p className="text-[11px] text-gray-400 mb-3">Or enter coordinates manually:</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Latitude">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="0.000001"
+                      min={-90} max={90}
+                      value={form.latitude ?? ''}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value);
+                        set('latitude', isNaN(v) ? null : v);
+                      }}
+                      placeholder="e.g. 28.613939"
+                    />
+                  </Field>
+                  <Field label="Longitude">
+                    <input
+                      className={inputCls}
+                      type="number"
+                      step="0.000001"
+                      min={-180} max={180}
+                      value={form.longitude ?? ''}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value);
+                        set('longitude', isNaN(v) ? null : v);
+                      }}
+                      placeholder="e.g. 77.209021"
+                    />
+                  </Field>
+                </div>
               </div>
-              <div className="mt-4">
-                <Field label="Full Address">
-                  <textarea className={inputCls} rows={3} value={form.address} onChange={e => set('address', e.target.value)} placeholder="Full postal address…" />
-                </Field>
-              </div>
-            </SectionCard>
+            </>
           )}
 
           {/* STRUCTURE */}
@@ -414,6 +567,80 @@ export function AddQuarterModal({ onClose, onSubmit, submitting }: Props) {
                 </div>
               </div>
             </SectionCard>
+          )}
+
+          {/* IMAGES */}
+          {activeStep === 'images' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-1">
+                <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                  <Camera size={13} />
+                </span>
+                Property Photos
+                <span className="ml-auto text-[11px] font-normal text-gray-400">{imageFiles.length} / {MAX_IMAGES} photos</span>
+              </h3>
+              <p className="text-xs text-gray-400 mb-5">Add up to {MAX_IMAGES} photos. Max {MAX_FILE_MB} MB per image. JPG, PNG, WebP accepted.</p>
+
+              {/* Drop zone */}
+              {imageFiles.length < MAX_IMAGES && (
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={e => { e.preventDefault(); setDragging(false); addImageFiles(e.dataTransfer.files); }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all mb-6 ${
+                    dragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
+                    <Upload size={22} className="text-gray-400" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">Drop photos here or click to browse</p>
+                    <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WebP up to {MAX_FILE_MB} MB each</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={e => addImageFiles(e.target.files)}
+                  />
+                </div>
+              )}
+
+              {/* Preview grid */}
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {imagePreviews.map((src, idx) => (
+                    <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                      <img src={src} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        title="Remove"
+                      >
+                        <X size={11} />
+                      </button>
+                      {idx === 0 && (
+                        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">
+                          Cover
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {imageFiles.length === 0 && (
+                <p className="text-center text-xs text-gray-400 mt-2">No photos added yet. You can add them later from the quarter detail page.</p>
+              )}
+            </div>
           )}
 
         </div>

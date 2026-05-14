@@ -1390,4 +1390,12 @@ export const quartersService = {
     if (error) throw error;
     return data as Quarter;
   },
+
+  async updateQuarterImages(quarterId: string, urls: string[]): Promise<void> {
+    const { error } = await supabase
+      .from('quarters')
+      .update({ images: urls })
+      .eq('id', quarterId);
+    if (error) throw error;
+  },
 };
