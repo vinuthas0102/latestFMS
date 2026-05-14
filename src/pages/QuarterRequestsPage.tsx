@@ -1923,6 +1923,16 @@ export const QuarterRequestsPage: React.FC = () => {
                 </button>
               )}
 
+              {isEO && dpFilter === 'availableQuarters' && (
+                <button
+                  onClick={() => setShowNewQuarterModal(true)}
+                  title="Add New Quarter"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Plus size={12} /> New Quarter
+                </button>
+              )}
+
               <button
                 onClick={() => downloadPageAsHtml('/quarters/requests')}
                 title="Download Offline Copy"
@@ -2126,7 +2136,7 @@ export const QuarterRequestsPage: React.FC = () => {
               />
             </div>
 
-            {/* Result count + New Quarter button */}
+            {/* Result count */}
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
@@ -2140,14 +2150,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
-                </button>
-              )}
-              {isEO && (
-                <button
-                  onClick={() => setShowNewQuarterModal(true)}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  <Plus size={12} /> New Quarter
                 </button>
               )}
             </div>
