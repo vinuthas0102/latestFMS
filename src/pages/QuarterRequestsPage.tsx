@@ -230,7 +230,7 @@ export const QuarterRequestsPage: React.FC = () => {
     requestFor, setRequestFor, selectedEmployee, setSelectedEmployee,
     tpInfo, setTpInfo, tpInfoConfirmed, setTpInfoConfirmed,
     showEmployeePicker, setShowEmployeePicker, showTPForm, setShowTPForm,
-    tpPopupTab, setTpPopupTab, employeeSearch, setEmployeeSearch,
+    employeeSearch, setEmployeeSearch,
     employeeDeptFilter, setEmployeeDeptFilter, tpFormDraft, setTpFormDraft,
     detailRequest, setDetailRequest, detailReturnFilter, setDetailReturnFilter,
     reqSearch, setReqSearch, reqSort, setReqSort, reqBhkFilter, setReqBhkFilter,
@@ -4018,8 +4018,6 @@ export const QuarterRequestsPage: React.FC = () => {
             setTpInfoConfirmed={setTpInfoConfirmed}
             showTPForm={showTPForm}
             setShowTPForm={setShowTPForm}
-            tpPopupTab={tpPopupTab}
-            setTpPopupTab={setTpPopupTab}
             tpFormDraft={tpFormDraft}
             setTpFormDraft={setTpFormDraft}
             submitting={submitting}

@@ -132,8 +132,6 @@ export interface NewRequestModalProps {
   setTpInfoConfirmed: (v: boolean) => void;
   showTPForm: boolean;
   setShowTPForm: (v: boolean) => void;
-  tpPopupTab: 'quick' | 'manual';
-  setTpPopupTab: (v: 'quick' | 'manual') => void;
   tpFormDraft: TPInfo;
   setTpFormDraft: React.Dispatch<React.SetStateAction<TPInfo>>;
   submitting: boolean;
@@ -185,7 +183,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
     showEmployeePicker, setShowEmployeePicker, employeeSearch, setEmployeeSearch,
     employeeDeptFilter, setEmployeeDeptFilter,
     tpInfo, setTpInfo, tpInfoConfirmed, setTpInfoConfirmed,
-    showTPForm, setShowTPForm, tpPopupTab, setTpPopupTab, tpFormDraft, setTpFormDraft,
+    showTPForm, setShowTPForm, tpFormDraft, setTpFormDraft,
     submitting, allotNowSubmitting,
     showAllotNowPicker, setShowAllotNowPicker, allotNowSearch, setAllotNowSearch,
     allotNowQuarters, allotNowLoading, allotNowQuarterId, setAllotNowQuarterId,
@@ -941,77 +939,13 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-gray-900">Third Party Beneficiary</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Pick from the list or enter details manually</p>
+                <p className="text-xs text-gray-400 mt-0.5">Enter third-party details</p>
               </div>
               <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"><X size={16} /></button>
             </div>
 
-            {/* Tabs */}
-            <div className="px-5 pt-4 shrink-0">
-              <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
-                <button
-                  onClick={() => setTpPopupTab('quick')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${tpPopupTab === 'quick' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  <Users size={13} />Quick Select
-                </button>
-                <button
-                  onClick={() => setTpPopupTab('manual')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${tpPopupTab === 'manual' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  <FileText size={13} />Enter Manually
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Select grid */}
-            {tpPopupTab === 'quick' && (
-              <div className="flex-1 overflow-y-auto px-5 pt-3 pb-4 min-h-0">
-                <p className="text-[10px] text-gray-400 mb-3 font-medium uppercase tracking-wide">Select a third-party profile — fields will be pre-filled and can be edited</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {DEMO_TP_PROFILES.map(tp => {
-                    const isSelected = tpFormDraft.name === tp.name && tpFormDraft.email === tp.email;
-                    const typeColors: Record<string, string> = {
-                      Consultant: 'bg-blue-50 text-blue-700 border-blue-200',
-                      Contractor: 'bg-green-50 text-green-700 border-green-200',
-                      NGO: 'bg-teal-50 text-teal-700 border-teal-200',
-                      Guest: 'bg-amber-50 text-amber-700 border-amber-200',
-                    };
-                    return (
-                      <button
-                        key={tp.id}
-                        onClick={() => {
-                          setTpFormDraft({ name: tp.name, organization: tp.organization, mobile: tp.mobile, email: tp.email, pan: tp.pan, notes: '' });
-                          setTpPopupTab('manual');
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all hover:shadow-sm ${isSelected ? 'border-amber-300 bg-amber-50' : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/40'}`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl text-sm font-bold flex items-center justify-center shrink-0 ${isSelected ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          {tp.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-sm font-semibold text-gray-900">{tp.name}</span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${typeColors[tp.type] ?? 'bg-gray-50 text-gray-500 border-gray-200'}`}>{tp.type}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">{tp.organization}</div>
-                          <div className="flex items-center gap-3 mt-0.5 text-[10px] text-gray-400">
-                            <span className="flex items-center gap-0.5"><Phone size={9} />{tp.mobile}</span>
-                            <span className="flex items-center gap-0.5 truncate"><Mail size={9} />{tp.email}</span>
-                          </div>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-amber-500 bg-amber-500' : 'border-gray-200'}`}>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Manual entry form */}
-            {tpPopupTab === 'manual' && (
+            {(
               <div className="flex-1 overflow-y-auto px-5 pt-4 pb-2 min-h-0">
                 {tpFormDraft.name && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4">
@@ -1072,26 +1006,19 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
             <div className="flex gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl shrink-0">
               <button onClick={() => { setShowTPForm(false); if (!tpInfoConfirmed) setRequestFor('SELF'); }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-white transition-colors">Cancel</button>
-              {tpPopupTab === 'quick' ? (
-                <button onClick={() => setTpPopupTab('manual')}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors flex items-center justify-center gap-1.5">
-                  <FileText size={14} />Enter Manually
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (!tpFormDraft.name.trim() || !tpFormDraft.organization.trim() || !tpFormDraft.mobile.trim() || !tpFormDraft.email.trim()) {
-                      addToast('Please fill in all required fields', 'warning'); return;
-                    }
-                    setTpInfo({ ...tpFormDraft });
-                    setTpInfoConfirmed(true);
-                    setRequestFor('TP');
-                    setShowTPForm(false);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors flex items-center justify-center gap-1.5">
-                  <CheckCircle size={14} />Confirm Details
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  if (!tpFormDraft.name.trim() || !tpFormDraft.organization.trim() || !tpFormDraft.mobile.trim() || !tpFormDraft.email.trim()) {
+                    addToast('Please fill in all required fields', 'warning'); return;
+                  }
+                  setTpInfo({ ...tpFormDraft });
+                  setTpInfoConfirmed(true);
+                  setRequestFor('TP');
+                  setShowTPForm(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors flex items-center justify-center gap-1.5">
+                <CheckCircle size={14} />Confirm Details
+              </button>
             </div>
           </div>
         </div>

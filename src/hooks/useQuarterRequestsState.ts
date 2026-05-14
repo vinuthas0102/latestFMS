@@ -206,7 +206,6 @@ export function useQuarterRequestsState() {
   const [tpInfoConfirmed, setTpInfoConfirmed] = useState(false);
   const [showEmployeePicker, setShowEmployeePicker] = useState(false);
   const [showTPForm, setShowTPForm] = useState(false);
-  const [tpPopupTab, setTpPopupTab] = useState<'quick' | 'manual'>('quick');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeDeptFilter, setEmployeeDeptFilter] = useState('');
   const [tpFormDraft, setTpFormDraft] = useState<TPInfo>(EMPTY_TP);
@@ -462,7 +461,6 @@ export function useQuarterRequestsState() {
     tpInfoConfirmed, setTpInfoConfirmed,
     showEmployeePicker, setShowEmployeePicker,
     showTPForm, setShowTPForm,
-    tpPopupTab, setTpPopupTab,
     employeeSearch, setEmployeeSearch,
     employeeDeptFilter, setEmployeeDeptFilter,
     tpFormDraft, setTpFormDraft,
