@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import React, { useEffect, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -73,6 +73,12 @@ import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
+import type {
+  DPFilter, PrefItem, NewRequestForm, StatusCard,
+  ActionPopupType, ActionPopupState, RequestForType,
+  DemoEmployee, TPInfo, EOMode, EORightMode, RightAction,
+} from '../types/quarterRequests';
+import { useQuarterRequestsState } from '../hooks/useQuarterRequestsState';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,8 +122,6 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'availableQuarters' | 'declined';
-
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
   draft: 'Draft Requests',
@@ -132,18 +136,6 @@ const DP_LABELS: Record<DPFilter, string> = {
   declined: 'Declined',
 };
 
-interface PrefItem { quarter: Quarter; rank: number }
-
-type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
-
-interface NewRequestForm {
-  request_reason: string;
-  preferred_location: string;
-  move_in_date: string;
-  employee_notes: string;
-  request_type: RequestType;
-}
-
 const DEFAULT_FORM: NewRequestForm = {
   request_reason: '',
   preferred_location: '',
@@ -151,46 +143,6 @@ const DEFAULT_FORM: NewRequestForm = {
   employee_notes: '',
   request_type: 'GENERAL',
 };
-
-// ─── Status dashboard card ─────────────────────────────────────────────────────
-
-interface StatusCard {
-  key: DPFilter; label: string; description: string;
-  count: number;
-  gradient: string; iconBg: string; textColor: string; countColor: string;
-  icon: React.ReactNode;
-}
-
-// ─── Action popup types ────────────────────────────────────────────────────────
-
-type ActionPopupType = 'EXTEND' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'INSPECTION' | 'HANDOVER' | null;
-
-interface ActionPopupState {
-  type: ActionPopupType;
-  requestId: string;
-  allotmentId: string;
-}
-
-// ─── Request-For types ─────────────────────────────────────────────────────────
-
-type RequestForType = 'SELF' | 'EMPLOYEE' | 'TP';
-
-interface DemoEmployee {
-  id: string;
-  name: string;
-  dept: string;
-  email: string;
-  designation: string;
-}
-
-interface TPInfo {
-  name: string;
-  organization: string;
-  mobile: string;
-  email: string;
-  pan: string;
-  notes: string;
-}
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -200,269 +152,123 @@ export const QuarterRequestsPage: React.FC = () => {
   const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
 
-  // DEMO_MODE: initialize state directly with mock data instead of empty defaults
-  const [requests, setRequests] = useState<QuarterRequest[]>(DEMO_MODE ? DEMO_REQUESTS : []);
-  const [tenantRequests, setTenantRequests] = useState<QuarterTenantRequest[]>(DEMO_MODE ? DEMO_TENANT_REQUESTS : []);
-  const [selectedRequest, setSelectedRequest] = useState<QuarterRequest | null>(null);
-  const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(DEMO_MODE ? DEMO_CYCLE : null);
-  const [loading, setLoading] = useState(DEMO_MODE ? false : true);
+  const {
+    requests, setRequests, tenantRequests, setTenantRequests,
+    selectedRequest, setSelectedRequest, activeCycle, setActiveCycle,
+    loading, setLoading, eoMode, setEOMode,
+    allotNowQuarterId, setAllotNowQuarterId, allotNowQuarter, setAllotNowQuarter,
+    allotNowSubmitting, setAllotNowSubmitting, showAllotNowPicker, setShowAllotNowPicker,
+    allotNowSearch, setAllotNowSearch, allotNowQuarters, setAllotNowQuarters,
+    allotNowLoading, setAllotNowLoading,
+    overrideAllotment, setOverrideAllotment, overrideRequest, setOverrideRequest,
+    showOverrideModal, setShowOverrideModal, overrideMenuCardId, setOverrideMenuCardId,
+    manualAllotPickerOpen, setManualAllotPickerOpen, manualAllotSearch, setManualAllotSearch,
+    manualAllotQuarters, setManualAllotQuarters, manualAllotLoading, setManualAllotLoading,
+    manualAllotSubmitting, setManualAllotSubmitting,
+    eoTrId, setEoTrId, eoTrAction, setEoTrAction, eoTrNotes, setEoTrNotes,
+    eoTrSubmitting, setEoTrSubmitting, svcMenuOpenId, setSvcMenuOpenId,
+    showRunAllocationPopup, setShowRunAllocationPopup, runAllocSubmitting, setRunAllocSubmitting,
+    runAllocCycleName, setRunAllocCycleName, runAllocStart, setRunAllocStart,
+    runAllocEnd, setRunAllocEnd, showCycleHistory, setShowCycleHistory,
+    cycleHistoryList, setCycleHistoryList, cycleHistoryLoading, setCycleHistoryLoading,
+    selectedCycleDetail, setSelectedCycleDetail, cycleDetailRequests, setCycleDetailRequests,
+    cycleDetailLoading, setCycleDetailLoading,
+    showAllotRequestsPopup, setShowAllotRequestsPopup,
+    allotRequestsWorkflows, setAllotRequestsWorkflows,
+    allotRequestsWflId, setAllotRequestsWflId, allotRequestsSubmitting, setAllotRequestsSubmitting,
+    approvalRecord, setApprovalRecord, approvalChats, setApprovalChats,
+    approvalChatMsg, setApprovalChatMsg, approvalAction, setApprovalAction,
+    approvalRemarks, setApprovalRemarks, approvalTargetLevel, setApprovalTargetLevel,
+    approvalSubmitting, setApprovalSubmitting,
+    requestApprovalRecord, setRequestApprovalRecord,
+    requestApprovalChats, setRequestApprovalChats,
+    requestApprovalAction, setRequestApprovalAction,
+    requestApprovalRemarks, setRequestApprovalRemarks,
+    requestApprovalTargetLevel, setRequestApprovalTargetLevel,
+    requestApprovalSubmitting, setRequestApprovalSubmitting,
+    requestApprovalWorkflows, setRequestApprovalWorkflows,
+    initiatingRequestApproval, setInitiatingRequestApproval,
+    inspections, setInspections, inspectionChats, setInspectionChats,
+    selectedInspectionId, setSelectedInspectionId, inspectionPanel, setInspectionPanel,
+    inspectionOpeningRemark, setInspectionOpeningRemark,
+    inspectionInspectorName, setInspectionInspectorName,
+    inspectionInitialCondition, setInspectionInitialCondition,
+    inspectionChecklist, setInspectionChecklist,
+    inspectionChatMsg, setInspectionChatMsg, inspectionChatFile, setInspectionChatFile,
+    inspectionSubmitting, setInspectionSubmitting,
+    inspectionCloseRemarks, setInspectionCloseRemarks, inspectionCondition, setInspectionCondition,
+    showHandoverPopup, setShowHandoverPopup, handover, setHandover,
+    handoverKeyNo, setHandoverKeyNo, handoverRemarks, setHandoverRemarks,
+    handoverDeadline, setHandoverDeadline, handoverInteriorFile, setHandoverInteriorFile,
+    handoverReportFile, setHandoverReportFile, handoverSubmitting, setHandoverSubmitting,
+    showGuestInfoPopup, setShowGuestInfoPopup, guestInfoList, setGuestInfoList,
+    guestInfoLoading, setGuestInfoLoading, guestForm, setGuestForm,
+    guestAadhaarFile, setGuestAadhaarFile, guestPanFile, setGuestPanFile,
+    guestOtherFiles, setGuestOtherFiles, guestSubmitting, setGuestSubmitting,
+    eoRightMode, setEoRightMode, eoRejectReason, setEoRejectReason,
+    eoRejectSubmitting, setEoRejectSubmitting,
+    rejectModalReqId, setRejectModalReqId, rejectModalReason, setRejectModalReason,
+    rejectModalDocFile, setRejectModalDocFile, rejectModalSubmitting, setRejectModalSubmitting,
+    dpFilter, setDpFilter, dpScrollRef, dpCanScrollLeft, setDpCanScrollLeft,
+    dpCanScrollRight, setDpCanScrollRight, requestDocUrls, setRequestDocUrls,
+    showNewModal, setShowNewModal, form, setForm, prefs, setPrefs,
+    requestDocuments, setRequestDocuments, modalQuarters, setModalQuarters,
+    modalSearch, setModalSearch, modalLoading, setModalLoading, submitting, setSubmitting,
+    modalFilterOpen, setModalFilterOpen, modalBhk, setModalBhk,
+    modalFurnishing, setModalFurnishing, modalSortBy, setModalSortBy,
+    modalGroundFloor, setModalGroundFloor, modalRecentlyRenovated, setModalRecentlyRenovated,
+    modalLocationArea, setModalLocationArea, modalWesternToilet, setModalWesternToilet,
+    modalIndianToilet, setModalIndianToilet, modalCarParking, setModalCarParking,
+    modalPoojaRoom, setModalPoojaRoom, modalBalcony, setModalBalcony,
+    modalKitchenExhaust, setModalKitchenExhaust, modalLiftAccess, setModalLiftAccess,
+    modalIndependentHouse, setModalIndependentHouse, modalHousingStyle, setModalHousingStyle,
+    modalFilterRef, declineModalReqId, setDeclineModalReqId,
+    declineModalRemarks, setDeclineModalRemarks,
+    declineModalDocUrl, setDeclineModalDocUrl, declineModalSubmitting, setDeclineModalSubmitting,
+    requestFor, setRequestFor, selectedEmployee, setSelectedEmployee,
+    tpInfo, setTpInfo, tpInfoConfirmed, setTpInfoConfirmed,
+    showEmployeePicker, setShowEmployeePicker, showTPForm, setShowTPForm,
+    tpPopupTab, setTpPopupTab, employeeSearch, setEmployeeSearch,
+    employeeDeptFilter, setEmployeeDeptFilter, tpFormDraft, setTpFormDraft,
+    detailRequest, setDetailRequest, detailReturnFilter, setDetailReturnFilter,
+    reqSearch, setReqSearch, reqSort, setReqSort, reqBhkFilter, setReqBhkFilter,
+    reqToiletFilter, setReqToiletFilter, reqFloorFilter, setReqFloorFilter,
+    filterDrawerOpen, setFilterDrawerOpen, selectedPrefQuarter, setSelectedPrefQuarter,
+    rightAction, setRightAction, actionRemarks, setActionRemarks,
+    actionReason, setActionReason, actionDocUrl, setActionDocUrl,
+    actionDate, setActionDate, actionBhk, setActionBhk, actionSubmitting, setActionSubmitting,
+    acceptCardId, setAcceptCardId, acceptCardRemarks, setAcceptCardRemarks,
+    acceptCardSubmitting, setAcceptCardSubmitting,
+    inspectTarget, setInspectTarget, inspectRemarks, setInspectRemarks,
+    inspectInspectorName, setInspectInspectorName, inspectCondition, setInspectCondition,
+    inspectChecklist, setInspectChecklist, inspectSubmitting, setInspectSubmitting,
+    previewQuarterId, setPreviewQuarterId, isPreviewOpen, setIsPreviewOpen,
+    serviceChats, setServiceChats, selectedServiceId, setSelectedServiceId,
+    servicesHistoryMode, setServicesHistoryMode, chatMessage, setChatMessage,
+    chatAttachFile, setChatAttachFile, chatSubmitting, setChatSubmitting,
+    allotmentChats, setAllotmentChats, allotmentChatMessage, setAllotmentChatMessage,
+    allotmentChatFile, setAllotmentChatFile, allotmentChatSubmitting, setAllotmentChatSubmitting,
+    availableQuarters, setAvailableQuarters, availableQuartersLoading, setAvailableQuartersLoading,
+    avqSearch, setAvqSearch, avqBhkFilter, setAvqBhkFilter,
+    avqToiletFilter, setAvqToiletFilter, avqFloorFilter, setAvqFloorFilter,
+    avqFilterDrawerOpen, setAvqFilterDrawerOpen, avqDetailQuarterId, setAvqDetailQuarterId,
+    avqMenuId, setAvqMenuId, avqMenuPos, setAvqMenuPos, avqMenuRef,
+    openMenuId, setOpenMenuId, menuPos, setMenuPos, menuRef,
+    expandedCardId, setExpandedCardId, chatOpenForId, setChatOpenForId,
+    expandedSvcsCardId, setExpandedSvcsCardId, expandedSvcDetailId, setExpandedSvcDetailId,
+    lightboxImages, setLightboxImages, lightboxIndex, setLightboxIndex, lightboxOpen, setLightboxOpen,
+    actionPopup, setActionPopup, popupReason, setPopupReason, popupRemarks, setPopupRemarks,
+    popupDocUrl, setPopupDocUrl, popupDate, setPopupDate, popupSubject, setPopupSubject,
+    popupUrgency, setPopupUrgency, popupSubmitting, setPopupSubmitting,
+    popupInspectorName, setPopupInspectorName, popupOpeningRemarks, setPopupOpeningRemarks,
+    popupChecklist, setPopupChecklist, popupCondition, setPopupCondition,
+    popupKeyNumber, setPopupKeyNumber, popupHandoverDeadline, setPopupHandoverDeadline,
+    popupRetentionReason, setPopupRetentionReason, popupRequestedMonths, setPopupRequestedMonths,
+    showUpgradeModal, setShowUpgradeModal,
+    upgradeModalQuarters, setUpgradeModalQuarters, upgradeModalLoading, setUpgradeModalLoading,
+  } = useQuarterRequestsState();
 
-  // EO mode selection — null means show mode-selection screen every visit
-  type EOMode = 'self' | 'employee' | null;
   const isEO = user?.role === 'manager';
-  const [eoMode, setEOMode] = useState<EOMode>(null);
-
-  // EO My Allotment mode: Allot Now state
-  const [allotNowQuarterId, setAllotNowQuarterId] = useState<string | null>(null);
-  const [allotNowQuarter, setAllotNowQuarter] = useState<Quarter | null>(null);
-  const [allotNowSubmitting, setAllotNowSubmitting] = useState(false);
-  const [showAllotNowPicker, setShowAllotNowPicker] = useState(false);
-  const [allotNowSearch, setAllotNowSearch] = useState('');
-  const [allotNowQuarters, setAllotNowQuarters] = useState<Quarter[]>([]);
-  const [allotNowLoading, setAllotNowLoading] = useState(false);
-
-  // EO Employee mode: override modal
-  const [overrideAllotment, setOverrideAllotment] = useState<QuarterAllotment | null>(null);
-  const [overrideRequest, setOverrideRequest] = useState<QuarterRequest | null>(null);
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [overrideMenuCardId, setOverrideMenuCardId] = useState<string | null>(null);
-
-  // EO Employee mode: manual allot quarter picker
-  const [manualAllotPickerOpen, setManualAllotPickerOpen] = useState(false);
-  const [manualAllotSearch, setManualAllotSearch] = useState('');
-  const [manualAllotQuarters, setManualAllotQuarters] = useState<Quarter[]>([]);
-  const [manualAllotLoading, setManualAllotLoading] = useState(false);
-  const [manualAllotSubmitting, setManualAllotSubmitting] = useState(false);
-
-  // EO Employee mode: approve/reject tenant request panel
-  const [eoTrId, setEoTrId] = useState<string | null>(null);
-  const [eoTrAction, setEoTrAction] = useState<'approve' | 'reject' | null>(null);
-  const [eoTrNotes, setEoTrNotes] = useState('');
-  const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
-
-  // Service card three-dot action menu
-  const [svcMenuOpenId, setSvcMenuOpenId] = useState<string | null>(null);
-
-  // EO: Run Allocation popup
-  const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
-  const [runAllocSubmitting, setRunAllocSubmitting] = useState(false);
-  const [runAllocCycleName, setRunAllocCycleName] = useState('');
-  const [runAllocStart, setRunAllocStart] = useState('');
-  const [runAllocEnd, setRunAllocEnd] = useState('');
-
-  // EO: Cycle history popup
-  const [showCycleHistory, setShowCycleHistory] = useState(false);
-  const [cycleHistoryList, setCycleHistoryList] = useState<QuarterAllotmentCycle[]>([]);
-  const [cycleHistoryLoading, setCycleHistoryLoading] = useState(false);
-  const [selectedCycleDetail, setSelectedCycleDetail] = useState<QuarterAllotmentCycle | null>(null);
-  const [cycleDetailRequests, setCycleDetailRequests] = useState<QuarterRequest[]>([]);
-  const [cycleDetailLoading, setCycleDetailLoading] = useState(false);
-
-  // EO: Allot Requests popup (bulk allot with optional WFL)
-  const [showAllotRequestsPopup, setShowAllotRequestsPopup] = useState(false);
-  const [allotRequestsWorkflows, setAllotRequestsWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
-  const [allotRequestsWflId, setAllotRequestsWflId] = useState<string>('none');
-  const [allotRequestsSubmitting, setAllotRequestsSubmitting] = useState(false);
-
-  // EO: Approval workflow panel (Pending Approval DP)
-  const [approvalRecord, setApprovalRecord] = useState<QuarterAllotmentApproval | null>(null);
-  const [approvalChats, setApprovalChats] = useState<QuarterApprovalChat[]>([]);
-  const [approvalChatMsg, setApprovalChatMsg] = useState('');
-  const [approvalAction, setApprovalAction] = useState<'approve' | 'clarify' | null>(null);
-  const [approvalRemarks, setApprovalRemarks] = useState('');
-  const [approvalTargetLevel, setApprovalTargetLevel] = useState(1);
-  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
-
-  // EO: Request-level approval (for SUBMITTED records)
-  const [requestApprovalRecord, setRequestApprovalRecord] = useState<QuarterRequestApproval | null>(null);
-  const [requestApprovalChats, setRequestApprovalChats] = useState<QuarterRequestApprovalChat[]>([]);
-  const [requestApprovalAction, setRequestApprovalAction] = useState<'approve' | 'clarify' | null>(null);
-  const [requestApprovalRemarks, setRequestApprovalRemarks] = useState('');
-  const [requestApprovalTargetLevel, setRequestApprovalTargetLevel] = useState(1);
-  const [requestApprovalSubmitting, setRequestApprovalSubmitting] = useState(false);
-  const [requestApprovalWorkflows, setRequestApprovalWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
-  const [initiatingRequestApproval, setInitiatingRequestApproval] = useState(false);
-
-  // EO: Inspection panel
-  const [inspections, setInspections] = useState<QuarterInspection[]>([]);
-  const [inspectionChats, setInspectionChats] = useState<QuarterInspectionChat[]>([]);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
-  const [inspectionPanel, setInspectionPanel] = useState<'list' | 'chat' | 'new'>('list');
-  const [inspectionOpeningRemark, setInspectionOpeningRemark] = useState('');
-  const [inspectionInspectorName, setInspectionInspectorName] = useState('');
-  const [inspectionInitialCondition, setInspectionInitialCondition] = useState('GOOD');
-  const [inspectionChecklist, setInspectionChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
-  const [inspectionChatMsg, setInspectionChatMsg] = useState('');
-  const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
-  const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
-  const [inspectionCloseRemarks, setInspectionCloseRemarks] = useState('');
-  const [inspectionCondition, setInspectionCondition] = useState('GOOD');
-
-  // EO: Handover popup
-  const [showHandoverPopup, setShowHandoverPopup] = useState(false);
-  const [handover, setHandover] = useState<QuarterHandover | null>(null);
-  const [handoverKeyNo, setHandoverKeyNo] = useState('');
-  const [handoverRemarks, setHandoverRemarks] = useState('');
-  const [handoverDeadline, setHandoverDeadline] = useState('');
-  const [handoverInteriorFile, setHandoverInteriorFile] = useState<File | null>(null);
-  const [handoverReportFile, setHandoverReportFile] = useState<File | null>(null);
-  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
-
-  // EO: Guest Info panel / popup
-  const [showGuestInfoPopup, setShowGuestInfoPopup] = useState(false);
-  const [guestInfoList, setGuestInfoList] = useState<QuarterGuestInfo[]>([]);
-  const [guestInfoLoading, setGuestInfoLoading] = useState(false);
-  const [guestForm, setGuestForm] = useState({ name: '', mobile: '', email: '' });
-  const [guestAadhaarFile, setGuestAadhaarFile] = useState<File | null>(null);
-  const [guestPanFile, setGuestPanFile] = useState<File | null>(null);
-  const [guestOtherFiles, setGuestOtherFiles] = useState<File[]>([]);
-  const [guestSubmitting, setGuestSubmitting] = useState(false);
-
-  // EO: Right panel mode for each DP
-  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'chat';
-  const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
-  const [eoRejectReason, setEoRejectReason] = useState('');
-  const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
-
-  // EO Employee mode: inline reject modal (card-level quick action)
-  const [rejectModalReqId, setRejectModalReqId] = useState<string | null>(null);
-  const [rejectModalReason, setRejectModalReason] = useState('');
-  const [rejectModalDocFile, setRejectModalDocFile] = useState<File | null>(null);
-  const [rejectModalSubmitting, setRejectModalSubmitting] = useState(false);
-
-  // Dashboard filter — default to 'allotted' per spec
-  const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
-  const dpScrollRef = useRef<HTMLDivElement>(null);
-  const [dpCanScrollLeft, setDpCanScrollLeft] = useState(false);
-  const [dpCanScrollRight, setDpCanScrollRight] = useState(false);
-
-  // Per-request uploaded document URLs (loaded when card is expanded)
-  const [requestDocUrls, setRequestDocUrls] = useState<Record<string, { name: string; url: string }[]>>({});
-
-  // New-request full-screen
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [form, setForm] = useState<NewRequestForm>(DEFAULT_FORM);
-  const [prefs, setPrefs] = useState<PrefItem[]>([]);
-  const [requestDocuments, setRequestDocuments] = useState<UploadedDoc[]>([]);
-  const [modalQuarters, setModalQuarters] = useState<Quarter[]>([]);
-  const [modalSearch, setModalSearch] = useState('');
-  const [modalLoading, setModalLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  // Available quarters filters
-  const [modalFilterOpen, setModalFilterOpen] = useState(false);
-  const [modalBhk, setModalBhk] = useState('');
-  const [modalFurnishing, setModalFurnishing] = useState('');
-  const [modalSortBy, setModalSortBy] = useState('');
-  const [modalGroundFloor, setModalGroundFloor] = useState(false);
-  const [modalRecentlyRenovated, setModalRecentlyRenovated] = useState(false);
-  const [modalLocationArea, setModalLocationArea] = useState('');
-  const [modalWesternToilet, setModalWesternToilet] = useState(false);
-  const [modalIndianToilet, setModalIndianToilet] = useState(false);
-  const [modalCarParking, setModalCarParking] = useState(false);
-  const [modalPoojaRoom, setModalPoojaRoom] = useState(false);
-  const [modalBalcony, setModalBalcony] = useState(false);
-  const [modalKitchenExhaust, setModalKitchenExhaust] = useState(false);
-  const [modalLiftAccess, setModalLiftAccess] = useState(false);
-  const [modalIndependentHouse, setModalIndependentHouse] = useState(false);
-  const [modalHousingStyle, setModalHousingStyle] = useState('');
-  const modalFilterRef = useRef<HTMLDivElement>(null);
-
-  // Decline allotment modal (card-level)
-  const [declineModalReqId, setDeclineModalReqId] = useState<string | null>(null);
-  const [declineModalRemarks, setDeclineModalRemarks] = useState('');
-  const [declineModalDocUrl, setDeclineModalDocUrl] = useState<File | null>(null);
-  const [declineModalSubmitting, setDeclineModalSubmitting] = useState(false);
-
-  // Request-For state (for new request form)
-  const [requestFor, setRequestFor] = useState<RequestForType>('SELF');
-  const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
-  const [tpInfo, setTpInfo] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
-  const [tpInfoConfirmed, setTpInfoConfirmed] = useState(false);
-  const [showEmployeePicker, setShowEmployeePicker] = useState(false);
-  const [showTPForm, setShowTPForm] = useState(false);
-  const [tpPopupTab, setTpPopupTab] = useState<'quick' | 'manual'>('quick');
-  const [employeeSearch, setEmployeeSearch] = useState('');
-  const [employeeDeptFilter, setEmployeeDeptFilter] = useState('');
-  const [tpFormDraft, setTpFormDraft] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
-
-  // Full-screen request detail view
-  const [detailRequest, setDetailRequest] = useState<QuarterRequest | null>(null);
-  const [detailReturnFilter, setDetailReturnFilter] = useState<DPFilter>('allotted');
-
-  // List filters
-  const [reqSearch, setReqSearch] = useState('');
-  const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
-  const [reqBhkFilter, setReqBhkFilter] = useState<string>('ALL');
-  const [reqToiletFilter, setReqToiletFilter] = useState<string[]>([]);
-  const [reqFloorFilter, setReqFloorFilter] = useState<number[]>([]);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-
-  // Selected preference quarter for detail view
-  const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
-
-  // Right-panel action state
-  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'vacate';
-  const [rightAction, setRightAction] = useState<RightAction>(null);
-  const [actionRemarks, setActionRemarks] = useState('');
-  const [actionReason, setActionReason] = useState('');
-  const [actionDocUrl, setActionDocUrl] = useState<File | null>(null);
-  const [actionDate, setActionDate] = useState('');
-  const [actionBhk, setActionBhk] = useState('');
-  const [actionSubmitting, setActionSubmitting] = useState(false);
-
-  // Card-level accept inline state
-  const [acceptCardId, setAcceptCardId] = useState<string | null>(null);
-  const [acceptCardRemarks, setAcceptCardRemarks] = useState('');
-  const [acceptCardSubmitting, setAcceptCardSubmitting] = useState(false);
-
-  // New Inspection modal (Accepted DP filter)
-  const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
-  const [inspectRemarks, setInspectRemarks] = useState('');
-  const [inspectInspectorName, setInspectInspectorName] = useState('');
-  const [inspectCondition, setInspectCondition] = useState('GOOD');
-  const [inspectChecklist, setInspectChecklist] = useState(() => buildDefaultChecklist());
-  const [inspectSubmitting, setInspectSubmitting] = useState(false);
-
-  // Quarter preview modal (photo click)
-  const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
-
-  // Service chats for occupied panel
-  const [serviceChats, setServiceChats] = useState<Record<string, QuarterServiceChat[]>>({});
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [servicesHistoryMode, setServicesHistoryMode] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatAttachFile, setChatAttachFile] = useState<File | null>(null);
-  const [chatSubmitting, setChatSubmitting] = useState(false);
-
-  // Allotment chats for allotted panel
-  const [allotmentChats, setAllotmentChats] = useState<Record<string, QuarterAllotmentChat[]>>({});
-  const [allotmentChatMessage, setAllotmentChatMessage] = useState('');
-  const [allotmentChatFile, setAllotmentChatFile] = useState<File | null>(null);
-  const [allotmentChatSubmitting, setAllotmentChatSubmitting] = useState(false);
-
-  // Available Quarters DP
-  const [availableQuarters, setAvailableQuarters] = useState<Quarter[]>([]);
-  const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
-  const [avqSearch, setAvqSearch] = useState('');
-  const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
-  const [avqToiletFilter, setAvqToiletFilter] = useState<string[]>([]);
-  const [avqFloorFilter, setAvqFloorFilter] = useState<number[]>([]);
-  const [avqFilterDrawerOpen, setAvqFilterDrawerOpen] = useState(false);
-  const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
-  const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
-  const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const avqMenuRef = useRef<HTMLDivElement>(null);
-
-  // Card-level dot-menu (portal-based to avoid scroll clipping)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
-  const [chatOpenForId, setChatOpenForId] = useState<string | null>(null);
-  const [expandedSvcsCardId, setExpandedSvcsCardId] = useState<string | null>(null);
-  const [expandedSvcDetailId, setExpandedSvcDetailId] = useState<string | null>(null);
 
   // Fetch document URLs when a card is expanded
   useEffect(() => {
@@ -473,11 +279,6 @@ export const QuarterRequestsPage: React.FC = () => {
       setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] }));
     });
   }, [expandedCardId]);
-
-  // Lightbox for allotted panel image tiles
-  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Close dot-menu on outside click or Escape
   useEffect(() => {
@@ -538,33 +339,12 @@ export const QuarterRequestsPage: React.FC = () => {
     setAvqMenuId(quarterId);
   }
 
-  // Inline action popup (card-level icons)
-  const [actionPopup, setActionPopup] = useState<ActionPopupState>({ type: null, requestId: '', allotmentId: '' });
-  const [popupReason, setPopupReason] = useState('');
-  const [popupRemarks, setPopupRemarks] = useState('');
-  const [popupDocUrl, setPopupDocUrl] = useState<File | null>(null);
-  const [popupDate, setPopupDate] = useState('');
-  const [popupSubject, setPopupSubject] = useState('');
-  const [popupUrgency, setPopupUrgency] = useState('NORMAL');
-  const [popupSubmitting, setPopupSubmitting] = useState(false);
-  const [popupInspectorName, setPopupInspectorName] = useState('');
-  const [popupOpeningRemarks, setPopupOpeningRemarks] = useState('');
-  const [popupChecklist, setPopupChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
-  const [popupCondition, setPopupCondition] = useState('GOOD');
-  const [popupKeyNumber, setPopupKeyNumber] = useState('');
-  const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
-  const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
-  const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
-
   function resetActionForm() {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
 
   // ─── Upgrade Request Modal ─────────────────────────────────────────────────
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
-  const [upgradeModalLoading, setUpgradeModalLoading] = useState(false);
 
   const openUpgradeModal = async () => {
     setShowUpgradeModal(true);
