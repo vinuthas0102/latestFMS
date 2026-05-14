@@ -4161,16 +4161,39 @@ export const QuarterRequestsPage: React.FC = () => {
       )}
 
       {/* ── Exchange Request Modal ─────────────────────────────────────── */}
-      {showExchangeModal && selectedRequest?.allotment && (
-        <ExchangeRequestModal
-          myQuarterNumber={(selectedRequest.allotment.quarter as import('../types/quarters').Quarter)?.quarter_number ?? ''}
-          allotmentId={selectedRequest.allotment.id}
-          workflows={exchangeWorkflows}
-          submitting={exchangeSubmitting}
-          onClose={() => setShowExchangeModal(false)}
-          onSubmit={handleExchangeSubmit}
-        />
-      )}
+      {showExchangeModal && selectedRequest?.allotment && (() => {
+        const rf = selectedRequest.request_for ?? 'SELF';
+        const myOccupantName =
+          rf === 'EMPLOYEE' ? (selectedRequest.on_behalf_employee_name ?? 'Employee') :
+          rf === 'TP' ? (selectedRequest.tp_name ?? 'Third Party') :
+          (user?.user_metadata?.full_name ?? user?.email ?? 'You');
+
+        function lookupPartnerQuarter(quarterNo: string): string | null {
+          const match = requests.find(r => {
+            if (!['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(r.request_status)) return false;
+            const q = r.allotment?.quarter as Quarter | undefined;
+            return q?.quarter_number?.toUpperCase() === quarterNo.toUpperCase();
+          });
+          if (!match) return null;
+          const rf2 = match.request_for ?? 'SELF';
+          if (rf2 === 'EMPLOYEE') return match.on_behalf_employee_name ?? 'Employee';
+          if (rf2 === 'TP') return match.tp_name ?? 'Third Party';
+          return user?.user_metadata?.full_name ?? user?.email ?? 'Occupant';
+        }
+
+        return (
+          <ExchangeRequestModal
+            myQuarterNumber={(selectedRequest.allotment.quarter as Quarter)?.quarter_number ?? ''}
+            myOccupantName={myOccupantName}
+            allotmentId={selectedRequest.allotment.id}
+            workflows={exchangeWorkflows}
+            submitting={exchangeSubmitting}
+            onClose={() => setShowExchangeModal(false)}
+            onLookupPartnerQuarter={lookupPartnerQuarter}
+            onSubmit={handleExchangeSubmit}
+          />
+        );
+      })()}
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (

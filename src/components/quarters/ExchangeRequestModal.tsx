@@ -7,10 +7,12 @@ import type { QuarterApprovalWorkflow } from '../../types/quarters';
 
 interface Props {
   myQuarterNumber: string;
+  myOccupantName: string;
   allotmentId: string;
   workflows: QuarterApprovalWorkflow[];
   submitting: boolean;
   onClose: () => void;
+  onLookupPartnerQuarter: (quarterNo: string) => string | null;
   onSubmit: (data: {
     partnerQuarterNumber: string;
     reason: string;
@@ -22,13 +24,16 @@ interface Props {
 
 export function ExchangeRequestModal({
   myQuarterNumber,
+  myOccupantName,
   workflows,
   submitting,
   onClose,
+  onLookupPartnerQuarter,
   onSubmit,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [partnerQuarterNumber, setPartnerQuarterNumber] = useState('');
+  const [partnerOccupantName, setPartnerOccupantName] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [remarks, setRemarks] = useState('');
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -37,6 +42,18 @@ export function ExchangeRequestModal({
   );
   const [showWorkflow, setShowWorkflow] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  function handlePartnerQuarterChange(val: string) {
+    setPartnerQuarterNumber(val);
+    setPartnerOccupantName(null);
+  }
+
+  function handlePartnerQuarterBlur() {
+    const trimmed = partnerQuarterNumber.trim();
+    if (trimmed) {
+      setPartnerOccupantName(onLookupPartnerQuarter(trimmed));
+    }
+  }
 
   function handleSubmit() {
     if (!partnerQuarterNumber.trim()) {
@@ -95,7 +112,8 @@ export function ExchangeRequestModal({
                 <Building2 size={10} /> Party A (You)
               </div>
               <div className="text-sm font-bold text-teal-900">{myQuarterNumber || '—'}</div>
-              <div className="text-[11px] text-teal-600 mt-0.5">Your current quarter</div>
+              <div className="text-[11px] font-semibold text-teal-700 mt-1 truncate">{myOccupantName || '—'}</div>
+              <div className="text-[10px] text-teal-500 mt-0.5">Your current quarter</div>
             </div>
 
             {/* Partner quarter input */}
@@ -105,24 +123,32 @@ export function ExchangeRequestModal({
               </div>
               <input
                 value={partnerQuarterNumber}
-                onChange={e => setPartnerQuarterNumber(e.target.value)}
+                onChange={e => handlePartnerQuarterChange(e.target.value)}
+                onBlur={handlePartnerQuarterBlur}
                 placeholder="Enter quarter no."
                 className="w-full text-sm font-semibold text-gray-900 bg-transparent border-none outline-none placeholder-gray-300"
               />
-              <div className="text-[11px] text-gray-400 mt-0.5">Partner's quarter</div>
+              {partnerOccupantName !== null ? (
+                <div className="text-[11px] font-semibold text-gray-700 mt-1 truncate">{partnerOccupantName}</div>
+              ) : partnerQuarterNumber.trim() ? (
+                <div className="text-[10px] text-gray-400 mt-1 italic">Unknown occupant</div>
+              ) : null}
+              <div className="text-[10px] text-gray-400 mt-0.5">Partner's quarter</div>
             </div>
           </div>
 
           {/* Arrow indicator */}
           <div className="flex items-center justify-center">
-            <div className="flex items-center gap-3 px-5 py-2 bg-teal-50 border border-teal-200 rounded-full">
-              <span className="text-xs font-semibold text-teal-700">
-                {myQuarterNumber || 'Your Quarter'}
-              </span>
-              <ArrowLeftRight size={13} className="text-teal-500" />
-              <span className="text-xs font-semibold text-teal-700">
-                {partnerQuarterNumber || 'Partner Quarter'}
-              </span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-teal-50 border border-teal-200 rounded-full">
+              <div className="text-right">
+                <div className="text-xs font-bold text-teal-700 leading-tight">{myQuarterNumber || 'Your Quarter'}</div>
+                {myOccupantName && <div className="text-[10px] text-teal-500 leading-tight">{myOccupantName}</div>}
+              </div>
+              <ArrowLeftRight size={13} className="text-teal-500 shrink-0" />
+              <div className="text-left">
+                <div className="text-xs font-bold text-teal-700 leading-tight">{partnerQuarterNumber || 'Partner Quarter'}</div>
+                {partnerOccupantName && <div className="text-[10px] text-teal-500 leading-tight">{partnerOccupantName}</div>}
+              </div>
             </div>
           </div>
 
