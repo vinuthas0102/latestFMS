@@ -4185,6 +4185,7 @@ export const QuarterRequestsPage: React.FC = () => {
           <ExchangeRequestModal
             myQuarterNumber={(selectedRequest.allotment.quarter as Quarter)?.quarter_number ?? ''}
             myOccupantName={myOccupantName}
+            isEO={isEO}
             allotmentId={selectedRequest.allotment.id}
             workflows={exchangeWorkflows}
             submitting={exchangeSubmitting}

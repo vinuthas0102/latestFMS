@@ -9,6 +9,7 @@ interface Props {
   myQuarterNumber: string;
   myOccupantName: string;
   allotmentId: string;
+  isEO: boolean;
   workflows: QuarterApprovalWorkflow[];
   submitting: boolean;
   onClose: () => void;
@@ -25,6 +26,7 @@ interface Props {
 export function ExchangeRequestModal({
   myQuarterNumber,
   myOccupantName,
+  isEO,
   workflows,
   submitting,
   onClose,
@@ -228,8 +230,8 @@ export function ExchangeRequestModal({
             />
           </div>
 
-          {/* Approval Workflow */}
-          <div>
+          {/* Approval Workflow — EO only */}
+          {isEO && <div>
             <button
               type="button"
               onClick={() => setShowWorkflow(p => !p)}
@@ -314,7 +316,7 @@ export function ExchangeRequestModal({
                 )}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Validation error */}
           {validationError && (
