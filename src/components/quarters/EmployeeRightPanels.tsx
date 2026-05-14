@@ -688,7 +688,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         </div>
 
         {rightAction === null && (() => {
-          const hasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(selectedRequest.request_status);
+          const hasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(selectedRequest.request_status);
           return (
             <>
               <div className="grid grid-cols-3 gap-2">

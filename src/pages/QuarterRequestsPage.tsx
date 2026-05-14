@@ -3574,7 +3574,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       </>
                     )}
                     {isOccupied && req.allotment && dpFilter !== 'accepted' && (() => {
-                      const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
+                      const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(req.request_status);
                       return (
                         <>
                           <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Services</span></div>
@@ -3593,6 +3593,13 @@ export const QuarterRequestsPage: React.FC = () => {
                               >
                                 <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
                                 Upgrade Quarter
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); openExchangeModal(); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><GitMerge size={12} className="text-teal-600" /></span>
+                                Exchange Quarter
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
