@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
   ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
@@ -73,6 +73,16 @@ import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
+import { ExchangeRequestModal } from '../components/quarters/ExchangeRequestModal';
+import { AddQuarterModal } from '../components/quarters/AddQuarterModal';
+import type {
+  DPFilter, PrefItem, NewRequestForm, StatusCard,
+  ActionPopupType, ActionPopupState, RequestForType,
+  DemoEmployee, TPInfo, EOMode, EORightMode, RightAction,
+} from '../types/quarterRequests';
+import { useQuarterRequestsState } from '../hooks/useQuarterRequestsState';
+import { useQuarterRequestsData } from '../hooks/useQuarterRequestsData';
+import { useQuarterRequestsEffects } from '../hooks/useQuarterRequestsEffects';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,8 +126,6 @@ function getOccupancyBadge(status: string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-type DPFilter = 'all' | 'draft' | 'submitted' | 'allotted' | 'allocated_em' | 'unapproved' | 'accepted' | 'occupied' | 'tenantServices' | 'availableQuarters' | 'declined';
-
 const DP_LABELS: Record<DPFilter, string> = {
   all: 'All Requests',
   draft: 'Draft Requests',
@@ -132,18 +140,6 @@ const DP_LABELS: Record<DPFilter, string> = {
   declined: 'Declined',
 };
 
-interface PrefItem { quarter: Quarter; rank: number }
-
-type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
-
-interface NewRequestForm {
-  request_reason: string;
-  preferred_location: string;
-  move_in_date: string;
-  employee_notes: string;
-  request_type: RequestType;
-}
-
 const DEFAULT_FORM: NewRequestForm = {
   request_reason: '',
   preferred_location: '',
@@ -152,362 +148,219 @@ const DEFAULT_FORM: NewRequestForm = {
   request_type: 'GENERAL',
 };
 
-// ─── Status dashboard card ─────────────────────────────────────────────────────
-
-interface StatusCard {
-  key: DPFilter; label: string; description: string;
-  count: number;
-  gradient: string; iconBg: string; textColor: string; countColor: string;
-  icon: React.ReactNode;
-}
-
-// ─── Action popup types ────────────────────────────────────────────────────────
-
-type ActionPopupType = 'EXTEND' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'INSPECTION' | 'HANDOVER' | null;
-
-interface ActionPopupState {
-  type: ActionPopupType;
-  requestId: string;
-  allotmentId: string;
-}
-
-// ─── Request-For types ─────────────────────────────────────────────────────────
-
-type RequestForType = 'SELF' | 'EMPLOYEE' | 'TP';
-
-interface DemoEmployee {
-  id: string;
-  name: string;
-  dept: string;
-  email: string;
-  designation: string;
-}
-
-interface TPInfo {
-  name: string;
-  organization: string;
-  mobile: string;
-  email: string;
-  pan: string;
-  notes: string;
-}
-
 // ─── component ────────────────────────────────────────────────────────────────
 
 export const QuarterRequestsPage: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addToast = useUIStore(s => s.addToast);
 
-  // DEMO_MODE: initialize state directly with mock data instead of empty defaults
-  const [requests, setRequests] = useState<QuarterRequest[]>(DEMO_MODE ? DEMO_REQUESTS : []);
-  const [tenantRequests, setTenantRequests] = useState<QuarterTenantRequest[]>(DEMO_MODE ? DEMO_TENANT_REQUESTS : []);
-  const [selectedRequest, setSelectedRequest] = useState<QuarterRequest | null>(null);
-  const [activeCycle, setActiveCycle] = useState<QuarterAllotmentCycle | null>(DEMO_MODE ? DEMO_CYCLE : null);
-  const [loading, setLoading] = useState(DEMO_MODE ? false : true);
+  const {
+    requests, setRequests, tenantRequests, setTenantRequests,
+    selectedRequest, setSelectedRequest, activeCycle, setActiveCycle,
+    loading, setLoading, eoMode, setEOMode,
+    allotNowQuarterId, setAllotNowQuarterId, allotNowQuarter, setAllotNowQuarter,
+    allotNowSubmitting, setAllotNowSubmitting, showAllotNowPicker, setShowAllotNowPicker,
+    allotNowSearch, setAllotNowSearch, allotNowQuarters, setAllotNowQuarters,
+    allotNowLoading, setAllotNowLoading,
+    overrideAllotment, setOverrideAllotment, overrideRequest, setOverrideRequest,
+    showOverrideModal, setShowOverrideModal, overrideMenuCardId, setOverrideMenuCardId,
+    manualAllotPickerOpen, setManualAllotPickerOpen, manualAllotSearch, setManualAllotSearch,
+    manualAllotQuarters, setManualAllotQuarters, manualAllotLoading, setManualAllotLoading,
+    manualAllotSubmitting, setManualAllotSubmitting,
+    eoTrId, setEoTrId, eoTrAction, setEoTrAction, eoTrNotes, setEoTrNotes,
+    eoTrSubmitting, setEoTrSubmitting, svcMenuOpenId, setSvcMenuOpenId,
+    showRunAllocationPopup, setShowRunAllocationPopup, runAllocSubmitting, setRunAllocSubmitting,
+    runAllocCycleName, setRunAllocCycleName, runAllocStart, setRunAllocStart,
+    runAllocEnd, setRunAllocEnd, showCycleHistory, setShowCycleHistory,
+    cycleHistoryList, setCycleHistoryList, cycleHistoryLoading, setCycleHistoryLoading,
+    selectedCycleDetail, setSelectedCycleDetail, cycleDetailRequests, setCycleDetailRequests,
+    cycleDetailLoading, setCycleDetailLoading,
+    showAllotRequestsPopup, setShowAllotRequestsPopup,
+    allotRequestsWorkflows, setAllotRequestsWorkflows,
+    allotRequestsWflId, setAllotRequestsWflId, allotRequestsSubmitting, setAllotRequestsSubmitting,
+    approvalRecord, setApprovalRecord, approvalChats, setApprovalChats,
+    approvalChatMsg, setApprovalChatMsg, approvalAction, setApprovalAction,
+    approvalRemarks, setApprovalRemarks, approvalTargetLevel, setApprovalTargetLevel,
+    approvalSubmitting, setApprovalSubmitting,
+    requestApprovalRecord, setRequestApprovalRecord,
+    requestApprovalChats, setRequestApprovalChats,
+    requestApprovalAction, setRequestApprovalAction,
+    requestApprovalRemarks, setRequestApprovalRemarks,
+    requestApprovalTargetLevel, setRequestApprovalTargetLevel,
+    requestApprovalSubmitting, setRequestApprovalSubmitting,
+    requestApprovalWorkflows, setRequestApprovalWorkflows,
+    initiatingRequestApproval, setInitiatingRequestApproval,
+    inspections, setInspections, inspectionChats, setInspectionChats,
+    selectedInspectionId, setSelectedInspectionId, inspectionPanel, setInspectionPanel,
+    inspectionOpeningRemark, setInspectionOpeningRemark,
+    inspectionInspectorName, setInspectionInspectorName,
+    inspectionInitialCondition, setInspectionInitialCondition,
+    inspectionChecklist, setInspectionChecklist,
+    inspectionChatMsg, setInspectionChatMsg, inspectionChatFile, setInspectionChatFile,
+    inspectionSubmitting, setInspectionSubmitting,
+    inspectionCloseRemarks, setInspectionCloseRemarks, inspectionCondition, setInspectionCondition,
+    showHandoverPopup, setShowHandoverPopup, handover, setHandover,
+    handoverKeyNo, setHandoverKeyNo, handoverRemarks, setHandoverRemarks,
+    handoverDeadline, setHandoverDeadline, handoverInteriorFile, setHandoverInteriorFile,
+    handoverReportFile, setHandoverReportFile, handoverSubmitting, setHandoverSubmitting,
+    showGuestInfoPopup, setShowGuestInfoPopup, guestInfoList, setGuestInfoList,
+    guestInfoLoading, setGuestInfoLoading, guestForm, setGuestForm,
+    guestAadhaarFile, setGuestAadhaarFile, guestPanFile, setGuestPanFile,
+    guestOtherFiles, setGuestOtherFiles, guestSubmitting, setGuestSubmitting,
+    eoRightMode, setEoRightMode, eoRejectReason, setEoRejectReason,
+    eoRejectSubmitting, setEoRejectSubmitting,
+    rejectModalReqId, setRejectModalReqId, rejectModalReason, setRejectModalReason,
+    rejectModalDocFile, setRejectModalDocFile, rejectModalSubmitting, setRejectModalSubmitting,
+    dpFilter, setDpFilter, dpScrollRef, dpCanScrollLeft, setDpCanScrollLeft,
+    dpCanScrollRight, setDpCanScrollRight, requestDocUrls, setRequestDocUrls,
+    showNewModal, setShowNewModal, form, setForm, prefs, setPrefs,
+    requestDocuments, setRequestDocuments, modalQuarters, setModalQuarters,
+    modalSearch, setModalSearch, modalLoading, setModalLoading, submitting, setSubmitting,
+    modalFilterOpen, setModalFilterOpen, modalBhk, setModalBhk,
+    modalFurnishing, setModalFurnishing, modalSortBy, setModalSortBy,
+    modalGroundFloor, setModalGroundFloor, modalRecentlyRenovated, setModalRecentlyRenovated,
+    modalLocationArea, setModalLocationArea, modalWesternToilet, setModalWesternToilet,
+    modalIndianToilet, setModalIndianToilet, modalCarParking, setModalCarParking,
+    modalPoojaRoom, setModalPoojaRoom, modalBalcony, setModalBalcony,
+    modalKitchenExhaust, setModalKitchenExhaust, modalLiftAccess, setModalLiftAccess,
+    modalIndependentHouse, setModalIndependentHouse, modalHousingStyle, setModalHousingStyle,
+    modalFilterRef, declineModalReqId, setDeclineModalReqId,
+    declineModalRemarks, setDeclineModalRemarks,
+    declineModalDocUrl, setDeclineModalDocUrl, declineModalSubmitting, setDeclineModalSubmitting,
+    requestFor, setRequestFor, selectedEmployee, setSelectedEmployee,
+    tpInfo, setTpInfo, tpInfoConfirmed, setTpInfoConfirmed,
+    showEmployeePicker, setShowEmployeePicker, showTPForm, setShowTPForm,
+    employeeSearch, setEmployeeSearch,
+    employeeDeptFilter, setEmployeeDeptFilter, tpFormDraft, setTpFormDraft,
+    detailRequest, setDetailRequest, detailReturnFilter, setDetailReturnFilter,
+    reqSearch, setReqSearch, reqSort, setReqSort, reqBhkFilter, setReqBhkFilter,
+    reqToiletFilter, setReqToiletFilter, reqFloorFilter, setReqFloorFilter,
+    filterDrawerOpen, setFilterDrawerOpen, selectedPrefQuarter, setSelectedPrefQuarter,
+    rightAction, setRightAction, actionRemarks, setActionRemarks,
+    actionReason, setActionReason, actionDocUrl, setActionDocUrl,
+    actionDate, setActionDate, actionBhk, setActionBhk, actionSubmitting, setActionSubmitting,
+    acceptCardId, setAcceptCardId, acceptCardRemarks, setAcceptCardRemarks,
+    acceptCardSubmitting, setAcceptCardSubmitting,
+    inspectTarget, setInspectTarget, inspectRemarks, setInspectRemarks,
+    inspectInspectorName, setInspectInspectorName, inspectCondition, setInspectCondition,
+    inspectChecklist, setInspectChecklist, inspectSubmitting, setInspectSubmitting,
+    previewQuarterId, setPreviewQuarterId, isPreviewOpen, setIsPreviewOpen,
+    serviceChats, setServiceChats, selectedServiceId, setSelectedServiceId,
+    servicesHistoryMode, setServicesHistoryMode, chatMessage, setChatMessage,
+    chatAttachFile, setChatAttachFile, chatSubmitting, setChatSubmitting,
+    allotmentChats, setAllotmentChats, allotmentChatMessage, setAllotmentChatMessage,
+    allotmentChatFile, setAllotmentChatFile, allotmentChatSubmitting, setAllotmentChatSubmitting,
+    availableQuarters, setAvailableQuarters, availableQuartersLoading, setAvailableQuartersLoading,
+    avqSearch, setAvqSearch, avqBhkFilter, setAvqBhkFilter,
+    avqFloorFilter, setAvqFloorFilter,
+    avqGroundFloor, setAvqGroundFloor,
+    avqRecentlyRenovated, setAvqRecentlyRenovated,
+    avqLocationArea, setAvqLocationArea,
+    avqWesternToilet, setAvqWesternToilet,
+    avqIndianToilet, setAvqIndianToilet,
+    avqCarParking, setAvqCarParking,
+    avqPoojaRoom, setAvqPoojaRoom,
+    avqBalcony, setAvqBalcony,
+    avqKitchenExhaust, setAvqKitchenExhaust,
+    avqLiftAccess, setAvqLiftAccess,
+    avqHousingStyle, setAvqHousingStyle,
+    avqFilterDrawerOpen, setAvqFilterDrawerOpen, avqDetailQuarterId, setAvqDetailQuarterId,
+    avqMenuId, setAvqMenuId, avqMenuPos, setAvqMenuPos, avqMenuRef,
+    showNewQuarterModal, setShowNewQuarterModal,
+    newQuarterSubmitting, setNewQuarterSubmitting,
+    openMenuId, setOpenMenuId, menuPos, setMenuPos, menuRef,
+    expandedCardId, setExpandedCardId, chatOpenForId, setChatOpenForId,
+    expandedSvcsCardId, setExpandedSvcsCardId, expandedSvcDetailId, setExpandedSvcDetailId,
+    lightboxImages, setLightboxImages, lightboxIndex, setLightboxIndex, lightboxOpen, setLightboxOpen,
+    actionPopup, setActionPopup, popupReason, setPopupReason, popupRemarks, setPopupRemarks,
+    popupDocUrl, setPopupDocUrl, popupDate, setPopupDate, popupSubject, setPopupSubject,
+    popupUrgency, setPopupUrgency, popupSubmitting, setPopupSubmitting,
+    popupInspectorName, setPopupInspectorName, popupOpeningRemarks, setPopupOpeningRemarks,
+    popupChecklist, setPopupChecklist, popupCondition, setPopupCondition,
+    popupKeyNumber, setPopupKeyNumber, popupHandoverDeadline, setPopupHandoverDeadline,
+    popupRetentionReason, setPopupRetentionReason, popupRequestedMonths, setPopupRequestedMonths,
+    showUpgradeModal, setShowUpgradeModal,
+    upgradeModalQuarters, setUpgradeModalQuarters, upgradeModalLoading, setUpgradeModalLoading,
+  } = useQuarterRequestsState();
 
-  // EO mode selection — null means show mode-selection screen every visit
-  type EOMode = 'self' | 'employee' | null;
   const isEO = user?.role === 'manager';
-  const [eoMode, setEOMode] = useState<EOMode>(null);
 
-  // EO My Allotment mode: Allot Now state
-  const [allotNowQuarterId, setAllotNowQuarterId] = useState<string | null>(null);
-  const [allotNowQuarter, setAllotNowQuarter] = useState<Quarter | null>(null);
-  const [allotNowSubmitting, setAllotNowSubmitting] = useState(false);
-  const [showAllotNowPicker, setShowAllotNowPicker] = useState(false);
-  const [allotNowSearch, setAllotNowSearch] = useState('');
-  const [allotNowQuarters, setAllotNowQuarters] = useState<Quarter[]>([]);
-  const [allotNowLoading, setAllotNowLoading] = useState(false);
+  // ─── Data-loading callbacks + data effects ────────────────────────────────
+  const { loadData, loadGuestInfo, updateDpScrollState } =
+    useQuarterRequestsData(
+      { setRequests, setActiveCycle, setTenantRequests, setDpFilter, setLoading, addToast, isEO, eoMode, user: user ?? null },
+      {
+        setModalLoading, setModalQuarters, addToast, prefs, showNewModal,
+        modalSearch, modalBhk, modalFurnishing, modalSortBy,
+        modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+        modalWesternToilet, modalIndianToilet, modalCarParking,
+        modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+        modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+      },
+      { setAllotNowLoading, setAllotNowQuarters, addToast, showAllotNowPicker, allotNowSearch, user: user ?? null, form },
+      { setManualAllotLoading, setManualAllotQuarters, addToast, manualAllotPickerOpen, manualAllotSearch },
+      { setGuestInfoLoading, setGuestInfoList, allotmentId: selectedRequest?.allotment?.id, showGuestInfoPopup },
+      { dpScrollRef, setDpCanScrollLeft, setDpCanScrollRight, eoMode },
+      { setAvailableQuarters, setAvailableQuartersLoading },
+      { showAllotRequestsPopup, setAllotRequestsWorkflows },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        selectedRequestId: selectedRequest?.id,
+        selectedRequestStatus: selectedRequest?.request_status,
+        isEO, eoMode,
+        setApprovalRecord, setApprovalChats,
+        setRequestApprovalRecord, setRequestApprovalChats, setRequestApprovalWorkflows,
+      },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        selectedInspectionId,
+        isEO, eoMode,
+        setInspections, setInspectionChats,
+      },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        isEO, eoMode,
+        setHandover,
+      },
+      {
+        selectedServiceId,
+        selectedRequestId: selectedRequest?.id,
+        selectedRequestAllotmentId: selectedRequest?.allotment?.id,
+        selectedRequestStatus: selectedRequest?.request_status,
+        setServiceChats,
+        setAllotmentChats,
+      },
+      {
+        expandedCardId,
+        requestDocUrls,
+        setRequestDocUrls,
+      },
+    );
 
-  // EO Employee mode: override modal
-  const [overrideAllotment, setOverrideAllotment] = useState<QuarterAllotment | null>(null);
-  const [overrideRequest, setOverrideRequest] = useState<QuarterRequest | null>(null);
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [overrideMenuCardId, setOverrideMenuCardId] = useState<string | null>(null);
+  // ─── UI / interaction effects ─────────────────────────────────────────────
+  useQuarterRequestsEffects(
+    { menuRef, setOpenMenuId, setMenuPos },
+    { avqMenuRef, setAvqMenuId, setAvqMenuPos },
+    { modalFilterOpen, modalFilterRef, setModalFilterOpen },
+    { dpScrollRef, dpFilter, updateDpScrollState, eoMode },
+    {
+      selectedRequestId: selectedRequest?.id,
+      selectedRequestStatus: selectedRequest?.request_status,
+      selectedAllotmentApprovalStatus: selectedRequest?.allotment?.approval_status,
+      isEO,
+      setEoRightMode, setApprovalAction, setApprovalRemarks,
+      setInspectionPanel, setSelectedInspectionId,
+      setEoRejectReason, setEoTrId, setEoTrAction, setEoTrNotes,
+    },
+    {
+      selectedRequestId: selectedRequest?.id,
+      selectedRequestPreferences: selectedRequest?.preferences,
+      setSelectedPrefQuarter,
+    },
+    { setPrefs, setShowNewModal },
+  );
 
-  // EO Employee mode: manual allot quarter picker
-  const [manualAllotPickerOpen, setManualAllotPickerOpen] = useState(false);
-  const [manualAllotSearch, setManualAllotSearch] = useState('');
-  const [manualAllotQuarters, setManualAllotQuarters] = useState<Quarter[]>([]);
-  const [manualAllotLoading, setManualAllotLoading] = useState(false);
-  const [manualAllotSubmitting, setManualAllotSubmitting] = useState(false);
-
-  // EO Employee mode: approve/reject tenant request panel
-  const [eoTrId, setEoTrId] = useState<string | null>(null);
-  const [eoTrAction, setEoTrAction] = useState<'approve' | 'reject' | null>(null);
-  const [eoTrNotes, setEoTrNotes] = useState('');
-  const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
-
-  // Service card three-dot action menu
-  const [svcMenuOpenId, setSvcMenuOpenId] = useState<string | null>(null);
-
-  // EO: Run Allocation popup
-  const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
-  const [runAllocSubmitting, setRunAllocSubmitting] = useState(false);
-  const [runAllocCycleName, setRunAllocCycleName] = useState('');
-  const [runAllocStart, setRunAllocStart] = useState('');
-  const [runAllocEnd, setRunAllocEnd] = useState('');
-
-  // EO: Cycle history popup
-  const [showCycleHistory, setShowCycleHistory] = useState(false);
-  const [cycleHistoryList, setCycleHistoryList] = useState<QuarterAllotmentCycle[]>([]);
-  const [cycleHistoryLoading, setCycleHistoryLoading] = useState(false);
-  const [selectedCycleDetail, setSelectedCycleDetail] = useState<QuarterAllotmentCycle | null>(null);
-  const [cycleDetailRequests, setCycleDetailRequests] = useState<QuarterRequest[]>([]);
-  const [cycleDetailLoading, setCycleDetailLoading] = useState(false);
-
-  // EO: Allot Requests popup (bulk allot with optional WFL)
-  const [showAllotRequestsPopup, setShowAllotRequestsPopup] = useState(false);
-  const [allotRequestsWorkflows, setAllotRequestsWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
-  const [allotRequestsWflId, setAllotRequestsWflId] = useState<string>('none');
-  const [allotRequestsSubmitting, setAllotRequestsSubmitting] = useState(false);
-
-  // EO: Approval workflow panel (Pending Approval DP)
-  const [approvalRecord, setApprovalRecord] = useState<QuarterAllotmentApproval | null>(null);
-  const [approvalChats, setApprovalChats] = useState<QuarterApprovalChat[]>([]);
-  const [approvalChatMsg, setApprovalChatMsg] = useState('');
-  const [approvalAction, setApprovalAction] = useState<'approve' | 'clarify' | null>(null);
-  const [approvalRemarks, setApprovalRemarks] = useState('');
-  const [approvalTargetLevel, setApprovalTargetLevel] = useState(1);
-  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
-
-  // EO: Request-level approval (for SUBMITTED records)
-  const [requestApprovalRecord, setRequestApprovalRecord] = useState<QuarterRequestApproval | null>(null);
-  const [requestApprovalChats, setRequestApprovalChats] = useState<QuarterRequestApprovalChat[]>([]);
-  const [requestApprovalAction, setRequestApprovalAction] = useState<'approve' | 'clarify' | null>(null);
-  const [requestApprovalRemarks, setRequestApprovalRemarks] = useState('');
-  const [requestApprovalTargetLevel, setRequestApprovalTargetLevel] = useState(1);
-  const [requestApprovalSubmitting, setRequestApprovalSubmitting] = useState(false);
-  const [requestApprovalWorkflows, setRequestApprovalWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
-  const [initiatingRequestApproval, setInitiatingRequestApproval] = useState(false);
-
-  // EO: Inspection panel
-  const [inspections, setInspections] = useState<QuarterInspection[]>([]);
-  const [inspectionChats, setInspectionChats] = useState<QuarterInspectionChat[]>([]);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
-  const [inspectionPanel, setInspectionPanel] = useState<'list' | 'chat' | 'new'>('list');
-  const [inspectionOpeningRemark, setInspectionOpeningRemark] = useState('');
-  const [inspectionInspectorName, setInspectionInspectorName] = useState('');
-  const [inspectionInitialCondition, setInspectionInitialCondition] = useState('GOOD');
-  const [inspectionChecklist, setInspectionChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
-  const [inspectionChatMsg, setInspectionChatMsg] = useState('');
-  const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
-  const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
-  const [inspectionCloseRemarks, setInspectionCloseRemarks] = useState('');
-  const [inspectionCondition, setInspectionCondition] = useState('GOOD');
-
-  // EO: Handover popup
-  const [showHandoverPopup, setShowHandoverPopup] = useState(false);
-  const [handover, setHandover] = useState<QuarterHandover | null>(null);
-  const [handoverKeyNo, setHandoverKeyNo] = useState('');
-  const [handoverRemarks, setHandoverRemarks] = useState('');
-  const [handoverDeadline, setHandoverDeadline] = useState('');
-  const [handoverInteriorFile, setHandoverInteriorFile] = useState<File | null>(null);
-  const [handoverReportFile, setHandoverReportFile] = useState<File | null>(null);
-  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
-
-  // EO: Guest Info panel / popup
-  const [showGuestInfoPopup, setShowGuestInfoPopup] = useState(false);
-  const [guestInfoList, setGuestInfoList] = useState<QuarterGuestInfo[]>([]);
-  const [guestInfoLoading, setGuestInfoLoading] = useState(false);
-  const [guestForm, setGuestForm] = useState({ name: '', mobile: '', email: '' });
-  const [guestAadhaarFile, setGuestAadhaarFile] = useState<File | null>(null);
-  const [guestPanFile, setGuestPanFile] = useState<File | null>(null);
-  const [guestOtherFiles, setGuestOtherFiles] = useState<File[]>([]);
-  const [guestSubmitting, setGuestSubmitting] = useState(false);
-
-  // EO: Right panel mode for each DP
-  type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'inspection' | 'handover' | 'chat';
-  const [eoRightMode, setEoRightMode] = useState<EORightMode>('detail');
-  const [eoRejectReason, setEoRejectReason] = useState('');
-  const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
-
-  // EO Employee mode: inline reject modal (card-level quick action)
-  const [rejectModalReqId, setRejectModalReqId] = useState<string | null>(null);
-  const [rejectModalReason, setRejectModalReason] = useState('');
-  const [rejectModalDocFile, setRejectModalDocFile] = useState<File | null>(null);
-  const [rejectModalSubmitting, setRejectModalSubmitting] = useState(false);
-
-  // Dashboard filter — default to 'allotted' per spec
-  const [dpFilter, setDpFilter] = useState<DPFilter>('allotted');
-  const dpScrollRef = useRef<HTMLDivElement>(null);
-  const [dpCanScrollLeft, setDpCanScrollLeft] = useState(false);
-  const [dpCanScrollRight, setDpCanScrollRight] = useState(false);
-
-  // Per-request uploaded document URLs (loaded when card is expanded)
-  const [requestDocUrls, setRequestDocUrls] = useState<Record<string, { name: string; url: string }[]>>({});
-
-  // New-request full-screen
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [form, setForm] = useState<NewRequestForm>(DEFAULT_FORM);
-  const [prefs, setPrefs] = useState<PrefItem[]>([]);
-  const [requestDocuments, setRequestDocuments] = useState<UploadedDoc[]>([]);
-  const [modalQuarters, setModalQuarters] = useState<Quarter[]>([]);
-  const [modalSearch, setModalSearch] = useState('');
-  const [modalLoading, setModalLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  // Available quarters filters
-  const [modalFilterOpen, setModalFilterOpen] = useState(false);
-  const [modalBhk, setModalBhk] = useState('');
-  const [modalFurnishing, setModalFurnishing] = useState('');
-  const [modalSortBy, setModalSortBy] = useState('');
-  const [modalGroundFloor, setModalGroundFloor] = useState(false);
-  const [modalRecentlyRenovated, setModalRecentlyRenovated] = useState(false);
-  const [modalLocationArea, setModalLocationArea] = useState('');
-  const [modalWesternToilet, setModalWesternToilet] = useState(false);
-  const [modalIndianToilet, setModalIndianToilet] = useState(false);
-  const [modalCarParking, setModalCarParking] = useState(false);
-  const [modalPoojaRoom, setModalPoojaRoom] = useState(false);
-  const [modalBalcony, setModalBalcony] = useState(false);
-  const [modalKitchenExhaust, setModalKitchenExhaust] = useState(false);
-  const [modalLiftAccess, setModalLiftAccess] = useState(false);
-  const [modalIndependentHouse, setModalIndependentHouse] = useState(false);
-  const [modalHousingStyle, setModalHousingStyle] = useState('');
-  const modalFilterRef = useRef<HTMLDivElement>(null);
-
-  // Decline allotment modal (card-level)
-  const [declineModalReqId, setDeclineModalReqId] = useState<string | null>(null);
-  const [declineModalRemarks, setDeclineModalRemarks] = useState('');
-  const [declineModalDocUrl, setDeclineModalDocUrl] = useState<File | null>(null);
-  const [declineModalSubmitting, setDeclineModalSubmitting] = useState(false);
-
-  // Request-For state (for new request form)
-  const [requestFor, setRequestFor] = useState<RequestForType>('SELF');
-  const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
-  const [tpInfo, setTpInfo] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
-  const [tpInfoConfirmed, setTpInfoConfirmed] = useState(false);
-  const [showEmployeePicker, setShowEmployeePicker] = useState(false);
-  const [showTPForm, setShowTPForm] = useState(false);
-  const [tpPopupTab, setTpPopupTab] = useState<'quick' | 'manual'>('quick');
-  const [employeeSearch, setEmployeeSearch] = useState('');
-  const [employeeDeptFilter, setEmployeeDeptFilter] = useState('');
-  const [tpFormDraft, setTpFormDraft] = useState<TPInfo>({ name: '', organization: '', mobile: '', email: '', pan: '', notes: '' });
-
-  // Full-screen request detail view
-  const [detailRequest, setDetailRequest] = useState<QuarterRequest | null>(null);
-  const [detailReturnFilter, setDetailReturnFilter] = useState<DPFilter>('allotted');
-
-  // List filters
-  const [reqSearch, setReqSearch] = useState('');
-  const [reqSort, setReqSort] = useState<'newest' | 'oldest'>('newest');
-  const [reqBhkFilter, setReqBhkFilter] = useState<string>('ALL');
-  const [reqToiletFilter, setReqToiletFilter] = useState<string[]>([]);
-  const [reqFloorFilter, setReqFloorFilter] = useState<number[]>([]);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-
-  // Selected preference quarter for detail view
-  const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
-
-  // Right-panel action state
-  type RightAction = null | 'acknowledge' | 'reject' | 'extend' | 'vacate';
-  const [rightAction, setRightAction] = useState<RightAction>(null);
-  const [actionRemarks, setActionRemarks] = useState('');
-  const [actionReason, setActionReason] = useState('');
-  const [actionDocUrl, setActionDocUrl] = useState<File | null>(null);
-  const [actionDate, setActionDate] = useState('');
-  const [actionBhk, setActionBhk] = useState('');
-  const [actionSubmitting, setActionSubmitting] = useState(false);
-
-  // Card-level accept inline state
-  const [acceptCardId, setAcceptCardId] = useState<string | null>(null);
-  const [acceptCardRemarks, setAcceptCardRemarks] = useState('');
-  const [acceptCardSubmitting, setAcceptCardSubmitting] = useState(false);
-
-  // New Inspection modal (Accepted DP filter)
-  const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
-  const [inspectRemarks, setInspectRemarks] = useState('');
-  const [inspectInspectorName, setInspectInspectorName] = useState('');
-  const [inspectCondition, setInspectCondition] = useState('GOOD');
-  const [inspectChecklist, setInspectChecklist] = useState(() => buildDefaultChecklist());
-  const [inspectSubmitting, setInspectSubmitting] = useState(false);
-
-  // Quarter preview modal (photo click)
-  const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
-
-  // Service chats for occupied panel
-  const [serviceChats, setServiceChats] = useState<Record<string, QuarterServiceChat[]>>({});
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [servicesHistoryMode, setServicesHistoryMode] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatAttachFile, setChatAttachFile] = useState<File | null>(null);
-  const [chatSubmitting, setChatSubmitting] = useState(false);
-
-  // Allotment chats for allotted panel
-  const [allotmentChats, setAllotmentChats] = useState<Record<string, QuarterAllotmentChat[]>>({});
-  const [allotmentChatMessage, setAllotmentChatMessage] = useState('');
-  const [allotmentChatFile, setAllotmentChatFile] = useState<File | null>(null);
-  const [allotmentChatSubmitting, setAllotmentChatSubmitting] = useState(false);
-
-  // Available Quarters DP
-  const [availableQuarters, setAvailableQuarters] = useState<Quarter[]>([]);
-  const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
-  const [avqSearch, setAvqSearch] = useState('');
-  const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
-  const [avqToiletFilter, setAvqToiletFilter] = useState<string[]>([]);
-  const [avqFloorFilter, setAvqFloorFilter] = useState<number[]>([]);
-  const [avqFilterDrawerOpen, setAvqFilterDrawerOpen] = useState(false);
-  const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
-  const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
-  const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const avqMenuRef = useRef<HTMLDivElement>(null);
-
-  // Card-level dot-menu (portal-based to avoid scroll clipping)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
-  const [chatOpenForId, setChatOpenForId] = useState<string | null>(null);
-  const [expandedSvcsCardId, setExpandedSvcsCardId] = useState<string | null>(null);
-  const [expandedSvcDetailId, setExpandedSvcDetailId] = useState<string | null>(null);
-
-  // Fetch document URLs when a card is expanded
-  useEffect(() => {
-    if (!expandedCardId || requestDocUrls[expandedCardId]) return;
-    quartersService.getRequestDocUrls(expandedCardId).then(docs => {
-      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: docs }));
-    }).catch(() => {
-      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] }));
-    });
-  }, [expandedCardId]);
-
-  // Lightbox for allotted panel image tiles
-  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-
-  // Close dot-menu on outside click or Escape
-  useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null); setMenuPos(null);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setOpenMenuId(null); setMenuPos(null); }
-    };
-    document.addEventListener('mousedown', onMouse);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
-  }, []);
-
-  // Close avq menu on outside click or Escape
-  useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      if (avqMenuRef.current && !avqMenuRef.current.contains(e.target as Node)) {
-        setAvqMenuId(null); setAvqMenuPos(null);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setAvqMenuId(null); setAvqMenuPos(null); }
-    };
-    document.addEventListener('mousedown', onMouse);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
-  }, []);
 
   function openMenu(e: React.MouseEvent, reqId: string) {
     e.stopPropagation();
@@ -538,33 +391,59 @@ export const QuarterRequestsPage: React.FC = () => {
     setAvqMenuId(quarterId);
   }
 
-  // Inline action popup (card-level icons)
-  const [actionPopup, setActionPopup] = useState<ActionPopupState>({ type: null, requestId: '', allotmentId: '' });
-  const [popupReason, setPopupReason] = useState('');
-  const [popupRemarks, setPopupRemarks] = useState('');
-  const [popupDocUrl, setPopupDocUrl] = useState<File | null>(null);
-  const [popupDate, setPopupDate] = useState('');
-  const [popupSubject, setPopupSubject] = useState('');
-  const [popupUrgency, setPopupUrgency] = useState('NORMAL');
-  const [popupSubmitting, setPopupSubmitting] = useState(false);
-  const [popupInspectorName, setPopupInspectorName] = useState('');
-  const [popupOpeningRemarks, setPopupOpeningRemarks] = useState('');
-  const [popupChecklist, setPopupChecklist] = useState<import('../constants/inspectionChecklist').ChecklistItemDraft[]>(() => buildDefaultChecklist());
-  const [popupCondition, setPopupCondition] = useState('GOOD');
-  const [popupKeyNumber, setPopupKeyNumber] = useState('');
-  const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
-  const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
-  const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
-
   function resetActionForm() {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
 
+  // ─── Exchange Request Modal ────────────────────────────────────────────────
+
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [exchangeSubmitting, setExchangeSubmitting] = useState(false);
+  const [exchangeWorkflows, setExchangeWorkflows] = useState<import('../types/quarters').QuarterApprovalWorkflow[]>([]);
+
+  const openExchangeModal = async () => {
+    setShowExchangeModal(true);
+    try {
+      const wfs = await quartersService.getApprovalWorkflows();
+      setExchangeWorkflows(wfs);
+    } catch { setExchangeWorkflows([]); }
+  };
+
+  const handleExchangeSubmit = async (data: {
+    partnerQuarterNumber: string;
+    reason: string;
+    remarks: string;
+    docFile: File | null;
+    workflowId: string | null;
+  }) => {
+    if (!user || !selectedRequest?.allotment) return;
+    setExchangeSubmitting(true);
+    try {
+      let docUrl = '';
+      if (data.docFile) {
+        const url = await uploadChatFile(data.docFile, `exchange-requests/${selectedRequest.allotment.id}`);
+        if (url) docUrl = url;
+      }
+      const tr = await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, {
+        service_type: 'EXCHANGE',
+        reason: data.reason,
+        remarks: data.remarks,
+        document_url: docUrl || undefined,
+      });
+      await quartersService.createExchangePair(
+        tr.id,
+        data.partnerQuarterNumber,
+        docUrl,
+        data.workflowId,
+      );
+      addToast('Exchange request submitted successfully', 'success');
+      setShowExchangeModal(false);
+      loadData();
+    } catch { addToast('Failed to submit exchange request', 'error'); } finally { setExchangeSubmitting(false); }
+  };
+
   // ─── Upgrade Request Modal ─────────────────────────────────────────────────
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
-  const [upgradeModalLoading, setUpgradeModalLoading] = useState(false);
 
   const openUpgradeModal = async () => {
     setShowUpgradeModal(true);
@@ -661,30 +540,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to close service', 'error'); }
   };
 
-  // Load chats when selectedServiceId changes
-  useEffect(() => {
-    if (!selectedServiceId) return;
-    /* DEMO_MODE: service call disabled
-    quartersService.getServiceChats(selectedServiceId).then(chats => {
-      setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
-    }).catch(() => {});
-    */
-  }, [selectedServiceId]);
-
-  // Load allotment chats when a request is selected
-  useEffect(() => {
-    const s = selectedRequest?.request_status;
-    if (!s || !selectedRequest) return;
-    const isDraftOrSubmitted = s === 'DRAFT' || s === 'SUBMITTED';
-    const hasAllotment = isAllottedStatus(s) || isOccupiedStatus(s);
-    if (!isDraftOrSubmitted && !hasAllotment) return;
-    const chatKey = isDraftOrSubmitted ? selectedRequest.id : (selectedRequest.allotment?.id ?? selectedRequest.id);
-    /* DEMO_MODE: service call disabled
-    quartersService.getAllotmentChats(chatKey).then(chats => {
-      setAllotmentChats(prev => ({ ...prev, [chatKey]: chats }));
-    }).catch(() => {});
-    */
-  }, [selectedRequest?.id, selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
@@ -698,187 +553,7 @@ export const QuarterRequestsPage: React.FC = () => {
     setActionPopup({ type: null, requestId: '', allotmentId: '' });
   }
 
-  const loadData = useCallback(async () => {
-    /* DEMO_MODE: data is pre-loaded from mock state; live fetch disabled
-    if (!user) return;
-    setLoading(true);
-    try {
-      const isEmployeeMode = isEO && eoMode === 'employee';
-      const [reqs, cycle, tReqs] = await Promise.all([
-        isEmployeeMode ? quartersService.getAllRequests() : quartersService.getMyRequests(user.id),
-        quartersService.getActiveCycle(),
-        isEmployeeMode ? quartersService.getAllTenantRequests() : quartersService.getMyTenantRequests(user.id),
-      ]);
-      const normalised = reqs.map((r: any) => ({
-        ...r,
-        allotment: Array.isArray(r.allotment) ? (r.allotment[0] ?? null) : r.allotment,
-      }));
-      setRequests(normalised as QuarterRequest[]);
-      setActiveCycle(cycle);
-      setTenantRequests(tReqs);
 
-      // Auto-select default tab for EO employee mode per priority: Occupied > Allocated > Allotted > Submitted
-      if (isEmployeeMode) {
-        const hasOccupied = normalised.some((r: any) => isOccupiedStatus(r.request_status));
-        const hasAllocated = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED');
-        const hasAllotted = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
-        const hasSubmitted = normalised.some((r: any) => r.request_status === 'SUBMITTED');
-        setDpFilter(hasOccupied ? 'occupied' : hasAllocated ? 'allocated_em' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
-      }
-    } catch {
-      addToast('Failed to load data', 'error');
-    } finally {
-      setLoading(false);
-    }
-    */
-  }, [user, addToast, isEO, eoMode]);
-
-  // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
-
-  // Load available quarters (always, for the Available Quarters DP)
-  useEffect(() => {
-    setAvailableQuartersLoading(true);
-    quartersService.getQuarters({ occupancy_status: 'AVAILABLE' })
-      .then(data => setAvailableQuarters(data.filter(q => q.occupancy_status === 'AVAILABLE')))
-      .catch(() => {})
-      .finally(() => setAvailableQuartersLoading(false));
-  }, []);
-
-  // DP scroll arrow visibility
-  const updateDpScrollState = useCallback(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    setDpCanScrollLeft(el.scrollLeft > 2);
-    setDpCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-  }, []);
-
-  useEffect(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    // Defer initial measurement so the DOM has fully painted the cards
-    const raf = requestAnimationFrame(updateDpScrollState);
-    el.addEventListener('scroll', updateDpScrollState, { passive: true });
-    const ro = new ResizeObserver(updateDpScrollState);
-    ro.observe(el);
-    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
-  }, [updateDpScrollState, eoMode]);
-
-  // Scroll active DP card into view when filter changes
-  useEffect(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    const activeEl = el.querySelector('[data-dp-active="true"]') as HTMLElement | null;
-    if (activeEl) {
-      const offset = activeEl.offsetLeft - 16;
-      el.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
-    }
-  }, [dpFilter]);
-
-  // Reset EO right mode when selected request changes
-  useEffect(() => {
-    const s = selectedRequest?.request_status;
-    const isOcc = s ? isOccupiedStatus(s) : false;
-    const hasPendingApproval = selectedRequest?.allotment?.approval_status === 'PENDING';
-    const isSubOrAllot = s ? (s === 'SUBMITTED' || isAllottedStatus(s)) : false;
-    const isSubmittedForEO = s === 'SUBMITTED' && isEO;
-    setEoRightMode(isSubmittedForEO ? 'request_approval_chat' : isOcc || isSubOrAllot ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
-    setApprovalAction(null);
-    setApprovalRemarks('');
-    setInspectionPanel('list');
-    setSelectedInspectionId(null);
-    setEoRejectReason('');
-    setEoTrId(null);
-    setEoTrAction(null);
-    setEoTrNotes('');
-  }, [selectedRequest?.id]);
-
-  // Auto-select top preference for detail view
-  useEffect(() => {
-    if (!selectedRequest) return;
-    const prefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
-    const topQ = prefs[0]?.quarter as Quarter | undefined;
-    setSelectedPrefQuarter(topQ ?? null);
-  }, [selectedRequest?.id]);
-
-  // Prefill from freeview "Add to Request"
-  useEffect(() => {
-    const prefill = (location.state as { prefill?: Quarter })?.prefill;
-    if (prefill) {
-      setPrefs([{ quarter: prefill, rank: 1 }]);
-      setShowNewModal(true);
-      window.history.replaceState({}, '');
-    }
-  }, [location.state]);
-
-  const loadModalQuarters = useCallback(async () => {
-    setModalLoading(true);
-    try {
-      const data = await quartersService.getQuarters({
-        occupancy_status: 'AVAILABLE',
-        search: modalSearch || undefined,
-        bhk_config: modalBhk || undefined,
-        furnishing_status: modalFurnishing || undefined,
-      });
-      let filtered = data.filter(q => !prefs.find(p => p.quarter.id === q.id));
-      // Apply extended boolean/string filters
-      if (modalGroundFloor) filtered = filtered.filter(q => q.floor_number === 0);
-      if (modalRecentlyRenovated) filtered = filtered.filter(q => q.renovation_status?.toLowerCase().includes('renovated'));
-      if (modalLocationArea.trim()) {
-        const la = modalLocationArea.trim().toLowerCase();
-        filtered = filtered.filter(q =>
-          q.location_area?.toLowerCase().includes(la) || q.region?.toLowerCase().includes(la)
-        );
-      }
-      if (modalWesternToilet) filtered = filtered.filter(q => q.toilet_western === true);
-      if (modalIndianToilet) filtered = filtered.filter(q => q.toilet_indian === true);
-      if (modalCarParking) filtered = filtered.filter(q => !!q.parking_details?.trim());
-      if (modalPoojaRoom) filtered = filtered.filter(q => q.pooja_room === true);
-      if (modalBalcony) filtered = filtered.filter(q => q.balcony === true);
-      if (modalKitchenExhaust) filtered = filtered.filter(q => q.kitchen_exhaust === true);
-      if (modalLiftAccess) filtered = filtered.filter(q => q.lift_access === true);
-      if (modalIndependentHouse) filtered = filtered.filter(q => q.housing_style?.toLowerCase().includes('independent'));
-      if (modalHousingStyle) filtered = filtered.filter(q => q.housing_style === modalHousingStyle);
-      if (modalSortBy === 'rent_asc') filtered = [...filtered].sort((a, b) => a.monthly_rent - b.monthly_rent);
-      else if (modalSortBy === 'rent_desc') filtered = [...filtered].sort((a, b) => b.monthly_rent - a.monthly_rent);
-      setModalQuarters(filtered);
-    } catch {
-      addToast('Failed to load quarters', 'error');
-    } finally {
-      setModalLoading(false);
-    }
-  }, [
-    modalSearch, modalBhk, modalFurnishing, modalSortBy,
-    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
-    modalWesternToilet, modalIndianToilet, modalCarParking,
-    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
-    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
-    prefs, addToast,
-  ]);
-
-  useEffect(() => {
-    if (showNewModal) {
-      const t = setTimeout(loadModalQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy,
-    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
-    modalWesternToilet, modalIndianToilet, modalCarParking,
-    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
-    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
-    loadModalQuarters]);
-
-  // Close filter popup on outside click
-  useEffect(() => {
-    if (!modalFilterOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (modalFilterRef.current && !modalFilterRef.current.contains(e.target as Node)) {
-        setModalFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [modalFilterOpen]);
 
   // ─── pref list helpers ──────────────────────────────────────────────────────
 
@@ -1170,43 +845,7 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Allot Now failed', 'error'); } finally { setAllotNowSubmitting(false); }
   };
 
-  // Load Allot Now picker quarters
-  const loadAllotNowQuarters = useCallback(async () => {
-    if (!showAllotNowPicker) return;
-    setAllotNowLoading(true);
-    try {
-      const data = await quartersService.getQuarters({
-        occupancy_status: 'AVAILABLE',
-        search: allotNowSearch || undefined,
-        bhk_config: (user?.bhkEntitlement || form.required_bhk_config) || undefined,
-      });
-      setAllotNowQuarters(data);
-    } catch { addToast('Failed to load quarters', 'error'); } finally { setAllotNowLoading(false); }
-  }, [showAllotNowPicker, allotNowSearch, user?.bhkEntitlement, form.required_bhk_config, addToast]);
-
-  useEffect(() => {
-    if (showAllotNowPicker) {
-      const t = setTimeout(loadAllotNowQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [showAllotNowPicker, allotNowSearch, loadAllotNowQuarters]);
-
   // ─── EO Employee mode: manual allot ────────────────────────────────────────
-  const loadManualAllotQuarters = useCallback(async () => {
-    if (!manualAllotPickerOpen) return;
-    setManualAllotLoading(true);
-    try {
-      const data = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE', search: manualAllotSearch || undefined });
-      setManualAllotQuarters(data);
-    } catch { addToast('Failed to load quarters', 'error'); } finally { setManualAllotLoading(false); }
-  }, [manualAllotPickerOpen, manualAllotSearch, addToast]);
-
-  useEffect(() => {
-    if (manualAllotPickerOpen) {
-      const t = setTimeout(loadManualAllotQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [manualAllotPickerOpen, manualAllotSearch, loadManualAllotQuarters]);
 
   const handleManualAllot = async (quarterId: string) => {
     if (!user || !selectedRequest) return;
@@ -1360,13 +999,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to process allotments', 'error'); } finally { setAllotRequestsSubmitting(false); }
   };
 
-  // Load workflows for Allot Requests popup
-  useEffect(() => {
-    if (showAllotRequestsPopup) {
-      quartersService.getApprovalWorkflows().then(setAllotRequestsWorkflows).catch(() => {});
-    }
-  }, [showAllotRequestsPopup]);
-
   // ─── EO: Reject request (DRAFT + sub_status=REJECTED) ─────────────────────
   const handleEORejectRequest = async () => {
     if (!user || !selectedRequest || !eoRejectReason.trim()) {
@@ -1399,74 +1031,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to reject request', 'error'); } finally { setRejectModalSubmitting(false); }
   };
 
-  // ─── EO: Load approval for selected allotment ─────────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getApprovalForAllotment(allotmentId).then(approval => {
-      setApprovalRecord(approval);
-      if (approval) {
-        quartersService.getApprovalChats(approval.id).then(setApprovalChats).catch(() => {});
-      }
-    }).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load request-level approval for SUBMITTED records ────────────────
-  useEffect(() => {
-    const reqId = selectedRequest?.id;
-    if (!reqId || selectedRequest?.request_status !== 'SUBMITTED' || !(isEO && eoMode === 'employee')) {
-      setRequestApprovalRecord(null);
-      setRequestApprovalChats([]);
-      return;
-    }
-    quartersService.getApprovalForRequest(reqId).then(approval => {
-      setRequestApprovalRecord(approval);
-      if (approval) {
-        quartersService.getRequestApprovalChats(approval.id).then(setRequestApprovalChats).catch(() => {});
-      }
-    }).catch(() => {});
-  }, [selectedRequest?.id, selectedRequest?.request_status, isEO, eoMode]);
-
-  // ─── EO: Load approval workflows once (for both allotment and request approvals) ───
-  useEffect(() => {
-    if (!(isEO && eoMode === 'employee')) return;
-    quartersService.getApprovalWorkflows().then(setRequestApprovalWorkflows).catch(() => {});
-  }, [isEO, eoMode]);
-
-  // ─── EO: Load inspections for selected allotment ──────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getInspections(allotmentId).then(setInspections).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load inspection chats ────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedInspectionId) return;
-    quartersService.getInspectionChats(selectedInspectionId).then(setInspectionChats).catch(() => {});
-  }, [selectedInspectionId]);
-
-  // ─── EO: Load handover for selected allotment ─────────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getHandover(allotmentId).then(setHandover).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load guest info ──────────────────────────────────────────────────
-  const loadGuestInfo = useCallback(async () => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId) return;
-    setGuestInfoLoading(true);
-    try {
-      const list = await quartersService.getGuestInfo(allotmentId);
-      setGuestInfoList(list);
-    } catch {} finally { setGuestInfoLoading(false); }
-  }, [selectedRequest?.allotment?.id]);
-
-  useEffect(() => {
-    if (showGuestInfoPopup) loadGuestInfo();
-  }, [showGuestInfoPopup, loadGuestInfo]);
 
   // ─── EO: Approve allotment level ──────────────────────────────────────────
   const handleApproveLevel = async () => {
@@ -1874,11 +1438,27 @@ export const QuarterRequestsPage: React.FC = () => {
   const filteredAvailableQuarters = React.useMemo(() => {
     let result = [...availableQuarters];
     if (avqBhkFilter !== 'ALL') result = result.filter(q => q.bhk_config === avqBhkFilter);
-    if (avqToiletFilter.length > 0) result = result.filter(q => avqToiletFilter.includes(q.toilet_type ?? 'Western'));
     if (avqFloorFilter.length > 0) result = result.filter(q => {
       const floor = q.floor_number ?? 0;
       return avqFloorFilter.some(f => f === 4 ? floor >= 4 : floor === f);
     });
+    if (avqGroundFloor) result = result.filter(q => (q.floor_number ?? 0) === 0);
+    if (avqRecentlyRenovated) result = result.filter(q => q.renovation_status?.toLowerCase().includes('renovat'));
+    if (avqLocationArea.trim()) {
+      const la = avqLocationArea.toLowerCase();
+      result = result.filter(q =>
+        q.location_area?.toLowerCase().includes(la) ||
+        q.region?.toLowerCase().includes(la)
+      );
+    }
+    if (avqWesternToilet) result = result.filter(q => q.toilet_western === true);
+    if (avqIndianToilet) result = result.filter(q => q.toilet_indian === true);
+    if (avqCarParking) result = result.filter(q => !!q.parking_details);
+    if (avqPoojaRoom) result = result.filter(q => q.pooja_room === true);
+    if (avqBalcony) result = result.filter(q => q.balcony === true);
+    if (avqKitchenExhaust) result = result.filter(q => q.kitchen_exhaust === true);
+    if (avqLiftAccess) result = result.filter(q => q.lift_access === true);
+    if (avqHousingStyle) result = result.filter(q => q.housing_style === avqHousingStyle);
     if (avqSearch.trim()) {
       const s = avqSearch.toLowerCase();
       result = result.filter(q =>
@@ -1889,7 +1469,49 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
     return result;
-  }, [availableQuarters, avqBhkFilter, avqToiletFilter, avqFloorFilter, avqSearch]);
+  }, [
+    availableQuarters, avqBhkFilter, avqFloorFilter,
+    avqGroundFloor, avqRecentlyRenovated, avqLocationArea,
+    avqWesternToilet, avqIndianToilet, avqCarParking,
+    avqPoojaRoom, avqBalcony, avqKitchenExhaust,
+    avqLiftAccess, avqHousingStyle, avqSearch,
+  ]);
+
+  function clearAvqFilters() {
+    setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqFloorFilter([]);
+    setAvqGroundFloor(false); setAvqRecentlyRenovated(false); setAvqLocationArea('');
+    setAvqWesternToilet(false); setAvqIndianToilet(false); setAvqCarParking(false);
+    setAvqPoojaRoom(false); setAvqBalcony(false); setAvqKitchenExhaust(false);
+    setAvqLiftAccess(false); setAvqHousingStyle('');
+  }
+
+  const avqHasActiveFilter =
+    !!avqSearch || avqBhkFilter !== 'ALL' || avqFloorFilter.length > 0 ||
+    avqGroundFloor || avqRecentlyRenovated || !!avqLocationArea ||
+    avqWesternToilet || avqIndianToilet || avqCarParking ||
+    avqPoojaRoom || avqBalcony || avqKitchenExhaust || avqLiftAccess || !!avqHousingStyle;
+
+  // ─── EM: Create new quarter ────────────────────────────────────────────────
+  const handleCreateQuarter = async (input: import('../types/quarters').CreateQuarterInput, imageFiles: File[]) => {
+    if (!user) return;
+    setNewQuarterSubmitting(true);
+    try {
+      const created = await quartersService.createQuarter(input);
+      if (imageFiles.length > 0) {
+        const uploads = await Promise.all(
+          imageFiles.map(f => uploadChatFile(f, `quarters/${created.id}/images`))
+        );
+        const urls = uploads.filter(Boolean) as string[];
+        if (urls.length > 0) {
+          await quartersService.updateQuarterImages(created.id, urls);
+        }
+      }
+      addToast('Quarter created successfully', 'success');
+      setShowNewQuarterModal(false);
+      const fresh = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });
+      setAvailableQuarters(fresh);
+    } catch { addToast('Failed to create quarter', 'error'); } finally { setNewQuarterSubmitting(false); }
+  };
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -2358,6 +1980,16 @@ export const QuarterRequestsPage: React.FC = () => {
                 </button>
               )}
 
+              {isEO && dpFilter === 'availableQuarters' && (
+                <button
+                  onClick={() => setShowNewQuarterModal(true)}
+                  title="Add New Quarter"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Plus size={12} /> New Quarter
+                </button>
+              )}
+
               <button
                 onClick={() => downloadPageAsHtml('/quarters/requests')}
                 title="Download Offline Copy"
@@ -2551,7 +2183,12 @@ export const QuarterRequestsPage: React.FC = () => {
                     ],
                   },
                 ]}
-                filterCount={avqToiletFilter.length + avqFloorFilter.length}
+                filterCount={
+                  avqFloorFilter.length +
+                  [avqGroundFloor, avqRecentlyRenovated, avqWesternToilet, avqIndianToilet,
+                   avqCarParking, avqPoojaRoom, avqBalcony, avqKitchenExhaust, avqLiftAccess].filter(Boolean).length +
+                  (avqLocationArea ? 1 : 0) + (avqHousingStyle ? 1 : 0)
+                }
                 onFilterOpen={() => setAvqFilterDrawerOpen(true)}
               />
             </div>
@@ -2560,13 +2197,13 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
-                {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
+                {avqHasActiveFilter && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
                   <span className="text-gray-400"> (filtered from {availableQuarters.length})</span>
                 )}
               </span>
-              {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && (
+              {avqHasActiveFilter && (
                 <button
-                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+                  onClick={clearAvqFilters}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
@@ -2585,7 +2222,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <Key size={36} className="mx-auto text-gray-300 mb-3" />
                   <h3 className="text-sm font-semibold text-gray-700 mb-1">No available quarters found</h3>
                   <p className="text-xs text-gray-500">
-                    {avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0
+                    {avqHasActiveFilter
                       ? 'Try clearing your filters.'
                       : 'All quarters are currently occupied or inactive.'}
                   </p>
@@ -2898,6 +2535,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     resetActionForm={resetActionForm}
                     handleTenantRequest={handleTenantRequest}
                     onUpgradeClick={openUpgradeModal}
+                    onExchangeClick={openExchangeModal}
                     openActionPopup={openActionPopup as any}
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
@@ -3617,10 +3255,11 @@ export const QuarterRequestsPage: React.FC = () => {
                                         {/* Three-dot action menu — EO employee mode only */}
                                         {isEO && eoMode === 'employee' && (() => {
                                           const isMaintenanceOrGrievance = svc.service_type === 'MAINTENANCE' || svc.service_type === 'GRIEVANCE';
-                                          const isExtendOrVacate = svc.service_type === 'EXTEND' || svc.service_type === 'VACATE';
+                                          const isExtend = svc.service_type === 'EXTEND';
+                                          const isVacate = svc.service_type === 'VACATE';
                                           const isPending = svc.request_status === 'PENDING';
                                           const isInProgress = svc.request_status === 'IN_PROGRESS';
-                                          if (!isMaintenanceOrGrievance && !isExtendOrVacate) return null;
+                                          if (!isMaintenanceOrGrievance && !isExtend && !isVacate) return null;
                                           if (!isPending && !isInProgress) return null;
                                           return (
                                             <div className="relative shrink-0">
@@ -3654,7 +3293,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                                       </button>
                                                     </>
                                                   )}
-                                                  {isExtendOrVacate && isPending && (
+                                                  {isExtend && isPending && (
                                                     <>
                                                       <button
                                                         onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
@@ -3669,6 +3308,14 @@ export const QuarterRequestsPage: React.FC = () => {
                                                         <ThumbsDown size={11} />Reject
                                                       </button>
                                                     </>
+                                                  )}
+                                                  {isVacate && isPending && (
+                                                    <button
+                                                      onClick={() => { setSvcMenuOpenId(null); setInspectTarget(req); setInspectRemarks(''); setInspectCondition('GOOD'); setInspectChecklist(buildDefaultChecklist()); setInspectInspectorName(''); }}
+                                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-blue-700 font-medium transition-colors rounded-xl"
+                                                    >
+                                                      <ClipboardCheck size={11} />Inspection
+                                                    </button>
                                                   )}
                                                 </div>
                                               )}
@@ -3927,7 +3574,7 @@ export const QuarterRequestsPage: React.FC = () => {
                       </>
                     )}
                     {isOccupied && req.allotment && dpFilter !== 'accepted' && (() => {
-                      const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED'].includes(req.request_status);
+                      const menuHasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(req.request_status);
                       return (
                         <>
                           <div className="px-4 pt-2 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Services</span></div>
@@ -3946,6 +3593,13 @@ export const QuarterRequestsPage: React.FC = () => {
                               >
                                 <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><ArrowRightCircle size={12} className="text-sky-600" /></span>
                                 Upgrade Quarter
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); openExchangeModal(); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                              >
+                                <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><GitMerge size={12} className="text-teal-600" /></span>
+                                Exchange Quarter
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
@@ -4206,12 +3860,19 @@ export const QuarterRequestsPage: React.FC = () => {
         isOpen={avqFilterDrawerOpen}
         onClose={() => setAvqFilterDrawerOpen(false)}
         title="Filter Quarters"
-        activeFilterCount={avqToiletFilter.length + avqFloorFilter.length}
-        onClearAll={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+        activeFilterCount={
+          avqFloorFilter.length +
+          [avqGroundFloor, avqRecentlyRenovated, avqWesternToilet, avqIndianToilet,
+           avqCarParking, avqPoojaRoom, avqBalcony, avqKitchenExhaust, avqLiftAccess].filter(Boolean).length +
+          (avqLocationArea ? 1 : 0) + (avqHousingStyle ? 1 : 0)
+        }
+        onClearAll={clearAvqFilters}
       >
         <div className="space-y-5">
+
+          {/* Quarter Type */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quarter Type</label>
             <div className="flex flex-wrap gap-2">
               {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                 <button key={v} onClick={() => setAvqBhkFilter(v)}
@@ -4221,21 +3882,10 @@ export const QuarterRequestsPage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Floor */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Toilet Type</label>
-            <div className="flex flex-wrap gap-2">
-              {['Indian', 'Western', 'Both'].map(v => (
-                <button key={v} onClick={() => setAvqToiletFilter(prev =>
-                  prev.includes(v) ? prev.filter(t => t !== v) : [...prev, v]
-                )}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqToiletFilter.includes(v) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Floor</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Floor</label>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 0, label: 'Ground' },
@@ -4253,8 +3903,106 @@ export const QuarterRequestsPage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Ground Floor Access */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ground Floor Access</label>
+            <button
+              onClick={() => setAvqGroundFloor(v => !v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqGroundFloor ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}
+            >
+              Ground Floor Only
+            </button>
+          </div>
+
+          {/* Recently Renovated */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Condition</label>
+            <button
+              onClick={() => setAvqRecentlyRenovated(v => !v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqRecentlyRenovated ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}
+            >
+              Recently Renovated
+            </button>
+          </div>
+
+          {/* Location / Area */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Location (Region / Area)</label>
+            <input
+              type="text"
+              value={avqLocationArea}
+              onChange={e => setAvqLocationArea(e.target.value)}
+              placeholder="Filter by area or region…"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
+            />
+          </div>
+
+          {/* Toilet Type */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Western Toilet', val: avqWesternToilet, set: setAvqWesternToilet },
+                { label: 'Indian Toilet',  val: avqIndianToilet,  set: setAvqIndianToilet  },
+              ].map(({ label, val, set }) => (
+                <button key={label} onClick={() => set(v => !v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amenities */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Dedicated Car Parking', val: avqCarParking,     set: setAvqCarParking     },
+                { label: 'Pooja Room',             val: avqPoojaRoom,      set: setAvqPoojaRoom      },
+                { label: 'Sitting Balcony',        val: avqBalcony,        set: setAvqBalcony        },
+                { label: 'Kitchen Exhaust Fan',    val: avqKitchenExhaust, set: setAvqKitchenExhaust },
+                { label: 'Lift Access',            val: avqLiftAccess,     set: setAvqLiftAccess     },
+              ].map(({ label, val, set }) => (
+                <button key={label} onClick={() => set(v => !v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Housing Style */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Housing Style</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: '',                 label: 'Any'              },
+                { value: 'Flat',             label: 'Flat'             },
+                { value: 'Independent House', label: 'Independent House' },
+                { value: 'Row House',        label: 'Row House'        },
+                { value: 'Bungalow',         label: 'Bungalow'         },
+              ].map(({ value, label }) => (
+                <button key={value} onClick={() => setAvqHousingStyle(avqHousingStyle === value ? '' : value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqHousingStyle === value ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
       </FilterDrawer>
+
+      {/* ── Add New Quarter modal (EM only) ──────────────────────────────── */}
+      {showNewQuarterModal && (
+        <AddQuarterModal
+          onClose={() => setShowNewQuarterModal(false)}
+          onSubmit={handleCreateQuarter}
+          submitting={newQuarterSubmitting}
+        />
+      )}
 
       {/* ── New/Modify Request — Full Screen ─────────────────────────────── */}
       {showNewModal && (
@@ -4326,8 +4074,6 @@ export const QuarterRequestsPage: React.FC = () => {
             setTpInfoConfirmed={setTpInfoConfirmed}
             showTPForm={showTPForm}
             setShowTPForm={setShowTPForm}
-            tpPopupTab={tpPopupTab}
-            setTpPopupTab={setTpPopupTab}
             tpFormDraft={tpFormDraft}
             setTpFormDraft={setTpFormDraft}
             submitting={submitting}
@@ -4413,6 +4159,42 @@ export const QuarterRequestsPage: React.FC = () => {
           addToast={addToast}
         />
       )}
+
+      {/* ── Exchange Request Modal ─────────────────────────────────────── */}
+      {showExchangeModal && selectedRequest?.allotment && (() => {
+        const rf = selectedRequest.request_for ?? 'SELF';
+        const myOccupantName =
+          rf === 'EMPLOYEE' ? (selectedRequest.on_behalf_employee_name ?? 'Employee') :
+          rf === 'TP' ? (selectedRequest.tp_name ?? 'Third Party') :
+          (user?.user_metadata?.full_name ?? user?.email ?? 'You');
+
+        function lookupPartnerQuarter(quarterNo: string): string | null {
+          const match = requests.find(r => {
+            if (!['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(r.request_status)) return false;
+            const q = r.allotment?.quarter as Quarter | undefined;
+            return q?.quarter_number?.toUpperCase() === quarterNo.toUpperCase();
+          });
+          if (!match) return null;
+          const rf2 = match.request_for ?? 'SELF';
+          if (rf2 === 'EMPLOYEE') return match.on_behalf_employee_name ?? 'Employee';
+          if (rf2 === 'TP') return match.tp_name ?? 'Third Party';
+          return user?.user_metadata?.full_name ?? user?.email ?? 'Occupant';
+        }
+
+        return (
+          <ExchangeRequestModal
+            myQuarterNumber={(selectedRequest.allotment.quarter as Quarter)?.quarter_number ?? ''}
+            myOccupantName={myOccupantName}
+            isEO={isEO}
+            allotmentId={selectedRequest.allotment.id}
+            workflows={exchangeWorkflows}
+            submitting={exchangeSubmitting}
+            onClose={() => setShowExchangeModal(false)}
+            onLookupPartnerQuarter={lookupPartnerQuarter}
+            onSubmit={handleExchangeSubmit}
+          />
+        );
+      })()}
 
       {/* ── Quarter Preview Modal ──────────────────────────────────────── */}
       {previewQuarterId && (

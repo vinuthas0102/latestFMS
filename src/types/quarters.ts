@@ -47,6 +47,8 @@ export interface Quarter {
   renovation_status: string;
   resident_type: string;
   current_availability_status: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
@@ -153,7 +155,7 @@ export interface QuarterTenantRequest {
   id: string;
   allotment_id: string;
   employee_id: string;
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'EXCHANGE';
   request_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
   remarks: string;
   reason: string;
@@ -173,7 +175,7 @@ export interface QuarterTenantRequest {
 }
 
 export interface CreateTenantRequestInput {
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'EXCHANGE';
   remarks: string;
   reason: string;
   document_url?: string;
@@ -285,6 +287,73 @@ export interface QuarterRequestApprovalChat {
   level_snapshot: number | null;
   document_urls: string[];
   created_at: string;
+}
+
+export interface CreateQuarterInput {
+  unit_number: string;
+  quarter_number: string;
+  quarter_type: string;
+  bhk_config: string;
+  quota: string;
+  counter_no: string;
+  block_name: string;
+  location_area: string;
+  region: string;
+  district: string;
+  pin_code: string;
+  address: string;
+  floor_number: number;
+  total_floors: number;
+  facing: string;
+  total_area_sqft: number;
+  area_sqft: number;
+  resident_type: string;
+  toilet_western: boolean;
+  toilet_indian: boolean;
+  toilet_type: string;
+  parking_details: string;
+  current_availability_status: string;
+  monthly_rent: number;
+  electricity_rate: number;
+  water_charges: number;
+  penalty_terms: string;
+  pooja_room: boolean;
+  electrical_fixtures: string;
+  power_backup: boolean;
+  water_heating: string;
+  lift_access: boolean;
+  kitchen_exhaust: boolean;
+  housing_style: string;
+  balcony: boolean;
+  renovation_status: string;
+  furnishing_status: string;
+  description: string;
+  estate_id: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface QuarterExchangePair {
+  id: string;
+  primary_tenant_request_id: string;
+  partner_quarter_number: string;
+  partner_allotment_id: string | null;
+  partner_request_id: string | null;
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'WITHDRAWN';
+  justification_doc_url: string;
+  workflow_id: string | null;
+  eo_notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateExchangeRequestInput {
+  my_quarter_number: string;
+  partner_quarter_number: string;
+  reason: string;
+  remarks: string;
+  justification_doc_url?: string;
+  workflow_id?: string | null;
 }
 
 export interface QuarterInspection {

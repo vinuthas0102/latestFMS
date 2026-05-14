@@ -41,6 +41,7 @@ export type {
   QuarterInspectionChecklistItem,
   QuarterHandover,
   QuarterGuestInfo,
+  CreateQuarterInput,
 } from '../types/quarters';
 
 import type {
@@ -461,6 +462,7 @@ export const quartersService = {
       EXTEND: 'EXTEND_REQUESTED',
       UPGRADE: 'UPGRADE_REQUESTED',
       VACATE: 'VACATE_REQUESTED',
+      EXCHANGE: 'EXCHANGE_REQUESTED',
     };
     await supabase
       .from('quarter_requests')
@@ -529,7 +531,7 @@ export const quartersService = {
       .eq('id', tenantRequestId);
     if (tErr) throw tErr;
 
-    const nextStatus: Record<string, string> = { VACATE: 'VACATED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED' };
+    const nextStatus: Record<string, string> = { VACATE: 'VACATED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED', EXCHANGE: 'ACKNOWLEDGED' };
     if (nextStatus[serviceType]) {
       await supabase
         .from('quarter_requests')
@@ -551,7 +553,7 @@ export const quartersService = {
       .eq('id', tenantRequestId);
     if (tErr) throw tErr;
 
-    const revertStatus: Record<string, string> = { VACATE: 'ACKNOWLEDGED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED' };
+    const revertStatus: Record<string, string> = { VACATE: 'ACKNOWLEDGED', EXTEND: 'ACKNOWLEDGED', UPGRADE: 'ALLOTTED', EXCHANGE: 'ACKNOWLEDGED' };
     if (revertStatus[serviceType]) {
       await supabase
         .from('quarter_requests')
@@ -1370,6 +1372,60 @@ export const quartersService = {
     if (DEMO_MODE) return Promise.resolve();
     const guestInfoId = _guestInfoId;
     const { error } = await supabase.from('quarter_guest_info').delete().eq('id', guestInfoId);
+    if (error) throw error;
+  },
+
+  async createQuarter(input: CreateQuarterInput): Promise<Quarter> {
+    const { data, error } = await supabase
+      .from('quarters')
+      .insert({
+        ...input,
+        occupancy_status: 'AVAILABLE',
+        is_active: true,
+        amenities: [],
+        images: [],
+        metadata: {},
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Quarter;
+  },
+
+  async createExchangePair(
+    tenantRequestId: string,
+    partnerQuarterNumber: string,
+    justificationDocUrl: string,
+    workflowId: string | null,
+  ): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const { error } = await supabase
+      .from('quarter_exchange_pairs')
+      .insert({
+        primary_tenant_request_id: tenantRequestId,
+        partner_quarter_number: partnerQuarterNumber,
+        justification_doc_url: justificationDocUrl,
+        workflow_id: workflowId,
+      });
+    if (error) throw error;
+  },
+
+  async getExchangePair(tenantRequestId: string): Promise<import('../types/quarters').QuarterExchangePair | null> {
+    if (DEMO_MODE) return Promise.resolve(null);
+    const { data, error } = await supabase
+      .from('quarter_exchange_pairs')
+      .select('*')
+      .eq('primary_tenant_request_id', tenantRequestId)
+      .maybeSingle();
+    if (error) throw error;
+    return data as import('../types/quarters').QuarterExchangePair | null;
+  },
+
+  async updateQuarterImages(quarterId: string, urls: string[]): Promise<void> {
+    const { error } = await supabase
+      .from('quarters')
+      .update({ images: urls })
+      .eq('id', quarterId);
     if (error) throw error;
   },
 };

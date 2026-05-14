@@ -5,6 +5,7 @@ import {
   Building2, CheckCircle, Wifi, Settings, IndianRupee,
   Zap, Droplets, Shield, FileText, AlertCircle, ExternalLink,
   Images, Bed, Ruler, Layers, FlaskConical, Download,
+  Car, Flame, Wind, Star, ParkingSquare, Bath, Wrench,
 } from 'lucide-react';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { PhotoGallery, PhotoLightbox } from '../ui/PhotoGallery';
@@ -393,6 +394,18 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                         <SpecTile icon={<Layers size={14} />} label="Furnishing" value={quarter.furnishing_status} />
                         <SpecTile icon={<FlaskConical size={14} />} label="Toilet Type" value={quarter.toilet_type || 'Western'} />
                         <SpecTile icon={<Home size={14} />} label="Quarter Type" value={quarter.quarter_type} />
+                        {quarter.housing_style && (
+                          <SpecTile icon={<Home size={14} />} label="Housing Style" value={quarter.housing_style} />
+                        )}
+                        {quarter.renovation_status && (
+                          <SpecTile icon={<Wrench size={14} />} label="Renovation" value={quarter.renovation_status} />
+                        )}
+                        {quarter.facing && (
+                          <SpecTile icon={<Star size={14} />} label="Facing" value={quarter.facing} />
+                        )}
+                        {quarter.resident_type && (
+                          <SpecTile icon={<Layers size={14} />} label="Resident Type" value={quarter.resident_type} />
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2.5">
@@ -583,6 +596,61 @@ export const QuarterDetailModal: React.FC<QuarterDetailModalProps> = ({
                       <p className="text-xs text-gray-400 mt-1">Contact the Estate Office for details</p>
                     </div>
                   )}
+
+                  {/* ── Property Features ────────────────────────── */}
+                  {(() => {
+                    const boolFeatures: { label: string; value: boolean; icon: React.ReactNode }[] = [
+                      { label: 'Western Toilet',   value: !!quarter.toilet_western,   icon: <Bath size={13} className="text-blue-500" /> },
+                      { label: 'Indian Toilet',    value: !!quarter.toilet_indian,    icon: <Bath size={13} className="text-blue-500" /> },
+                      { label: 'Car Parking',      value: !!quarter.parking_details,  icon: <Car size={13} className="text-slate-500" /> },
+                      { label: 'Pooja Room',       value: !!quarter.pooja_room,       icon: <Flame size={13} className="text-amber-500" /> },
+                      { label: 'Balcony',          value: !!quarter.balcony,          icon: <Home size={13} className="text-teal-500" /> },
+                      { label: 'Kitchen Exhaust',  value: !!quarter.kitchen_exhaust,  icon: <Wind size={13} className="text-sky-500" /> },
+                      { label: 'Lift Access',      value: !!quarter.lift_access,      icon: <Building2 size={13} className="text-indigo-500" /> },
+                      { label: 'Power Backup',     value: !!quarter.power_backup,     icon: <Zap size={13} className="text-yellow-500" /> },
+                    ];
+                    const hasAny = boolFeatures.some(f => f.value) || quarter.water_heating || quarter.electrical_fixtures || quarter.parking_details;
+                    if (!hasAny) return null;
+                    return (
+                      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                          <Settings size={13} className="text-gray-500" /> Property Features
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                          {boolFeatures.map(f => (
+                            <div key={f.label} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${f.value ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                              {f.icon}
+                              {f.label}
+                              <span className={`ml-auto text-[10px] font-bold ${f.value ? 'text-emerald-600' : 'text-gray-400'}`}>{f.value ? 'Yes' : 'No'}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          {quarter.parking_details && (
+                            <div className="flex items-center gap-1.5 text-gray-600">
+                              <ParkingSquare size={12} className="text-slate-400 shrink-0" />
+                              <span className="font-medium text-gray-500">Parking:</span>
+                              <span>{quarter.parking_details}</span>
+                            </div>
+                          )}
+                          {quarter.water_heating && (
+                            <div className="flex items-center gap-1.5 text-gray-600">
+                              <Droplets size={12} className="text-blue-400 shrink-0" />
+                              <span className="font-medium text-gray-500">Water Heating:</span>
+                              <span>{quarter.water_heating}</span>
+                            </div>
+                          )}
+                          {quarter.electrical_fixtures && (
+                            <div className="flex items-center gap-1.5 text-gray-600">
+                              <Zap size={12} className="text-yellow-400 shrink-0" />
+                              <span className="font-medium text-gray-500">Electrical:</span>
+                              <span>{quarter.electrical_fixtures}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </section>
 
                 {/* ── PHOTOS ───────────────────────────────────── */}

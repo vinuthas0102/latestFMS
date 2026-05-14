@@ -85,6 +85,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
             { value: 'EXTEND', label: 'Extend' },
             { value: 'UPGRADE', label: 'Upgrade' },
             { value: 'VACATE', label: 'Vacate' },
+            { value: 'EXCHANGE', label: 'Exchange' },
           ],
         },
         {
