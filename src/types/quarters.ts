@@ -155,7 +155,7 @@ export interface QuarterTenantRequest {
   id: string;
   allotment_id: string;
   employee_id: string;
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'EXCHANGE';
   request_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
   remarks: string;
   reason: string;
@@ -175,7 +175,7 @@ export interface QuarterTenantRequest {
 }
 
 export interface CreateTenantRequestInput {
-  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE';
+  service_type: 'EXTEND' | 'UPGRADE' | 'VACATE' | 'GRIEVANCE' | 'MAINTENANCE' | 'EXCHANGE';
   remarks: string;
   reason: string;
   document_url?: string;
@@ -331,6 +331,29 @@ export interface CreateQuarterInput {
   estate_id: string | null;
   latitude?: number | null;
   longitude?: number | null;
+}
+
+export interface QuarterExchangePair {
+  id: string;
+  primary_tenant_request_id: string;
+  partner_quarter_number: string;
+  partner_allotment_id: string | null;
+  partner_request_id: string | null;
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'WITHDRAWN';
+  justification_doc_url: string;
+  workflow_id: string | null;
+  eo_notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateExchangeRequestInput {
+  my_quarter_number: string;
+  partner_quarter_number: string;
+  reason: string;
+  remarks: string;
+  justification_doc_url?: string;
+  workflow_id?: string | null;
 }
 
 export interface QuarterInspection {

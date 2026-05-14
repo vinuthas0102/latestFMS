@@ -3,7 +3,7 @@ import {
   CheckCircle, XCircle, ChevronDown, MapPin, Paperclip,
   Phone, Mail, CreditCard, UserCheck, UserPlus,
   Clock, Send, ThumbsUp, ThumbsDown, RefreshCw, ArrowRightCircle,
-  LogOut,
+  LogOut, ArrowLeftRight,
 } from 'lucide-react';
 import { Quarter, QuarterRequest } from '../../services/quartersService';
 import { UserDTO } from '../../types';
@@ -47,6 +47,7 @@ export function statusAccentColor(status: string): string {
   if (status === 'ALLOTTED' || status === 'UPGRADE_REQUESTED') return 'bg-emerald-500';
   if (status === 'ACKNOWLEDGED') return 'bg-teal-500';
   if (status === 'EXTEND_REQUESTED' || status === 'VACATE_REQUESTED') return 'bg-orange-400';
+  if (status === 'EXCHANGE_REQUESTED') return 'bg-teal-400';
   if (status === 'VACATED' || status === 'WITHDRAWN' || status === 'REJECTED') return 'bg-gray-300';
   return 'bg-gray-300';
 }
@@ -57,9 +58,10 @@ export const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: R
   ALLOTTED:          { label: 'Allotted',         cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle size={11} /> },
   ACKNOWLEDGED:      { label: 'Occupied',         cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ThumbsUp size={11} /> },
   REJECTED:          { label: 'Rejected',         cls: 'bg-red-50 text-red-700 border border-red-200',          icon: <ThumbsDown size={11} /> },
-  EXTEND_REQUESTED:  { label: 'Extension Req.',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
-  UPGRADE_REQUESTED: { label: 'Upgrade Req.',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
-  VACATE_REQUESTED:  { label: 'Vacate Req.',      cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
+  EXTEND_REQUESTED:   { label: 'Extension Req.',  cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
+  UPGRADE_REQUESTED:  { label: 'Upgrade Req.',    cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
+  VACATE_REQUESTED:   { label: 'Vacate Req.',     cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
+  EXCHANGE_REQUESTED: { label: 'Exchange Req.',   cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ArrowLeftRight size={11} /> },
   VACATED:           { label: 'Vacated',          cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
   WITHDRAWN:         { label: 'Withdrawn',        cls: 'bg-gray-100 text-gray-500 border border-gray-200',      icon: <XCircle size={11} /> },
   ON_HOLD:           { label: 'On Hold',          cls: 'bg-slate-50 text-slate-700 border border-slate-200',    icon: <Clock size={11} /> },
@@ -75,16 +77,17 @@ export const TENANT_STATUS_CONFIG: Record<string, { label: string; cls: string }
 export function tenantStatusConfig(status: string) { return TENANT_STATUS_CONFIG[status] ?? TENANT_STATUS_CONFIG.PENDING; }
 
 export const SERVICE_TYPE_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-  EXTEND:      { label: 'Extension',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',    icon: <RefreshCw size={11} /> },
-  UPGRADE:     { label: 'Upgrade',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',           icon: <ArrowRightCircle size={11} /> },
-  VACATE:      { label: 'Vacate',      cls: 'bg-orange-50 text-orange-700 border border-orange-200',  icon: <LogOut size={11} /> },
-  GRIEVANCE:   { label: 'Grievance',   cls: 'bg-rose-50 text-rose-700 border border-rose-200',        icon: <XCircle size={11} /> },
-  MAINTENANCE: { label: 'Maintenance', cls: 'bg-slate-50 text-slate-700 border border-slate-200',     icon: <RefreshCw size={11} /> },
+  EXTEND:      { label: 'Extension',   cls: 'bg-amber-50 text-amber-700 border border-amber-200',   icon: <RefreshCw size={11} /> },
+  UPGRADE:     { label: 'Upgrade',     cls: 'bg-sky-50 text-sky-700 border border-sky-200',          icon: <ArrowRightCircle size={11} /> },
+  VACATE:      { label: 'Vacate',      cls: 'bg-orange-50 text-orange-700 border border-orange-200', icon: <LogOut size={11} /> },
+  GRIEVANCE:   { label: 'Grievance',   cls: 'bg-rose-50 text-rose-700 border border-rose-200',       icon: <XCircle size={11} /> },
+  MAINTENANCE: { label: 'Maintenance', cls: 'bg-slate-50 text-slate-700 border border-slate-200',    icon: <RefreshCw size={11} /> },
+  EXCHANGE:    { label: 'Exchange',    cls: 'bg-teal-50 text-teal-700 border border-teal-200',       icon: <ArrowLeftRight size={11} /> },
 };
 export function serviceTypeConfig(type: string) { return SERVICE_TYPE_CONFIG[type] ?? SERVICE_TYPE_CONFIG.EXTEND; }
 
 export const ALLOTTED_STATUSES = ['ALLOTTED', 'UPGRADE_REQUESTED'] as const;
-export const OCCUPIED_STATUSES = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED'] as const;
+export const OCCUPIED_STATUSES = ['ACKNOWLEDGED', 'EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'] as const;
 export const ACCEPTED_STATUSES = [...ALLOTTED_STATUSES, ...OCCUPIED_STATUSES] as const;
 
 export function isAllottedStatus(s: string) { return (ALLOTTED_STATUSES as readonly string[]).includes(s); }

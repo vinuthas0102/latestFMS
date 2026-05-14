@@ -48,6 +48,7 @@ export type ActionPopupType =
   | 'MAINTENANCE'
   | 'INSPECTION'
   | 'HANDOVER'
+  | 'EXCHANGE'
   | null;
 
 export interface ActionPopupState {

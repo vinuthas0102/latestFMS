@@ -73,6 +73,7 @@ import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
+import { ExchangeRequestModal } from '../components/quarters/ExchangeRequestModal';
 import { AddQuarterModal } from '../components/quarters/AddQuarterModal';
 import type {
   DPFilter, PrefItem, NewRequestForm, StatusCard,
@@ -394,6 +395,53 @@ export const QuarterRequestsPage: React.FC = () => {
     setRightAction(null); setActionRemarks(''); setActionReason('');
     setActionDocUrl(null); setActionDate(''); setActionBhk('');
   }
+
+  // ─── Exchange Request Modal ────────────────────────────────────────────────
+
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [exchangeSubmitting, setExchangeSubmitting] = useState(false);
+  const [exchangeWorkflows, setExchangeWorkflows] = useState<import('../types/quarters').QuarterApprovalWorkflow[]>([]);
+
+  const openExchangeModal = async () => {
+    setShowExchangeModal(true);
+    try {
+      const wfs = await quartersService.getApprovalWorkflows();
+      setExchangeWorkflows(wfs);
+    } catch { setExchangeWorkflows([]); }
+  };
+
+  const handleExchangeSubmit = async (data: {
+    partnerQuarterNumber: string;
+    reason: string;
+    remarks: string;
+    docFile: File | null;
+    workflowId: string | null;
+  }) => {
+    if (!user || !selectedRequest?.allotment) return;
+    setExchangeSubmitting(true);
+    try {
+      let docUrl = '';
+      if (data.docFile) {
+        const url = await uploadChatFile(data.docFile, `exchange-requests/${selectedRequest.allotment.id}`);
+        if (url) docUrl = url;
+      }
+      const tr = await quartersService.createTenantRequest(user.id, selectedRequest.allotment.id, {
+        service_type: 'EXCHANGE',
+        reason: data.reason,
+        remarks: data.remarks,
+        document_url: docUrl || undefined,
+      });
+      await quartersService.createExchangePair(
+        tr.id,
+        data.partnerQuarterNumber,
+        docUrl,
+        data.workflowId,
+      );
+      addToast('Exchange request submitted successfully', 'success');
+      setShowExchangeModal(false);
+      loadData();
+    } catch { addToast('Failed to submit exchange request', 'error'); } finally { setExchangeSubmitting(false); }
+  };
 
   // ─── Upgrade Request Modal ─────────────────────────────────────────────────
 
@@ -2487,6 +2535,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     resetActionForm={resetActionForm}
                     handleTenantRequest={handleTenantRequest}
                     onUpgradeClick={openUpgradeModal}
+                    onExchangeClick={openExchangeModal}
                     openActionPopup={openActionPopup as any}
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
@@ -4101,6 +4150,18 @@ export const QuarterRequestsPage: React.FC = () => {
           onClose={() => setShowUpgradeModal(false)}
           onSubmit={handleUpgradeSubmit}
           addToast={addToast}
+        />
+      )}
+
+      {/* ── Exchange Request Modal ─────────────────────────────────────── */}
+      {showExchangeModal && selectedRequest?.allotment && (
+        <ExchangeRequestModal
+          myQuarterNumber={(selectedRequest.allotment.quarter as import('../types/quarters').Quarter)?.quarter_number ?? ''}
+          allotmentId={selectedRequest.allotment.id}
+          workflows={exchangeWorkflows}
+          submitting={exchangeSubmitting}
+          onClose={() => setShowExchangeModal(false)}
+          onSubmit={handleExchangeSubmit}
         />
       )}
 

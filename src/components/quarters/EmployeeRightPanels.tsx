@@ -3,7 +3,7 @@ import {
   CheckCircle, Send, Paperclip, X, FileText, ChevronLeft, Clock,
   ThumbsUp, Bell, Wrench, RefreshCw, ArrowRightCircle, LogOut, IndianRupee,
   AlertCircle, ExternalLink, CalendarDays, Bed, Eye, Star, Plus,
-  Ruler, ArrowLeft, XCircle, Send as SendIcon, Download,
+  Ruler, ArrowLeft, XCircle, Send as SendIcon, Download, ArrowLeftRight,
 } from 'lucide-react';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { Button } from '../ui/Button';
@@ -219,6 +219,7 @@ interface RightPanelOccupiedProps extends PanelBase {
   resetActionForm: () => void;
   handleTenantRequest: (type: 'EXTEND' | 'VACATE') => void;
   onUpgradeClick: () => void;
+  onExchangeClick: () => void;
   openActionPopup: (type: 'GRIEVANCE' | 'MAINTENANCE' | 'VACATE', requestId: string, allotmentId: string) => void;
   setServiceChats: React.Dispatch<React.SetStateAction<Record<string, QuarterServiceChat[]>>>;
   setPreviewQuarterId: (id: string | null) => void;
@@ -243,7 +244,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   rightAction, setRightAction, actionReason, setActionReason,
   actionRemarks, setActionRemarks, actionDate, setActionDate,
   actionDocUrl, setActionDocUrl,
-  actionSubmitting, resetActionForm, handleTenantRequest, onUpgradeClick, openActionPopup,
+  actionSubmitting, resetActionForm, handleTenantRequest, onUpgradeClick, onExchangeClick, openActionPopup,
   setServiceChats, setPreviewQuarterId, setIsPreviewOpen,
   isEO = false,
   initialTab,
@@ -727,6 +728,14 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
                     <LogOut size={14} /><span>Vacate</span>
                   </button>
                 )}
+                {!hasActiveSvc && (
+                  <button
+                    onClick={() => onExchangeClick()}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
+                  >
+                    <ArrowLeftRight size={14} /><span>Exchange</span>
+                  </button>
+                )}
                 <button
                   onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
                   className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
@@ -737,7 +746,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
               {hasActiveSvc && (
                 <div className="mt-2 flex items-center gap-1.5 text-[10px] text-orange-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
                   <AlertCircle size={11} />
-                  Extend / Upgrade / Vacate unavailable — a request is pending EO review.
+                  Extend / Upgrade / Vacate / Exchange unavailable — a request is pending EO review.
                 </div>
               )}
             </>
