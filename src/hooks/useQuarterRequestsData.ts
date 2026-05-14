@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import {
   quartersService,
@@ -6,14 +6,26 @@ import {
   type QuarterAllotmentCycle,
   type QuarterTenantRequest,
   type QuarterGuestInfo,
+  type Quarter,
+  type QuarterAllotmentApproval,
+  type QuarterApprovalChat,
+  type QuarterApprovalWorkflow,
+  type QuarterRequestApproval,
+  type QuarterRequestApprovalChat,
+  type QuarterInspection,
+  type QuarterInspectionChat,
+  type QuarterHandover,
+  type QuarterServiceChat,
+  type QuarterAllotmentChat,
 } from '../services/quartersService';
-import type { Quarter } from '../services/quartersService';
 import { DEMO_MODE } from '../mocks/demoData';
 import { isOccupiedStatus, isAllottedStatus } from '../components/quarters/quarterShared';
 import type { DPFilter, PrefItem, NewRequestForm } from '../types/quarterRequests';
 import type { UserDTO } from '../types/user.types';
 
-interface LoadDataSetters {
+// ─── Parameter bundle interfaces ──────────────────────────────────────────────
+
+interface LoadDataCtx {
   setRequests: (v: QuarterRequest[] | ((prev: QuarterRequest[]) => QuarterRequest[])) => void;
   setActiveCycle: (v: QuarterAllotmentCycle | null) => void;
   setTenantRequests: (v: QuarterTenantRequest[]) => void;
@@ -25,7 +37,7 @@ interface LoadDataSetters {
   user: UserDTO | null;
 }
 
-interface LoadModalSetters {
+interface LoadModalCtx {
   setModalLoading: (v: boolean) => void;
   setModalQuarters: (v: Quarter[]) => void;
   addToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -46,9 +58,10 @@ interface LoadModalSetters {
   modalIndependentHouse: boolean;
   modalHousingStyle: string;
   prefs: PrefItem[];
+  showNewModal: boolean;
 }
 
-interface LoadAllotNowSetters {
+interface LoadAllotNowCtx {
   setAllotNowLoading: (v: boolean) => void;
   setAllotNowQuarters: (v: Quarter[]) => void;
   addToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -58,7 +71,7 @@ interface LoadAllotNowSetters {
   form: NewRequestForm;
 }
 
-interface LoadManualAllotSetters {
+interface LoadManualAllotCtx {
   setManualAllotLoading: (v: boolean) => void;
   setManualAllotQuarters: (v: Quarter[]) => void;
   addToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -66,26 +79,93 @@ interface LoadManualAllotSetters {
   manualAllotSearch: string;
 }
 
-interface LoadGuestInfoSetters {
+interface LoadGuestCtx {
   setGuestInfoLoading: (v: boolean) => void;
   setGuestInfoList: (v: QuarterGuestInfo[]) => void;
   allotmentId: string | undefined;
+  showGuestInfoPopup: boolean;
 }
 
-interface DpScrollSetters {
+interface DpScrollCtx {
   dpScrollRef: RefObject<HTMLDivElement>;
   setDpCanScrollLeft: (v: boolean) => void;
   setDpCanScrollRight: (v: boolean) => void;
+  eoMode: 'self' | 'employee' | null;
 }
 
+interface AvailableQuartersCtx {
+  setAvailableQuarters: (v: Quarter[]) => void;
+  setAvailableQuartersLoading: (v: boolean) => void;
+}
+
+interface AllotRequestsCtx {
+  showAllotRequestsPopup: boolean;
+  setAllotRequestsWorkflows: (v: QuarterApprovalWorkflow[]) => void;
+}
+
+interface ApprovalCtx {
+  selectedAllotmentId: string | undefined;
+  selectedRequestId: string | undefined;
+  selectedRequestStatus: string | undefined;
+  isEO: boolean;
+  eoMode: 'self' | 'employee' | null;
+  setApprovalRecord: (v: QuarterAllotmentApproval | null) => void;
+  setApprovalChats: (v: QuarterApprovalChat[]) => void;
+  setRequestApprovalRecord: (v: QuarterRequestApproval | null) => void;
+  setRequestApprovalChats: (v: QuarterRequestApprovalChat[]) => void;
+  setRequestApprovalWorkflows: (v: QuarterApprovalWorkflow[]) => void;
+}
+
+interface InspectionCtx {
+  selectedAllotmentId: string | undefined;
+  selectedInspectionId: string | null;
+  isEO: boolean;
+  eoMode: 'self' | 'employee' | null;
+  setInspections: (v: QuarterInspection[]) => void;
+  setInspectionChats: (v: QuarterInspectionChat[]) => void;
+}
+
+interface HandoverCtx {
+  selectedAllotmentId: string | undefined;
+  isEO: boolean;
+  eoMode: 'self' | 'employee' | null;
+  setHandover: (v: QuarterHandover | null) => void;
+}
+
+interface ChatsCtx {
+  selectedServiceId: string | null;
+  selectedRequestId: string | undefined;
+  selectedRequestAllotmentId: string | undefined;
+  selectedRequestStatus: string | undefined;
+  setServiceChats: (v: (prev: Record<string, QuarterServiceChat[]>) => Record<string, QuarterServiceChat[]>) => void;
+  setAllotmentChats: (v: (prev: Record<string, QuarterAllotmentChat[]>) => Record<string, QuarterAllotmentChat[]>) => void;
+}
+
+interface DocUrlsCtx {
+  expandedCardId: string | null;
+  requestDocUrls: Record<string, { name: string; url: string }[]>;
+  setRequestDocUrls: (v: (prev: Record<string, { name: string; url: string }[]>) => Record<string, { name: string; url: string }[]>) => void;
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useQuarterRequestsData(
-  loadData_: LoadDataSetters,
-  loadModal_: LoadModalSetters,
-  loadAllotNow_: LoadAllotNowSetters,
-  loadManualAllot_: LoadManualAllotSetters,
-  loadGuest_: LoadGuestInfoSetters,
-  dpScroll_: DpScrollSetters,
+  loadData_: LoadDataCtx,
+  loadModal_: LoadModalCtx,
+  loadAllotNow_: LoadAllotNowCtx,
+  loadManualAllot_: LoadManualAllotCtx,
+  loadGuest_: LoadGuestCtx,
+  dpScroll_: DpScrollCtx,
+  avq_: AvailableQuartersCtx,
+  allotReq_: AllotRequestsCtx,
+  approval_: ApprovalCtx,
+  inspection_: InspectionCtx,
+  handover_: HandoverCtx,
+  chats_: ChatsCtx,
+  docUrls_: DocUrlsCtx,
 ) {
+  // ─── Callbacks ────────────────────────────────────────────────────────────
+
   const loadData = useCallback(async () => {
     /* DEMO_MODE: data is pre-loaded from mock state; live fetch disabled
     if (!loadData_.user) return;
@@ -108,7 +188,6 @@ export function useQuarterRequestsData(
       loadData_.setRequests(normalised as QuarterRequest[]);
       loadData_.setActiveCycle(cycle);
       loadData_.setTenantRequests(tReqs);
-
       if (isEmployeeMode) {
         const hasOccupied  = normalised.some((r: any) => isOccupiedStatus(r.request_status));
         const hasAllocated = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED');
@@ -210,7 +289,7 @@ export function useQuarterRequestsData(
   }, [loadManualAllot_.manualAllotPickerOpen, loadManualAllot_.manualAllotSearch, loadManualAllot_.addToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadGuestInfo = useCallback(async () => {
-    const allotmentId = loadGuest_.allotmentId;
+    const { allotmentId } = loadGuest_;
     if (!allotmentId) return;
     loadGuest_.setGuestInfoLoading(true);
     try {
@@ -227,6 +306,163 @@ export function useQuarterRequestsData(
     dpScroll_.setDpCanScrollLeft(el.scrollLeft > 2);
     dpScroll_.setDpCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Effects ──────────────────────────────────────────────────────────────
+
+  // Load data on mount (no-op in DEMO_MODE)
+  useEffect(() => {
+    if (!DEMO_MODE) loadData();
+  }, [loadData]);
+
+  // Load available quarters for the Available Quarters DP
+  useEffect(() => {
+    avq_.setAvailableQuartersLoading(true);
+    quartersService.getQuarters({ occupancy_status: 'AVAILABLE' })
+      .then(data => avq_.setAvailableQuarters(data.filter(q => q.occupancy_status === 'AVAILABLE')))
+      .catch(() => {})
+      .finally(() => avq_.setAvailableQuartersLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // DP scroll arrow visibility — attach scroll + resize observer
+  useEffect(() => {
+    const el = dpScroll_.dpScrollRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(updateDpScrollState);
+    el.addEventListener('scroll', updateDpScrollState, { passive: true });
+    const ro = new ResizeObserver(updateDpScrollState);
+    ro.observe(el);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
+  }, [updateDpScrollState, dpScroll_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load modal quarters with 300ms debounce when modal is open or filters change
+  useEffect(() => {
+    if (!loadModal_.showNewModal) return;
+    const t = setTimeout(loadModalQuarters, 300);
+    return () => clearTimeout(t);
+  }, [ // eslint-disable-line react-hooks/exhaustive-deps
+    loadModal_.showNewModal,
+    loadModal_.modalSearch, loadModal_.modalBhk, loadModal_.modalFurnishing, loadModal_.modalSortBy,
+    loadModal_.modalGroundFloor, loadModal_.modalRecentlyRenovated, loadModal_.modalLocationArea,
+    loadModal_.modalWesternToilet, loadModal_.modalIndianToilet, loadModal_.modalCarParking,
+    loadModal_.modalPoojaRoom, loadModal_.modalBalcony, loadModal_.modalKitchenExhaust,
+    loadModal_.modalLiftAccess, loadModal_.modalIndependentHouse, loadModal_.modalHousingStyle,
+    loadModalQuarters,
+  ]);
+
+  // Load Allot Now picker quarters with 300ms debounce
+  useEffect(() => {
+    if (!loadAllotNow_.showAllotNowPicker) return;
+    const t = setTimeout(loadAllotNowQuarters, 300);
+    return () => clearTimeout(t);
+  }, [loadAllotNow_.showAllotNowPicker, loadAllotNow_.allotNowSearch, loadAllotNowQuarters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load manual allot picker quarters with 300ms debounce
+  useEffect(() => {
+    if (!loadManualAllot_.manualAllotPickerOpen) return;
+    const t = setTimeout(loadManualAllotQuarters, 300);
+    return () => clearTimeout(t);
+  }, [loadManualAllot_.manualAllotPickerOpen, loadManualAllot_.manualAllotSearch, loadManualAllotQuarters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load workflows when Allot Requests popup opens
+  useEffect(() => {
+    if (!allotReq_.showAllotRequestsPopup) return;
+    quartersService.getApprovalWorkflows().then(allotReq_.setAllotRequestsWorkflows).catch(() => {});
+  }, [allotReq_.showAllotRequestsPopup]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load allotment-level approval + chats when selected allotment / EO mode changes
+  useEffect(() => {
+    const { selectedAllotmentId, isEO, eoMode } = approval_;
+    if (!selectedAllotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getApprovalForAllotment(selectedAllotmentId).then(record => {
+      approval_.setApprovalRecord(record);
+      if (record) {
+        quartersService.getApprovalChats(record.id).then(approval_.setApprovalChats).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [approval_.selectedAllotmentId, approval_.isEO, approval_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load request-level approval + chats for SUBMITTED records
+  useEffect(() => {
+    const { selectedRequestId, selectedRequestStatus, isEO, eoMode } = approval_;
+    if (!selectedRequestId || selectedRequestStatus !== 'SUBMITTED' || !(isEO && eoMode === 'employee')) {
+      approval_.setRequestApprovalRecord(null);
+      approval_.setRequestApprovalChats([]);
+      return;
+    }
+    quartersService.getApprovalForRequest(selectedRequestId).then(record => {
+      approval_.setRequestApprovalRecord(record);
+      if (record) {
+        quartersService.getRequestApprovalChats(record.id).then(approval_.setRequestApprovalChats).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [approval_.selectedRequestId, approval_.selectedRequestStatus, approval_.isEO, approval_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load approval workflows once when EO employee mode is active
+  useEffect(() => {
+    if (!(approval_.isEO && approval_.eoMode === 'employee')) return;
+    quartersService.getApprovalWorkflows().then(approval_.setRequestApprovalWorkflows).catch(() => {});
+  }, [approval_.isEO, approval_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load inspections for selected allotment
+  useEffect(() => {
+    const { selectedAllotmentId, isEO, eoMode } = inspection_;
+    if (!selectedAllotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getInspections(selectedAllotmentId).then(inspection_.setInspections).catch(() => {});
+  }, [inspection_.selectedAllotmentId, inspection_.isEO, inspection_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load inspection chats when selected inspection changes
+  useEffect(() => {
+    if (!inspection_.selectedInspectionId) return;
+    quartersService.getInspectionChats(inspection_.selectedInspectionId).then(inspection_.setInspectionChats).catch(() => {});
+  }, [inspection_.selectedInspectionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load handover for selected allotment
+  useEffect(() => {
+    const { selectedAllotmentId, isEO, eoMode } = handover_;
+    if (!selectedAllotmentId || !(isEO && eoMode === 'employee')) return;
+    quartersService.getHandover(selectedAllotmentId).then(handover_.setHandover).catch(() => {});
+  }, [handover_.selectedAllotmentId, handover_.isEO, handover_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load guest info when guest info popup opens
+  useEffect(() => {
+    if (loadGuest_.showGuestInfoPopup) loadGuestInfo();
+  }, [loadGuest_.showGuestInfoPopup, loadGuestInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load service chats when selectedServiceId changes
+  useEffect(() => {
+    if (!chats_.selectedServiceId) return;
+    /* DEMO_MODE: service call disabled
+    quartersService.getServiceChats(chats_.selectedServiceId).then(chats => {
+      chats_.setServiceChats(prev => ({ ...prev, [chats_.selectedServiceId!]: chats }));
+    }).catch(() => {});
+    */
+  }, [chats_.selectedServiceId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load allotment chats when selected request changes
+  useEffect(() => {
+    const s = chats_.selectedRequestStatus;
+    if (!s || !chats_.selectedRequestId) return;
+    const isDraftOrSubmitted = s === 'DRAFT' || s === 'SUBMITTED';
+    const hasAllotment = isAllottedStatus(s) || isOccupiedStatus(s);
+    if (!isDraftOrSubmitted && !hasAllotment) return;
+    const chatKey = isDraftOrSubmitted
+      ? chats_.selectedRequestId
+      : (chats_.selectedRequestAllotmentId ?? chats_.selectedRequestId);
+    /* DEMO_MODE: service call disabled
+    quartersService.getAllotmentChats(chatKey).then(chats => {
+      chats_.setAllotmentChats(prev => ({ ...prev, [chatKey]: chats }));
+    }).catch(() => {});
+    */
+  }, [chats_.selectedRequestId, chats_.selectedRequestAllotmentId, chats_.selectedRequestStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch document URLs when a card is expanded
+  useEffect(() => {
+    const { expandedCardId, requestDocUrls, setRequestDocUrls } = docUrls_;
+    if (!expandedCardId || requestDocUrls[expandedCardId]) return;
+    quartersService.getRequestDocUrls(expandedCardId)
+      .then(docs => setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: docs })))
+      .catch(() => setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] })));
+  }, [docUrls_.expandedCardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     loadData,

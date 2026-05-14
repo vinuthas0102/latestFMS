@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -80,6 +80,7 @@ import type {
 } from '../types/quarterRequests';
 import { useQuarterRequestsState } from '../hooks/useQuarterRequestsState';
 import { useQuarterRequestsData } from '../hooks/useQuarterRequestsData';
+import { useQuarterRequestsEffects } from '../hooks/useQuarterRequestsEffects';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -271,12 +272,12 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const isEO = user?.role === 'manager';
 
-  // ─── Data-loading callbacks ────────────────────────────────────────────────
+  // ─── Data-loading callbacks + data effects ────────────────────────────────
   const { loadData, loadModalQuarters, loadAllotNowQuarters, loadManualAllotQuarters, loadGuestInfo, updateDpScrollState } =
     useQuarterRequestsData(
       { setRequests, setActiveCycle, setTenantRequests, setDpFilter, setLoading, addToast, isEO, eoMode, user: user ?? null },
       {
-        setModalLoading, setModalQuarters, addToast, prefs,
+        setModalLoading, setModalQuarters, addToast, prefs, showNewModal,
         modalSearch, modalBhk, modalFurnishing, modalSortBy,
         modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
         modalWesternToilet, modalIndianToilet, modalCarParking,
@@ -285,49 +286,67 @@ export const QuarterRequestsPage: React.FC = () => {
       },
       { setAllotNowLoading, setAllotNowQuarters, addToast, showAllotNowPicker, allotNowSearch, user: user ?? null, form },
       { setManualAllotLoading, setManualAllotQuarters, addToast, manualAllotPickerOpen, manualAllotSearch },
-      { setGuestInfoLoading, setGuestInfoList, allotmentId: selectedRequest?.allotment?.id },
-      { dpScrollRef, setDpCanScrollLeft, setDpCanScrollRight },
+      { setGuestInfoLoading, setGuestInfoList, allotmentId: selectedRequest?.allotment?.id, showGuestInfoPopup },
+      { dpScrollRef, setDpCanScrollLeft, setDpCanScrollRight, eoMode },
+      { setAvailableQuarters, setAvailableQuartersLoading },
+      { showAllotRequestsPopup, setAllotRequestsWorkflows },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        selectedRequestId: selectedRequest?.id,
+        selectedRequestStatus: selectedRequest?.request_status,
+        isEO, eoMode,
+        setApprovalRecord, setApprovalChats,
+        setRequestApprovalRecord, setRequestApprovalChats, setRequestApprovalWorkflows,
+      },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        selectedInspectionId,
+        isEO, eoMode,
+        setInspections, setInspectionChats,
+      },
+      {
+        selectedAllotmentId: selectedRequest?.allotment?.id,
+        isEO, eoMode,
+        setHandover,
+      },
+      {
+        selectedServiceId,
+        selectedRequestId: selectedRequest?.id,
+        selectedRequestAllotmentId: selectedRequest?.allotment?.id,
+        selectedRequestStatus: selectedRequest?.request_status,
+        setServiceChats: (updater) => setServiceChats(prev => updater(prev)),
+        setAllotmentChats: (updater) => setAllotmentChats(prev => updater(prev)),
+      },
+      {
+        expandedCardId,
+        requestDocUrls,
+        setRequestDocUrls: (updater) => setRequestDocUrls(prev => updater(prev)),
+      },
     );
 
-  // Fetch document URLs when a card is expanded
-  useEffect(() => {
-    if (!expandedCardId || requestDocUrls[expandedCardId]) return;
-    quartersService.getRequestDocUrls(expandedCardId).then(docs => {
-      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: docs }));
-    }).catch(() => {
-      setRequestDocUrls(prev => ({ ...prev, [expandedCardId]: [] }));
-    });
-  }, [expandedCardId]);
+  // ─── UI / interaction effects ─────────────────────────────────────────────
+  useQuarterRequestsEffects(
+    { menuRef, setOpenMenuId, setMenuPos },
+    { avqMenuRef, setAvqMenuId, setAvqMenuPos },
+    { modalFilterOpen, modalFilterRef, setModalFilterOpen },
+    { dpScrollRef, dpFilter, updateDpScrollState, eoMode },
+    {
+      selectedRequestId: selectedRequest?.id,
+      selectedRequestStatus: selectedRequest?.request_status,
+      selectedAllotmentApprovalStatus: selectedRequest?.allotment?.approval_status,
+      isEO,
+      setEoRightMode, setApprovalAction, setApprovalRemarks,
+      setInspectionPanel, setSelectedInspectionId,
+      setEoRejectReason, setEoTrId, setEoTrAction, setEoTrNotes,
+    },
+    {
+      selectedRequestId: selectedRequest?.id,
+      selectedRequestPreferences: selectedRequest?.preferences,
+      setSelectedPrefQuarter,
+    },
+    { setPrefs, setShowNewModal },
+  );
 
-  // Close dot-menu on outside click or Escape
-  useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null); setMenuPos(null);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setOpenMenuId(null); setMenuPos(null); }
-    };
-    document.addEventListener('mousedown', onMouse);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
-  }, []);
-
-  // Close avq menu on outside click or Escape
-  useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      if (avqMenuRef.current && !avqMenuRef.current.contains(e.target as Node)) {
-        setAvqMenuId(null); setAvqMenuPos(null);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setAvqMenuId(null); setAvqMenuPos(null); }
-    };
-    document.addEventListener('mousedown', onMouse);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onMouse); document.removeEventListener('keydown', onKey); };
-  }, []);
 
   function openMenu(e: React.MouseEvent, reqId: string) {
     e.stopPropagation();
@@ -460,30 +479,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to close service', 'error'); }
   };
 
-  // Load chats when selectedServiceId changes
-  useEffect(() => {
-    if (!selectedServiceId) return;
-    /* DEMO_MODE: service call disabled
-    quartersService.getServiceChats(selectedServiceId).then(chats => {
-      setServiceChats(prev => ({ ...prev, [selectedServiceId!]: chats }));
-    }).catch(() => {});
-    */
-  }, [selectedServiceId]);
-
-  // Load allotment chats when a request is selected
-  useEffect(() => {
-    const s = selectedRequest?.request_status;
-    if (!s || !selectedRequest) return;
-    const isDraftOrSubmitted = s === 'DRAFT' || s === 'SUBMITTED';
-    const hasAllotment = isAllottedStatus(s) || isOccupiedStatus(s);
-    if (!isDraftOrSubmitted && !hasAllotment) return;
-    const chatKey = isDraftOrSubmitted ? selectedRequest.id : (selectedRequest.allotment?.id ?? selectedRequest.id);
-    /* DEMO_MODE: service call disabled
-    quartersService.getAllotmentChats(chatKey).then(chats => {
-      setAllotmentChats(prev => ({ ...prev, [chatKey]: chats }));
-    }).catch(() => {});
-    */
-  }, [selectedRequest?.id, selectedRequest?.allotment?.id, selectedRequest?.request_status]);
 
   function openActionPopup(type: ActionPopupType, requestId: string, allotmentId: string) {
     setActionPopup({ type, requestId, allotmentId });
@@ -498,101 +493,6 @@ export const QuarterRequestsPage: React.FC = () => {
   }
 
 
-  // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
-
-  // Load available quarters (always, for the Available Quarters DP)
-  useEffect(() => {
-    setAvailableQuartersLoading(true);
-    quartersService.getQuarters({ occupancy_status: 'AVAILABLE' })
-      .then(data => setAvailableQuarters(data.filter(q => q.occupancy_status === 'AVAILABLE')))
-      .catch(() => {})
-      .finally(() => setAvailableQuartersLoading(false));
-  }, []);
-
-  // DP scroll arrow visibility
-  useEffect(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    // Defer initial measurement so the DOM has fully painted the cards
-    const raf = requestAnimationFrame(updateDpScrollState);
-    el.addEventListener('scroll', updateDpScrollState, { passive: true });
-    const ro = new ResizeObserver(updateDpScrollState);
-    ro.observe(el);
-    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', updateDpScrollState); ro.disconnect(); };
-  }, [updateDpScrollState, eoMode]);
-
-  // Scroll active DP card into view when filter changes
-  useEffect(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    const activeEl = el.querySelector('[data-dp-active="true"]') as HTMLElement | null;
-    if (activeEl) {
-      const offset = activeEl.offsetLeft - 16;
-      el.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
-    }
-  }, [dpFilter]);
-
-  // Reset EO right mode when selected request changes
-  useEffect(() => {
-    const s = selectedRequest?.request_status;
-    const isOcc = s ? isOccupiedStatus(s) : false;
-    const hasPendingApproval = selectedRequest?.allotment?.approval_status === 'PENDING';
-    const isSubOrAllot = s ? (s === 'SUBMITTED' || isAllottedStatus(s)) : false;
-    const isSubmittedForEO = s === 'SUBMITTED' && isEO;
-    setEoRightMode(isSubmittedForEO ? 'request_approval_chat' : isOcc || isSubOrAllot ? 'chat' : hasPendingApproval ? 'approval_chat' : 'detail');
-    setApprovalAction(null);
-    setApprovalRemarks('');
-    setInspectionPanel('list');
-    setSelectedInspectionId(null);
-    setEoRejectReason('');
-    setEoTrId(null);
-    setEoTrAction(null);
-    setEoTrNotes('');
-  }, [selectedRequest?.id]);
-
-  // Auto-select top preference for detail view
-  useEffect(() => {
-    if (!selectedRequest) return;
-    const prefs = selectedRequest.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
-    const topQ = prefs[0]?.quarter as Quarter | undefined;
-    setSelectedPrefQuarter(topQ ?? null);
-  }, [selectedRequest?.id]);
-
-  // Prefill from freeview "Add to Request"
-  useEffect(() => {
-    const prefill = (location.state as { prefill?: Quarter })?.prefill;
-    if (prefill) {
-      setPrefs([{ quarter: prefill, rank: 1 }]);
-      setShowNewModal(true);
-      window.history.replaceState({}, '');
-    }
-  }, [location.state]);
-
-
-  useEffect(() => {
-    if (showNewModal) {
-      const t = setTimeout(loadModalQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [showNewModal, modalSearch, modalBhk, modalFurnishing, modalSortBy,
-    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
-    modalWesternToilet, modalIndianToilet, modalCarParking,
-    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
-    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
-    loadModalQuarters]);
-
-  // Close filter popup on outside click
-  useEffect(() => {
-    if (!modalFilterOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (modalFilterRef.current && !modalFilterRef.current.contains(e.target as Node)) {
-        setModalFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [modalFilterOpen]);
 
   // ─── pref list helpers ──────────────────────────────────────────────────────
 
@@ -884,23 +784,7 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Allot Now failed', 'error'); } finally { setAllotNowSubmitting(false); }
   };
 
-  // Load Allot Now picker quarters
-
-  useEffect(() => {
-    if (showAllotNowPicker) {
-      const t = setTimeout(loadAllotNowQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [showAllotNowPicker, allotNowSearch, loadAllotNowQuarters]);
-
   // ─── EO Employee mode: manual allot ────────────────────────────────────────
-
-  useEffect(() => {
-    if (manualAllotPickerOpen) {
-      const t = setTimeout(loadManualAllotQuarters, 300);
-      return () => clearTimeout(t);
-    }
-  }, [manualAllotPickerOpen, manualAllotSearch, loadManualAllotQuarters]);
 
   const handleManualAllot = async (quarterId: string) => {
     if (!user || !selectedRequest) return;
@@ -1054,13 +938,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to process allotments', 'error'); } finally { setAllotRequestsSubmitting(false); }
   };
 
-  // Load workflows for Allot Requests popup
-  useEffect(() => {
-    if (showAllotRequestsPopup) {
-      quartersService.getApprovalWorkflows().then(setAllotRequestsWorkflows).catch(() => {});
-    }
-  }, [showAllotRequestsPopup]);
-
   // ─── EO: Reject request (DRAFT + sub_status=REJECTED) ─────────────────────
   const handleEORejectRequest = async () => {
     if (!user || !selectedRequest || !eoRejectReason.trim()) {
@@ -1093,65 +970,6 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to reject request', 'error'); } finally { setRejectModalSubmitting(false); }
   };
 
-  // ─── EO: Load approval for selected allotment ─────────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getApprovalForAllotment(allotmentId).then(approval => {
-      setApprovalRecord(approval);
-      if (approval) {
-        quartersService.getApprovalChats(approval.id).then(setApprovalChats).catch(() => {});
-      }
-    }).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load request-level approval for SUBMITTED records ────────────────
-  useEffect(() => {
-    const reqId = selectedRequest?.id;
-    if (!reqId || selectedRequest?.request_status !== 'SUBMITTED' || !(isEO && eoMode === 'employee')) {
-      setRequestApprovalRecord(null);
-      setRequestApprovalChats([]);
-      return;
-    }
-    quartersService.getApprovalForRequest(reqId).then(approval => {
-      setRequestApprovalRecord(approval);
-      if (approval) {
-        quartersService.getRequestApprovalChats(approval.id).then(setRequestApprovalChats).catch(() => {});
-      }
-    }).catch(() => {});
-  }, [selectedRequest?.id, selectedRequest?.request_status, isEO, eoMode]);
-
-  // ─── EO: Load approval workflows once (for both allotment and request approvals) ───
-  useEffect(() => {
-    if (!(isEO && eoMode === 'employee')) return;
-    quartersService.getApprovalWorkflows().then(setRequestApprovalWorkflows).catch(() => {});
-  }, [isEO, eoMode]);
-
-  // ─── EO: Load inspections for selected allotment ──────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getInspections(allotmentId).then(setInspections).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load inspection chats ────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedInspectionId) return;
-    quartersService.getInspectionChats(selectedInspectionId).then(setInspectionChats).catch(() => {});
-  }, [selectedInspectionId]);
-
-  // ─── EO: Load handover for selected allotment ─────────────────────────────
-  useEffect(() => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId || !(isEO && eoMode === 'employee')) return;
-    quartersService.getHandover(allotmentId).then(setHandover).catch(() => {});
-  }, [selectedRequest?.allotment?.id, isEO, eoMode]);
-
-  // ─── EO: Load guest info ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (showGuestInfoPopup) loadGuestInfo();
-  }, [showGuestInfoPopup, loadGuestInfo]);
 
   // ─── EO: Approve allotment level ──────────────────────────────────────────
   const handleApproveLevel = async () => {
