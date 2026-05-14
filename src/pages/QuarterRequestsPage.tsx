@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -79,6 +79,7 @@ import type {
   DemoEmployee, TPInfo, EOMode, EORightMode, RightAction,
 } from '../types/quarterRequests';
 import { useQuarterRequestsState } from '../hooks/useQuarterRequestsState';
+import { useQuarterRequestsData } from '../hooks/useQuarterRequestsData';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -269,6 +270,24 @@ export const QuarterRequestsPage: React.FC = () => {
   } = useQuarterRequestsState();
 
   const isEO = user?.role === 'manager';
+
+  // ─── Data-loading callbacks ────────────────────────────────────────────────
+  const { loadData, loadModalQuarters, loadAllotNowQuarters, loadManualAllotQuarters, loadGuestInfo, updateDpScrollState } =
+    useQuarterRequestsData(
+      { setRequests, setActiveCycle, setTenantRequests, setDpFilter, setLoading, addToast, isEO, eoMode, user: user ?? null },
+      {
+        setModalLoading, setModalQuarters, addToast, prefs,
+        modalSearch, modalBhk, modalFurnishing, modalSortBy,
+        modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
+        modalWesternToilet, modalIndianToilet, modalCarParking,
+        modalPoojaRoom, modalBalcony, modalKitchenExhaust,
+        modalLiftAccess, modalIndependentHouse, modalHousingStyle,
+      },
+      { setAllotNowLoading, setAllotNowQuarters, addToast, showAllotNowPicker, allotNowSearch, user: user ?? null, form },
+      { setManualAllotLoading, setManualAllotQuarters, addToast, manualAllotPickerOpen, manualAllotSearch },
+      { setGuestInfoLoading, setGuestInfoList, allotmentId: selectedRequest?.allotment?.id },
+      { dpScrollRef, setDpCanScrollLeft, setDpCanScrollRight },
+    );
 
   // Fetch document URLs when a card is expanded
   useEffect(() => {
@@ -478,40 +497,6 @@ export const QuarterRequestsPage: React.FC = () => {
     setActionPopup({ type: null, requestId: '', allotmentId: '' });
   }
 
-  const loadData = useCallback(async () => {
-    /* DEMO_MODE: data is pre-loaded from mock state; live fetch disabled
-    if (!user) return;
-    setLoading(true);
-    try {
-      const isEmployeeMode = isEO && eoMode === 'employee';
-      const [reqs, cycle, tReqs] = await Promise.all([
-        isEmployeeMode ? quartersService.getAllRequests() : quartersService.getMyRequests(user.id),
-        quartersService.getActiveCycle(),
-        isEmployeeMode ? quartersService.getAllTenantRequests() : quartersService.getMyTenantRequests(user.id),
-      ]);
-      const normalised = reqs.map((r: any) => ({
-        ...r,
-        allotment: Array.isArray(r.allotment) ? (r.allotment[0] ?? null) : r.allotment,
-      }));
-      setRequests(normalised as QuarterRequest[]);
-      setActiveCycle(cycle);
-      setTenantRequests(tReqs);
-
-      // Auto-select default tab for EO employee mode per priority: Occupied > Allocated > Allotted > Submitted
-      if (isEmployeeMode) {
-        const hasOccupied = normalised.some((r: any) => isOccupiedStatus(r.request_status));
-        const hasAllocated = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'APPROVED');
-        const hasAllotted = normalised.some((r: any) => isAllottedStatus(r.request_status) && r.allotment?.approval_status === 'PENDING');
-        const hasSubmitted = normalised.some((r: any) => r.request_status === 'SUBMITTED');
-        setDpFilter(hasOccupied ? 'occupied' : hasAllocated ? 'allocated_em' : hasAllotted ? 'allotted' : hasSubmitted ? 'submitted' : 'occupied');
-      }
-    } catch {
-      addToast('Failed to load data', 'error');
-    } finally {
-      setLoading(false);
-    }
-    */
-  }, [user, addToast, isEO, eoMode]);
 
   // DEMO_MODE: loadData is a no-op; original trigger: useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (!DEMO_MODE) loadData(); }, [loadData]);
@@ -526,13 +511,6 @@ export const QuarterRequestsPage: React.FC = () => {
   }, []);
 
   // DP scroll arrow visibility
-  const updateDpScrollState = useCallback(() => {
-    const el = dpScrollRef.current;
-    if (!el) return;
-    setDpCanScrollLeft(el.scrollLeft > 2);
-    setDpCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-  }, []);
-
   useEffect(() => {
     const el = dpScrollRef.current;
     if (!el) return;
@@ -591,50 +569,6 @@ export const QuarterRequestsPage: React.FC = () => {
     }
   }, [location.state]);
 
-  const loadModalQuarters = useCallback(async () => {
-    setModalLoading(true);
-    try {
-      const data = await quartersService.getQuarters({
-        occupancy_status: 'AVAILABLE',
-        search: modalSearch || undefined,
-        bhk_config: modalBhk || undefined,
-        furnishing_status: modalFurnishing || undefined,
-      });
-      let filtered = data.filter(q => !prefs.find(p => p.quarter.id === q.id));
-      // Apply extended boolean/string filters
-      if (modalGroundFloor) filtered = filtered.filter(q => q.floor_number === 0);
-      if (modalRecentlyRenovated) filtered = filtered.filter(q => q.renovation_status?.toLowerCase().includes('renovated'));
-      if (modalLocationArea.trim()) {
-        const la = modalLocationArea.trim().toLowerCase();
-        filtered = filtered.filter(q =>
-          q.location_area?.toLowerCase().includes(la) || q.region?.toLowerCase().includes(la)
-        );
-      }
-      if (modalWesternToilet) filtered = filtered.filter(q => q.toilet_western === true);
-      if (modalIndianToilet) filtered = filtered.filter(q => q.toilet_indian === true);
-      if (modalCarParking) filtered = filtered.filter(q => !!q.parking_details?.trim());
-      if (modalPoojaRoom) filtered = filtered.filter(q => q.pooja_room === true);
-      if (modalBalcony) filtered = filtered.filter(q => q.balcony === true);
-      if (modalKitchenExhaust) filtered = filtered.filter(q => q.kitchen_exhaust === true);
-      if (modalLiftAccess) filtered = filtered.filter(q => q.lift_access === true);
-      if (modalIndependentHouse) filtered = filtered.filter(q => q.housing_style?.toLowerCase().includes('independent'));
-      if (modalHousingStyle) filtered = filtered.filter(q => q.housing_style === modalHousingStyle);
-      if (modalSortBy === 'rent_asc') filtered = [...filtered].sort((a, b) => a.monthly_rent - b.monthly_rent);
-      else if (modalSortBy === 'rent_desc') filtered = [...filtered].sort((a, b) => b.monthly_rent - a.monthly_rent);
-      setModalQuarters(filtered);
-    } catch {
-      addToast('Failed to load quarters', 'error');
-    } finally {
-      setModalLoading(false);
-    }
-  }, [
-    modalSearch, modalBhk, modalFurnishing, modalSortBy,
-    modalGroundFloor, modalRecentlyRenovated, modalLocationArea,
-    modalWesternToilet, modalIndianToilet, modalCarParking,
-    modalPoojaRoom, modalBalcony, modalKitchenExhaust,
-    modalLiftAccess, modalIndependentHouse, modalHousingStyle,
-    prefs, addToast,
-  ]);
 
   useEffect(() => {
     if (showNewModal) {
@@ -951,18 +885,6 @@ export const QuarterRequestsPage: React.FC = () => {
   };
 
   // Load Allot Now picker quarters
-  const loadAllotNowQuarters = useCallback(async () => {
-    if (!showAllotNowPicker) return;
-    setAllotNowLoading(true);
-    try {
-      const data = await quartersService.getQuarters({
-        occupancy_status: 'AVAILABLE',
-        search: allotNowSearch || undefined,
-        bhk_config: (user?.bhkEntitlement || form.required_bhk_config) || undefined,
-      });
-      setAllotNowQuarters(data);
-    } catch { addToast('Failed to load quarters', 'error'); } finally { setAllotNowLoading(false); }
-  }, [showAllotNowPicker, allotNowSearch, user?.bhkEntitlement, form.required_bhk_config, addToast]);
 
   useEffect(() => {
     if (showAllotNowPicker) {
@@ -972,14 +894,6 @@ export const QuarterRequestsPage: React.FC = () => {
   }, [showAllotNowPicker, allotNowSearch, loadAllotNowQuarters]);
 
   // ─── EO Employee mode: manual allot ────────────────────────────────────────
-  const loadManualAllotQuarters = useCallback(async () => {
-    if (!manualAllotPickerOpen) return;
-    setManualAllotLoading(true);
-    try {
-      const data = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE', search: manualAllotSearch || undefined });
-      setManualAllotQuarters(data);
-    } catch { addToast('Failed to load quarters', 'error'); } finally { setManualAllotLoading(false); }
-  }, [manualAllotPickerOpen, manualAllotSearch, addToast]);
 
   useEffect(() => {
     if (manualAllotPickerOpen) {
@@ -1234,15 +1148,6 @@ export const QuarterRequestsPage: React.FC = () => {
   }, [selectedRequest?.allotment?.id, isEO, eoMode]);
 
   // ─── EO: Load guest info ──────────────────────────────────────────────────
-  const loadGuestInfo = useCallback(async () => {
-    const allotmentId = selectedRequest?.allotment?.id;
-    if (!allotmentId) return;
-    setGuestInfoLoading(true);
-    try {
-      const list = await quartersService.getGuestInfo(allotmentId);
-      setGuestInfoList(list);
-    } catch {} finally { setGuestInfoLoading(false); }
-  }, [selectedRequest?.allotment?.id]);
 
   useEffect(() => {
     if (showGuestInfoPopup) loadGuestInfo();
