@@ -271,8 +271,18 @@ export function useQuarterRequestsState() {
   const [availableQuartersLoading, setAvailableQuartersLoading] = useState(false);
   const [avqSearch, setAvqSearch] = useState('');
   const [avqBhkFilter, setAvqBhkFilter] = useState('ALL');
-  const [avqToiletFilter, setAvqToiletFilter] = useState<string[]>([]);
   const [avqFloorFilter, setAvqFloorFilter] = useState<number[]>([]);
+  const [avqGroundFloor, setAvqGroundFloor] = useState(false);
+  const [avqRecentlyRenovated, setAvqRecentlyRenovated] = useState(false);
+  const [avqLocationArea, setAvqLocationArea] = useState('');
+  const [avqWesternToilet, setAvqWesternToilet] = useState(false);
+  const [avqIndianToilet, setAvqIndianToilet] = useState(false);
+  const [avqCarParking, setAvqCarParking] = useState(false);
+  const [avqPoojaRoom, setAvqPoojaRoom] = useState(false);
+  const [avqBalcony, setAvqBalcony] = useState(false);
+  const [avqKitchenExhaust, setAvqKitchenExhaust] = useState(false);
+  const [avqLiftAccess, setAvqLiftAccess] = useState(false);
+  const [avqHousingStyle, setAvqHousingStyle] = useState('');
   const [avqFilterDrawerOpen, setAvqFilterDrawerOpen] = useState(false);
   const [avqDetailQuarterId, setAvqDetailQuarterId] = useState<string | null>(null);
   const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
@@ -495,8 +505,18 @@ export function useQuarterRequestsState() {
     availableQuartersLoading, setAvailableQuartersLoading,
     avqSearch, setAvqSearch,
     avqBhkFilter, setAvqBhkFilter,
-    avqToiletFilter, setAvqToiletFilter,
     avqFloorFilter, setAvqFloorFilter,
+    avqGroundFloor, setAvqGroundFloor,
+    avqRecentlyRenovated, setAvqRecentlyRenovated,
+    avqLocationArea, setAvqLocationArea,
+    avqWesternToilet, setAvqWesternToilet,
+    avqIndianToilet, setAvqIndianToilet,
+    avqCarParking, setAvqCarParking,
+    avqPoojaRoom, setAvqPoojaRoom,
+    avqBalcony, setAvqBalcony,
+    avqKitchenExhaust, setAvqKitchenExhaust,
+    avqLiftAccess, setAvqLiftAccess,
+    avqHousingStyle, setAvqHousingStyle,
     avqFilterDrawerOpen, setAvqFilterDrawerOpen,
     avqDetailQuarterId, setAvqDetailQuarterId,
     avqMenuId, setAvqMenuId,

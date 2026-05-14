@@ -251,7 +251,18 @@ export const QuarterRequestsPage: React.FC = () => {
     allotmentChatFile, setAllotmentChatFile, allotmentChatSubmitting, setAllotmentChatSubmitting,
     availableQuarters, setAvailableQuarters, availableQuartersLoading, setAvailableQuartersLoading,
     avqSearch, setAvqSearch, avqBhkFilter, setAvqBhkFilter,
-    avqToiletFilter, setAvqToiletFilter, avqFloorFilter, setAvqFloorFilter,
+    avqFloorFilter, setAvqFloorFilter,
+    avqGroundFloor, setAvqGroundFloor,
+    avqRecentlyRenovated, setAvqRecentlyRenovated,
+    avqLocationArea, setAvqLocationArea,
+    avqWesternToilet, setAvqWesternToilet,
+    avqIndianToilet, setAvqIndianToilet,
+    avqCarParking, setAvqCarParking,
+    avqPoojaRoom, setAvqPoojaRoom,
+    avqBalcony, setAvqBalcony,
+    avqKitchenExhaust, setAvqKitchenExhaust,
+    avqLiftAccess, setAvqLiftAccess,
+    avqHousingStyle, setAvqHousingStyle,
     avqFilterDrawerOpen, setAvqFilterDrawerOpen, avqDetailQuarterId, setAvqDetailQuarterId,
     avqMenuId, setAvqMenuId, avqMenuPos, setAvqMenuPos, avqMenuRef,
     openMenuId, setOpenMenuId, menuPos, setMenuPos, menuRef,
@@ -1376,11 +1387,27 @@ export const QuarterRequestsPage: React.FC = () => {
   const filteredAvailableQuarters = React.useMemo(() => {
     let result = [...availableQuarters];
     if (avqBhkFilter !== 'ALL') result = result.filter(q => q.bhk_config === avqBhkFilter);
-    if (avqToiletFilter.length > 0) result = result.filter(q => avqToiletFilter.includes(q.toilet_type ?? 'Western'));
     if (avqFloorFilter.length > 0) result = result.filter(q => {
       const floor = q.floor_number ?? 0;
       return avqFloorFilter.some(f => f === 4 ? floor >= 4 : floor === f);
     });
+    if (avqGroundFloor) result = result.filter(q => (q.floor_number ?? 0) === 0);
+    if (avqRecentlyRenovated) result = result.filter(q => q.renovation_status?.toLowerCase().includes('renovat'));
+    if (avqLocationArea.trim()) {
+      const la = avqLocationArea.toLowerCase();
+      result = result.filter(q =>
+        q.location_area?.toLowerCase().includes(la) ||
+        q.region?.toLowerCase().includes(la)
+      );
+    }
+    if (avqWesternToilet) result = result.filter(q => q.toilet_western === true);
+    if (avqIndianToilet) result = result.filter(q => q.toilet_indian === true);
+    if (avqCarParking) result = result.filter(q => !!q.parking_details);
+    if (avqPoojaRoom) result = result.filter(q => q.pooja_room === true);
+    if (avqBalcony) result = result.filter(q => q.balcony === true);
+    if (avqKitchenExhaust) result = result.filter(q => q.kitchen_exhaust === true);
+    if (avqLiftAccess) result = result.filter(q => q.lift_access === true);
+    if (avqHousingStyle) result = result.filter(q => q.housing_style === avqHousingStyle);
     if (avqSearch.trim()) {
       const s = avqSearch.toLowerCase();
       result = result.filter(q =>
@@ -1391,7 +1418,27 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
     return result;
-  }, [availableQuarters, avqBhkFilter, avqToiletFilter, avqFloorFilter, avqSearch]);
+  }, [
+    availableQuarters, avqBhkFilter, avqFloorFilter,
+    avqGroundFloor, avqRecentlyRenovated, avqLocationArea,
+    avqWesternToilet, avqIndianToilet, avqCarParking,
+    avqPoojaRoom, avqBalcony, avqKitchenExhaust,
+    avqLiftAccess, avqHousingStyle, avqSearch,
+  ]);
+
+  function clearAvqFilters() {
+    setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqFloorFilter([]);
+    setAvqGroundFloor(false); setAvqRecentlyRenovated(false); setAvqLocationArea('');
+    setAvqWesternToilet(false); setAvqIndianToilet(false); setAvqCarParking(false);
+    setAvqPoojaRoom(false); setAvqBalcony(false); setAvqKitchenExhaust(false);
+    setAvqLiftAccess(false); setAvqHousingStyle('');
+  }
+
+  const avqHasActiveFilter =
+    !!avqSearch || avqBhkFilter !== 'ALL' || avqFloorFilter.length > 0 ||
+    avqGroundFloor || avqRecentlyRenovated || !!avqLocationArea ||
+    avqWesternToilet || avqIndianToilet || avqCarParking ||
+    avqPoojaRoom || avqBalcony || avqKitchenExhaust || avqLiftAccess || !!avqHousingStyle;
 
   // ─── helper to open preview modal ──────────────────────────────────────────
 
@@ -2053,7 +2100,12 @@ export const QuarterRequestsPage: React.FC = () => {
                     ],
                   },
                 ]}
-                filterCount={avqToiletFilter.length + avqFloorFilter.length}
+                filterCount={
+                  avqFloorFilter.length +
+                  [avqGroundFloor, avqRecentlyRenovated, avqWesternToilet, avqIndianToilet,
+                   avqCarParking, avqPoojaRoom, avqBalcony, avqKitchenExhaust, avqLiftAccess].filter(Boolean).length +
+                  (avqLocationArea ? 1 : 0) + (avqHousingStyle ? 1 : 0)
+                }
                 onFilterOpen={() => setAvqFilterDrawerOpen(true)}
               />
             </div>
@@ -2062,13 +2114,13 @@ export const QuarterRequestsPage: React.FC = () => {
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
-                {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
+                {avqHasActiveFilter && !availableQuartersLoading && availableQuarters.length !== filteredAvailableQuarters.length && (
                   <span className="text-gray-400"> (filtered from {availableQuarters.length})</span>
                 )}
               </span>
-              {(avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0) && (
+              {avqHasActiveFilter && (
                 <button
-                  onClick={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+                  onClick={clearAvqFilters}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
@@ -2087,7 +2139,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   <Key size={36} className="mx-auto text-gray-300 mb-3" />
                   <h3 className="text-sm font-semibold text-gray-700 mb-1">No available quarters found</h3>
                   <p className="text-xs text-gray-500">
-                    {avqSearch || avqBhkFilter !== 'ALL' || avqToiletFilter.length > 0 || avqFloorFilter.length > 0
+                    {avqHasActiveFilter
                       ? 'Try clearing your filters.'
                       : 'All quarters are currently occupied or inactive.'}
                   </p>
@@ -3708,12 +3760,19 @@ export const QuarterRequestsPage: React.FC = () => {
         isOpen={avqFilterDrawerOpen}
         onClose={() => setAvqFilterDrawerOpen(false)}
         title="Filter Quarters"
-        activeFilterCount={avqToiletFilter.length + avqFloorFilter.length}
-        onClearAll={() => { setAvqSearch(''); setAvqBhkFilter('ALL'); setAvqToiletFilter([]); setAvqFloorFilter([]); }}
+        activeFilterCount={
+          avqFloorFilter.length +
+          [avqGroundFloor, avqRecentlyRenovated, avqWesternToilet, avqIndianToilet,
+           avqCarParking, avqPoojaRoom, avqBalcony, avqKitchenExhaust, avqLiftAccess].filter(Boolean).length +
+          (avqLocationArea ? 1 : 0) + (avqHousingStyle ? 1 : 0)
+        }
+        onClearAll={clearAvqFilters}
       >
         <div className="space-y-5">
+
+          {/* Quarter Type */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Quarter Type</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quarter Type</label>
             <div className="flex flex-wrap gap-2">
               {(['ALL', ...QUARTER_TYPE_OPTIONS] as string[]).map(v => (
                 <button key={v} onClick={() => setAvqBhkFilter(v)}
@@ -3723,21 +3782,10 @@ export const QuarterRequestsPage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Floor */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Toilet Type</label>
-            <div className="flex flex-wrap gap-2">
-              {['Indian', 'Western', 'Both'].map(v => (
-                <button key={v} onClick={() => setAvqToiletFilter(prev =>
-                  prev.includes(v) ? prev.filter(t => t !== v) : [...prev, v]
-                )}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqToiletFilter.includes(v) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Floor</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Floor</label>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 0, label: 'Ground' },
@@ -3755,6 +3803,95 @@ export const QuarterRequestsPage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Ground Floor Access */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ground Floor Access</label>
+            <button
+              onClick={() => setAvqGroundFloor(v => !v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqGroundFloor ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}
+            >
+              Ground Floor Only
+            </button>
+          </div>
+
+          {/* Recently Renovated */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Condition</label>
+            <button
+              onClick={() => setAvqRecentlyRenovated(v => !v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqRecentlyRenovated ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}
+            >
+              Recently Renovated
+            </button>
+          </div>
+
+          {/* Location / Area */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Location (Region / Area)</label>
+            <input
+              type="text"
+              value={avqLocationArea}
+              onChange={e => setAvqLocationArea(e.target.value)}
+              placeholder="Filter by area or region…"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
+            />
+          </div>
+
+          {/* Toilet Type */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Toilet Type</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Western Toilet', val: avqWesternToilet, set: setAvqWesternToilet },
+                { label: 'Indian Toilet',  val: avqIndianToilet,  set: setAvqIndianToilet  },
+              ].map(({ label, val, set }) => (
+                <button key={label} onClick={() => set(v => !v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amenities */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amenities</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Dedicated Car Parking', val: avqCarParking,     set: setAvqCarParking     },
+                { label: 'Pooja Room',             val: avqPoojaRoom,      set: setAvqPoojaRoom      },
+                { label: 'Sitting Balcony',        val: avqBalcony,        set: setAvqBalcony        },
+                { label: 'Kitchen Exhaust Fan',    val: avqKitchenExhaust, set: setAvqKitchenExhaust },
+                { label: 'Lift Access',            val: avqLiftAccess,     set: setAvqLiftAccess     },
+              ].map(({ label, val, set }) => (
+                <button key={label} onClick={() => set(v => !v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Housing Style */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Housing Style</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: '',                 label: 'Any'              },
+                { value: 'Flat',             label: 'Flat'             },
+                { value: 'Independent House', label: 'Independent House' },
+                { value: 'Row House',        label: 'Row House'        },
+                { value: 'Bungalow',         label: 'Bungalow'         },
+              ].map(({ value, label }) => (
+                <button key={value} onClick={() => setAvqHousingStyle(avqHousingStyle === value ? '' : value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${avqHousingStyle === value ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
       </FilterDrawer>
 
