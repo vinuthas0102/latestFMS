@@ -287,6 +287,48 @@ export interface QuarterRequestApprovalChat {
   created_at: string;
 }
 
+export interface CreateQuarterInput {
+  unit_number: string;
+  quarter_number: string;
+  quarter_type: string;
+  bhk_config: string;
+  quota: string;
+  counter_no: string;
+  block_name: string;
+  location_area: string;
+  region: string;
+  district: string;
+  pin_code: string;
+  address: string;
+  floor_number: number;
+  total_floors: number;
+  facing: string;
+  total_area_sqft: number;
+  area_sqft: number;
+  resident_type: string;
+  toilet_western: boolean;
+  toilet_indian: boolean;
+  toilet_type: string;
+  parking_details: string;
+  current_availability_status: string;
+  monthly_rent: number;
+  electricity_rate: number;
+  water_charges: number;
+  penalty_terms: string;
+  pooja_room: boolean;
+  electrical_fixtures: string;
+  power_backup: boolean;
+  water_heating: string;
+  lift_access: boolean;
+  kitchen_exhaust: boolean;
+  housing_style: string;
+  balcony: boolean;
+  renovation_status: string;
+  furnishing_status: string;
+  description: string;
+  estate_id: string | null;
+}
+
 export interface QuarterInspection {
   id: string;
   allotment_id: string;

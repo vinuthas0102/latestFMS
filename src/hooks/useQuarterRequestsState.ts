@@ -288,6 +288,8 @@ export function useQuarterRequestsState() {
   const [avqMenuId, setAvqMenuId] = useState<string | null>(null);
   const [avqMenuPos, setAvqMenuPos] = useState<{ top: number; left: number } | null>(null);
   const avqMenuRef = useRef<HTMLDivElement>(null);
+  const [showNewQuarterModal, setShowNewQuarterModal] = useState(false);
+  const [newQuarterSubmitting, setNewQuarterSubmitting] = useState(false);
 
   // ── Card-level dot-menu (portal-based) ────────────────────────────────────
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -522,6 +524,8 @@ export function useQuarterRequestsState() {
     avqMenuId, setAvqMenuId,
     avqMenuPos, setAvqMenuPos,
     avqMenuRef,
+    showNewQuarterModal, setShowNewQuarterModal,
+    newQuarterSubmitting, setNewQuarterSubmitting,
     openMenuId, setOpenMenuId,
     menuPos, setMenuPos,
     menuRef,

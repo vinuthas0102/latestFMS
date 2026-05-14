@@ -41,6 +41,7 @@ export type {
   QuarterInspectionChecklistItem,
   QuarterHandover,
   QuarterGuestInfo,
+  CreateQuarterInput,
 } from '../types/quarters';
 
 import type {
@@ -1371,5 +1372,22 @@ export const quartersService = {
     const guestInfoId = _guestInfoId;
     const { error } = await supabase.from('quarter_guest_info').delete().eq('id', guestInfoId);
     if (error) throw error;
+  },
+
+  async createQuarter(input: CreateQuarterInput): Promise<Quarter> {
+    const { data, error } = await supabase
+      .from('quarters')
+      .insert({
+        ...input,
+        occupancy_status: 'AVAILABLE',
+        is_active: true,
+        amenities: [],
+        images: [],
+        metadata: {},
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Quarter;
   },
 };

@@ -73,6 +73,7 @@ import { QUARTER_TYPE_OPTIONS } from '../utils/quarterDisplay';
 const NewRequestModal = React.lazy(() => import('../components/quarters/NewRequestModal').then(m => ({ default: m.NewRequestModal })));
 import type { UploadedDoc } from '../components/quarters/NewRequestModal';
 import { UpgradeRequestModal } from '../components/quarters/UpgradeRequestModal';
+import { AddQuarterModal } from '../components/quarters/AddQuarterModal';
 import type {
   DPFilter, PrefItem, NewRequestForm, StatusCard,
   ActionPopupType, ActionPopupState, RequestForType,
@@ -265,6 +266,8 @@ export const QuarterRequestsPage: React.FC = () => {
     avqHousingStyle, setAvqHousingStyle,
     avqFilterDrawerOpen, setAvqFilterDrawerOpen, avqDetailQuarterId, setAvqDetailQuarterId,
     avqMenuId, setAvqMenuId, avqMenuPos, setAvqMenuPos, avqMenuRef,
+    showNewQuarterModal, setShowNewQuarterModal,
+    newQuarterSubmitting, setNewQuarterSubmitting,
     openMenuId, setOpenMenuId, menuPos, setMenuPos, menuRef,
     expandedCardId, setExpandedCardId, chatOpenForId, setChatOpenForId,
     expandedSvcsCardId, setExpandedSvcsCardId, expandedSvcDetailId, setExpandedSvcDetailId,
@@ -1440,6 +1443,19 @@ export const QuarterRequestsPage: React.FC = () => {
     avqWesternToilet || avqIndianToilet || avqCarParking ||
     avqPoojaRoom || avqBalcony || avqKitchenExhaust || avqLiftAccess || !!avqHousingStyle;
 
+  // ─── EM: Create new quarter ────────────────────────────────────────────────
+  const handleCreateQuarter = async (input: import('../types/quarters').CreateQuarterInput) => {
+    if (!user) return;
+    setNewQuarterSubmitting(true);
+    try {
+      await quartersService.createQuarter(input);
+      addToast('Quarter created successfully', 'success');
+      setShowNewQuarterModal(false);
+      const fresh = await quartersService.getQuarters({ occupancy_status: 'AVAILABLE' });
+      setAvailableQuarters(fresh);
+    } catch { addToast('Failed to create quarter', 'error'); } finally { setNewQuarterSubmitting(false); }
+  };
+
   // ─── helper to open preview modal ──────────────────────────────────────────
 
   function openQuarterPreview(req: QuarterRequest) {
@@ -2110,7 +2126,7 @@ export const QuarterRequestsPage: React.FC = () => {
               />
             </div>
 
-            {/* Result count */}
+            {/* Result count + New Quarter button */}
             <div className="flex-none flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium">
                 {availableQuartersLoading ? 'Loading…' : `${filteredAvailableQuarters.length} quarter${filteredAvailableQuarters.length !== 1 ? 's' : ''} available`}
@@ -2124,6 +2140,14 @@ export const QuarterRequestsPage: React.FC = () => {
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5"
                 >
                   <X size={11} /> Clear
+                </button>
+              )}
+              {isEO && (
+                <button
+                  onClick={() => setShowNewQuarterModal(true)}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Plus size={12} /> New Quarter
                 </button>
               )}
             </div>
@@ -3171,10 +3195,11 @@ export const QuarterRequestsPage: React.FC = () => {
                                         {/* Three-dot action menu — EO employee mode only */}
                                         {isEO && eoMode === 'employee' && (() => {
                                           const isMaintenanceOrGrievance = svc.service_type === 'MAINTENANCE' || svc.service_type === 'GRIEVANCE';
-                                          const isExtendOrVacate = svc.service_type === 'EXTEND' || svc.service_type === 'VACATE';
+                                          const isExtend = svc.service_type === 'EXTEND';
+                                          const isVacate = svc.service_type === 'VACATE';
                                           const isPending = svc.request_status === 'PENDING';
                                           const isInProgress = svc.request_status === 'IN_PROGRESS';
-                                          if (!isMaintenanceOrGrievance && !isExtendOrVacate) return null;
+                                          if (!isMaintenanceOrGrievance && !isExtend && !isVacate) return null;
                                           if (!isPending && !isInProgress) return null;
                                           return (
                                             <div className="relative shrink-0">
@@ -3208,7 +3233,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                                       </button>
                                                     </>
                                                   )}
-                                                  {isExtendOrVacate && isPending && (
+                                                  {isExtend && isPending && (
                                                     <>
                                                       <button
                                                         onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
@@ -3223,6 +3248,14 @@ export const QuarterRequestsPage: React.FC = () => {
                                                         <ThumbsDown size={11} />Reject
                                                       </button>
                                                     </>
+                                                  )}
+                                                  {isVacate && isPending && (
+                                                    <button
+                                                      onClick={() => { setSvcMenuOpenId(null); setInspectTarget(req); setInspectRemarks(''); setInspectCondition('GOOD'); setInspectChecklist(buildDefaultChecklist()); setInspectInspectorName(''); }}
+                                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-blue-700 font-medium transition-colors rounded-xl"
+                                                    >
+                                                      <ClipboardCheck size={11} />Inspection
+                                                    </button>
                                                   )}
                                                 </div>
                                               )}
@@ -3894,6 +3927,15 @@ export const QuarterRequestsPage: React.FC = () => {
 
         </div>
       </FilterDrawer>
+
+      {/* ── Add New Quarter modal (EM only) ──────────────────────────────── */}
+      {showNewQuarterModal && (
+        <AddQuarterModal
+          onClose={() => setShowNewQuarterModal(false)}
+          onSubmit={handleCreateQuarter}
+          submitting={newQuarterSubmitting}
+        />
+      )}
 
       {/* ── New/Modify Request — Full Screen ─────────────────────────────── */}
       {showNewModal && (
