@@ -243,8 +243,6 @@ export const QuarterRequestsPage: React.FC = () => {
     actionDate, setActionDate, actionBhk, setActionBhk, actionSubmitting, setActionSubmitting,
     acceptCardId, setAcceptCardId, acceptCardRemarks, setAcceptCardRemarks,
     acceptCardSubmitting, setAcceptCardSubmitting,
-    acceptTCModalReqId, setAcceptTCModalReqId,
-    acceptTCModalRemarks, setAcceptTCModalRemarks,
     inspectTarget, setInspectTarget, inspectRemarks, setInspectRemarks,
     inspectInspectorName, setInspectInspectorName, inspectCondition, setInspectCondition,
     inspectChecklist, setInspectChecklist, inspectSubmitting, setInspectSubmitting,
@@ -2849,7 +2847,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             {!isEO && req.request_status === 'ALLOTTED' && req.allotment?.id && (
                               <>
                                 <button
-                                  onClick={e => { e.stopPropagation(); setAcceptTCModalReqId(req.id); setAcceptTCModalRemarks(''); }}
+                                  onClick={e => { e.stopPropagation(); setAcceptCardId(req.id); setAcceptCardRemarks(''); }}
                                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
                                   title="Accept Allotment"
                                 >
@@ -2906,36 +2904,6 @@ export const QuarterRequestsPage: React.FC = () => {
                       </div>
 
                       {/* Inline Accept confirmation form */}
-                      {acceptCardId === req.id && (
-                        <div
-                          className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 space-y-2"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <p className="text-[11px] text-emerald-800 font-semibold uppercase tracking-wide">Confirm Acceptance</p>
-                          <textarea
-                            value={acceptCardRemarks}
-                            onChange={e => setAcceptCardRemarks(e.target.value)}
-                            placeholder="Remarks (optional)…"
-                            rows={2}
-                            className="w-full px-3 py-2 text-[12px] border border-emerald-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleCardAcknowledge(req)}
-                              disabled={acceptCardSubmitting}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                            >
-                              {acceptCardSubmitting ? 'Confirming…' : <><CheckCircle size={12} /> Confirm Accept</>}
-                            </button>
-                            <button
-                              onClick={() => { setAcceptCardId(null); setAcceptCardRemarks(''); }}
-                              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Expand/collapse request details */}
                       {expandedCardId === req.id && (
@@ -3674,30 +3642,6 @@ export const QuarterRequestsPage: React.FC = () => {
         />
       )}
 
-      {/* ── Accept Allotment T&C Modal (Govt Official) ──────────────────── */}
-      <AcceptAllotmentModal
-        open={!!acceptTCModalReqId}
-        remarks={acceptTCModalRemarks}
-        submitting={acceptCardSubmitting}
-        onClose={() => { setAcceptTCModalReqId(null); setAcceptTCModalRemarks(''); }}
-        onRemarksChange={setAcceptTCModalRemarks}
-        onConfirm={() => {
-          const req = requests.find(r => r.id === acceptTCModalReqId);
-          if (!req) return;
-          setAcceptCardRemarks(acceptTCModalRemarks);
-          setAcceptCardSubmitting(true);
-          quartersService.acknowledgeAllotment(req.allotment!.id, req.id, acceptTCModalRemarks)
-            .then(() => {
-              addToast('Allotment accepted', 'success');
-              setAcceptTCModalReqId(null);
-              setAcceptTCModalRemarks('');
-              loadData();
-            })
-            .catch(() => addToast('Failed to accept allotment', 'error'))
-            .finally(() => setAcceptCardSubmitting(false));
-        }}
-      />
-
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
       <DeclineAllotmentModal
         reqId={declineModalReqId}
@@ -3708,6 +3652,17 @@ export const QuarterRequestsPage: React.FC = () => {
         onRemarksChange={setDeclineModalRemarks}
         onDocChange={setDeclineModalDocUrl}
         onDecline={handleDeclineModalSubmit}
+      />
+      <AcceptAllotmentModal
+        reqId={acceptCardId}
+        remarks={acceptCardRemarks}
+        submitting={acceptCardSubmitting}
+        onClose={() => { setAcceptCardId(null); setAcceptCardRemarks(''); }}
+        onRemarksChange={setAcceptCardRemarks}
+        onConfirm={() => {
+          const req = requests.find(r => r.id === acceptCardId);
+          if (req) handleCardAcknowledge(req);
+        }}
       />
 
       {/* ── EO Inline Reject Modal ───────────────────────────────────── */}
