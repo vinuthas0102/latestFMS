@@ -239,6 +239,10 @@ export function useQuarterRequestsState() {
   const [acceptCardRemarks, setAcceptCardRemarks] = useState('');
   const [acceptCardSubmitting, setAcceptCardSubmitting] = useState(false);
 
+  // ── Accept allotment T&C modal (govt official) ────────────────────────────
+  const [acceptTCModalReqId, setAcceptTCModalReqId] = useState<string | null>(null);
+  const [acceptTCModalRemarks, setAcceptTCModalRemarks] = useState('');
+
   // ── New Inspection modal (Accepted DP filter) ─────────────────────────────
   const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
   const [inspectRemarks, setInspectRemarks] = useState('');
@@ -483,6 +487,8 @@ export function useQuarterRequestsState() {
     acceptCardId, setAcceptCardId,
     acceptCardRemarks, setAcceptCardRemarks,
     acceptCardSubmitting, setAcceptCardSubmitting,
+    acceptTCModalReqId, setAcceptTCModalReqId,
+    acceptTCModalRemarks, setAcceptTCModalRemarks,
     inspectTarget, setInspectTarget,
     inspectRemarks, setInspectRemarks,
     inspectInspectorName, setInspectInspectorName,

@@ -65,6 +65,7 @@ const RightPanelDraft = React.lazy(() => import('../components/quarters/Employee
 const RightPanelPreferences = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelPreferences })));
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
+import { AcceptAllotmentModal } from '../components/quarters/AcceptAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 import { InspectionFormModal } from '../components/quarters/InspectionFormModal';
 import { buildDefaultChecklist } from '../constants/inspectionChecklist';
@@ -242,6 +243,8 @@ export const QuarterRequestsPage: React.FC = () => {
     actionDate, setActionDate, actionBhk, setActionBhk, actionSubmitting, setActionSubmitting,
     acceptCardId, setAcceptCardId, acceptCardRemarks, setAcceptCardRemarks,
     acceptCardSubmitting, setAcceptCardSubmitting,
+    acceptTCModalReqId, setAcceptTCModalReqId,
+    acceptTCModalRemarks, setAcceptTCModalRemarks,
     inspectTarget, setInspectTarget, inspectRemarks, setInspectRemarks,
     inspectInspectorName, setInspectInspectorName, inspectCondition, setInspectCondition,
     inspectChecklist, setInspectChecklist, inspectSubmitting, setInspectSubmitting,
@@ -2846,7 +2849,7 @@ export const QuarterRequestsPage: React.FC = () => {
                             {!isEO && req.request_status === 'ALLOTTED' && req.allotment?.id && (
                               <>
                                 <button
-                                  onClick={e => { e.stopPropagation(); setAcceptCardId(req.id); setAcceptCardRemarks(''); }}
+                                  onClick={e => { e.stopPropagation(); setAcceptTCModalReqId(req.id); setAcceptTCModalRemarks(''); }}
                                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-semibold hover:bg-emerald-700 transition-colors shrink-0"
                                   title="Accept Allotment"
                                 >
@@ -3599,7 +3602,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><GitMerge size={12} className="text-teal-600" /></span>
-                                Exchange Quarter
+                                Mutual Exchange
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
@@ -3670,6 +3673,30 @@ export const QuarterRequestsPage: React.FC = () => {
           onSubmit={handleStartAcceptedInspection}
         />
       )}
+
+      {/* ── Accept Allotment T&C Modal (Govt Official) ──────────────────── */}
+      <AcceptAllotmentModal
+        open={!!acceptTCModalReqId}
+        remarks={acceptTCModalRemarks}
+        submitting={acceptCardSubmitting}
+        onClose={() => { setAcceptTCModalReqId(null); setAcceptTCModalRemarks(''); }}
+        onRemarksChange={setAcceptTCModalRemarks}
+        onConfirm={() => {
+          const req = requests.find(r => r.id === acceptTCModalReqId);
+          if (!req) return;
+          setAcceptCardRemarks(acceptTCModalRemarks);
+          setAcceptCardSubmitting(true);
+          quartersService.acknowledgeAllotment(req.allotment!.id, req.id, acceptTCModalRemarks)
+            .then(() => {
+              addToast('Allotment accepted', 'success');
+              setAcceptTCModalReqId(null);
+              setAcceptTCModalRemarks('');
+              loadData();
+            })
+            .catch(() => addToast('Failed to accept allotment', 'error'))
+            .finally(() => setAcceptCardSubmitting(false));
+        }}
+      />
 
       {/* ── Decline Allotment Modal ──────────────────────────────────────── */}
       <DeclineAllotmentModal
