@@ -65,6 +65,7 @@ const RightPanelDraft = React.lazy(() => import('../components/quarters/Employee
 const RightPanelPreferences = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelPreferences })));
 const RightPanelSubmitted = React.lazy(() => import('../components/quarters/EmployeeRightPanels').then(m => ({ default: m.RightPanelSubmitted })));
 import { DeclineAllotmentModal } from '../components/quarters/DeclineAllotmentModal';
+import { AcceptAllotmentModal } from '../components/quarters/AcceptAllotmentModal';
 import { ActionPopupModal } from '../components/quarters/ActionPopupModal';
 import { InspectionFormModal } from '../components/quarters/InspectionFormModal';
 import { buildDefaultChecklist } from '../constants/inspectionChecklist';
@@ -2903,36 +2904,6 @@ export const QuarterRequestsPage: React.FC = () => {
                       </div>
 
                       {/* Inline Accept confirmation form */}
-                      {acceptCardId === req.id && (
-                        <div
-                          className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 space-y-2"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <p className="text-[11px] text-emerald-800 font-semibold uppercase tracking-wide">Confirm Acceptance</p>
-                          <textarea
-                            value={acceptCardRemarks}
-                            onChange={e => setAcceptCardRemarks(e.target.value)}
-                            placeholder="Remarks (optional)…"
-                            rows={2}
-                            className="w-full px-3 py-2 text-[12px] border border-emerald-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleCardAcknowledge(req)}
-                              disabled={acceptCardSubmitting}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                            >
-                              {acceptCardSubmitting ? 'Confirming…' : <><CheckCircle size={12} /> Confirm Accept</>}
-                            </button>
-                            <button
-                              onClick={() => { setAcceptCardId(null); setAcceptCardRemarks(''); }}
-                              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Expand/collapse request details */}
                       {expandedCardId === req.id && (
@@ -3599,7 +3570,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-teal-100 flex items-center justify-center shrink-0"><GitMerge size={12} className="text-teal-600" /></span>
-                                Exchange Quarter
+                                Mutual Exchange
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('VACATE', req.id, req.allotment!.id); }}
@@ -3681,6 +3652,17 @@ export const QuarterRequestsPage: React.FC = () => {
         onRemarksChange={setDeclineModalRemarks}
         onDocChange={setDeclineModalDocUrl}
         onDecline={handleDeclineModalSubmit}
+      />
+      <AcceptAllotmentModal
+        reqId={acceptCardId}
+        remarks={acceptCardRemarks}
+        submitting={acceptCardSubmitting}
+        onClose={() => { setAcceptCardId(null); setAcceptCardRemarks(''); }}
+        onRemarksChange={setAcceptCardRemarks}
+        onConfirm={() => {
+          const req = requests.find(r => r.id === acceptCardId);
+          if (req) handleCardAcknowledge(req);
+        }}
       />
 
       {/* ── EO Inline Reject Modal ───────────────────────────────────── */}
