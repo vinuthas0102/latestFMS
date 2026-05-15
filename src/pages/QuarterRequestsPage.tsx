@@ -1327,7 +1327,7 @@ export const QuarterRequestsPage: React.FC = () => {
       // In EM employee mode: "Allotted" = assigned but pending workflow approval
       // In Govt official / EM self: "Allocated" = all allotted requests
       key: 'allotted',
-      label: (isEO && eoMode === 'employee') ? 'Allotted' : 'Allocated',
+      label: 'Allotted',
       description: (isEO && eoMode === 'employee') ? 'Pending approval / action' : 'Quarter assigned to you',
       count: (isEO && eoMode === 'employee') ? statCounts.allotted : govtAllottedCount,
       gradient: (isEO && eoMode === 'employee') ? 'from-emerald-500 to-teal-400' : 'from-green-500 to-emerald-400',
