@@ -237,7 +237,21 @@ export const QuarterRequestsPage: React.FC = () => {
     detailRequest, setDetailRequest, detailReturnFilter, setDetailReturnFilter,
     reqSearch, setReqSearch, reqSort, setReqSort, reqBhkFilter, setReqBhkFilter,
     reqToiletFilter, setReqToiletFilter, reqFloorFilter, setReqFloorFilter,
-    filterDrawerOpen, setFilterDrawerOpen, selectedPrefQuarter, setSelectedPrefQuarter,
+    filterDrawerOpen, setFilterDrawerOpen,
+    reqHousingStyleFilter, setReqHousingStyleFilter,
+    reqRequestTypeFilter, setReqRequestTypeFilter,
+    reqLocationFilter, setReqLocationFilter,
+    reqDateFrom, setReqDateFrom,
+    reqDateTo, setReqDateTo,
+    reqGradeFilter, setReqGradeFilter,
+    reqApprovalStatusFilter, setReqApprovalStatusFilter,
+    reqOccupancyStatusFilter, setReqOccupancyStatusFilter,
+    reqOccupiedDateFrom, setReqOccupiedDateFrom,
+    reqOccupiedDateTo, setReqOccupiedDateTo,
+    reqDeclinedDateFrom, setReqDeclinedDateFrom,
+    reqDeclinedDateTo, setReqDeclinedDateTo,
+    reqUnitNumberFilter, setReqUnitNumberFilter,
+    selectedPrefQuarter, setSelectedPrefQuarter,
     rightAction, setRightAction, actionRemarks, setActionRemarks,
     actionReason, setActionReason, actionDocUrl, setActionDocUrl,
     actionDate, setActionDate, actionBhk, setActionBhk, actionSubmitting, setActionSubmitting,
@@ -1417,6 +1431,94 @@ export const QuarterRequestsPage: React.FC = () => {
       );
     }
 
+    // ── Extended filters ────────────────────────────────────────────────────
+    if (reqHousingStyleFilter) {
+      result = result.filter(r => {
+        const quarter = (r.allotment?.quarter as Quarter | undefined) ?? (r.preferences?.[0]?.quarter as Quarter | undefined);
+        return quarter?.housing_style?.toLowerCase().includes(reqHousingStyleFilter.toLowerCase());
+      });
+    }
+
+    if (reqRequestTypeFilter.length > 0) {
+      result = result.filter(r => reqRequestTypeFilter.includes(r.request_type ?? ''));
+    }
+
+    if (reqLocationFilter.trim()) {
+      const loc = reqLocationFilter.toLowerCase();
+      result = result.filter(r => {
+        const quarter = (r.allotment?.quarter as Quarter | undefined) ?? (r.preferences?.[0]?.quarter as Quarter | undefined);
+        return (
+          r.preferred_location?.toLowerCase().includes(loc) ||
+          quarter?.location_area?.toLowerCase().includes(loc) ||
+          quarter?.region?.toLowerCase().includes(loc)
+        );
+      });
+    }
+
+    if (reqDateFrom) {
+      const from = new Date(reqDateFrom).getTime();
+      result = result.filter(r => new Date(r.created_at).getTime() >= from);
+    }
+    if (reqDateTo) {
+      const to = new Date(reqDateTo).getTime() + 86400000 - 1;
+      result = result.filter(r => new Date(r.created_at).getTime() <= to);
+    }
+
+    if (reqGradeFilter.trim()) {
+      const g = reqGradeFilter.toLowerCase();
+      result = result.filter(r => {
+        const quarter = (r.allotment?.quarter as Quarter | undefined) ?? (r.preferences?.[0]?.quarter as Quarter | undefined);
+        return quarter?.quota?.toLowerCase().includes(g);
+      });
+    }
+
+    // Govt Official tab-specific filters
+    if (reqApprovalStatusFilter.length > 0) {
+      result = result.filter(r => reqApprovalStatusFilter.includes(r.allotment?.approval_status ?? ''));
+    }
+
+    if (reqOccupancyStatusFilter.length > 0) {
+      result = result.filter(r => {
+        const quarter = r.allotment?.quarter as Quarter | undefined;
+        return reqOccupancyStatusFilter.includes(quarter?.occupancy_status ?? '');
+      });
+    }
+
+    if (reqUnitNumberFilter.trim()) {
+      const un = reqUnitNumberFilter.toLowerCase();
+      result = result.filter(r => {
+        const quarter = r.allotment?.quarter as Quarter | undefined;
+        return (
+          quarter?.unit_number?.toLowerCase().includes(un) ||
+          quarter?.quarter_number?.toLowerCase().includes(un)
+        );
+      });
+    }
+
+    if (reqOccupiedDateFrom) {
+      const from = new Date(reqOccupiedDateFrom).getTime();
+      result = result.filter(r => {
+        const dt = r.allotment?.move_in_date ?? r.updated_at;
+        return dt ? new Date(dt).getTime() >= from : false;
+      });
+    }
+    if (reqOccupiedDateTo) {
+      const to = new Date(reqOccupiedDateTo).getTime() + 86400000 - 1;
+      result = result.filter(r => {
+        const dt = r.allotment?.move_in_date ?? r.updated_at;
+        return dt ? new Date(dt).getTime() <= to : false;
+      });
+    }
+
+    if (reqDeclinedDateFrom) {
+      const from = new Date(reqDeclinedDateFrom).getTime();
+      result = result.filter(r => new Date(r.updated_at).getTime() >= from);
+    }
+    if (reqDeclinedDateTo) {
+      const to = new Date(reqDeclinedDateTo).getTime() + 86400000 - 1;
+      result = result.filter(r => new Date(r.updated_at).getTime() <= to);
+    }
+
     result.sort((a, b) => {
       if (dpFilter === 'occupied') {
         const rankA = a.request_status === 'ACKNOWLEDGED' ? 0 : 1;
@@ -1427,14 +1529,34 @@ export const QuarterRequestsPage: React.FC = () => {
       return reqSort === 'newest' ? diff : -diff;
     });
     return result;
-  }, [requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter, isEO, eoMode]);
+  }, [
+    requests, dpFilter, reqSearch, reqSort, reqBhkFilter, reqToiletFilter, reqFloorFilter, isEO, eoMode,
+    reqHousingStyleFilter, reqRequestTypeFilter, reqLocationFilter, reqDateFrom, reqDateTo, reqGradeFilter,
+    reqApprovalStatusFilter, reqOccupancyStatusFilter, reqUnitNumberFilter,
+    reqOccupiedDateFrom, reqOccupiedDateTo, reqDeclinedDateFrom, reqDeclinedDateTo,
+  ]);
 
   const selectedPrefs = selectedRequest?.preferences?.sort((a, b) => a.preference_rank - b.preference_rank) ?? [];
 
   const activeFilterCount = [
     reqBhkFilter !== 'ALL',
     reqSearch.trim().length > 0,
-  ].filter(Boolean).length + reqToiletFilter.length + reqFloorFilter.length;
+    reqHousingStyleFilter.trim().length > 0,
+    reqLocationFilter.trim().length > 0,
+    reqDateFrom.length > 0,
+    reqDateTo.length > 0,
+    reqGradeFilter.trim().length > 0,
+    reqUnitNumberFilter.trim().length > 0,
+    reqOccupiedDateFrom.length > 0,
+    reqOccupiedDateTo.length > 0,
+    reqDeclinedDateFrom.length > 0,
+    reqDeclinedDateTo.length > 0,
+  ].filter(Boolean).length +
+    reqToiletFilter.length +
+    reqFloorFilter.length +
+    reqRequestTypeFilter.length +
+    reqApprovalStatusFilter.length +
+    reqOccupancyStatusFilter.length;
 
   const filteredAvailableQuarters = React.useMemo(() => {
     let result = [...availableQuarters];
@@ -3769,7 +3891,15 @@ export const QuarterRequestsPage: React.FC = () => {
         onClose={() => setFilterDrawerOpen(false)}
         title="Filters"
         activeFilterCount={activeFilterCount}
-        onClearAll={() => { setReqSearch(''); setReqBhkFilter('ALL'); setReqToiletFilter([]); setReqFloorFilter([]); }}
+        onClearAll={() => {
+          setReqSearch(''); setReqBhkFilter('ALL'); setReqToiletFilter([]); setReqFloorFilter([]);
+          setReqHousingStyleFilter(''); setReqRequestTypeFilter([]); setReqLocationFilter('');
+          setReqDateFrom(''); setReqDateTo(''); setReqGradeFilter('');
+          setReqApprovalStatusFilter([]); setReqOccupancyStatusFilter([]);
+          setReqUnitNumberFilter('');
+          setReqOccupiedDateFrom(''); setReqOccupiedDateTo('');
+          setReqDeclinedDateFrom(''); setReqDeclinedDateTo('');
+        }}
       >
         <div className="space-y-5">
           <div>
@@ -3823,6 +3953,205 @@ export const QuarterRequestsPage: React.FC = () => {
               ))}
             </div>
           </div>
+          {/* ── Estate Manager extra filters ── */}
+          {isEO && eoMode === 'employee' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Housing Style</label>
+              <div className="flex flex-wrap gap-2">
+                {['', 'Apartment', 'Independent', 'Row House', 'Duplex', 'Studio'].map(v => (
+                  <button key={v} onClick={() => setReqHousingStyleFilter(v)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqHousingStyleFilter === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {v === '' ? 'Any' : v}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Type</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'GENERAL', label: 'General' }, { value: 'MEDICAL', label: 'Medical' }, { value: 'REFERENCE', label: 'Reference' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqRequestTypeFilter(prev =>
+                    prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqRequestTypeFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Sector / Location / Area</label>
+              <input type="text" placeholder="e.g. Sector 4, North Block…" value={reqLocationFilter} onChange={e => setReqLocationFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Date</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">From</span>
+                  <input type="date" value={reqDateFrom} onChange={e => setReqDateFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">To</span>
+                  <input type="date" value={reqDateTo} onChange={e => setReqDateTo(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Grade</label>
+              <input type="text" placeholder="e.g. Grade A, B…" value={reqGradeFilter} onChange={e => setReqGradeFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            </div>
+          </>)}
+
+          {/* ── Govt Official tab-specific filters ── */}
+          {!isEO && dpFilter === 'draft' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Date</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">From</span>
+                  <input type="date" value={reqDateFrom} onChange={e => setReqDateFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">To</span>
+                  <input type="date" value={reqDateTo} onChange={e => setReqDateTo(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Type</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'GENERAL', label: 'General' }, { value: 'MEDICAL', label: 'Medical' }, { value: 'REFERENCE', label: 'Reference' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqRequestTypeFilter(prev =>
+                    prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqRequestTypeFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {!isEO && dpFilter === 'submitted' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Date</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">From</span>
+                  <input type="date" value={reqDateFrom} onChange={e => setReqDateFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">To</span>
+                  <input type="date" value={reqDateTo} onChange={e => setReqDateTo(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Approval Status</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'PENDING', label: 'Pending' }, { value: 'APPROVED', label: 'Approved' }, { value: 'REJECTED', label: 'Rejected' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqApprovalStatusFilter(prev =>
+                    prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqApprovalStatusFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {!isEO && dpFilter === 'allotted' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Unit Number / Quarter No.</label>
+              <input type="text" placeholder="e.g. A-101, QTR-04…" value={reqUnitNumberFilter} onChange={e => setReqUnitNumberFilter(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Occupancy Status</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'VACANT', label: 'Vacant' }, { value: 'OCCUPIED', label: 'Occupied' }, { value: 'UNDER_MAINTENANCE', label: 'Maintenance' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqOccupancyStatusFilter(prev =>
+                    prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqOccupancyStatusFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {!isEO && dpFilter === 'occupied' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Occupied Date</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">From</span>
+                  <input type="date" value={reqOccupiedDateFrom} onChange={e => setReqOccupiedDateFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">To</span>
+                  <input type="date" value={reqOccupiedDateTo} onChange={e => setReqOccupiedDateTo(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Occupancy Status</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'VACANT', label: 'Vacant' }, { value: 'OCCUPIED', label: 'Occupied' }, { value: 'UNDER_MAINTENANCE', label: 'Maintenance' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqOccupancyStatusFilter(prev =>
+                    prev.includes(value) ? prev.filter(s => s !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqOccupancyStatusFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {!isEO && dpFilter === 'declined' && (<>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Declined Date</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">From</span>
+                  <input type="date" value={reqDeclinedDateFrom} onChange={e => setReqDeclinedDateFrom(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-gray-400 mb-1">To</span>
+                  <input type="date" value={reqDeclinedDateTo} onChange={e => setReqDeclinedDateTo(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Request Type</label>
+              <div className="flex flex-wrap gap-2">
+                {[{ value: 'GENERAL', label: 'General' }, { value: 'MEDICAL', label: 'Medical' }, { value: 'REFERENCE', label: 'Reference' }].map(({ value, label }) => (
+                  <button key={value} onClick={() => setReqRequestTypeFilter(prev =>
+                    prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+                  )}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${reqRequestTypeFilter.includes(value) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
+
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-2">Sort By</label>
             <div className="space-y-2">

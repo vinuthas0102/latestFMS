@@ -221,6 +221,21 @@ export function useQuarterRequestsState() {
   const [reqToiletFilter, setReqToiletFilter] = useState<string[]>([]);
   const [reqFloorFilter, setReqFloorFilter] = useState<number[]>([]);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  // Extended filters — Estate Manager (all DPs)
+  const [reqHousingStyleFilter, setReqHousingStyleFilter] = useState('');
+  const [reqRequestTypeFilter, setReqRequestTypeFilter] = useState<string[]>([]);
+  const [reqLocationFilter, setReqLocationFilter] = useState('');
+  const [reqDateFrom, setReqDateFrom] = useState('');
+  const [reqDateTo, setReqDateTo] = useState('');
+  const [reqGradeFilter, setReqGradeFilter] = useState('');
+  // Extended filters — Govt Official tab-specific
+  const [reqApprovalStatusFilter, setReqApprovalStatusFilter] = useState<string[]>([]);
+  const [reqOccupancyStatusFilter, setReqOccupancyStatusFilter] = useState<string[]>([]);
+  const [reqOccupiedDateFrom, setReqOccupiedDateFrom] = useState('');
+  const [reqOccupiedDateTo, setReqOccupiedDateTo] = useState('');
+  const [reqDeclinedDateFrom, setReqDeclinedDateFrom] = useState('');
+  const [reqDeclinedDateTo, setReqDeclinedDateTo] = useState('');
+  const [reqUnitNumberFilter, setReqUnitNumberFilter] = useState('');
 
   // ── Selected preference quarter for detail view ───────────────────────────
   const [selectedPrefQuarter, setSelectedPrefQuarter] = useState<Quarter | null>(null);
@@ -472,6 +487,19 @@ export function useQuarterRequestsState() {
     reqToiletFilter, setReqToiletFilter,
     reqFloorFilter, setReqFloorFilter,
     filterDrawerOpen, setFilterDrawerOpen,
+    reqHousingStyleFilter, setReqHousingStyleFilter,
+    reqRequestTypeFilter, setReqRequestTypeFilter,
+    reqLocationFilter, setReqLocationFilter,
+    reqDateFrom, setReqDateFrom,
+    reqDateTo, setReqDateTo,
+    reqGradeFilter, setReqGradeFilter,
+    reqApprovalStatusFilter, setReqApprovalStatusFilter,
+    reqOccupancyStatusFilter, setReqOccupancyStatusFilter,
+    reqOccupiedDateFrom, setReqOccupiedDateFrom,
+    reqOccupiedDateTo, setReqOccupiedDateTo,
+    reqDeclinedDateFrom, setReqDeclinedDateFrom,
+    reqDeclinedDateTo, setReqDeclinedDateTo,
+    reqUnitNumberFilter, setReqUnitNumberFilter,
     selectedPrefQuarter, setSelectedPrefQuarter,
     rightAction, setRightAction,
     actionRemarks, setActionRemarks,
