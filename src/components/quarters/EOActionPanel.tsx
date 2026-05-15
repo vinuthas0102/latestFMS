@@ -281,9 +281,13 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
 
   const eoAllotChatFileRef = useRef<HTMLInputElement>(null);
 
-  // Local state for WFL selector on the Approval tab
+  // Local state for WFL selector — allotment approval tab
   const [wflSelectedId, setWflSelectedId] = useState('');
   const [wflSubmitted, setWflSubmitted] = useState(false);
+
+  // Local state for WFL selector — submitted DP approval tab
+  const [reqWflSelectedId, setReqWflSelectedId] = useState('');
+  const [reqWflSubmitted, setReqWflSubmitted] = useState(false);
 
   const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
   const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
@@ -310,6 +314,14 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   void approvalSubmitting;
   void handleApproveLevel;
   void handleSendClarification;
+  void requestApprovalRecord;
+  void requestApprovalChats;
+  void requestApprovalAction; void setRequestApprovalAction;
+  void requestApprovalRemarks; void setRequestApprovalRemarks;
+  void requestApprovalTargetLevel; void setRequestApprovalTargetLevel;
+  void requestApprovalSubmitting;
+  void handleApproveRequestLevel;
+  void handleSendRequestClarification;
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -507,125 +519,103 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
           </div>
         )}
 
-        {/* Request Approval tab (SUBMITTED records) */}
-        {eoRightMode === 'request_approval_chat' && isSubmitted && isEO && !requestApprovalRecord && (
-          <div className="p-4">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-4">
-              <div className="flex items-center gap-2 mb-2">
-                <GitMerge size={14} className="text-blue-600 shrink-0" />
-                <span className="text-xs font-bold text-blue-800">Start Approval Workflow</span>
+        {/* Request Approval tab (SUBMITTED records) — WFL selector */}
+        {eoRightMode === 'request_approval_chat' && isSubmitted && isEO && (
+          <div className="p-4 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                <GitMerge size={14} className="text-blue-600" />
               </div>
-              <p className="text-[11px] text-blue-600 mb-3 leading-relaxed">Route this request through a multi-level approval chain before allotting a quarter.</p>
-              <div className="space-y-2">
-                <select
-                  id="req-approval-workflow-select"
-                  className="w-full px-3 py-2 text-xs border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/30 bg-white"
-                  defaultValue="none"
-                >
-                  <option value="none">No Workflow — Skip Approval</option>
-                  {requestApprovalWorkflows.map(wfl => (
-                    <option key={wfl.id} value={wfl.id}>{wfl.workflow_name} ({(wfl.levels as {level:number}[]).length} levels)</option>
-                  ))}
-                </select>
+              <div>
+                <p className="text-xs font-bold text-gray-800">Approval Workflow</p>
+                <p className="text-[10px] text-gray-400 leading-tight">Select a workflow to route this request for approval</p>
+              </div>
+            </div>
+
+            {!reqWflSubmitted ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Select Workflow (WFL)
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={reqWflSelectedId}
+                      onChange={e => setReqWflSelectedId(e.target.value)}
+                      className="w-full appearance-none px-3 py-2.5 pr-8 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 bg-white text-gray-700"
+                    >
+                      <option value="">-- Select a Workflow --</option>
+                      {requestApprovalWorkflows.map(wfl => (
+                        <option key={wfl.id} value={wfl.id}>
+                          {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {reqWflSelectedId && (() => {
+                  const wfl = requestApprovalWorkflows.find(w => w.id === reqWflSelectedId);
+                  if (!wfl) return null;
+                  return (
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
+                      {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
+                        <div key={lvl.level} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold flex items-center justify-center shrink-0">
+                            {lvl.level}
+                          </span>
+                          <span className="text-[11px] text-gray-700 font-medium">
+                            {lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <button
-                  onClick={() => {
-                    const sel = (document.getElementById('req-approval-workflow-select') as HTMLSelectElement | null)?.value ?? 'none';
-                    handleInitiateRequestApproval(sel === 'none' ? null : sel);
-                  }}
-                  disabled={initiatingRequestApproval}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  onClick={() => { if (reqWflSelectedId) setReqWflSubmitted(true); }}
+                  disabled={!reqWflSelectedId}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <PlayCircle size={12} />{initiatingRequestApproval ? 'Starting…' : 'Start Approval'}
+                  <PlayCircle size={13} /> Submit
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {eoRightMode === 'request_approval_chat' && requestApprovalRecord && (
-          <div className="p-4 space-y-3">
-            <div className={`rounded-xl border px-4 py-3 ${requestApprovalRecord.status === 'APPROVED' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-bold text-gray-700">Approval Chain</div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${requestApprovalRecord.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {requestApprovalRecord.status}
-                </span>
-              </div>
-              <div className="text-xs text-gray-500">Level {requestApprovalRecord.current_level} of {requestApprovalRecord.max_level}</div>
-              <div className="mt-2 flex gap-1.5">
-                {Array.from({ length: requestApprovalRecord.max_level }).map((_, i) => (
-                  <div key={i} className={`flex-1 h-1.5 rounded-full ${i < requestApprovalRecord.current_level ? 'bg-emerald-400' : 'bg-gray-200'}`} />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {requestApprovalChats.length === 0 && <p className="text-xs text-gray-400 text-center py-4 italic">No messages yet.</p>}
-              {requestApprovalChats.map(chat => (
-                <div key={chat.id} className={`rounded-xl px-3 py-2.5 text-xs ${chat.author_role === 'approver' ? 'bg-emerald-50 border border-emerald-100 ml-4' : 'bg-gray-50 border border-gray-100 mr-4'}`}>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className={`font-semibold capitalize ${chat.author_role === 'approver' ? 'text-emerald-700' : 'text-gray-700'}`}>{chat.author_role}</span>
-                    <span className="text-gray-400 text-[10px]">{fmtDate(chat.created_at)}</span>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed">{chat.message}</p>
-                </div>
-              ))}
-            </div>
-
-            {requestApprovalRecord.status === 'PENDING' && isEO && (
-              requestApprovalAction ? (
-                <div className="space-y-2">
-                  {requestApprovalAction === 'clarify' && (
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Send back to level</label>
-                      <select
-                        value={requestApprovalTargetLevel}
-                        onChange={e => setRequestApprovalTargetLevel(Number(e.target.value))}
-                        className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none mb-2"
-                      >
-                        {Array.from({ length: requestApprovalRecord.current_level - 1 }).map((_, i) => {
-                          const lvl = i + 1;
-                          const title = requestApprovalRecord.workflow?.levels?.find(l => l.level === lvl)?.approver_title;
-                          return (
-                            <option key={lvl} value={lvl}>Level {lvl}{title ? ` — ${title}` : ''}</option>
-                          );
-                        })}
-                      </select>
-                      {requestApprovalRecord.current_level <= 1 && (
-                        <p className="text-[11px] text-amber-600 italic">No earlier levels available to send back to.</p>
-                      )}
+            ) : (
+              <div className="space-y-3">
+                {(() => {
+                  const wfl = requestApprovalWorkflows.find(w => w.id === reqWflSelectedId);
+                  const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
+                  return (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckSquare size={13} className="text-blue-600 shrink-0" />
+                        <span className="text-xs font-bold text-blue-800">Workflow Selected</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 ml-5">
+                        {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
+                      </p>
                     </div>
-                  )}
-                  <textarea
-                    value={requestApprovalRemarks}
-                    onChange={e => setRequestApprovalRemarks(e.target.value)}
-                    rows={3}
-                    placeholder={requestApprovalAction === 'approve' ? 'Approval remarks (optional)…' : 'Clarification remarks (required)…'}
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
-                  />
-                  <div className="flex gap-2">
-                    <button onClick={() => { setRequestApprovalAction(null); setRequestApprovalRemarks(''); }} className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                    <button
-                      onClick={requestApprovalAction === 'approve' ? handleApproveRequestLevel : handleSendRequestClarification}
-                      disabled={requestApprovalSubmitting}
-                      className={`flex-1 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-50 transition-colors ${requestApprovalAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
-                    >
-                      {requestApprovalSubmitting ? '…' : requestApprovalAction === 'approve' ? 'Approve' : 'Send'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button onClick={() => setRequestApprovalAction('approve')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
-                    <CheckSquare size={12} />Approve Level {requestApprovalRecord.current_level}
-                  </button>
-                  {requestApprovalRecord.current_level > 1 && (
-                    <button onClick={() => { setRequestApprovalAction('clarify'); setRequestApprovalTargetLevel(requestApprovalRecord.current_level - 1); }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors">
-                      <SkipForward size={12} />Send for Clarification
-                    </button>
-                  )}
-                </div>
-              )
+                  );
+                })()}
+
+                <button
+                  onClick={() => setReqWflSubmitted(false)}
+                  className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
+                >
+                  Change workflow
+                </button>
+
+                <button
+                  onClick={() => handleInitiateRequestApproval(reqWflSelectedId)}
+                  disabled={initiatingRequestApproval}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 shadow-sm shadow-blue-200 disabled:opacity-50 transition-colors"
+                >
+                  <Zap size={14} /> {initiatingRequestApproval ? 'Starting…' : 'Initiate Approval'}
+                </button>
+              </div>
             )}
           </div>
         )}
