@@ -1,55 +1,363 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Badge } from '../components/ui/Badge';
-import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
-import { FilterDrawer } from '../components/ui/FilterDrawer';
-import { ViewSwitcher } from '../components/ui/ViewSwitcher';
-import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
-import { DataTable } from '../components/ui/DataTable';
-import { ListView, ListViewItem } from '../components/ui/ListView';
-import SplitLayout from '../components/ui/SplitLayout';
 import {
-  Calendar, Eye, History, CheckCircle, XCircle,
-  Home, ChevronRight, Building2,
+  Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
+  Building2, Eye, ChevronLeft, Search, SlidersHorizontal,
+  CreditCard, MapPin, X,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
-import { BookingDTO, BookingStatus } from '../types';
+import { getProperties } from '../services/property/corePropertyService';
+import { BookingDTO, BookingStatus, PropertyDTO } from '../types';
 import { formatDate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/formatters';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { FadeIn } from '../components/animations/FadeIn';
-import { useViewPreference } from '../hooks/useViewPreference';
-import { BookingCardItem } from '../components/booking/BookingCardItem';
+import { CountUp } from '../components/animations/CountUp';
 import { BookingDetailPanel } from '../components/booking/BookingDetailPanel';
-import { getBookingStatusConfig } from '../utils/bookingFormatters';
+import {
+  getBookingStatusConfig, calcNights, getPropertyImage, BOOKING_STATUS_ACCENT,
+} from '../utils/bookingFormatters';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
+import SplitLayout from '../components/ui/SplitLayout';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type DpKey = 'all' | 'upcoming' | 'checkedIn' | 'completed' | 'cancelled' | 'availableProperties';
+
+interface DpCard {
+  key: DpKey;
+  label: string;
+  description: string;
+  count: number;
+  gradient: string;
+  icon: React.ReactNode;
+  secondaryValue?: number;
+  secondaryLabel?: string;
+}
+
+// ─── DP Status Card ───────────────────────────────────────────────────────────
+
+const StatusDpCard: React.FC<{
+  card: DpCard;
+  isActive: boolean;
+  onClick: () => void;
+  delay?: number;
+}> = ({ card, isActive, onClick, delay = 0 }) => (
+  <FadeIn delay={delay}>
+    <div className="relative flex-none w-[200px]">
+      <div
+        onClick={onClick}
+        className={`bg-gradient-to-br ${card.gradient} rounded-xl cursor-pointer transition-all duration-200 overflow-hidden flex min-h-[90px] ${
+          isActive ? 'shadow-xl scale-[1.03]' : 'shadow-sm hover:shadow-lg hover:-translate-y-0.5'
+        }`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-black/10 pointer-events-none" />
+        <div className="absolute -top-5 -right-5 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-4 -left-3 w-14 h-14 bg-black/8 rounded-full pointer-events-none" />
+
+        {/* Icon column */}
+        <div className="relative z-10 flex-none flex items-center justify-center px-3 border-r border-white/20">
+          <div className="p-2 bg-white/25 backdrop-blur-sm rounded-xl border border-white/30">
+            {card.icon}
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="relative z-10 flex-1 px-3 py-3 flex flex-col justify-center min-w-0 gap-0.5">
+          <p className="text-xl font-extrabold text-white leading-tight">
+            <CountUp end={card.count} duration={1200} />
+          </p>
+          <p className="text-[10px] font-bold text-white/95 uppercase tracking-widest leading-tight truncate">
+            {card.label}
+          </p>
+          <p className="text-[10px] text-white/65 leading-tight truncate">{card.description}</p>
+        </div>
+
+        {/* Secondary metric */}
+        {card.secondaryValue != null && (
+          <div className="relative z-10 flex-none flex flex-col items-center justify-center px-3 border-l border-white/20 min-w-[48px]">
+            <p className="text-sm font-bold text-white leading-none tabular-nums">
+              <CountUp end={card.secondaryValue} duration={1400} />
+            </p>
+            {card.secondaryLabel && (
+              <p className="text-[9px] text-white/60 uppercase tracking-wide mt-0.5 text-center leading-tight whitespace-nowrap">
+                {card.secondaryLabel}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className={`absolute bottom-0 left-0 right-0 transition-all duration-200 ${isActive ? 'h-1 bg-white/60' : 'h-0.5 bg-white/20'}`} />
+      </div>
+
+      {isActive && (
+        <>
+          <div className="absolute -inset-[3px] rounded-[14px] ring-2 ring-white pointer-events-none" />
+          <div className="absolute -inset-[5px] rounded-[16px] ring-2 ring-gray-800/30 pointer-events-none" />
+        </>
+      )}
+    </div>
+  </FadeIn>
+);
+
+// ─── Booking List Card ────────────────────────────────────────────────────────
+
+const STATUS_BADGE_CLS: Record<string, string> = {
+  REQUESTED:   'bg-amber-50 text-amber-700 border border-amber-200',
+  PROVISIONED: 'bg-blue-50 text-blue-700 border border-blue-200',
+  ALLOCATED:   'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  CHECKED_IN:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  CHECKED_OUT: 'bg-green-50 text-green-700 border border-green-200',
+  CANCELLED:   'bg-red-50 text-red-700 border border-red-200',
+  REJECTED:    'bg-rose-50 text-rose-700 border border-rose-200',
+};
+
+const BookingListCard: React.FC<{
+  booking: BookingDTO;
+  index: number;
+  isSelected: boolean;
+  onClick: () => void;
+  activeServiceCount?: number;
+  expanded: boolean;
+  onToggleExpand: (e: React.MouseEvent) => void;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, expanded, onToggleExpand }) => {
+  const [thumbErr, setThumbErr] = useState(false);
+  const statusCfg = getBookingStatusConfig(booking.status);
+  const nights = calcNights(booking.checkInDate, booking.checkOutDate);
+  const thumbSrc = getPropertyImage(booking, index);
+  const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
+
+  const details = [
+    { label: 'Property', value: booking.property?.name },
+    { label: 'Check-in', value: formatDate(booking.checkInDate) },
+    { label: 'Check-out', value: formatDate(booking.checkOutDate) },
+    { label: 'Room Type', value: booking.roomType?.name },
+    { label: 'Nights', value: String(nights) },
+    { label: 'Amount', value: formatCurrency(booking.totalAmount) },
+  ].filter(d => d.value);
+
+  return (
+    <FadeIn delay={index * 30}>
+      <div
+        onClick={onClick}
+        className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
+          isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
+        }`}
+      >
+        <div className="flex">
+          {/* Accent bar */}
+          <div className={`w-1 shrink-0 ${accentColor} rounded-l-xl`} />
+
+          {/* Thumbnail */}
+          <div
+            className="w-24 shrink-0 relative group/thumb bg-gray-100"
+            onClick={e => e.stopPropagation()}
+          >
+            {!thumbErr ? (
+              <img
+                src={thumbSrc}
+                alt=""
+                className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300"
+                style={{ minHeight: 88 }}
+                onError={() => setThumbErr(true)}
+              />
+            ) : (
+              <div className="w-full h-full min-h-[88px] flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                <Building2 size={22} className="text-gray-300" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/25 transition-colors flex items-center justify-center">
+              <div className="opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 rounded-full p-1.5 shadow-md">
+                <Eye size={13} className="text-gray-700" />
+              </div>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
+            {/* Row 1: booking number + status badge */}
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
+                #{booking.bookingNumber}
+              </span>
+              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                {statusCfg.label}
+              </span>
+            </div>
+
+            {/* Row 2: key-value details */}
+            <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
+              {details.map((d, i) => (
+                <div key={i} className="min-w-0">
+                  <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
+                  <div className="text-[10.5px] font-medium text-gray-700 leading-snug truncate max-w-[180px]">{d.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
+              <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                {activeServiceCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={onToggleExpand}
+                    className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors shrink-0 whitespace-nowrap ${
+                      expanded
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    {activeServiceCount} svc{activeServiceCount > 1 ? 's' : ''}
+                    {expanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                  </button>
+                )}
+
+                {booking.paymentStatus === 'COMPLETED' ? (
+                  <span className="text-[9px] text-emerald-600 font-semibold flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
+                    <CheckCircle size={8} />Paid
+                  </span>
+                ) : booking.balanceAmount > 0 ? (
+                  <span className="text-[9px] text-amber-600 font-semibold flex items-center gap-0.5 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200 shrink-0">
+                    <CreditCard size={8} />Balance due
+                  </span>
+                ) : null}
+
+                {booking.property?.address && (
+                  <span className="text-[9px] text-gray-400 flex items-center gap-0.5 shrink-0 whitespace-nowrap overflow-hidden max-w-[200px] truncate">
+                    <MapPin size={8} className="shrink-0" />{booking.property.address}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={e => { e.stopPropagation(); onClick(); }}
+                className={`p-1 rounded-lg border transition-colors shrink-0 ${
+                  isSelected
+                    ? 'bg-blue-50 border-blue-300 text-blue-600'
+                    : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
+                }`}
+                title="View details"
+              >
+                <Eye size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </FadeIn>
+  );
+};
+
+// ─── Available Property Card ──────────────────────────────────────────────────
+
+const AvailablePropertyCard: React.FC<{
+  property: PropertyDTO;
+  index: number;
+  onBook: () => void;
+}> = ({ property, index, onBook }) => {
+  const [thumbErr, setThumbErr] = useState(false);
+  const imgs = Array.isArray(property.images) ? property.images : [];
+  const thumb = imgs[0];
+
+  return (
+    <FadeIn delay={index * 30}>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex">
+        <div className="w-1 shrink-0 bg-cyan-400 rounded-l-xl" />
+        <div className="w-24 shrink-0 bg-gray-100 relative">
+          {thumb && !thumbErr ? (
+            <img src={thumb} alt="" className="w-full h-full object-cover" style={{ minHeight: 88 }} onError={() => setThumbErr(true)} />
+          ) : (
+            <div className="w-full h-full min-h-[88px] flex items-center justify-center bg-gradient-to-br from-cyan-50 to-sky-100">
+              <Building2 size={22} className="text-cyan-300" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide truncate">{property.name}</span>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 shrink-0">
+              {property.assetType?.name ?? property.propertyType?.name ?? 'Property'}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
+            {property.estate?.name && (
+              <div>
+                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Estate</div>
+                <div className="text-[10.5px] font-medium text-gray-700">{property.estate.name}</div>
+              </div>
+            )}
+            {property.totalRooms != null && (
+              <div>
+                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Rooms</div>
+                <div className="text-[10.5px] font-medium text-gray-700">{property.totalRooms}</div>
+              </div>
+            )}
+            {property.description && (
+              <div className="min-w-0">
+                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Description</div>
+                <div className="text-[10.5px] font-medium text-gray-700 truncate max-w-[300px]">{property.description}</div>
+              </div>
+            )}
+          </div>
+          <div className="mt-auto flex items-center justify-between pt-0.5 border-t border-gray-100">
+            <span className="text-[9px] text-gray-400 flex items-center gap-0.5 truncate max-w-[260px]">
+              <MapPin size={8} className="shrink-0" />
+              {property.address || 'No address'}
+            </span>
+            <button
+              onClick={onBook}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-600 text-white text-[10px] font-semibold hover:bg-cyan-700 transition-colors shrink-0"
+            >
+              Book Now
+            </button>
+          </div>
+        </div>
+      </div>
+    </FadeIn>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const BookingHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
+
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
-  const [filteredBookings, setFilteredBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string | string[]>('all');
+  const [dpFilter, setDpFilter] = useState<DpKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [viewMode, setViewMode] = useViewPreference('bookingHistoryView', 'list');
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
+  const [expandedSvcId, setExpandedSvcId] = useState<string | null>(null);
+
+  const [availableProperties, setAvailableProperties] = useState<PropertyDTO[]>([]);
+  const [avPropSearch, setAvPropSearch] = useState('');
+  const [avPropLoading, setAvPropLoading] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadBookings();
+    loadAvailableProperties();
     const status = searchParams.get('status');
-    if (status === 'upcoming') setStatusFilter(['ALLOCATED', 'PROVISIONED']);
-    else if (status === 'cancelled') setStatusFilter(['CANCELLED', 'REJECTED']);
-    else if (status === 'completed') setStatusFilter('CHECKED_OUT');
+    if (status === 'upcoming') setDpFilter('upcoming');
+    else if (status === 'cancelled') setDpFilter('cancelled');
+    else if (status === 'completed') setDpFilter('completed');
   }, []);
-
-  useEffect(() => { filterBookings(); }, [bookings, statusFilter, searchQuery, dateFrom, dateTo]);
 
   const loadBookings = async () => {
     try {
@@ -62,29 +370,15 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
-  const filterBookings = () => {
-    let filtered = bookings;
-    if (statusFilter !== 'all') {
-      if (Array.isArray(statusFilter)) filtered = filtered.filter(b => statusFilter.includes(b.status));
-      else filtered = filtered.filter(b => b.status === statusFilter);
-    }
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(b =>
-        b.bookingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.property?.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    if (dateFrom) filtered = filtered.filter(b => new Date(b.checkInDate) >= new Date(dateFrom));
-    if (dateTo) filtered = filtered.filter(b => new Date(b.checkOutDate) <= new Date(dateTo));
-    setFilteredBookings(filtered);
-  };
-
-  const getStatusVariant = (status: BookingStatus): 'success' | 'warning' | 'error' | 'info' => {
-    switch (status) {
-      case 'CHECKED_IN': case 'CHECKED_OUT': return 'success';
-      case 'REQUESTED': case 'PROVISIONED': return 'warning';
-      case 'CANCELLED': case 'REJECTED': return 'error';
-      default: return 'info';
+  const loadAvailableProperties = async () => {
+    setAvPropLoading(true);
+    try {
+      const data = await getProperties({ status: 'active', userRole: user?.role });
+      setAvailableProperties(data);
+    } catch {
+      // silently fail
+    } finally {
+      setAvPropLoading(false);
     }
   };
 
@@ -94,50 +388,148 @@ export const BookingHistoryPage: React.FC = () => {
     checkedIn: bookings.filter(b => b.status === 'CHECKED_IN').length,
     completed: bookings.filter(b => b.status === 'CHECKED_OUT').length,
     cancelled: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
+    rejected: bookings.filter(b => b.status === 'REJECTED').length,
+    provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
   };
 
-  const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-  const cancellationRate = stats.total > 0 ? Math.round((stats.cancelled / stats.total) * 100) : 0;
-  const handleClearFilters = () => { setStatusFilter('all'); setSearchQuery(''); setDateFrom(''); setDateTo(''); };
-  const drawerActiveCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
-  const propertyNames = Array.from(new Set(bookings.map(b => b.property?.name).filter(Boolean))) as string[];
-  const activeFilterCount = (statusFilter !== 'all' && statusFilter.length > 0 ? 1 : 0) + (searchQuery ? 1 : 0) + drawerActiveCount;
+  const dpCards: DpCard[] = [
+    {
+      key: 'availableProperties',
+      label: 'Available Properties',
+      description: 'Browse & book',
+      count: availableProperties.length,
+      gradient: 'from-cyan-500 to-sky-400',
+      icon: <Building2 size={16} className="text-white" />,
+    },
+    {
+      key: 'all',
+      label: 'My Bookings',
+      description: 'All time',
+      count: stats.total,
+      gradient: 'from-blue-600 to-teal-500',
+      icon: <History size={16} className="text-white" />,
+      secondaryValue: stats.upcoming,
+      secondaryLabel: 'Active',
+    },
+    {
+      key: 'upcoming',
+      label: 'Upcoming',
+      description: 'Confirmed & allocated',
+      count: stats.upcoming,
+      gradient: 'from-sky-500 to-blue-600',
+      icon: <Calendar size={16} className="text-white" />,
+      secondaryValue: stats.provisioned,
+      secondaryLabel: 'Pending',
+    },
+    {
+      key: 'checkedIn',
+      label: 'Checked In',
+      description: 'Currently staying',
+      count: stats.checkedIn,
+      gradient: 'from-amber-500 to-orange-500',
+      icon: <Home size={16} className="text-white" />,
+    },
+    {
+      key: 'completed',
+      label: 'Completed',
+      description: 'Stay concluded',
+      count: stats.completed,
+      gradient: 'from-emerald-500 to-cyan-500',
+      icon: <CheckCircle size={16} className="text-white" />,
+    },
+    {
+      key: 'cancelled',
+      label: 'Cancelled',
+      description: 'Booking cancelled',
+      count: stats.cancelled,
+      gradient: 'from-rose-500 to-pink-500',
+      icon: <XCircle size={16} className="text-white" />,
+      secondaryValue: stats.rejected,
+      secondaryLabel: 'Rejected',
+    },
+  ];
 
-  const statusLabel = (() => {
-    if (statusFilter === 'all') return null;
-    if (Array.isArray(statusFilter)) {
-      if (statusFilter.includes('ALLOCATED')) return 'Upcoming';
-      if (statusFilter.includes('CANCELLED')) return 'Cancelled';
-      return null;
+  const filteredBookings = React.useMemo(() => {
+    let result = [...bookings];
+
+    if (dpFilter === 'upcoming') result = result.filter(b => ['ALLOCATED', 'PROVISIONED'].includes(b.status));
+    else if (dpFilter === 'checkedIn') result = result.filter(b => b.status === 'CHECKED_IN');
+    else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
+    else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(b =>
+        b.bookingNumber.toLowerCase().includes(q) ||
+        (b.property?.name ?? '').toLowerCase().includes(q)
+      );
     }
-    if (statusFilter === 'CHECKED_IN') return 'Checked In';
-    return getBookingStatusConfig(statusFilter as BookingStatus).label;
-  })();
+
+    if (dateFrom) result = result.filter(b => new Date(b.checkInDate) >= new Date(dateFrom));
+    if (dateTo) result = result.filter(b => new Date(b.checkOutDate) <= new Date(dateTo));
+
+    result.sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return sortOrder === 'newest' ? diff : -diff;
+    });
+
+    return result;
+  }, [bookings, dpFilter, searchQuery, dateFrom, dateTo, sortOrder]);
+
+  const filteredAvailableProperties = React.useMemo(() => {
+    if (!avPropSearch.trim()) return availableProperties;
+    const q = avPropSearch.toLowerCase();
+    return availableProperties.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.address ?? '').toLowerCase().includes(q) ||
+      (p.estate?.name ?? '').toLowerCase().includes(q)
+    );
+  }, [availableProperties, avPropSearch]);
+
+  const drawerActiveCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+  const dpLabel = dpCards.find(c => c.key === dpFilter)?.label ?? 'My Bookings';
+
+  const scrollCarousel = (dir: 'left' | 'right') => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({ left: dir === 'left' ? -220 : 220, behavior: 'smooth' });
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
-      {/* Frozen header */}
+      {/* ── Frozen header ── */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
+
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
-            <button onClick={() => navigate('/dashboard')} className="hover:text-blue-600 transition-colors"><Home size={11} /></button>
+            <button onClick={() => navigate('/dashboard')} className="hover:text-blue-600 transition-colors">
+              <Home size={11} />
+            </button>
             <ChevronRight size={10} />
-            <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-blue-600 transition-colors">My Workspace</button>
+            <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-blue-600 transition-colors">
+              My Workspace
+            </button>
             <ChevronRight size={10} />
-            <button onClick={() => { setSelectedBooking(null); setStatusFilter('all'); }} className="text-gray-600 font-medium hover:text-blue-600 transition-colors">
+            <button
+              onClick={() => { setSelectedBooking(null); setDpFilter('all'); }}
+              className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
+            >
               My Bookings
             </button>
-            {statusLabel && (
+            {dpFilter !== 'all' && (
               <>
                 <ChevronRight size={10} />
-                <button onClick={() => setSelectedBooking(null)} className="text-gray-700 font-medium hover:text-blue-600 transition-colors">{statusLabel}</button>
+                <button onClick={() => setSelectedBooking(null)} className="text-gray-700 font-medium hover:text-blue-600 transition-colors">
+                  {dpLabel}
+                </button>
               </>
             )}
             {selectedBooking && (
               <>
                 <ChevronRight size={10} />
-                <span className="font-mono text-gray-700 font-medium truncate max-w-[140px]">#{selectedBooking.bookingNumber}</span>
+                <span className="font-mono text-gray-700 font-medium truncate max-w-[140px]">
+                  #{selectedBooking.bookingNumber}
+                </span>
               </>
             )}
           </div>
@@ -150,98 +542,224 @@ export const BookingHistoryPage: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-gray-900 truncate">{user.fullName}</span>
-                {user.email && <span className="text-xs text-gray-400 truncate hidden sm:inline">{user.email}</span>}
+                {user.email && (
+                  <span className="text-xs text-gray-400 truncate hidden sm:inline">{user.email}</span>
+                )}
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 uppercase flex-shrink-0">{user.role}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 uppercase flex-shrink-0">
+                {user.role?.replace('_', ' ')}
+              </span>
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2.5">
-              <div className="p-1.5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
-                <History className="w-4 h-4 text-white" />
+          {/* Page title */}
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
+              <History className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">My Bookings</h1>
+          </div>
+
+          {/* ── DP Carousel ── */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={() => scrollCarousel('left')}
+              className="flex-none p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-sm"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            <div
+              ref={scrollRef}
+              className="flex gap-3 overflow-x-auto flex-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {dpCards.map((card, i) => (
+                <StatusDpCard
+                  key={card.key}
+                  card={card}
+                  isActive={dpFilter === card.key}
+                  onClick={() => { setDpFilter(card.key); setSelectedBooking(null); }}
+                  delay={i * 40}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => scrollCarousel('right')}
+              className="flex-none p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-sm"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Search / Filter bar */}
+          {dpFilter !== 'availableProperties' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search */}
+              <div className="flex-1 min-w-[180px] relative">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <Search size={13} />
+                </div>
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
+                  Search
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Booking number or property..."
+                  className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-              My Bookings
-            </h1>
-            <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
-          </div>
 
-          <MandatorySearchBar
-            fields={[
-              {
-                key: 'search', label: 'Search', type: 'text',
-                placeholder: 'Booking number or property...', value: searchQuery, onChange: setSearchQuery,
-                icon: <History size={14} />,
-              },
-              {
-                key: 'status', label: 'Status', type: 'chips',
-                value: Array.isArray(statusFilter)
-                  ? (statusFilter.includes('ALLOCATED') ? 'upcoming' : statusFilter.includes('CANCELLED') ? 'cancelled' : 'all')
-                  : statusFilter === 'CHECKED_OUT' ? 'completed' : statusFilter === 'REQUESTED' ? 'REQUESTED' : statusFilter,
-                onChange: (v) => {
-                  if (v === 'all') setStatusFilter('all');
-                  else if (v === 'upcoming') setStatusFilter(['ALLOCATED', 'PROVISIONED']);
-                  else if (v === 'completed') setStatusFilter('CHECKED_OUT');
-                  else if (v === 'cancelled') setStatusFilter(['CANCELLED', 'REJECTED']);
-                  else setStatusFilter(v);
-                  setSelectedBooking(null);
-                },
-                options: [
-                  { value: 'all', label: 'All' },
-                  { value: 'upcoming', label: 'Upcoming' },
-                  { value: 'completed', label: 'Completed' },
-                  { value: 'cancelled', label: 'Cancelled' },
-                  { value: 'REQUESTED', label: 'Requested' },
-                ],
-              },
-            ]}
-            filterCount={drawerActiveCount}
-            onFilterOpen={() => setIsFilterOpen(true)}
-            className="mb-3"
-          />
+              {/* Sort By chips */}
+              <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5">
+                <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mr-1">Sort By</span>
+                {(['newest', 'oldest'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => setSortOrder(opt)}
+                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors capitalize ${
+                      sortOrder === opt ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </button>
+                ))}
+              </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <SummaryStatsCard label="My Bookings" value={stats.total} icon={History} gradient="bg-gradient-to-br from-blue-600 to-teal-500" onClick={() => { setStatusFilter('all'); setSelectedBooking(null); }} isActive={statusFilter === 'all'} delay={100} subtitle="All time" secondaryValue={stats.upcoming} secondaryLabel="Active" />
-            <SummaryStatsCard label="Upcoming" value={stats.upcoming} icon={Calendar} gradient="bg-gradient-to-br from-sky-500 to-blue-600" onClick={() => { setStatusFilter(['ALLOCATED', 'PROVISIONED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('ALLOCATED')} delay={130} subtitle="Confirmed & allocated" secondaryValue={bookings.filter(b => b.status === 'PROVISIONED').length} secondaryLabel="Pending" />
-            <SummaryStatsCard label="Checked In" value={stats.checkedIn} icon={CheckCircle} gradient="bg-gradient-to-br from-amber-500 to-orange-500" onClick={() => { setStatusFilter('CHECKED_IN'); setSelectedBooking(null); }} isActive={statusFilter === 'CHECKED_IN'} delay={160} subtitle="Currently staying" />
-            <SummaryStatsCard label="Completed" value={stats.completed} icon={CheckCircle} gradient="bg-gradient-to-br from-emerald-500 to-cyan-500" onClick={() => { setStatusFilter('CHECKED_OUT'); setSelectedBooking(null); }} isActive={statusFilter === 'CHECKED_OUT'} delay={190} subtitle={`${completionRate}% completion`} trend={completionRate > 50 ? completionRate - 50 : -(50 - completionRate)} />
-            <SummaryStatsCard label="Cancelled" value={stats.cancelled} icon={XCircle} gradient="bg-gradient-to-br from-rose-500 to-pink-500" onClick={() => { setStatusFilter(['CANCELLED', 'REJECTED']); setSelectedBooking(null); }} isActive={Array.isArray(statusFilter) && statusFilter.includes('CANCELLED')} delay={220} subtitle={`${cancellationRate}% of total`} secondaryValue={bookings.filter(b => b.status === 'REJECTED').length} secondaryLabel="Rejected" />
-          </div>
+              {/* Advanced filter */}
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-[11px] font-semibold transition-all ${
+                  drawerActiveCount > 0
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <SlidersHorizontal size={13} />
+                Filter
+                {drawerActiveCount > 0 && (
+                  <span className="ml-0.5 bg-blue-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {drawerActiveCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          ) : (
+            /* Available Properties search */
+            <div className="relative">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <Search size={13} />
+              </div>
+              <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
+                Search
+              </div>
+              <input
+                type="text"
+                value={avPropSearch}
+                onChange={e => setAvPropSearch(e.target.value)}
+                placeholder="Property name, estate, location..."
+                className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition-all"
+              />
+              {avPropSearch && (
+                <button onClick={() => setAvPropSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Advanced filter drawer */}
-      <FilterDrawer isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)} title="Advanced Filters" activeFilterCount={drawerActiveCount} onClearAll={() => { setDateFrom(''); setDateTo(''); }}>
+      {/* ── Advanced filter drawer ── */}
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Advanced Filters"
+        activeFilterCount={drawerActiveCount}
+        onClearAll={() => { setDateFrom(''); setDateTo(''); }}
+      >
         <div className="space-y-6">
-          {propertyNames.length > 1 && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Property</label>
-              <select value={typeof searchQuery === 'string' && propertyNames.some(n => searchQuery === n) ? searchQuery : ''} onChange={e => setSearchQuery(e.target.value)} className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all">
-                <option value="">All Properties</option>
-                {propertyNames.map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
-            </div>
-          )}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Check-in From</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Check-out To</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} min={dateFrom || undefined} className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all" />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              min={dateFrom || undefined}
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
           </div>
         </div>
       </FilterDrawer>
 
-      {/* Split-screen data area */}
+      {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-full py-4">
-          {loading ? (
+
+          {dpFilter === 'availableProperties' ? (
+            avPropLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl border border-gray-200 animate-pulse h-24" />
+                ))}
+              </div>
+            ) : filteredAvailableProperties.length === 0 ? (
+              <FadeIn delay={200}>
+                <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-sm">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-cyan-100 bg-cyan-50 mb-4">
+                    <Building2 size={28} className="text-cyan-300" />
+                  </div>
+                  <p className="text-gray-600 font-semibold mb-1">No properties available</p>
+                  <p className="text-sm text-gray-400">
+                    {avPropSearch ? 'No properties match your search.' : 'Available properties will appear here once configured.'}
+                  </p>
+                  {avPropSearch && (
+                    <button onClick={() => setAvPropSearch('')} className="mt-3 text-sm text-cyan-600 hover:underline">
+                      Clear search
+                    </button>
+                  )}
+                </div>
+              </FadeIn>
+            ) : (
+              <div className="space-y-3 overflow-y-auto h-full pr-1">
+                {filteredAvailableProperties.map((property, i) => (
+                  <AvailablePropertyCard
+                    key={property.id}
+                    property={property}
+                    index={i}
+                    onBook={() => navigate(`/properties/${property.id}`)}
+                  />
+                ))}
+              </div>
+            )
+          ) : loading ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-200 animate-pulse flex h-28 overflow-hidden">
-                  <div className="w-40 bg-gray-200 flex-shrink-0" />
-                  <div className="flex-1 p-4 space-y-3"><div className="h-4 bg-gray-200 rounded w-1/3" /><div className="h-3 bg-gray-200 rounded w-1/2" /></div>
+                <div key={i} className="bg-white rounded-2xl border border-gray-200 animate-pulse flex h-[108px] overflow-hidden">
+                  <div className="w-1 bg-gray-200 flex-shrink-0 rounded-l-2xl" />
+                  <div className="w-24 bg-gray-200 flex-shrink-0" />
+                  <div className="flex-1 p-4 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-1/4" />
+                    <div className="h-2.5 bg-gray-200 rounded w-1/2" />
+                    <div className="h-2.5 bg-gray-200 rounded w-1/3" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -258,7 +776,9 @@ export const BookingHistoryPage: React.FC = () => {
                   userId={user!.id}
                   onClose={() => setSelectedBooking(null)}
                   onNavigate={(id) => navigate(`/bookings/${id}`)}
-                  onServiceCountChange={(count) => setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))}
+                  onServiceCountChange={(count) =>
+                    setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))
+                  }
                   panelControls={controls}
                 />
               ) : undefined}
@@ -267,77 +787,45 @@ export const BookingHistoryPage: React.FC = () => {
                   {filteredBookings.length === 0 ? (
                     <FadeIn delay={200}>
                       <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center shadow-sm">
-                        <History className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full border-2 border-dashed border-gray-100 bg-gray-50 mb-4">
+                          <History size={28} className="text-gray-300" />
+                        </div>
                         <p className="text-gray-600 font-semibold mb-1">No bookings found</p>
-                        <p className="text-sm text-gray-400">Try adjusting your filters or search query.</p>
-                        {activeFilterCount > 0 && <button onClick={handleClearFilters} className="mt-3 text-sm text-blue-600 hover:underline">Clear filters</button>}
+                        <p className="text-sm text-gray-400">
+                          {searchQuery || drawerActiveCount > 0
+                            ? 'Try adjusting your filters or search query.'
+                            : dpFilter === 'all'
+                            ? 'Your booking history will appear here.'
+                            : `No ${dpLabel.toLowerCase()} bookings.`}
+                        </p>
+                        {(searchQuery || drawerActiveCount > 0) && (
+                          <button
+                            onClick={() => { setSearchQuery(''); setDateFrom(''); setDateTo(''); }}
+                            className="mt-3 text-sm text-blue-600 hover:underline"
+                          >
+                            Clear filters
+                          </button>
+                        )}
                       </div>
                     </FadeIn>
-                  ) : viewMode === 'card' ? (
-                    <div className="space-y-3 pr-2">
+                  ) : (
+                    <div className="space-y-3">
                       {filteredBookings.map((booking, index) => (
-                        <BookingCardItem
+                        <BookingListCard
                           key={booking.id}
                           booking={booking}
                           index={index}
                           isSelected={selectedBooking?.id === booking.id}
                           onClick={() => setSelectedBooking(booking)}
                           activeServiceCount={activeServiceCounts[booking.id] ?? 0}
+                          expanded={expandedSvcId === booking.id}
+                          onToggleExpand={e => {
+                            e.stopPropagation();
+                            setExpandedSvcId(prev => prev === booking.id ? null : booking.id);
+                          }}
                         />
                       ))}
                     </div>
-                  ) : viewMode === 'table' ? (
-                    <FadeIn delay={300}>
-                      <DataTable
-                        columns={[
-                          { key: 'bookingNumber', label: 'Booking #', sortable: true, width: '15%' },
-                          { key: 'property', label: 'Property', sortable: false, render: b => <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400 flex-shrink-0" /><span className="truncate max-w-[160px]">{b.property?.name || 'N/A'}</span></div> },
-                          { key: 'checkInDate', label: 'Check-in', sortable: true, render: b => formatDate(b.checkInDate) },
-                          { key: 'checkOutDate', label: 'Check-out', sortable: true, render: b => formatDate(b.checkOutDate) },
-                          { key: 'roomType', label: 'Room Type', sortable: false, render: b => b.roomType?.name || 'N/A' },
-                          { key: 'status', label: 'Status', sortable: true, render: b => <Badge variant={getStatusVariant(b.status)} className="text-xs">{getBookingStatusConfig(b.status).label}</Badge> },
-                          { key: 'totalAmount', label: 'Total', sortable: true, render: b => formatCurrency(b.totalAmount) },
-                          {
-                            key: 'actions', label: '', sortable: false, width: '8%',
-                            render: b => (
-                              <button className={`p-1.5 rounded-lg border transition-colors ${selectedBooking?.id === b.id ? 'bg-blue-50 border-blue-300 text-blue-600' : 'border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200'}`} onClick={e => { e.stopPropagation(); setSelectedBooking(b); }}>
-                                <Eye size={13} />
-                              </button>
-                            ),
-                          },
-                        ]}
-                        data={filteredBookings}
-                        keyExtractor={b => b.id}
-                        onRowClick={b => setSelectedBooking(b)}
-                        emptyMessage="No bookings found"
-                      />
-                    </FadeIn>
-                  ) : (
-                    <FadeIn delay={300}>
-                      <ListView emptyMessage="No bookings found">
-                        {filteredBookings.map(booking => (
-                          <div
-                            key={booking.id}
-                            onClick={() => setSelectedBooking(booking)}
-                            className={`cursor-pointer rounded-xl transition-all ${selectedBooking?.id === booking.id ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
-                          >
-                            <ListViewItem
-                              icon={<Calendar size={18} />}
-                              title={`#${booking.bookingNumber}`}
-                              subtitle={`${booking.property?.name ?? ''} · ${formatDate(booking.checkInDate)} → ${formatDate(booking.checkOutDate)}`}
-                              badge={<Badge variant={getStatusVariant(booking.status)} className="text-xs">{getBookingStatusConfig(booking.status).label}</Badge>}
-                              rightContent={
-                                <div className="text-right">
-                                  <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
-                                  <p className="text-xs text-gray-500">{booking.roomType?.name}</p>
-                                </div>
-                              }
-                              onClick={() => setSelectedBooking(booking)}
-                            />
-                          </div>
-                        ))}
-                      </ListView>
-                    </FadeIn>
                   )}
                 </div>
               }
