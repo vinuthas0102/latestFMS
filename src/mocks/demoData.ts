@@ -547,7 +547,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-001',
     request_number: 'REQ-2025-00241',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: 'cycle-2025-01',
     initiation_type: 'CYCLE',
     request_reason: 'Transfer to Delhi from Patna on promotion to Deputy Secretary grade.',
@@ -578,7 +578,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-002',
     request_number: 'REQ-2025-00188',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: 'cycle-2025-01',
     initiation_type: 'CYCLE',
     request_reason: 'Current private rental is becoming unaffordable; seeking government accommodation.',
@@ -609,7 +609,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-003',
     request_number: 'REQ-2025-00099',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: 'cycle-2025-01',
     initiation_type: 'CYCLE',
     request_reason: 'Newly posted to New Delhi Secretariat; require government accommodation close to office.',
@@ -640,7 +640,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-004',
     request_number: 'REQ-2024-00722',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: null,
     initiation_type: 'ADHOC',
     request_reason: 'Posting order received; required government accommodation urgently.',
@@ -671,7 +671,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-006',
     request_number: 'REQ-2024-00389',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: null,
     initiation_type: 'ADHOC',
     request_reason: 'Transferred to Delhi on deputation from Ministry of Agriculture.',
@@ -702,7 +702,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-007',
     request_number: 'REQ-2025-00312',
-    employee_id: 'demo-user-002',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: 'cycle-2025-01',
     initiation_type: 'CYCLE',
     request_reason: 'Transferred from Mumbai to New Delhi on deputation; require government accommodation.',
@@ -733,7 +733,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-008',
     request_number: 'REQ-2024-00615',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: null,
     initiation_type: 'ADHOC',
     request_reason: 'Posted to New Delhi from Chennai; required government accommodation for family.',
@@ -764,7 +764,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-009',
     request_number: 'REQ-2025-00104',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: null,
     initiation_type: 'ADHOC',
     request_reason: 'Transferred to Delhi from Hyderabad on promotion. Required government accommodation for family.',
@@ -795,7 +795,7 @@ export const DEMO_REQUESTS: QuarterRequest[] = [
   {
     id: 'req-010',
     request_number: 'REQ-2025-00051',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     cycle_id: 'cycle-2025-01',
     initiation_type: 'CYCLE',
     request_reason: 'Transferred to New Delhi from Lucknow on promotion. Applying for Type-III accommodation for family of six.',
@@ -833,7 +833,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-001',
     allotment_id: 'allot-002',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'MAINTENANCE',
     request_status: 'PENDING',
     remarks: 'Leaking tap in the bathroom. Water wastage is significant.',
@@ -855,7 +855,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-002',
     allotment_id: 'allot-002',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'GRIEVANCE',
     request_status: 'APPROVED',
     remarks: 'Resolved after EO intervention. Water supply restored.',
@@ -877,7 +877,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-003',
     allotment_id: 'allot-002',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'EXTEND',
     request_status: 'PENDING',
     remarks: 'Requesting a 6-month extension as transfer order has been put on hold.',
@@ -900,7 +900,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-007',
     allotment_id: 'allot-002',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'UPGRADE',
     request_status: 'PENDING',
     remarks: 'Family size has increased. Current 2-BHK is inadequate.',
@@ -923,7 +923,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-004',
     allotment_id: 'allot-003',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'EXTEND',
     request_status: 'PENDING',
     remarks: 'Deputation period has been extended by one year by the cadre controlling authority. Requesting corresponding extension of quarter allotment.',
@@ -945,7 +945,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-005',
     allotment_id: 'allot-003',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'MAINTENANCE',
     request_status: 'PENDING',
     remarks: 'Three ceiling light fixtures in the bedroom and living room are non-functional. Replacement requested.',
@@ -967,7 +967,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-006',
     allotment_id: 'allot-003',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'GRIEVANCE',
     request_status: 'APPROVED',
     remarks: 'Issue resolved after maintenance team visit on 5 March 2025. Drain is now clear.',
@@ -990,7 +990,7 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
   {
     id: 'tr-008',
     allotment_id: 'allot-005',
-    employee_id: 'demo-user-001',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     service_type: 'VACATE',
     request_status: 'PENDING',
     remarks: 'Suresh Nair is retiring on 30 June 2025. Requesting initiation of vacating formalities and quarter handover on or before the retirement date.',
@@ -1017,7 +1017,7 @@ export const DEMO_SERVICE_CHATS: QuarterServiceChat[] = [
   {
     id: 'sc-001',
     tenant_request_id: 'tr-001',
-    author_id: 'demo-user-001',
+    author_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     author_role: 'EMPLOYEE',
     message: 'The tap in the main bathroom has been leaking since 18 April. Please arrange repair at the earliest.',
     document_urls: [],
@@ -1047,7 +1047,7 @@ export const DEMO_ALLOTMENT_CHATS: QuarterAllotmentChat[] = [
   {
     id: 'ac-002',
     allotment_id: 'allot-001',
-    author_id: 'demo-user-001',
+    author_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
     author_role: 'employee',
     message: 'Thank you. I will move in by 15 April. Kindly share the key handover schedule.',
     document_urls: [],
