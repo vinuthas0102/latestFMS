@@ -165,7 +165,7 @@ export const QuarterRequestsPage: React.FC = () => {
     allotNowSearch, setAllotNowSearch, allotNowQuarters, setAllotNowQuarters,
     allotNowLoading, setAllotNowLoading,
     overrideAllotment, setOverrideAllotment, overrideRequest, setOverrideRequest,
-    showOverrideModal, setShowOverrideModal, overrideMenuCardId, setOverrideMenuCardId,
+    showOverrideModal, setShowOverrideModal,
     manualAllotPickerOpen, setManualAllotPickerOpen, manualAllotSearch, setManualAllotSearch,
     manualAllotQuarters, setManualAllotQuarters, manualAllotLoading, setManualAllotLoading,
     manualAllotSubmitting, setManualAllotSubmitting,
@@ -2905,64 +2905,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                   <XCircle size={11} /> Reject
                                 </button>
                               </>
-                            )}
-
-                            {/* Inline Override menu for ALLOTTED (unapproved allotment) — Estate Manager only */}
-                            {isEO && eoMode === 'employee' && req.request_status === 'ALLOTTED' && req.allotment?.id && (
-                              <div className="relative shrink-0">
-                                <button
-                                  onClick={e => { e.stopPropagation(); setOverrideMenuCardId(overrideMenuCardId === req.id ? null : req.id); }}
-                                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-semibold transition-colors shrink-0 ${overrideMenuCardId === req.id ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'}`}
-                                  title="Override Actions"
-                                >
-                                  <RefreshCw size={11} /> Override
-                                </button>
-                                {overrideMenuCardId === req.id && (
-                                  <div
-                                    className="absolute right-0 bottom-full mb-1.5 w-52 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50"
-                                    onClick={e => e.stopPropagation()}
-                                  >
-                                    <div className="px-3 pt-2.5 pb-1">
-                                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Override Actions</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        setOverrideMenuCardId(null);
-                                        const a = { ...req.allotment!, request: req };
-                                        setOverrideAllotment(a as QuarterAllotment);
-                                        setOverrideRequest(req);
-                                        setShowOverrideModal(true);
-                                      }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-amber-50 transition-colors group"
-                                    >
-                                      <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 group-hover:bg-amber-100">
-                                        <RefreshCw size={11} className="text-amber-600" />
-                                      </div>
-                                      <div>
-                                        <div className="text-xs font-semibold text-gray-800">Open Override Panel</div>
-                                        <div className="text-[10px] text-gray-400">Reassign, swap or cancel</div>
-                                      </div>
-                                    </button>
-                                    <div className="mx-3 border-t border-gray-100" />
-                                    <button
-                                      onClick={() => {
-                                        setOverrideMenuCardId(null);
-                                        handleDeallocate(req.allotment!.id, req.id);
-                                      }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-red-50 transition-colors group"
-                                    >
-                                      <div className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center shrink-0 group-hover:bg-red-100">
-                                        <Trash2 size={11} className="text-red-600" />
-                                      </div>
-                                      <div>
-                                        <div className="text-xs font-semibold text-gray-800">Deallocate</div>
-                                        <div className="text-[10px] text-gray-400">Return to Submitted</div>
-                                      </div>
-                                    </button>
-                                    <div className="h-1" />
-                                  </div>
-                                )}
-                              </div>
                             )}
 
                             {/* Accept / Decline buttons — Govt Official only, ALLOTTED cards */}

@@ -51,7 +51,6 @@ export function useQuarterRequestsState() {
   const [overrideAllotment, setOverrideAllotment] = useState<QuarterAllotment | null>(null);
   const [overrideRequest, setOverrideRequest] = useState<QuarterRequest | null>(null);
   const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [overrideMenuCardId, setOverrideMenuCardId] = useState<string | null>(null);
 
   // ── EO Employee mode: manual allot quarter picker ──────────────────────────
   const [manualAllotPickerOpen, setManualAllotPickerOpen] = useState(false);
@@ -359,7 +358,6 @@ export function useQuarterRequestsState() {
     overrideAllotment, setOverrideAllotment,
     overrideRequest, setOverrideRequest,
     showOverrideModal, setShowOverrideModal,
-    overrideMenuCardId, setOverrideMenuCardId,
     manualAllotPickerOpen, setManualAllotPickerOpen,
     manualAllotSearch, setManualAllotSearch,
     manualAllotQuarters, setManualAllotQuarters,
