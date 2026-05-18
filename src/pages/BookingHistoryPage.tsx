@@ -375,7 +375,7 @@ export const BookingHistoryPage: React.FC = () => {
   const loadAvailableProperties = async () => {
     setAvPropLoading(true);
     try {
-      const data = await getProperties({ status: 'active', userRole: user?.role });
+      const data = await getProperties({ status: 'PUBLISHED', userRole: user?.role });
       setAvailableProperties(data);
     } catch {
       // silently fail
