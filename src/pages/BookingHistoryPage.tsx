@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
   Building2, Eye, ChevronLeft, Search, SlidersHorizontal,
-  CreditCard, MapPin, X,
+  CreditCard, MapPin, X, Download,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
@@ -21,6 +21,8 @@ import {
 } from '../utils/bookingFormatters';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import SplitLayout from '../components/ui/SplitLayout';
+import { downloadPageAsHtml } from '../utils/downloadHtml';
+import { ROUTES } from '../constants/routes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -497,67 +499,91 @@ export const BookingHistoryPage: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
       {/* ── Frozen header ── */}
-      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
-        <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
+      <div className="flex-none px-4 sm:px-6 lg:px-8 pt-3 pb-0 z-20">
+        <div className="max-w-[1800px] mx-auto">
 
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
-            <button onClick={() => navigate('/dashboard')} className="hover:text-blue-600 transition-colors">
-              <Home size={11} />
-            </button>
-            <ChevronRight size={10} />
-            <button onClick={() => navigate('/dashboard')} className="text-gray-500 hover:text-blue-600 transition-colors">
-              My Workspace
-            </button>
-            <ChevronRight size={10} />
-            <button
-              onClick={() => { setSelectedBooking(null); setDpFilter('all'); }}
-              className="text-gray-600 font-medium hover:text-blue-600 transition-colors"
-            >
-              My Bookings
-            </button>
-            {dpFilter !== 'all' && (
-              <>
-                <ChevronRight size={10} />
-                <button onClick={() => setSelectedBooking(null)} className="text-gray-700 font-medium hover:text-blue-600 transition-colors">
-                  {dpLabel}
+          {/* Header card — matches Quarter Requests exactly */}
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-2 mb-2">
+
+            {/* Row 1: breadcrumb + action buttons */}
+            <div className="flex items-center justify-between gap-2 min-h-0">
+              <div className="flex items-center gap-1 text-xs text-gray-400 min-w-0 flex-wrap">
+                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-blue-600 transition-colors flex-shrink-0">
+                  <Home size={11} />
                 </button>
-              </>
-            )}
-            {selectedBooking && (
-              <>
-                <ChevronRight size={10} />
-                <span className="font-mono text-gray-700 font-medium truncate max-w-[140px]">
-                  #{selectedBooking.bookingNumber}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* User identity strip */}
-          {user && (
-            <div className="flex items-center gap-2.5 mb-3 px-3 py-2 bg-blue-50/60 border border-blue-100 rounded-xl">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                {user.fullName?.[0]?.toUpperCase() ?? 'U'}
-              </div>
-              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-gray-900 truncate">{user.fullName}</span>
-                {user.email && (
-                  <span className="text-xs text-gray-400 truncate hidden sm:inline">{user.email}</span>
+                <ChevronRight size={9} className="flex-shrink-0" />
+                <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-blue-600 transition-colors flex-shrink-0">
+                  Workspace
+                </button>
+                <ChevronRight size={9} className="flex-shrink-0" />
+                <button
+                  onClick={() => { setSelectedBooking(null); setDpFilter('all'); }}
+                  className="text-gray-600 font-medium hover:text-blue-600 transition-colors flex-shrink-0"
+                >
+                  My Bookings
+                </button>
+                {dpFilter !== 'all' && (
+                  <>
+                    <ChevronRight size={9} className="flex-shrink-0" />
+                    <button
+                      onClick={() => setSelectedBooking(null)}
+                      className="text-gray-700 font-medium hover:text-blue-600 transition-colors truncate max-w-[80px]"
+                    >
+                      {dpLabel}
+                    </button>
+                  </>
+                )}
+                {selectedBooking && (
+                  <>
+                    <ChevronRight size={9} className="flex-shrink-0" />
+                    <span className="font-mono text-gray-700 font-medium truncate max-w-[100px]">
+                      #{selectedBooking.bookingNumber}
+                    </span>
+                  </>
                 )}
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 uppercase flex-shrink-0">
-                {user.role?.replace('_', ' ')}
-              </span>
-            </div>
-          )}
 
-          {/* Page title */}
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
-              <History className="w-4 h-4 text-white" />
+              {/* Action buttons */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => downloadPageAsHtml('/bookings')}
+                  title="Download Offline Copy"
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                >
+                  <Download size={14} />
+                </button>
+                <button
+                  onClick={() => navigate(ROUTES.PROPERTIES)}
+                  title="Browse Properties"
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                >
+                  <Eye size={14} />
+                </button>
+              </div>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">My Bookings</h1>
+
+            {/* Row 2: user identity + page title — all inline */}
+            <div className="flex items-center gap-2 mt-1.5 min-w-0">
+              {user && (
+                <>
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0">
+                    {user.fullName?.[0]?.toUpperCase() ?? 'U'}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700 truncate max-w-[140px]">{user.fullName}</span>
+                  {user.email && (
+                    <span className="text-[10px] text-gray-400 font-mono flex-shrink-0 hidden sm:inline">{user.email}</span>
+                  )}
+                  {user.role && (
+                    <>
+                      <span className="text-gray-200 flex-shrink-0">·</span>
+                      <span className="text-[10px] text-gray-400 flex-shrink-0">{user.role.replace('_', ' ')}</span>
+                    </>
+                  )}
+                  <span className="text-gray-200 mx-1 flex-shrink-0">|</span>
+                </>
+              )}
+              <h1 className="text-sm font-bold text-gray-900 leading-none flex-shrink-0">My Bookings</h1>
+            </div>
           </div>
 
           {/* ── DP Carousel ── */}
