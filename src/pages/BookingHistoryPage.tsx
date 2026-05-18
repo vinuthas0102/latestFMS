@@ -17,6 +17,7 @@ import { formatDate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/formatters';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
+import { usePropertyStore } from '../stores/propertyStore';
 import { FadeIn } from '../components/animations/FadeIn';
 import { CountUp } from '../components/animations/CountUp';
 import { BookingDetailPanel } from '../components/booking/BookingDetailPanel';
@@ -358,7 +359,11 @@ const AvailablePropertyCard: React.FC<{
   const extraCount = rawImgs.length > 5 ? rawImgs.length - 4 : 0;
 
   const typeName = property.assetType?.name ?? property.propertyType?.name ?? 'Property';
-  const amenities: string[] = Array.isArray((property as any).amenities) ? (property as any).amenities : [];
+  const amenityStore = usePropertyStore(s => s.amenities);
+  const rawAmenityIds: string[] = Array.isArray((property as any).amenities) ? (property as any).amenities : [];
+  const resolvedAmenityNames: string[] = rawAmenityIds
+    .map(id => amenityStore.find(a => a.id === id)?.name ?? null)
+    .filter((n): n is string => n !== null);
 
   return (
     <div
@@ -465,16 +470,16 @@ const AvailablePropertyCard: React.FC<{
             )}
           </div>
 
-          {amenities.length > 0 && (
+          {resolvedAmenityNames.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
-              {amenities.slice(0, 5).map((a: string) => (
-                <span key={a} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
-                  {a}
+              {resolvedAmenityNames.slice(0, 5).map((name: string) => (
+                <span key={name} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
+                  {name}
                 </span>
               ))}
-              {amenities.length > 5 && (
+              {resolvedAmenityNames.length > 5 && (
                 <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                  +{amenities.length - 5} more
+                  +{resolvedAmenityNames.length - 5} more
                 </span>
               )}
             </div>
@@ -527,6 +532,8 @@ export const BookingHistoryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
+  const fetchAmenities = usePropertyStore(s => s.fetchAmenities);
+  const amenitiesLoaded = usePropertyStore(s => s.amenities.length > 0);
 
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -557,6 +564,7 @@ export const BookingHistoryPage: React.FC = () => {
   useEffect(() => {
     loadBookings();
     loadAvailableProperties();
+    if (!amenitiesLoaded) fetchAmenities().catch(() => {});
     const status = searchParams.get('status');
     if (status === 'upcoming') setDpFilter('upcoming');
     else if (status === 'cancelled') setDpFilter('cancelled');

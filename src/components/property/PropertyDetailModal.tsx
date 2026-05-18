@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, ArrowLeft, MapPin, Wifi, Calendar, Info, Layers, DollarSign, Map,
   BarChart3, Building2, Star, CheckCircle, Bed, Users, ExternalLink,
-  CreditCard as EditIcon, ChevronDown,
+  CreditCard as EditIcon, ChevronDown, Hash, FileText, Shield,
 } from 'lucide-react';
+import { SpecTile } from '../ui/SpecTile';
 import { RoomDisplayCard } from '../rooms/RoomDisplayCard';
 import { getCategoryTheme, getAmenityIcon } from '../../utils/amenityIcons';
 import { PhotoGallery } from '../ui/PhotoGallery';
@@ -308,19 +309,24 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   <ArrowLeft size={15} /> Close
                 </button>
               ) : (
-                <div className="flex flex-col items-start leading-tight">
-                  {property && <span className="font-bold text-gray-900 text-sm truncate max-w-[140px]">{property.name}</span>}
-                  {property?.minPrice && (
-                    <span className="text-xs text-gray-500">From <span className="font-semibold text-gray-900">₹{property.minPrice.toLocaleString('en-IN')}</span>/night</span>
-                  )}
+                <div className="w-6" />
+              )}
+
+              {/* Property identity — centre */}
+              {property && (
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="font-bold text-gray-900 text-sm">{property.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {property.propertyType?.name ?? property.assetType?.name ?? 'Property'}
+                    {property.minPrice
+                      ? <> · <span className="font-semibold text-emerald-700">₹{property.minPrice.toLocaleString('en-IN')}</span>/night</>
+                      : null
+                    }
+                  </span>
                 </div>
               )}
+
               <div className="flex items-center gap-2">
-                {!inline && property?.minPrice && (
-                  <span className="text-sm text-gray-500 hidden sm:block">
-                    From <span className="font-bold text-gray-900">₹{property.minPrice.toLocaleString('en-IN')}</span>/night
-                  </span>
-                )}
                 {property && (
                   <button
                     onClick={() => { navigate(`/properties/${propertyId}`); if (!inline) onClose(); }}
@@ -393,82 +399,120 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             ) : (
               <div className="p-5 pb-24 space-y-8">
 
-                {/* ── PhotoGallery + title — always at top ─────── */}
-                <PhotoGallery
-                  images={property.images}
-                  alt={property.name}
-                  heroHeight="360px"
-                  lightboxInfo={lightboxInfo}
-                />
-
-                {/* Title / price strip */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
-                        {property.status}
-                      </Badge>
-                      {property.module && (
-                        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                          {property.module.name}
-                        </span>
-                      )}
-                      {moduleBadgeText && (
-                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${moduleBadgeStyles}`}>
-                          {moduleBadgeText}
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900">{property.name}</h2>
-                    <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
-                      <MapPin size={13} className="flex-shrink-0" />
-                      <span>{property.estate?.city || property.address}</span>
-                    </div>
-                  </div>
-                  {property.minPrice && (
-                    <div className="flex-shrink-0 text-right">
-                      <div className="text-xs text-gray-400">Starting from</div>
-                      <div className="text-2xl font-black text-gray-900">₹{property.minPrice.toLocaleString('en-IN')}</div>
-                      <div className="text-xs text-gray-400">per night</div>
-                      <button
-                        onClick={() => scrollToSection('book')}
-                        className="mt-1.5 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
-                      >
-                        Book Now <ChevronDown size={11} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── OVERVIEW ───────────────────────────────────── */}
+                {/* ── OVERVIEW: split hero — gallery left, specs right ── */}
                 <section
                   ref={(el) => { if (el) sectionRefs.current['overview'] = el; }}
-                  className="space-y-4"
                 >
-                  <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Overview" />
+                  <div className="flex flex-col lg:flex-row gap-5" style={{ minHeight: 340 }}>
 
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">About</h4>
-                    <BasicInfoDisplay property={property} />
+                    {/* Left: Photo gallery */}
+                    <div className="lg:w-1/2 flex-shrink-0" style={{ minHeight: 280 }}>
+                      <PhotoGallery
+                        images={property.images}
+                        alt={property.name}
+                        fillHeight
+                        lightboxInfo={lightboxInfo}
+                      />
+                    </div>
+
+                    {/* Right: Property specs */}
+                    <div className="lg:w-1/2 flex flex-col gap-3 min-w-0">
+                      <SectionHeading icon={<Info size={15} className="text-blue-500" />} label="Property Details" />
+
+                      {/* Status / module badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={property.status === 'PUBLISHED' ? 'success' : 'warning'} className="text-xs">
+                          {property.status}
+                        </Badge>
+                        {property.module && (
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                            {property.module.name}
+                          </span>
+                        )}
+                        {moduleBadgeText && (
+                          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${moduleBadgeStyles}`}>
+                            {moduleBadgeText}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Spec tiles grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        <SpecTile icon={<Building2 size={14} />} label="Property Name" value={property.name} />
+                        <SpecTile icon={<Hash size={14} />} label="Code" value={<span className="font-mono">{property.code}</span>} />
+                        {property.propertyType && (
+                          <SpecTile icon={<Layers size={14} />} label="Type" value={property.propertyType.name} />
+                        )}
+                        {property.assetType && (
+                          <SpecTile icon={<Building2 size={14} />} label="Asset Type" value={property.assetType.name} />
+                        )}
+                        {property.totalRooms != null && property.totalRooms > 0 && (
+                          <SpecTile icon={<Bed size={14} />} label="Total Rooms" value={`${property.totalRooms} room${property.totalRooms !== 1 ? 's' : ''}`} />
+                        )}
+                        {property.minPrice != null && (
+                          <SpecTile
+                            icon={<DollarSign size={14} />}
+                            label="Starting From"
+                            value={<span className="text-emerald-700">₹{property.minPrice.toLocaleString('en-IN')}/night</span>}
+                            accent="bg-emerald-50 border-emerald-200"
+                          />
+                        )}
+                        {isHall && property.hallDetails && property.hallDetails.capacity.mainHallSeating > 0 && (
+                          <SpecTile icon={<Users size={14} />} label="Hall Seating" value={`${property.hallDetails.capacity.mainHallSeating.toLocaleString()} seats`} />
+                        )}
+                        {property.isExempt && (
+                          <SpecTile
+                            icon={<Shield size={14} />}
+                            label="Booking Rules"
+                            value="Exempt"
+                            accent="bg-amber-50 border-amber-200"
+                          />
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      {property.description && (
+                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <FileText size={13} className="text-blue-500" /> Description
+                          </h4>
+                          <p className="text-sm text-gray-600 leading-relaxed">{property.description}</p>
+                        </div>
+                      )}
+
+                      {/* Location preview */}
+                      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mt-auto">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                          <MapPin size={13} className="text-rose-500" /> Location
+                        </h4>
+                        <p className="text-sm text-gray-600">{property.address || property.estate?.city || 'Address not available'}</p>
+                        <button
+                          onClick={() => scrollToSection('location')}
+                          className="mt-2 text-xs text-blue-600 hover:underline font-medium"
+                        >
+                          View on map →
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Amenities below the hero */}
                   {(() => {
                     const propertyAmenityIds = property.amenities || [];
                     const resolvedAmenities = propertyAmenityIds
                       .map((id: string) => amenities.find(a => a.id === id))
                       .filter(Boolean) as typeof amenities;
-                    const displayAmenities = resolvedAmenities.length > 0 ? resolvedAmenities : [];
-                    if (displayAmenities.length === 0) return null;
-                    const grouped = displayAmenities.reduce((acc: Record<string, typeof amenities>, a) => {
+                    if (resolvedAmenities.length === 0) return null;
+                    const grouped = resolvedAmenities.reduce((acc: Record<string, typeof amenities>, a) => {
                       if (!acc[a.category]) acc[a.category] = [];
                       acc[a.category].push(a);
                       return acc;
                     }, {});
                     return (
-                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                      <div className="mt-4 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                         <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                           <CheckCircle size={13} className="text-emerald-500" /> Amenities & Features
-                          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{displayAmenities.length}</span>
+                          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{resolvedAmenities.length}</span>
                         </h4>
                         <div className="space-y-3">
                           {Object.entries(grouped).map(([category, items]) => (
@@ -493,27 +537,14 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     );
                   })()}
 
-                  {!isHall && (
-                    <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                  {!isHall && blocks.length > 0 && (
+                    <div className="mt-4 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                       <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                         <Layers size={13} className="text-slate-500" /> Structure
                       </h4>
                       <BlocksFloorsDisplay blocks={blocks} />
                     </div>
                   )}
-
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                      <MapPin size={13} className="text-rose-500" /> Location
-                    </h4>
-                    <LocationDisplay property={property} />
-                    <button
-                      onClick={() => scrollToSection('location')}
-                      className="mt-2 text-xs text-blue-600 hover:underline font-medium"
-                    >
-                      View on map →
-                    </button>
-                  </div>
                 </section>
 
                 {/* ── HALL DETAILS (Community / Marriage Hall only) ── */}
