@@ -9,6 +9,7 @@ import {
   BookingStatus,
 } from '../types';
 import { generateOTP as generateOTPService, verifyOTP as verifyOTPService } from './otpService';
+import { DEMO_MODE, DEMO_BOOKINGS } from '../mocks/demoData';
 
 const GUEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -121,6 +122,16 @@ export const bookingService = {
   },
 
   getBookings: async (filters?: BookingFilters): Promise<BookingDTO[]> => {
+    if (DEMO_MODE) {
+      let results = [...DEMO_BOOKINGS];
+      if (filters?.userId) results = results.filter(b => b.userId === filters.userId);
+      if (filters?.propertyId) results = results.filter(b => b.propertyId === filters.propertyId);
+      if (filters?.status) results = results.filter(b => b.status === filters.status);
+      if (filters?.fromDate) results = results.filter(b => b.checkInDate >= filters.fromDate!);
+      if (filters?.toDate) results = results.filter(b => b.checkOutDate <= filters.toDate!);
+      if (filters?.roomTypeId) results = results.filter(b => b.roomTypeId === filters.roomTypeId);
+      return Promise.resolve(results);
+    }
     let query = supabase
       .from('bookings')
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)');
@@ -139,6 +150,7 @@ export const bookingService = {
   },
 
   getBookingById: async (id: string): Promise<BookingDTO | null> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_BOOKINGS.find(b => b.id === id) ?? null);
     const { data, error } = await supabase
       .from('bookings')
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
@@ -156,6 +168,11 @@ export const bookingService = {
     status: BookingStatus,
     notes?: string
   ): Promise<BookingDTO> => {
+    if (DEMO_MODE) {
+      const booking = DEMO_BOOKINGS.find(b => b.id === id);
+      if (!booking) throw new Error('Booking not found');
+      return Promise.resolve({ ...booking, status, notes: notes ?? booking.notes, updatedAt: new Date().toISOString() });
+    }
     const updateData: any = {
       status,
       updated_at: new Date().toISOString(),
@@ -283,6 +300,7 @@ export const bookingService = {
   },
 
   getBookingByBookingNumber: async (bookingNumber: string): Promise<BookingDTO | null> => {
+    if (DEMO_MODE) return Promise.resolve(DEMO_BOOKINGS.find(b => b.bookingNumber === bookingNumber) ?? null);
     const { data, error } = await supabase
       .from('bookings')
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
@@ -323,6 +341,11 @@ export const bookingService = {
   },
 
   cancelBooking: async (bookingId: string, _userId?: string): Promise<BookingDTO> => {
+    if (DEMO_MODE) {
+      const booking = DEMO_BOOKINGS.find(b => b.id === bookingId);
+      if (!booking) throw new Error('Booking not found');
+      return Promise.resolve({ ...booking, status: 'CANCELLED', updatedAt: new Date().toISOString() });
+    }
     const updateData: any = {
       status: 'CANCELLED',
       updated_at: new Date().toISOString(),
