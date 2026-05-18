@@ -15,6 +15,7 @@ import { LocationDisplay } from './LocationDisplay';
 import { BlocksFloorsDisplay } from './BlocksFloorsDisplay';
 import { RoomsDisplay } from './RoomsDisplay';
 import { PricingDisplay } from './PricingDisplay';
+import { HallDetailsDisplay } from './HallDetailsDisplay';
 import { PropertyAvailabilityCalendar } from '../availability/PropertyAvailabilityCalendar';
 import { RoomAvailabilityInsights } from '../availability/RoomAvailabilityInsights';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
@@ -24,22 +25,29 @@ import { propertyService } from '../../services/propertyService';
 import { usePropertyStore } from '../../stores/propertyStore';
 import { useAuthStore } from '../../stores/authStore';
 import { canManageProperties } from '../../utils/permissions';
-import { getModuleBadgeText, getModuleBadgeStyles } from '../../utils/moduleHelpers';
+import { getModuleBadgeText, getModuleBadgeStyles, isHallPropertyType } from '../../utils/moduleHelpers';
 
 // ── Section definitions ────────────────────────────────────────────
 
-type SectionId = 'overview' | 'rooms' | 'availability' | 'location' | 'reviews' | 'book';
+type SectionId = 'overview' | 'hall' | 'rooms' | 'availability' | 'location' | 'reviews' | 'book';
 
 interface SectionDef { id: SectionId; label: string; icon: React.ReactNode }
 
-const SECTIONS: SectionDef[] = [
+const ALL_SECTIONS: SectionDef[] = [
   { id: 'overview',     label: 'Overview',        icon: <Info size={14} /> },
+  { id: 'hall',         label: 'Hall Details',     icon: <Layers size={14} /> },
   { id: 'rooms',        label: 'Rooms & Pricing',  icon: <Bed size={14} /> },
   { id: 'availability', label: 'Availability',     icon: <Calendar size={14} /> },
-  { id: 'location',     label: 'Location',          icon: <Map size={14} /> },
-  { id: 'reviews',      label: 'Reviews',           icon: <Star size={14} /> },
-  { id: 'book',         label: 'Book Now',          icon: <Calendar size={14} /> },
+  { id: 'location',     label: 'Location',         icon: <Map size={14} /> },
+  { id: 'reviews',      label: 'Reviews',          icon: <Star size={14} /> },
+  { id: 'book',         label: 'Book Now',         icon: <Calendar size={14} /> },
 ];
+
+function getSections(isHall: boolean): SectionDef[] {
+  return isHall
+    ? ALL_SECTIONS.filter(s => s.id !== 'rooms')
+    : ALL_SECTIONS.filter(s => s.id !== 'hall');
+}
 
 // ── Reviews ────────────────────────────────────────────────────────
 
@@ -241,6 +249,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const requiresLogin = !!isGovtFacilities;
   const moduleBadgeText = property ? getModuleBadgeText(property.module?.code) : null;
   const moduleBadgeStyles = property ? getModuleBadgeStyles(property.module?.code) : '';
+  const isHall = isHallPropertyType(property?.propertyType?.code);
+  const SECTIONS = getSections(isHall);
 
   // Lightbox info panel shown alongside the full-screen photo view
   const lightboxInfo = property ? (
@@ -483,12 +493,14 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     );
                   })()}
 
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                      <Layers size={13} className="text-slate-500" /> Structure
-                    </h4>
-                    <BlocksFloorsDisplay blocks={blocks} />
-                  </div>
+                  {!isHall && (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                      <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <Layers size={13} className="text-slate-500" /> Structure
+                      </h4>
+                      <BlocksFloorsDisplay blocks={blocks} />
+                    </div>
+                  )}
 
                   <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -504,47 +516,70 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   </div>
                 </section>
 
-                {/* ── ROOMS & PRICING ────────────────────────────── */}
-                <section
-                  ref={(el) => { if (el) sectionRefs.current['rooms'] = el; }}
-                  className="space-y-4"
-                >
-                  <SectionHeading
-                    icon={<Bed size={15} className="text-blue-500" />}
-                    label="Rooms & Pricing"
-                    count={rooms.length > 0 ? `${rooms.length} room${rooms.length !== 1 ? 's' : ''}` : undefined}
-                  />
-
-                  {rooms.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                      <Bed size={36} className="mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm text-gray-400">No room details available</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {rooms.map((room) => (
-                        <RoomDisplayCard key={room.id} room={room} allAmenities={amenities} onBook={() => scrollToSection('book')} />
-                      ))}
-                    </div>
-                  )}
-
-                  {rooms.length > 0 && (
-                    <>
-                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                          <DollarSign size={13} className="text-emerald-500" /> Pricing Summary
-                        </h4>
-                        <PricingDisplay rooms={rooms} />
+                {/* ── HALL DETAILS (Community / Marriage Hall only) ── */}
+                {isHall && (
+                  <section
+                    ref={(el) => { if (el) sectionRefs.current['hall'] = el; }}
+                    className="space-y-4"
+                  >
+                    <SectionHeading
+                      icon={<Layers size={15} className="text-blue-500" />}
+                      label="Hall Details"
+                    />
+                    {property.hallDetails ? (
+                      <HallDetailsDisplay hall={property.hallDetails} hallCode={property.code} />
+                    ) : (
+                      <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                        <Layers size={32} className="mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm text-gray-400">No hall details added yet</p>
                       </div>
-                      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                          <BarChart3 size={13} className="text-amber-500" /> Availability Insights
-                        </h4>
-                        <RoomAvailabilityInsights propertyId={propertyId} />
+                    )}
+                  </section>
+                )}
+
+                {/* ── ROOMS & PRICING (non-hall only) ────────────── */}
+                {!isHall && (
+                  <section
+                    ref={(el) => { if (el) sectionRefs.current['rooms'] = el; }}
+                    className="space-y-4"
+                  >
+                    <SectionHeading
+                      icon={<Bed size={15} className="text-blue-500" />}
+                      label="Rooms & Pricing"
+                      count={rooms.length > 0 ? `${rooms.length} room${rooms.length !== 1 ? 's' : ''}` : undefined}
+                    />
+
+                    {rooms.length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                        <Bed size={36} className="mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm text-gray-400">No room details available</p>
                       </div>
-                    </>
-                  )}
-                </section>
+                    ) : (
+                      <div className="space-y-3">
+                        {rooms.map((room) => (
+                          <RoomDisplayCard key={room.id} room={room} allAmenities={amenities} onBook={() => scrollToSection('book')} />
+                        ))}
+                      </div>
+                    )}
+
+                    {rooms.length > 0 && (
+                      <>
+                        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                            <DollarSign size={13} className="text-emerald-500" /> Pricing Summary
+                          </h4>
+                          <PricingDisplay rooms={rooms} />
+                        </div>
+                        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                            <BarChart3 size={13} className="text-amber-500" /> Availability Insights
+                          </h4>
+                          <RoomAvailabilityInsights propertyId={propertyId} />
+                        </div>
+                      </>
+                    )}
+                  </section>
+                )}
 
                 {/* ── AVAILABILITY ───────────────────────────────── */}
                 <section

@@ -1,3 +1,11 @@
+// Hall/Community Hall property type codes
+export const HALL_PROPERTY_TYPE_CODES = ['COMMUNITY_HALL', 'MARRIAGE_HALL'];
+
+export const isHallPropertyType = (propertyTypeCode?: string | null): boolean => {
+  if (!propertyTypeCode) return false;
+  return HALL_PROPERTY_TYPE_CODES.includes(propertyTypeCode.toUpperCase());
+};
+
 export const requiresLoginForBooking = (moduleCode?: string): boolean => {
   return moduleCode === 'GOVT_FAC';
 };

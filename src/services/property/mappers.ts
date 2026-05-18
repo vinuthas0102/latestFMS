@@ -107,6 +107,7 @@ export function mapPropertyFromDb(dbProperty: any): PropertyDTO {
     images: dbProperty.images || [],
     amenities: dbProperty.amenities || [],
     metadata: dbProperty.metadata || {},
+    hallDetails: dbProperty.hall_details ?? null,
     createdBy: dbProperty.created_by,
     updatedBy: dbProperty.updated_by,
     createdAt: dbProperty.created_at,

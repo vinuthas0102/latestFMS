@@ -8,12 +8,14 @@ import { BlocksFloorsTab } from '../components/property-creation/BlocksFloorsTab
 import { RoomsTab } from '../components/property-creation/RoomsTab';
 import { ImagesTab } from '../components/property-creation/ImagesTab';
 import { PricingTab } from '../components/property-creation/PricingTab';
+import { HallDetailsTab } from '../components/property-creation/HallDetailsTab';
 import { Building2, ArrowLeft, Save } from 'lucide-react';
-import { PropertyStatus } from '../types';
+import { PropertyStatus, HallDetails, DEFAULT_HALL_DETAILS } from '../types';
 import { propertyService } from '../services/propertyService';
 import { useUIStore } from '../stores/uiStore';
 import { Spinner } from '../components/ui/Loading';
 import { ROUTES } from '../constants/routes';
+import { isHallPropertyType } from '../utils/moduleHelpers';
 
 interface PropertyFormData {
   name: string;
@@ -53,6 +55,9 @@ interface PropertyFormData {
   description: string;
   amenities: string[];
   status: PropertyStatus;
+  hallDetails: HallDetails;
+  // resolved property type code for conditional logic
+  propertyTypeCode?: string | null;
 }
 
 export const CreatePropertyPage: React.FC = () => {
@@ -72,6 +77,7 @@ export const CreatePropertyPage: React.FC = () => {
     code: '',
     moduleId: null,
     propertyTypeId: null,
+    propertyTypeCode: null,
     assetTypeId: null,
     isExempt: false,
     estateId: null,
@@ -84,6 +90,7 @@ export const CreatePropertyPage: React.FC = () => {
     description: '',
     amenities: [],
     status: 'DRAFT',
+    hallDetails: { ...DEFAULT_HALL_DETAILS },
   });
 
   const updateFormData = (updates: Partial<PropertyFormData>) => {
@@ -131,6 +138,7 @@ export const CreatePropertyPage: React.FC = () => {
         code: property.code,
         moduleId: property.moduleId || null,
         propertyTypeId: property.propertyTypeId || null,
+        propertyTypeCode: property.propertyType?.code || null,
         assetTypeId: property.assetTypeId,
         isExempt: property.isExempt,
         estateId: property.estateId,
@@ -143,6 +151,7 @@ export const CreatePropertyPage: React.FC = () => {
         description: property.description,
         amenities: property.amenities,
         status: property.status,
+        hallDetails: property.hallDetails ?? { ...DEFAULT_HALL_DETAILS },
       });
 
       setSavedPropertyId(propertyId);
@@ -155,6 +164,8 @@ export const CreatePropertyPage: React.FC = () => {
     }
   };
 
+  const isHall = isHallPropertyType(formData.propertyTypeCode);
+
   const isTabComplete = (tabId: string): boolean => {
     switch (tabId) {
       case 'basic':
@@ -162,13 +173,15 @@ export const CreatePropertyPage: React.FC = () => {
       case 'location':
         return !!formData.address;
       case 'blocks':
-        return formData.blocks.length > 0;
+        return isHall || formData.blocks.length > 0;
       case 'rooms':
-        return formData.rooms.length > 0 && formData.rooms.every(r => r.roomTypeId && r.roomNumber);
+        return isHall || (formData.rooms.length > 0 && formData.rooms.every(r => r.roomTypeId && r.roomNumber));
+      case 'hall':
+        return isHall && formData.hallDetails.capacity.mainHallSeating > 0;
       case 'images':
         return true;
       case 'pricing':
-        return true;
+        return isHall || true;
       default:
         return false;
     }
@@ -192,7 +205,10 @@ export const CreatePropertyPage: React.FC = () => {
   };
 
   const handlePublish = async () => {
-    if (!isTabComplete('basic') || !isTabComplete('location') || !isTabComplete('blocks') || !isTabComplete('rooms')) {
+    const requiredTabs = isHall
+      ? ['basic', 'location', 'hall']
+      : ['basic', 'location', 'blocks', 'rooms'];
+    if (!requiredTabs.every(t => isTabComplete(t))) {
       addToast('Please complete all required tabs before publishing', 'error');
       return;
     }
@@ -238,6 +254,7 @@ export const CreatePropertyPage: React.FC = () => {
           status,
           images: formData.images,
           amenities: formData.amenities,
+          hallDetails: isHall ? formData.hallDetails : null,
         });
       } else {
         property = await propertyService.createProperty({
@@ -255,6 +272,7 @@ export const CreatePropertyPage: React.FC = () => {
           status,
           images: formData.images,
           amenities: formData.amenities,
+          hallDetails: isHall ? formData.hallDetails : null,
         });
 
         setSavedPropertyId(property.id);
@@ -361,7 +379,7 @@ export const CreatePropertyPage: React.FC = () => {
     }
   };
 
-  const tabs = [
+  const baseTabs = [
     {
       id: 'basic',
       label: '1. Basic Info',
@@ -374,6 +392,24 @@ export const CreatePropertyPage: React.FC = () => {
       content: <LocationTab formData={formData} updateFormData={updateFormData} />,
       isComplete: isTabComplete('location'),
     },
+  ];
+
+  const hallTabs = [
+    {
+      id: 'hall',
+      label: '3. Hall Details',
+      content: <HallDetailsTab formData={formData} updateFormData={updateFormData} />,
+      isComplete: isTabComplete('hall'),
+    },
+    {
+      id: 'images',
+      label: '4. Images',
+      content: <ImagesTab formData={formData} updateFormData={updateFormData} />,
+      isComplete: isTabComplete('images'),
+    },
+  ];
+
+  const standardTabs = [
     {
       id: 'blocks',
       label: '3. Blocks & Floors',
@@ -399,6 +435,8 @@ export const CreatePropertyPage: React.FC = () => {
       isComplete: isTabComplete('pricing'),
     },
   ];
+
+  const tabs = isHall ? [...baseTabs, ...hallTabs] : [...baseTabs, ...standardTabs];
 
   if (isLoading) {
     return (

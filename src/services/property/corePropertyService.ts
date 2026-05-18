@@ -118,6 +118,7 @@ export async function createProperty(property: CreatePropertyDTO): Promise<Prope
         images: property.images,
         amenities: property.amenities,
         metadata: property.metadata || {},
+        hall_details: property.hallDetails ?? null,
       },
     ])
     .select('*, estate:estates(*), assetType:asset_types(*), module:modules(*), propertyType:property_types(*, module:modules(*))')
@@ -160,6 +161,7 @@ export async function updateProperty(id: string, updates: UpdatePropertyDTO): Pr
   if (updates.images) updateData.images = updates.images;
   if (updates.amenities) updateData.amenities = updates.amenities;
   if (updates.metadata) updateData.metadata = updates.metadata;
+  if (updates.hallDetails !== undefined) updateData.hall_details = updates.hallDetails;
   if (updates.updatedBy) updateData.updated_by = sanitizeUUID(updates.updatedBy);
 
   const { data, error } = await supabase

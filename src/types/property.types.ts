@@ -66,6 +66,95 @@ export interface AssetTypeDTO {
   module?: ModuleDTO;
 }
 
+// ── Hall / Community Hall specific types ───────────────────────────
+
+export interface HallCapacity {
+  mainHallSeating: number;
+  diningCapacity: number;
+  guestRooms: number;
+  twoWheelerParking: number;
+  fourWheelerParking: number;
+  kitchenSizeSqft: number;
+}
+
+export interface HallBillingItem {
+  label: string;
+  amount: string;
+  unit: string;
+}
+
+export interface HallFacilities {
+  musicSystem: boolean;
+  waterSupply: boolean;
+  electricityDG: boolean;
+  bathroomFacility: boolean;
+  kitchenAccess: boolean;
+  centralAC: boolean;
+  cctvMonitoring: boolean;
+  fireSafetySystem: boolean;
+  physicalSecurity: boolean;
+  fans: boolean;
+}
+
+export interface HallTerms {
+  cancellationRules: string;
+  bookingRules: string;
+  termsAndConditions: string;
+}
+
+export interface HallDetails {
+  contactDetails: string;
+  capacity: HallCapacity;
+  billing: HallBillingItem[];
+  facilities: HallFacilities;
+  terms: HallTerms;
+}
+
+export const DEFAULT_HALL_BILLING_ITEMS: HallBillingItem[] = [
+  { label: 'Base Hall Rent', amount: '', unit: 'per day' },
+  { label: 'Music System Charge', amount: '', unit: 'per day' },
+  { label: 'Room (Per Unit)', amount: '', unit: 'per unit' },
+  { label: 'Water Utility Fee', amount: '', unit: 'flat per day' },
+  { label: 'Electricity Charge', amount: '', unit: 'per day' },
+  { label: 'Security Deposit', amount: '', unit: 'flat' },
+  { label: 'Lighting Charges', amount: '', unit: 'per day' },
+  { label: 'Gas Charges', amount: '', unit: 'per day' },
+  { label: 'Damage Recovery Policy', amount: '', unit: 'as applicable' },
+  { label: 'Operating Time & Noise', amount: '', unit: 'as per policy' },
+];
+
+export const DEFAULT_HALL_DETAILS: HallDetails = {
+  contactDetails: '',
+  capacity: {
+    mainHallSeating: 0,
+    diningCapacity: 0,
+    guestRooms: 0,
+    twoWheelerParking: 0,
+    fourWheelerParking: 0,
+    kitchenSizeSqft: 0,
+  },
+  billing: DEFAULT_HALL_BILLING_ITEMS,
+  facilities: {
+    musicSystem: false,
+    waterSupply: false,
+    electricityDG: false,
+    bathroomFacility: false,
+    kitchenAccess: false,
+    centralAC: false,
+    cctvMonitoring: false,
+    fireSafetySystem: false,
+    physicalSecurity: false,
+    fans: false,
+  },
+  terms: {
+    cancellationRules: '',
+    bookingRules: '',
+    termsAndConditions: '',
+  },
+};
+
+// ── Property DTO ──────────────────────────────────────────────────
+
 export interface PropertyDTO {
   id: string;
   estateId: string | null;
@@ -83,6 +172,7 @@ export interface PropertyDTO {
   images: string[];
   amenities: string[];
   metadata: Record<string, any>;
+  hallDetails?: HallDetails | null;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -195,6 +285,7 @@ export interface CreatePropertyDTO {
   images: string[];
   amenities: string[];
   metadata?: Record<string, any>;
+  hallDetails?: HallDetails | null;
 }
 
 export interface UpdatePropertyDTO extends Partial<CreatePropertyDTO> {

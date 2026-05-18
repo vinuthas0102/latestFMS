@@ -80,6 +80,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
     updateFormData({
       moduleId: moduleId || null,
       propertyTypeId: null,
+      propertyTypeCode: null,
     });
   };
 
@@ -167,7 +168,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
           </label>
           <Select
             value={formData.propertyTypeId || ''}
-            onChange={(e) => updateFormData({ propertyTypeId: e.target.value || null })}
+            onChange={(e) => {
+              const selectedType = propertyTypes.find(t => t.id === e.target.value);
+              updateFormData({
+                propertyTypeId: e.target.value || null,
+                propertyTypeCode: selectedType?.code || null,
+              });
+            }}
             onBlur={() => handleBlur('propertyTypeId')}
             disabled={loading || !formData.moduleId || loadingPropertyTypes}
             className={showValidationError('propertyTypeId', formData.propertyTypeId) ? 'border-red-300 focus:ring-red-500' : ''}
