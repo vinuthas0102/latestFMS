@@ -6,8 +6,10 @@ import {
   CreditCard, MapPin, X, Download,
   ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
-  Zap, Droplets, LayoutDashboard,
+  Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
+  Wrench, RefreshCw, HelpCircle, Loader2,
 } from 'lucide-react';
+import { BookingServiceType } from '../types';
 import { bookingService } from '../services/bookingService';
 import { getProperties } from '../services/property/corePropertyService';
 import { BookingDTO, BookingStatus, PropertyDTO } from '../types';
@@ -26,6 +28,7 @@ import SplitLayout from '../components/ui/SplitLayout';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { ROUTES } from '../constants/routes';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
+import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,20 +124,50 @@ const STATUS_BADGE_CLS: Record<string, string> = {
   REJECTED:    'bg-rose-50 text-rose-700 border border-rose-200',
 };
 
+const SVC_LABEL: Record<BookingServiceType, string> = {
+  GRIEVANCE:            'Grievance',
+  MAINTENANCE:          'Maintenance',
+  EXTENSION:            'Extension Request',
+  CANCELLATION_REQUEST: 'Cancellation Request',
+  GENERAL:              'General Enquiry',
+};
+
+const ACTION_MENU_ITEMS: { type: BookingServiceType; label: string; Icon: React.FC<{ size?: number; className?: string }>; color: string }[] = [
+  { type: 'GRIEVANCE',            label: 'Grievance',            Icon: AlertTriangle, color: 'text-red-600' },
+  { type: 'MAINTENANCE',          label: 'Maintenance',          Icon: Wrench,        color: 'text-orange-600' },
+  { type: 'EXTENSION',            label: 'Extension Request',    Icon: RefreshCw,     color: 'text-blue-600' },
+  { type: 'CANCELLATION_REQUEST', label: 'Cancellation Request', Icon: Ban,           color: 'text-rose-600' },
+  { type: 'GENERAL',              label: 'General Enquiry',      Icon: HelpCircle,    color: 'text-gray-600' },
+];
+
 const BookingListCard: React.FC<{
   booking: BookingDTO;
   index: number;
   isSelected: boolean;
   onClick: () => void;
   activeServiceCount?: number;
-  expanded: boolean;
-  onToggleExpand: (e: React.MouseEvent) => void;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, expanded, onToggleExpand }) => {
+  onRaiseService: (booking: BookingDTO, type: BookingServiceType) => void;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService }) => {
   const [thumbErr, setThumbErr] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const statusCfg = getBookingStatusConfig(booking.status);
   const nights = calcNights(booking.checkInDate, booking.checkOutDate);
   const thumbSrc = getPropertyImage(booking, index);
   const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
+  const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   const details = [
     { label: 'Property', value: booking.property?.name },
@@ -158,10 +191,7 @@ const BookingListCard: React.FC<{
           <div className={`w-1 shrink-0 ${accentColor} rounded-l-xl`} />
 
           {/* Thumbnail */}
-          <div
-            className="w-24 shrink-0 relative group/thumb bg-gray-100"
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="w-24 shrink-0 relative group/thumb bg-gray-100" onClick={e => e.stopPropagation()}>
             {!thumbErr ? (
               <img
                 src={thumbSrc}
@@ -208,22 +238,13 @@ const BookingListCard: React.FC<{
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
               <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                 {activeServiceCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={onToggleExpand}
-                    className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors shrink-0 whitespace-nowrap ${
-                      expanded
-                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                    }`}
-                  >
+                  <span className="relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border bg-orange-50 text-orange-700 border-orange-200 shrink-0 whitespace-nowrap">
                     <span className="relative flex h-2 w-2 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
                     </span>
                     {activeServiceCount} svc{activeServiceCount > 1 ? 's' : ''}
-                    {expanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-                  </button>
+                  </span>
                 )}
 
                 {booking.paymentStatus === 'COMPLETED' ? (
@@ -243,17 +264,53 @@ const BookingListCard: React.FC<{
                 )}
               </div>
 
-              <button
-                onClick={e => { e.stopPropagation(); onClick(); }}
-                className={`p-1 rounded-lg border transition-colors shrink-0 ${
-                  isSelected
-                    ? 'bg-blue-50 border-blue-300 text-blue-600'
-                    : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
-                }`}
-                title="View details"
-              >
-                <Eye size={12} />
-              </button>
+              <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                {/* Action menu */}
+                {canRaiseService && (
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+                      className={`p-1 rounded-lg border transition-colors ${
+                        menuOpen
+                          ? 'bg-blue-50 border-blue-300 text-blue-600'
+                          : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
+                      }`}
+                      title="Actions"
+                    >
+                      <MoreVertical size={12} />
+                    </button>
+                    {menuOpen && (
+                      <div className="absolute right-0 bottom-full mb-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                        <div className="px-3 py-1.5 border-b border-gray-100">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Raise Service</span>
+                        </div>
+                        {ACTION_MENU_ITEMS.map(({ type, label, Icon, color }) => (
+                          <button
+                            key={type}
+                            onClick={e => { e.stopPropagation(); setMenuOpen(false); onRaiseService(booking, type); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <Icon size={13} className={color} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={e => { e.stopPropagation(); onClick(); }}
+                  className={`p-1 rounded-lg border transition-colors ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-300 text-blue-600'
+                      : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
+                  }`}
+                  title="View details"
+                >
+                  <Eye size={12} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -481,12 +538,19 @@ export const BookingHistoryPage: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
-  const [expandedSvcId, setExpandedSvcId] = useState<string | null>(null);
 
   const [availableProperties, setAvailableProperties] = useState<PropertyDTO[]>([]);
   const [avPropSearch, setAvPropSearch] = useState('');
   const [avPropLoading, setAvPropLoading] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+
+  // Service form modal
+  const [svcFormBooking, setSvcFormBooking] = useState<BookingDTO | null>(null);
+  const [svcFormType, setSvcFormType] = useState<BookingServiceType | null>(null);
+  const [svcFormSubject, setSvcFormSubject] = useState('');
+  const [svcFormRemarks, setSvcFormRemarks] = useState('');
+  const [svcFormUrgency, setSvcFormUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
+  const [svcFormSubmitting, setSvcFormSubmitting] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -519,6 +583,46 @@ export const BookingHistoryPage: React.FC = () => {
       // silently fail
     } finally {
       setAvPropLoading(false);
+    }
+  };
+
+  const openServiceForm = (booking: BookingDTO, type: BookingServiceType) => {
+    setSvcFormBooking(booking);
+    setSvcFormType(type);
+    setSvcFormSubject('');
+    setSvcFormRemarks('');
+    setSvcFormUrgency('MEDIUM');
+  };
+
+  const closeServiceForm = () => {
+    setSvcFormBooking(null);
+    setSvcFormType(null);
+    setSvcFormSubject('');
+    setSvcFormRemarks('');
+  };
+
+  const handleSubmitService = async () => {
+    if (!svcFormBooking || !svcFormType || !svcFormSubject.trim() || !svcFormRemarks.trim()) {
+      addToast('Please fill in all required fields', 'warning');
+      return;
+    }
+    setSvcFormSubmitting(true);
+    try {
+      await bookingServiceRequestService.createServiceRequest(user!.id, {
+        bookingId: svcFormBooking.id,
+        serviceType: svcFormType,
+        subject: svcFormSubject.trim(),
+        remarks: svcFormRemarks.trim(),
+        urgencyLevel: svcFormUrgency,
+      });
+      addToast('Service request submitted successfully', 'success');
+      // refresh count for this booking
+      setActiveServiceCounts(prev => ({ ...prev, [svcFormBooking.id]: (prev[svcFormBooking.id] ?? 0) + 1 }));
+      closeServiceForm();
+    } catch {
+      addToast('Failed to submit service request', 'error');
+    } finally {
+      setSvcFormSubmitting(false);
     }
   };
 
@@ -953,6 +1057,119 @@ export const BookingHistoryPage: React.FC = () => {
         />
       )}
 
+      {/* ── Service Form Modal ── */}
+      {svcFormBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={closeServiceForm}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-xs text-gray-400 font-mono">#{svcFormBooking.bookingNumber}</p>
+                <h3 className="text-sm font-bold text-gray-900 mt-0.5">
+                  {svcFormType ? SVC_LABEL[svcFormType] : 'Raise Service'}
+                </h3>
+              </div>
+              <button onClick={closeServiceForm} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Service type selector */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Service Type</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {ACTION_MENU_ITEMS.map(({ type, label, Icon, color }) => (
+                    <button
+                      key={type}
+                      onClick={() => setSvcFormType(type)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                        svcFormType === type
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon size={13} className={svcFormType === type ? 'text-blue-600' : color} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Subject *</label>
+                <input
+                  type="text"
+                  placeholder="Brief summary…"
+                  value={svcFormSubject}
+                  onChange={e => setSvcFormSubject(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                />
+              </div>
+
+              {/* Details */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Details *</label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe the issue or request…"
+                  value={svcFormRemarks}
+                  onChange={e => setSvcFormRemarks(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                />
+              </div>
+
+              {/* Urgency — only for grievance/maintenance */}
+              {(svcFormType === 'GRIEVANCE' || svcFormType === 'MAINTENANCE') && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Urgency</label>
+                  <div className="flex gap-2">
+                    {(['LOW', 'MEDIUM', 'HIGH'] as const).map(u => (
+                      <button
+                        key={u}
+                        onClick={() => setSvcFormUrgency(u)}
+                        className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          svcFormUrgency === u
+                            ? u === 'HIGH' ? 'bg-red-100 border-red-300 text-red-700'
+                              : u === 'MEDIUM' ? 'bg-amber-100 border-amber-300 text-amber-700'
+                              : 'bg-green-100 border-green-300 text-green-700'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={closeServiceForm}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitService}
+                disabled={svcFormSubmitting || !svcFormType || !svcFormSubject.trim() || !svcFormRemarks.trim()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {svcFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-full py-4">
@@ -1063,11 +1280,7 @@ export const BookingHistoryPage: React.FC = () => {
                           isSelected={selectedBooking?.id === booking.id}
                           onClick={() => setSelectedBooking(booking)}
                           activeServiceCount={activeServiceCounts[booking.id] ?? 0}
-                          expanded={expandedSvcId === booking.id}
-                          onToggleExpand={e => {
-                            e.stopPropagation();
-                            setExpandedSvcId(prev => prev === booking.id ? null : booking.id);
-                          }}
+                          onRaiseService={openServiceForm}
                         />
                       ))}
                     </div>

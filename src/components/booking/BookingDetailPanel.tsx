@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ExternalLink, Building2, MapPin, Bed, Layers, Images,
   CheckCircle, MessageSquare, Loader2, Send, ChevronDown, ChevronUp, Ban,
-  AlertTriangle, Wrench, RefreshCw, HelpCircle, Plus, X,
+  AlertTriangle, Wrench, RefreshCw, HelpCircle, X,
   FileText, Calendar, Users, CreditCard, MessageCircle,
   Paperclip,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { PhotoLightbox } from '../ui/PhotoGallery';
-import { BookingDTO, BookingServiceRequestDTO, BookingServiceChatDTO, BookingServiceType } from '../../types';
+import { BookingDTO, BookingServiceRequestDTO, BookingServiceChatDTO } from '../../types';
 import { formatDate } from '../../utils/dateHelpers';
 import { formatCurrency } from '../../utils/formatters';
 import { useUIStore } from '../../stores/uiStore';
@@ -42,7 +42,7 @@ const SERVICE_STATUS_BADGE: Record<string, string> = {
   CLOSED:      'bg-gray-100 text-gray-600 border-gray-200',
 };
 
-type TabKey = 'summary' | 'services' | 'chat';
+type TabKey = 'summary' | 'chat';
 
 // ── Props ───────────────────────────────────────────────────────────
 
@@ -78,27 +78,15 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const [chats, setChats] = useState<Record<string, BookingServiceChatDTO[]>>({});
   const [chatInput, setChatInput] = useState<Record<string, string>>({});
   const [sendingChat, setSendingChat] = useState<Record<string, boolean>>({});
-  const [historyMode, setHistoryMode] = useState(false);
-  const [historySelectedId, setHistorySelectedId] = useState<string | null>(null);
-
-  const [showNewServiceForm, setShowNewServiceForm] = useState(false);
-  const [newServiceType, setNewServiceType] = useState<BookingServiceType | null>(null);
-  const [newServiceSubject, setNewServiceSubject] = useState('');
-  const [newServiceRemarks, setNewServiceRemarks] = useState('');
-  const [newServiceUrgency, setNewServiceUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
-  const [submittingService, setSubmittingService] = useState(false);
 
   // Direct chat (booking-level)
   const [directChatInput, setDirectChatInput] = useState('');
   const [directChatFile, setDirectChatFile] = useState<File | null>(null);
   const directChatFileRef = useRef<HTMLInputElement>(null);
   const [directChats, setDirectChats] = useState<BookingServiceChatDTO[]>([]);
-  const [directChatLoading, setDirectChatLoading] = useState(false);
   const [sendingDirectChat, setSendingDirectChat] = useState(false);
 
-  const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
   const activeServices = services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus));
-  const historyServices = services.filter(s => ['RESOLVED', 'CLOSED'].includes(s.requestStatus));
 
   const headerColor = (() => {
     const s = booking.status;
@@ -180,30 +168,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
       if (expandedServiceId === serviceId) setExpandedServiceId(null);
       addToast('Service request closed', 'success');
     } catch { addToast('Failed to close request', 'error'); }
-  };
-
-  const handleSubmitNewService = async () => {
-    if (!newServiceType || !newServiceSubject.trim() || !newServiceRemarks.trim()) {
-      addToast('Please fill in all required fields', 'warning');
-      return;
-    }
-    setSubmittingService(true);
-    try {
-      const req = await bookingServiceRequestService.createServiceRequest(userId, {
-        bookingId: booking.id,
-        serviceType: newServiceType,
-        subject: newServiceSubject.trim(),
-        remarks: newServiceRemarks.trim(),
-        urgencyLevel: newServiceUrgency,
-      });
-      setServices(prev => [req, ...prev]);
-      setShowNewServiceForm(false);
-      setNewServiceType(null);
-      setNewServiceSubject('');
-      setNewServiceRemarks('');
-      addToast('Service request raised successfully', 'success');
-    } catch { addToast('Failed to submit service request', 'error'); }
-    finally { setSubmittingService(false); }
   };
 
   const renderChat = (serviceId: string) => {
@@ -308,9 +272,8 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     );
   };
 
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode; badge?: number }[] = [
+  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'summary', label: 'Summary', icon: <FileText size={12} /> },
-    { key: 'services', label: 'Services', icon: <Wrench size={12} />, badge: activeServices.length > 0 ? activeServices.length : undefined },
     { key: 'chat', label: 'Chat', icon: <MessageCircle size={12} /> },
   ];
 
@@ -324,11 +287,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
           <span className="text-xs font-semibold text-white/90 truncate">{booking.property?.name || 'Booking'}</span>
         </div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white shrink-0">{statusCfg.label}</span>
-        {activeServices.length > 0 && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-400/30 text-orange-100 border border-orange-300/30 flex items-center gap-0.5 shrink-0">
-            <Wrench size={8} />{activeServices.length}
-          </span>
-        )}
         <button
           onClick={() => onNavigate(booking.id)}
           className="flex items-center gap-1 text-[10px] font-medium text-white/80 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-all shrink-0"
@@ -495,175 +453,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
           </div>
         )}
 
-        {/* SERVICES TAB */}
-        {activeTab === 'services' && (
-          <div className="px-4 py-4 space-y-4">
-            {/* Active Services */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Active Requests</div>
-                  {activeServices.length > 0 && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 border border-orange-200">{activeServices.length}</span>
-                  )}
-                </div>
-                {historyServices.length > 0 && (
-                  <button onClick={() => setHistoryMode(!historyMode)} className="text-[10px] text-blue-600 hover:underline flex items-center gap-1">
-                    <MessageSquare size={10} />{historyMode ? 'Active' : 'History'}
-                  </button>
-                )}
-              </div>
-
-              {servicesLoading ? (
-                <div className="flex items-center gap-2 py-4 text-gray-400 text-xs"><Loader2 size={13} className="animate-spin" />Loading...</div>
-              ) : historyMode ? (
-                <div className="flex gap-2 min-h-[120px]">
-                  <div className="w-2/5 space-y-1.5 overflow-y-auto">
-                    {historyServices.map(svc => {
-                      const cfg = SERVICE_CONFIGS[svc.serviceType];
-                      const SvcIcon = cfg.icon;
-                      const isSelected = historySelectedId === svc.id;
-                      return (
-                        <div
-                          key={svc.id}
-                          onClick={() => { setHistorySelectedId(svc.id); if (!chats[svc.id]) loadChats(svc.id); }}
-                          className={`cursor-pointer rounded-lg border p-2 transition-colors ${isSelected ? `${cfg.bg} ${cfg.border}` : 'bg-white border-gray-200 hover:bg-gray-50'}`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <SvcIcon size={11} className={cfg.color} />
-                            <span className="text-[10px] font-semibold text-gray-800 truncate flex-1">{svc.subject || cfg.label}</span>
-                          </div>
-                          <span className={`text-[9px] font-bold px-1.5 py-px rounded-full border mt-1 inline-block ${SERVICE_STATUS_BADGE[svc.requestStatus]}`}>
-                            {svc.requestStatus.replace('_', ' ')}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex-1 bg-gray-50 rounded-xl border border-gray-100 p-2.5 overflow-y-auto">
-                    {historySelectedId ? renderChat(historySelectedId) : (
-                      <div className="flex items-center justify-center h-20 text-xs text-gray-400">Select a request</div>
-                    )}
-                  </div>
-                </div>
-              ) : activeServices.length === 0 ? (
-                <div className="bg-gray-50 rounded-xl border border-gray-100 py-6 text-center">
-                  <CheckCircle size={20} className="mx-auto text-gray-300 mb-1" />
-                  <p className="text-xs text-gray-400">No active service requests</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {activeServices.map(svc => renderServiceCard(svc, true))}
-                </div>
-              )}
-            </div>
-
-            {/* Raise New Service */}
-            {canRaiseService && (
-              <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Raise New Service</div>
-                {!showNewServiceForm ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {(Object.entries(SERVICE_CONFIGS) as [BookingServiceType, ServiceConfigEntry][]).map(([type, cfg]) => {
-                      const SvcIcon = cfg.icon;
-                      return (
-                        <button
-                          key={type}
-                          onClick={() => { setNewServiceType(type); setShowNewServiceForm(true); }}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border ${cfg.border} ${cfg.bg} hover:shadow-sm transition-all group text-left`}
-                        >
-                          <SvcIcon size={14} className={cfg.color} />
-                          <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-700">
-                        {newServiceType ? SERVICE_CONFIGS[newServiceType].label : 'New Request'}
-                      </span>
-                      <button onClick={() => { setShowNewServiceForm(false); setNewServiceType(null); }} className="text-gray-400 hover:text-gray-600 transition-colors">
-                        <X size={13} />
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Type</label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {(Object.entries(SERVICE_CONFIGS) as [BookingServiceType, ServiceConfigEntry][]).map(([type, cfg]) => {
-                          const SvcIcon = cfg.icon;
-                          return (
-                            <button
-                              key={type}
-                              onClick={() => setNewServiceType(type)}
-                              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-semibold transition-all ${newServiceType === type ? `${cfg.bg} ${cfg.border} ${cfg.color}` : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            >
-                              <SvcIcon size={11} />{cfg.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Subject *</label>
-                      <input
-                        type="text"
-                        placeholder="Brief summary…"
-                        value={newServiceSubject}
-                        onChange={e => setNewServiceSubject(e.target.value)}
-                        className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Details *</label>
-                      <textarea
-                        rows={3}
-                        placeholder="Describe the issue or request…"
-                        value={newServiceRemarks}
-                        onChange={e => setNewServiceRemarks(e.target.value)}
-                        className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
-                      />
-                    </div>
-
-                    {(newServiceType === 'GRIEVANCE' || newServiceType === 'MAINTENANCE') && (
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Urgency</label>
-                        <div className="flex gap-2">
-                          {(['LOW', 'MEDIUM', 'HIGH'] as const).map(u => (
-                            <button
-                              key={u}
-                              onClick={() => setNewServiceUrgency(u)}
-                              className={`flex-1 px-2 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                                newServiceUrgency === u
-                                  ? u === 'HIGH' ? 'bg-red-100 border-red-300 text-red-700' : u === 'MEDIUM' ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-green-100 border-green-300 text-green-700'
-                                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                              }`}
-                            >
-                              {u}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleSubmitNewService}
-                      disabled={submittingService || !newServiceType || !newServiceSubject.trim() || !newServiceRemarks.trim()}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs rounded-lg transition-colors font-semibold"
-                    >
-                      {submittingService ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                      Submit Request
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
