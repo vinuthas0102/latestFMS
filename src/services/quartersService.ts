@@ -323,6 +323,9 @@ export const quartersService = {
     if (DEMO_MODE) return Promise.resolve();
     const allottedByAuthId = _allottedByAuthId;
     const input = _input;
+    const now = new Date().toISOString();
+
+    // Audit log
     const { error: logErr } = await supabase.from('quarter_override_logs').insert({
       allotment_id: input.allotment_id,
       request_a_id: input.request_a_id,
@@ -333,14 +336,74 @@ export const quartersService = {
     });
     if (logErr) throw logErr;
 
-    const updates: Record<string, unknown> = { is_overridden: true, updated_at: new Date().toISOString() };
-    if (input.new_quarter_id) updates.quarter_id = input.new_quarter_id;
-
-    const { error: updErr } = await supabase
-      .from('quarter_allotments')
-      .update(updates)
-      .eq('id', input.allotment_id);
+    // Update allotment A
+    const aUpdates: Record<string, unknown> = { is_overridden: true, updated_at: now };
+    if (input.new_quarter_id) aUpdates.quarter_id = input.new_quarter_id;
+    const { error: updErr } = await supabase.from('quarter_allotments').update(aUpdates).eq('id', input.allotment_id);
     if (updErr) throw updErr;
+
+    // BPROPTOА_NEXTCYCLE: Reset Request B status to SUBMITTED, release B's allotment
+    if (input.action_type === 'BPROPTOА_NEXTCYCLE' && input.request_b_id) {
+      const { data: bAllotments } = await supabase
+        .from('quarter_allotments').select('id').eq('request_id', input.request_b_id);
+      if (bAllotments && bAllotments.length > 0) {
+        await supabase.from('quarter_allotments').delete().in('id', bAllotments.map((a: { id: string }) => a.id));
+      }
+      await supabase.from('quarter_requests')
+        .update({ request_status: 'SUBMITTED', sub_status: null, updated_at: now })
+        .eq('id', input.request_b_id);
+    }
+
+    // BPROPTOA_CANCELB: Cancel Request B and optionally release A's prior quarter
+    if (input.action_type === 'BPROPTOA_CANCELB' && input.request_b_id) {
+      await supabase.from('quarter_requests')
+        .update({ request_status: 'CANCELLED', updated_at: now })
+        .eq('id', input.request_b_id);
+      if (input.release_a_quarter) {
+        // The allotment record has the old quarter_id before the override update; fetch from log if needed
+        // We release by setting the quarter's occupancy_status to AVAILABLE
+        // The quarter_id is stored on the allotment which was just updated — read it from input context
+        // Since we don't have the old quarter id here directly, caller should pass it via new_quarter_id if needed
+        // For safety, we look it up via the allotment
+        const { data: aRow } = await supabase.from('quarter_allotments').select('quarter_id').eq('id', input.allotment_id).maybeSingle();
+        if (aRow?.quarter_id && aRow.quarter_id !== input.b_new_quarter_id) {
+          await supabase.from('quarters').update({ occupancy_status: 'AVAILABLE', updated_at: now }).eq('id', aRow.quarter_id);
+        }
+      }
+    }
+
+    // BPROPTOA_AVAILTOB: Assign available quarter to B
+    if (input.action_type === 'BPROPTOA_AVAILTOB' && input.request_b_id && input.b_new_quarter_id) {
+      await supabase.from('quarter_allotments').insert({
+        request_id: input.request_b_id,
+        quarter_id: input.b_new_quarter_id,
+        allotted_by: allottedByAuthId,
+        allotment_date: now.split('T')[0],
+        approval_status: 'APPROVED',
+      });
+      await supabase.from('quarter_requests')
+        .update({ request_status: 'ALLOTTED', updated_at: now })
+        .eq('id', input.request_b_id);
+    }
+
+    // BPREFТОA_APREBTOB: Assign B to one of B's preferences
+    if (input.action_type === 'BPREFTOA_APREBTOB' && input.request_b_id && input.b_new_pref_rank !== undefined) {
+      const { data: bPrefs } = await supabase
+        .from('quarter_request_preferences').select('quarter_id')
+        .eq('request_id', input.request_b_id).eq('preference_rank', input.b_new_pref_rank).maybeSingle();
+      if (bPrefs?.quarter_id) {
+        await supabase.from('quarter_allotments').insert({
+          request_id: input.request_b_id,
+          quarter_id: bPrefs.quarter_id,
+          allotted_by: allottedByAuthId,
+          allotment_date: now.split('T')[0],
+          approval_status: 'APPROVED',
+        });
+        await supabase.from('quarter_requests')
+          .update({ request_status: 'ALLOTTED', updated_at: now })
+          .eq('id', input.request_b_id);
+      }
+    }
   },
 
   async finaliseAllotments(_cycleId: string, _allottedByAuthId: string, _requests: QuarterRequest[]): Promise<void> {

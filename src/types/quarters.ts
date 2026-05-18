@@ -229,6 +229,8 @@ export interface OverrideInput {
   justification: string;
   new_quarter_id?: string;
   b_new_quarter_id?: string;
+  b_new_pref_rank?: number;
+  release_a_quarter?: boolean;
 }
 
 export interface QuarterApprovalWorkflow {
