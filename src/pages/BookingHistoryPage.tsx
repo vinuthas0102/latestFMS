@@ -4,7 +4,9 @@ import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
   Building2, Eye, ChevronLeft, Search, SlidersHorizontal,
   CreditCard, MapPin, X, Download,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
+  Ban, Ruler, Bed, Layers, Images, Plus, Compass,
+  Zap, Droplets, LayoutDashboard,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { getProperties } from '../services/property/corePropertyService';
@@ -23,10 +25,13 @@ import { FilterDrawer } from '../components/ui/FilterDrawer';
 import SplitLayout from '../components/ui/SplitLayout';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { ROUTES } from '../constants/routes';
+import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DpKey = 'all' | 'upcoming' | 'checkedIn' | 'completed' | 'cancelled' | 'availableProperties';
+type DpKey =
+  | 'all' | 'upcoming' | 'checkedIn' | 'completed' | 'cancelled' | 'availableProperties'
+  | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'vacated' | 'declined';
 
 interface DpCard {
   key: DpKey;
@@ -259,70 +264,202 @@ const BookingListCard: React.FC<{
 
 // ─── Available Property Card ──────────────────────────────────────────────────
 
+const PROP_FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+  'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80',
+  'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&q=80',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80',
+  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80',
+];
+
+function resolvePropertyImages(property: PropertyDTO, idx: number): string[] {
+  const raw = property.images;
+  const parsed: string[] = Array.isArray(raw) ? (raw as string[]).filter(Boolean) : [];
+  const result = [...parsed];
+  let fi = idx;
+  while (result.length < 5) {
+    result.push(PROP_FALLBACK_IMAGES[fi % PROP_FALLBACK_IMAGES.length]);
+    fi++;
+  }
+  return result;
+}
+
 const AvailablePropertyCard: React.FC<{
   property: PropertyDTO;
   index: number;
+  onView: () => void;
   onBook: () => void;
-}> = ({ property, index, onBook }) => {
-  const [thumbErr, setThumbErr] = useState(false);
-  const imgs = Array.isArray(property.images) ? property.images : [];
-  const thumb = imgs[0];
+}> = ({ property, index, onView, onBook }) => {
+  const [primaryImgError, setPrimaryImgError] = useState(false);
+  const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
+
+  const allImages = resolvePropertyImages(property, index);
+  const primaryImage = allImages[0];
+  const thumbnails = allImages.slice(1, 5);
+
+  const rawImgs = Array.isArray(property.images) ? (property.images as string[]).filter(Boolean) : [];
+  const extraCount = rawImgs.length > 5 ? rawImgs.length - 4 : 0;
+
+  const typeName = property.assetType?.name ?? property.propertyType?.name ?? 'Property';
+  const amenities: string[] = Array.isArray((property as any).amenities) ? (property as any).amenities : [];
 
   return (
-    <FadeIn delay={index * 30}>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex">
-        <div className="w-1 shrink-0 bg-cyan-400 rounded-l-xl" />
-        <div className="w-24 shrink-0 bg-gray-100 relative">
-          {thumb && !thumbErr ? (
-            <img src={thumb} alt="" className="w-full h-full object-cover" style={{ minHeight: 88 }} onError={() => setThumbErr(true)} />
+    <div
+      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
+      onClick={onView}
+    >
+      {/* Left: Gallery Image Section */}
+      <div className="relative flex-shrink-0 sm:w-64 md:w-72 flex flex-col bg-gray-100">
+        <div className="relative overflow-hidden" style={{ height: '196px' }}>
+          {!primaryImgError ? (
+            <img
+              src={primaryImage}
+              alt={property.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={() => setPrimaryImgError(true)}
+            />
           ) : (
-            <div className="w-full h-full min-h-[88px] flex items-center justify-center bg-gradient-to-br from-cyan-50 to-sky-100">
-              <Building2 size={22} className="text-cyan-300" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <Building2 size={48} className="text-gray-300" />
             </div>
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute top-3 left-3">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 bg-white/90 backdrop-blur-sm">
+              Available
+            </span>
+          </div>
+          <div className="absolute top-3 right-3">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800/85 text-white backdrop-blur-sm shadow-sm">
+              {typeName}
+            </span>
+          </div>
         </div>
-        <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide truncate">{property.name}</span>
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 shrink-0">
-              {property.assetType?.name ?? property.propertyType?.name ?? 'Property'}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
-            {property.estate?.name && (
-              <div>
-                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Estate</div>
-                <div className="text-[10.5px] font-medium text-gray-700">{property.estate.name}</div>
+        <div className="flex h-[62px] border-t border-gray-200/60">
+          {thumbnails.map((src, i) => {
+            const isLast = i === 3;
+            const showViewAll = isLast && extraCount > 0;
+            return (
+              <div key={i} className="relative flex-1 overflow-hidden border-r border-gray-200/60 last:border-r-0 bg-gray-100">
+                {!thumbErrors[i] ? (
+                  <img
+                    src={src}
+                    alt={`View ${i + 2}`}
+                    className="w-full h-full object-cover brightness-95 group-hover:brightness-100 transition-all duration-300"
+                    onError={() => setThumbErrors(prev => ({ ...prev, [i]: true }))}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <Images size={13} className="text-gray-400" />
+                  </div>
+                )}
+                {showViewAll && (
+                  <div className="absolute inset-0 bg-slate-900/72 flex flex-col items-center justify-center gap-0">
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">VIEW</span>
+                    <span className="text-white text-[9px] font-black uppercase leading-tight tracking-widest">ALL</span>
+                    {extraCount > 0 && <span className="text-white/70 text-[8px] font-semibold mt-0.5">+{extraCount}</span>}
+                  </div>
+                )}
               </div>
-            )}
-            {property.totalRooms != null && (
-              <div>
-                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Rooms</div>
-                <div className="text-[10.5px] font-medium text-gray-700">{property.totalRooms}</div>
-              </div>
-            )}
-            {property.description && (
-              <div className="min-w-0">
-                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">Description</div>
-                <div className="text-[10.5px] font-medium text-gray-700 truncate max-w-[300px]">{property.description}</div>
-              </div>
-            )}
-          </div>
-          <div className="mt-auto flex items-center justify-between pt-0.5 border-t border-gray-100">
-            <span className="text-[9px] text-gray-400 flex items-center gap-0.5 truncate max-w-[260px]">
-              <MapPin size={8} className="shrink-0" />
-              {property.address || 'No address'}
-            </span>
-            <button
-              onClick={onBook}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-600 text-white text-[10px] font-semibold hover:bg-cyan-700 transition-colors shrink-0"
-            >
-              Book Now
-            </button>
-          </div>
+            );
+          })}
         </div>
       </div>
-    </FadeIn>
+
+      {/* Centre: Details */}
+      <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <h3 className="text-base font-bold text-blue-700 group-hover:text-blue-800 transition-colors leading-snug">
+              {property.name}
+            </h3>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              {typeName}
+            </span>
+            {property.estate?.name && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                {property.estate.name}
+              </span>
+            )}
+          </div>
+
+          {property.address && (
+            <div className="flex items-center gap-1 text-gray-500 text-xs mb-3">
+              <MapPin size={12} className="flex-shrink-0 text-gray-400" />
+              <span className="truncate">{property.address}</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600 mb-2">
+            {property.totalRooms != null && (
+              <span className="flex items-center gap-1.5">
+                <Bed size={13} className="text-gray-400" />{property.totalRooms} Rooms
+              </span>
+            )}
+            {(property as any).totalFloors != null && (
+              <span className="flex items-center gap-1.5">
+                <Layers size={13} className="text-gray-400" />{(property as any).totalFloors} Floors
+              </span>
+            )}
+            {property.estate?.name && (
+              <span className="flex items-center gap-1.5 text-gray-500">
+                <Building2 size={11} className="text-gray-400" />{property.estate.name} Estate
+              </span>
+            )}
+          </div>
+
+          {amenities.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {amenities.slice(0, 5).map((a: string) => (
+                <span key={a} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
+                  {a}
+                </span>
+              ))}
+              {amenities.length > 5 && (
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                  +{amenities.length - 5} more
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 text-xs">
+            <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
+            <span className="text-emerald-700 font-medium">Available for booking</span>
+          </div>
+        </div>
+
+        {property.description && (
+          <p className="text-xs text-gray-400 mt-2.5 line-clamp-1 leading-relaxed border-t border-gray-100 pt-2">
+            {property.description}
+          </p>
+        )}
+      </div>
+
+      {/* Right: CTA */}
+      <div
+        className="flex flex-col justify-end p-4 sm:border-l border-gray-100 sm:w-48 flex-shrink-0 bg-gray-50/40"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex flex-col gap-2 mt-4">
+          <button
+            onClick={e => { e.stopPropagation(); onBook(); }}
+            className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
+          >
+            <Plus size={14} />
+            Book Now
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onView(); }}
+            className="w-full flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+          >
+            <Eye size={13} />
+            View Details
+            <ChevronRight size={12} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -349,6 +486,7 @@ export const BookingHistoryPage: React.FC = () => {
   const [availableProperties, setAvailableProperties] = useState<PropertyDTO[]>([]);
   const [avPropSearch, setAvPropSearch] = useState('');
   const [avPropLoading, setAvPropLoading] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -384,6 +522,8 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
+  const isGovtOfficial = user?.role === 'govt_official';
+
   const stats = {
     total: bookings.length,
     upcoming: bookings.filter(b => ['ALLOCATED', 'PROVISIONED'].includes(b.status)).length,
@@ -392,9 +532,72 @@ export const BookingHistoryPage: React.FC = () => {
     cancelled: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
     rejected: bookings.filter(b => b.status === 'REJECTED').length,
     provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
+    draft: bookings.filter(b => b.status === 'REQUESTED').length,
+    submitted: bookings.filter(b => b.status === 'PROVISIONED').length,
+    allotted: bookings.filter(b => b.status === 'ALLOCATED').length,
+    occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
+    vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
+    declined: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
   };
 
-  const dpCards: DpCard[] = [
+  const dpCards: DpCard[] = isGovtOfficial ? [
+    {
+      key: 'availableProperties',
+      label: 'Available Properties',
+      description: 'Browse & book',
+      count: availableProperties.length,
+      gradient: 'from-cyan-500 to-sky-400',
+      icon: <Building2 size={16} className="text-white" />,
+    },
+    {
+      key: 'draft',
+      label: 'Draft',
+      description: 'Not yet submitted',
+      count: stats.draft,
+      gradient: 'from-slate-500 to-slate-600',
+      icon: <FileText size={16} className="text-white" />,
+    },
+    {
+      key: 'submitted',
+      label: 'Submitted',
+      description: 'Pending review',
+      count: stats.submitted,
+      gradient: 'from-sky-500 to-blue-600',
+      icon: <Send size={16} className="text-white" />,
+    },
+    {
+      key: 'allotted',
+      label: 'Allotted',
+      description: 'Confirmed & allocated',
+      count: stats.allotted,
+      gradient: 'from-teal-500 to-emerald-500',
+      icon: <KeyRound size={16} className="text-white" />,
+    },
+    {
+      key: 'occupied',
+      label: 'Occupied',
+      description: 'Currently staying',
+      count: stats.occupied,
+      gradient: 'from-amber-500 to-orange-500',
+      icon: <Home size={16} className="text-white" />,
+    },
+    {
+      key: 'vacated',
+      label: 'Vacated',
+      description: 'Stay concluded',
+      count: stats.vacated,
+      gradient: 'from-emerald-500 to-cyan-500',
+      icon: <LogOut size={16} className="text-white" />,
+    },
+    {
+      key: 'declined',
+      label: 'Declined',
+      description: 'Not approved',
+      count: stats.declined,
+      gradient: 'from-rose-500 to-pink-500',
+      icon: <Ban size={16} className="text-white" />,
+    },
+  ] : [
     {
       key: 'availableProperties',
       label: 'Available Properties',
@@ -458,6 +661,12 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'checkedIn') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
     else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
+    else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED');
+    else if (dpFilter === 'submitted') result = result.filter(b => b.status === 'PROVISIONED');
+    else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
+    else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
+    else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
+    else if (dpFilter === 'declined') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -735,6 +944,15 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       </FilterDrawer>
 
+      {/* ── Property Detail Modal ── */}
+      {selectedPropertyId && (
+        <PropertyDetailModal
+          isOpen={!!selectedPropertyId}
+          onClose={() => setSelectedPropertyId(null)}
+          propertyId={selectedPropertyId}
+        />
+      )}
+
       {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-full py-4">
@@ -770,6 +988,7 @@ export const BookingHistoryPage: React.FC = () => {
                     key={property.id}
                     property={property}
                     index={i}
+                    onView={() => setSelectedPropertyId(property.id)}
                     onBook={() => navigate(`/properties/${property.id}`)}
                   />
                 ))}
