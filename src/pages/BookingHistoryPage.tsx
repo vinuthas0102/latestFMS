@@ -762,7 +762,7 @@ export const BookingHistoryPage: React.FC = () => {
     rejected: bookings.filter(b => b.status === 'REJECTED').length,
     provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
     draft: bookings.filter(b => b.status === 'REQUESTED').length,
-    submitted: bookings.filter(b => b.status === 'PROVISIONED').length,
+    submitted: bookings.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
     allotted: bookings.filter(b => b.status === 'ALLOCATED').length,
     occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
     vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
@@ -794,14 +794,6 @@ export const BookingHistoryPage: React.FC = () => {
       count: stats.allotted,
       gradient: 'from-teal-500 to-emerald-500',
       icon: <KeyRound size={16} className="text-white" />,
-    },
-    {
-      key: 'awaitingPayment',
-      label: 'Awaiting Payment',
-      description: 'Payment pending',
-      count: stats.awaitingPayment,
-      gradient: 'from-orange-500 to-amber-500',
-      icon: <Clock size={16} className="text-white" />,
     },
     {
       key: 'occupied',
@@ -861,14 +853,6 @@ export const BookingHistoryPage: React.FC = () => {
       icon: <KeyRound size={16} className="text-white" />,
     },
     {
-      key: 'awaitingPayment',
-      label: 'Awaiting Payment',
-      description: 'Payment pending',
-      count: stats.awaitingPayment,
-      gradient: 'from-orange-500 to-amber-500',
-      icon: <Clock size={16} className="text-white" />,
-    },
-    {
       key: 'occupied',
       label: 'Occupied',
       description: 'Currently staying',
@@ -922,14 +906,6 @@ export const BookingHistoryPage: React.FC = () => {
       secondaryLabel: 'Pending',
     },
     {
-      key: 'awaitingPayment',
-      label: 'Awaiting Payment',
-      description: 'Payment pending',
-      count: stats.awaitingPayment,
-      gradient: 'from-orange-500 to-amber-500',
-      icon: <Clock size={16} className="text-white" />,
-    },
-    {
       key: 'checkedIn',
       label: 'Checked In',
       description: 'Currently staying',
@@ -965,7 +941,7 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
     else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
     else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED');
-    else if (dpFilter === 'submitted') result = result.filter(b => b.status === 'PROVISIONED');
+    else if (dpFilter === 'submitted') result = result.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
     else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
     else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
