@@ -3,6 +3,7 @@ import { BookingStatus, RoomStatus, PaymentStatus, PropertyStatus, AssetCategory
 export const BOOKING_STATUSES: Record<string, BookingStatus> = {
   REQUESTED: 'REQUESTED',
   PROVISIONED: 'PROVISIONED',
+  AWAITING_PAYMENT: 'AWAITING_PAYMENT',
   ALLOCATED: 'ALLOCATED',
   CHECKED_IN: 'CHECKED_IN',
   CHECKED_OUT: 'CHECKED_OUT',
@@ -13,6 +14,7 @@ export const BOOKING_STATUSES: Record<string, BookingStatus> = {
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   REQUESTED: 'Requested',
   PROVISIONED: 'Provisioned',
+  AWAITING_PAYMENT: 'Awaiting Payment',
   ALLOCATED: 'Allocated',
   CHECKED_IN: 'Checked In',
   CHECKED_OUT: 'Checked Out',
@@ -23,6 +25,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
 export const BOOKING_STATUS_COLORS: Record<BookingStatus, string> = {
   REQUESTED: 'bg-blue-100 text-blue-800',
   PROVISIONED: 'bg-yellow-100 text-yellow-800',
+  AWAITING_PAYMENT: 'bg-amber-100 text-amber-800',
   ALLOCATED: 'bg-green-100 text-green-800',
   CHECKED_IN: 'bg-teal-100 text-teal-800',
   CHECKED_OUT: 'bg-gray-100 text-gray-800',

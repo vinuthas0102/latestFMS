@@ -390,6 +390,8 @@ function mapBookingFromDb(dbBooking: any): BookingDTO {
     roomType: dbBooking.roomType,
     user: dbBooking.user,
     isGuestBooking: dbBooking.is_guest_booking || false,
+    paymentExpiresAt: dbBooking.payment_expires_at ?? undefined,
+    paymentScenario: dbBooking.payment_scenario ?? undefined,
   };
 }
 

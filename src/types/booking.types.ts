@@ -1,4 +1,4 @@
-import { BookingStatus, PaymentStatus, GuestDetails, AuditoriumRequirements } from './common.types';
+import { BookingStatus, PaymentStatus, PaymentScenario, PaymentReferenceDate, GuestDetails, AuditoriumRequirements } from './common.types';
 import { PropertyDTO, RoomDTO, RoomTypeDTO } from './property.types';
 import { UserDTO } from './user.types';
 
@@ -30,6 +30,8 @@ export interface BookingDTO {
   allocations?: BookingAllocationDTO[];
   occupants?: BookingOccupantDTO[];
   isGuestBooking?: boolean;
+  paymentExpiresAt?: string;
+  paymentScenario?: PaymentScenario;
 }
 
 export interface CreateBookingDTO {
@@ -103,7 +105,27 @@ export interface TransactionDTO {
   paymentMethod: string;
   paymentStatus: string;
   paymentGatewayResponse: Record<string, any>;
+  referenceNumber?: string;
+  paymentNotes?: string;
   createdAt: string;
+}
+
+export interface PaymentPolicyDTO {
+  id: string;
+  propertyId: string;
+  referenceDate: PaymentReferenceDate;
+  daysOffset: number;
+  allowManualPayment: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertPaymentPolicyDTO {
+  propertyId: string;
+  referenceDate: PaymentReferenceDate;
+  daysOffset: number;
+  allowManualPayment: boolean;
 }
 
 export interface CreateTransactionDTO {

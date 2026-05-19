@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
   Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
-  Wrench, RefreshCw, HelpCircle, Loader2,
+  Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
 } from 'lucide-react';
 import { BookingServiceType } from '../types';
 import { bookingService } from '../services/bookingService';
@@ -31,12 +31,14 @@ import { downloadPageAsHtml } from '../utils/downloadHtml';
 import { ROUTES } from '../constants/routes';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
+import { paymentService, ManualPaymentMode } from '../services/paymentService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type DpKey =
   | 'all' | 'upcoming' | 'checkedIn' | 'completed' | 'cancelled' | 'availableProperties'
-  | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'vacated' | 'declined';
+  | 'draft' | 'submitted' | 'allotted' | 'occupied' | 'vacated' | 'declined'
+  | 'awaitingPayment';
 
 interface DpCard {
   key: DpKey;
@@ -117,13 +119,14 @@ const StatusDpCard: React.FC<{
 // ─── Booking List Card ────────────────────────────────────────────────────────
 
 const STATUS_BADGE_CLS: Record<string, string> = {
-  REQUESTED:   'bg-amber-50 text-amber-700 border border-amber-200',
-  PROVISIONED: 'bg-blue-50 text-blue-700 border border-blue-200',
-  ALLOCATED:   'bg-cyan-50 text-cyan-700 border border-cyan-200',
-  CHECKED_IN:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CHECKED_OUT: 'bg-green-50 text-green-700 border border-green-200',
-  CANCELLED:   'bg-red-50 text-red-700 border border-red-200',
-  REJECTED:    'bg-rose-50 text-rose-700 border border-rose-200',
+  REQUESTED:        'bg-amber-50 text-amber-700 border border-amber-200',
+  PROVISIONED:      'bg-blue-50 text-blue-700 border border-blue-200',
+  AWAITING_PAYMENT: 'bg-orange-50 text-orange-700 border border-orange-200',
+  ALLOCATED:        'bg-cyan-50 text-cyan-700 border border-cyan-200',
+  CHECKED_IN:       'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  CHECKED_OUT:      'bg-green-50 text-green-700 border border-green-200',
+  CANCELLED:        'bg-red-50 text-red-700 border border-red-200',
+  REJECTED:         'bg-rose-50 text-rose-700 border border-rose-200',
 };
 
 const SVC_LABEL: Record<BookingServiceType, string> = {
@@ -142,6 +145,10 @@ const ACTION_MENU_ITEMS: { type: BookingServiceType; label: string; Icon: React.
   { type: 'GENERAL',              label: 'General Enquiry',      Icon: HelpCircle,    color: 'text-gray-600' },
 ];
 
+const PAYMENT_ACTION_STATUSES: BookingStatus[] = [
+  'REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT', 'ALLOCATED',
+];
+
 const BookingListCard: React.FC<{
   booking: BookingDTO;
   index: number;
@@ -149,7 +156,10 @@ const BookingListCard: React.FC<{
   onClick: () => void;
   activeServiceCount?: number;
   onRaiseService: (booking: BookingDTO, type: BookingServiceType) => void;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService }) => {
+  onPayNow: (booking: BookingDTO) => void;
+  onRecordManualPayment: (booking: BookingDTO) => void;
+  isManager?: boolean;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, isManager }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -161,12 +171,14 @@ const BookingListCard: React.FC<{
   const thumbSrc = getPropertyImage(booking, index);
   const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
   const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
+  const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    const menuHeight = ACTION_MENU_ITEMS.length * 36 + 40;
+    const extraItems = (canPay ? 1 : 0) + (canPay && isManager ? 1 : 0);
+    const menuHeight = (ACTION_MENU_ITEMS.length + extraItems) * 36 + 56;
     const openUp = rect.bottom + menuHeight > window.innerHeight;
     setMenuCoords({
       top: openUp ? rect.top - menuHeight - 4 : rect.bottom + 4,
@@ -309,10 +321,35 @@ const BookingListCard: React.FC<{
                     {menuOpen && menuCoords && createPortal(
                       <div
                         ref={dropdownRef}
-                        style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, width: 192, zIndex: 9999 }}
+                        style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, width: 210, zIndex: 9999 }}
                         className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
                         onClick={e => e.stopPropagation()}
                       >
+                        {/* Payment actions — shown when balance is due */}
+                        {canPay && (
+                          <>
+                            <div className="px-3 py-1.5 border-b border-gray-100">
+                              <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Payment</span>
+                            </div>
+                            <button
+                              onClick={e => { e.stopPropagation(); setMenuOpen(false); onPayNow(booking); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-orange-700 hover:bg-orange-50 transition-colors text-left"
+                            >
+                              <CreditCard size={13} className="text-orange-500" />
+                              Pay Online — ₹{booking.balanceAmount.toLocaleString('en-IN')}
+                            </button>
+                            {isManager && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onRecordManualPayment(booking); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors text-left"
+                              >
+                                <Receipt size={13} className="text-teal-500" />
+                                Record Manual Payment
+                              </button>
+                            )}
+                            <div className="border-t border-gray-100 mt-1 mb-1" />
+                          </>
+                        )}
                         <div className="px-3 py-1.5 border-b border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Raise Service</span>
                         </div>
@@ -591,6 +628,15 @@ export const BookingHistoryPage: React.FC = () => {
   const [svcFormUrgency, setSvcFormUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
   const [svcFormSubmitting, setSvcFormSubmitting] = useState(false);
 
+  // Manual payment modal
+  const [manualPayBooking, setManualPayBooking] = useState<BookingDTO | null>(null);
+  const [manualPayAmount, setManualPayAmount] = useState('');
+  const [manualPayMode, setManualPayMode] = useState<ManualPaymentMode>('NEFT');
+  const [manualPayRef, setManualPayRef] = useState('');
+  const [manualPayDate, setManualPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualPayNotes, setManualPayNotes] = useState('');
+  const [manualPaySubmitting, setManualPaySubmitting] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -666,6 +712,44 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
+  const handlePayNow = (booking: BookingDTO) => {
+    navigate(`/payment?bookingId=${booking.id}&amount=${booking.balanceAmount}&returnUrl=/bookings`);
+  };
+
+  const openManualPayModal = (booking: BookingDTO) => {
+    setManualPayBooking(booking);
+    setManualPayAmount(String(booking.balanceAmount));
+    setManualPayMode('NEFT');
+    setManualPayRef('');
+    setManualPayDate(new Date().toISOString().split('T')[0]);
+    setManualPayNotes('');
+  };
+
+  const handleSubmitManualPayment = async () => {
+    if (!manualPayBooking) return;
+    const amount = parseFloat(manualPayAmount);
+    if (!amount || amount <= 0) { addToast('Enter a valid amount', 'warning'); return; }
+    if (!manualPayRef.trim()) { addToast('Reference number is required', 'warning'); return; }
+    setManualPaySubmitting(true);
+    try {
+      await paymentService.recordManualPayment({
+        bookingId: manualPayBooking.id,
+        amount,
+        paymentMode: manualPayMode,
+        referenceNumber: manualPayRef.trim(),
+        paymentDate: manualPayDate,
+        notes: manualPayNotes.trim(),
+      });
+      addToast('Manual payment recorded successfully', 'success');
+      setManualPayBooking(null);
+      loadBookings();
+    } catch {
+      addToast('Failed to record payment', 'error');
+    } finally {
+      setManualPaySubmitting(false);
+    }
+  };
+
   const isGovtOfficial = user?.role === 'govt_official';
   const isManager = user?.role === 'manager';
 
@@ -683,6 +767,7 @@ export const BookingHistoryPage: React.FC = () => {
     occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
     vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
     declined: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
+    awaitingPayment: bookings.filter(b => b.status === 'AWAITING_PAYMENT').length,
   };
 
   const dpCards: DpCard[] = isManager ? [
@@ -709,6 +794,14 @@ export const BookingHistoryPage: React.FC = () => {
       count: stats.allotted,
       gradient: 'from-teal-500 to-emerald-500',
       icon: <KeyRound size={16} className="text-white" />,
+    },
+    {
+      key: 'awaitingPayment',
+      label: 'Awaiting Payment',
+      description: 'Payment pending',
+      count: stats.awaitingPayment,
+      gradient: 'from-orange-500 to-amber-500',
+      icon: <Clock size={16} className="text-white" />,
     },
     {
       key: 'occupied',
@@ -768,6 +861,14 @@ export const BookingHistoryPage: React.FC = () => {
       icon: <KeyRound size={16} className="text-white" />,
     },
     {
+      key: 'awaitingPayment',
+      label: 'Awaiting Payment',
+      description: 'Payment pending',
+      count: stats.awaitingPayment,
+      gradient: 'from-orange-500 to-amber-500',
+      icon: <Clock size={16} className="text-white" />,
+    },
+    {
       key: 'occupied',
       label: 'Occupied',
       description: 'Currently staying',
@@ -821,6 +922,14 @@ export const BookingHistoryPage: React.FC = () => {
       secondaryLabel: 'Pending',
     },
     {
+      key: 'awaitingPayment',
+      label: 'Awaiting Payment',
+      description: 'Payment pending',
+      count: stats.awaitingPayment,
+      gradient: 'from-orange-500 to-amber-500',
+      icon: <Clock size={16} className="text-white" />,
+    },
+    {
       key: 'checkedIn',
       label: 'Checked In',
       description: 'Currently staying',
@@ -860,6 +969,7 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
     else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
+    else if (dpFilter === 'awaitingPayment') result = result.filter(b => b.status === 'AWAITING_PAYMENT');
     else if (dpFilter === 'declined') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
 
     if (searchQuery.trim()) {
@@ -1260,6 +1370,137 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       )}
 
+      {/* ── Manual Payment Modal ── */}
+      {manualPayBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setManualPayBooking(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-teal-600 flex items-center justify-center">
+                    <Receipt size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Record Manual Payment</h3>
+                </div>
+                <p className="text-xs text-gray-400 font-mono ml-8">#{manualPayBooking.bookingNumber}</p>
+              </div>
+              <button onClick={() => setManualPayBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Balance summary */}
+            <div className="mx-5 mt-4 mb-0 p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-widest">Balance Due</p>
+                <p className="text-xl font-extrabold text-orange-700">₹{manualPayBooking.balanceAmount.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-orange-400">Total</p>
+                <p className="text-sm font-bold text-orange-600">₹{manualPayBooking.totalAmount.toLocaleString('en-IN')}</p>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Amount */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Amount (₹) *</label>
+                <input
+                  type="number"
+                  value={manualPayAmount}
+                  onChange={e => setManualPayAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  min={1}
+                  max={manualPayBooking.balanceAmount}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                />
+              </div>
+
+              {/* Payment Mode */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Mode *</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['CASH', 'DD', 'CHEQUE', 'NEFT', 'RTGS', 'UPI'] as ManualPaymentMode[]).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setManualPayMode(mode)}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-semibold transition-all ${
+                        manualPayMode === mode
+                          ? 'bg-teal-50 border-teal-300 text-teal-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reference Number */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Reference / Instrument No. *
+                </label>
+                <input
+                  type="text"
+                  value={manualPayRef}
+                  onChange={e => setManualPayRef(e.target.value)}
+                  placeholder={manualPayMode === 'CASH' ? 'Receipt number' : 'Transaction / DD / Cheque no.'}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                />
+              </div>
+
+              {/* Payment Date */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Date</label>
+                <input
+                  type="date"
+                  value={manualPayDate}
+                  onChange={e => setManualPayDate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Remarks</label>
+                <textarea
+                  rows={2}
+                  value={manualPayNotes}
+                  onChange={e => setManualPayNotes(e.target.value)}
+                  placeholder="Optional remarks…"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setManualPayBooking(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitManualPayment}
+                disabled={manualPaySubmitting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {manualPaySubmitting ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
+                Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-full py-4">
@@ -1371,6 +1612,9 @@ export const BookingHistoryPage: React.FC = () => {
                           onClick={() => setSelectedBooking(booking)}
                           activeServiceCount={activeServiceCounts[booking.id] ?? 0}
                           onRaiseService={openServiceForm}
+                          onPayNow={handlePayNow}
+                          onRecordManualPayment={openManualPayModal}
+                          isManager={isManager}
                         />
                       ))}
                     </div>

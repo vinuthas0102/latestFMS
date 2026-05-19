@@ -3,11 +3,15 @@ export type UserRole = 'public' | 'govt_official' | 'manager' | 'dept_user' | 'a
 export type BookingStatus =
   | 'REQUESTED'
   | 'PROVISIONED'
+  | 'AWAITING_PAYMENT'
   | 'ALLOCATED'
   | 'CHECKED_IN'
   | 'CHECKED_OUT'
   | 'CANCELLED'
   | 'REJECTED';
+
+export type PaymentScenario = 'immediate' | 'post_approval' | 'pre_acceptance';
+export type PaymentReferenceDate = 'on_request' | 'allotment_date' | 'acceptance_date';
 
 export type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE';
 
