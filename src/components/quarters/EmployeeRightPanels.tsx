@@ -23,6 +23,8 @@ import {
   QuarterServiceChat,
   QuarterAllotmentChat,
 } from '../../services/quartersService';
+import type { ChatDeliveryMode } from '../../types/quarters';
+import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types/user.types';
 import { ROUTES } from '../../constants/routes';
 
@@ -45,6 +47,8 @@ interface RightPanelAllottedProps extends PanelBase {
   setAllotmentChatFile: (f: File | null) => void;
   allotmentChatSubmitting: boolean;
   handleSendAllotmentChat: () => void;
+  allotmentChatMode: ChatDeliveryMode;
+  setAllotmentChatMode: (m: ChatDeliveryMode) => void;
   openActionPopup: (type: 'INSPECTION' | 'HANDOVER', requestId: string, allotmentId: string) => void;
 }
 
@@ -52,7 +56,7 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
   panelControls, selectedRequest, isEO, eoMode,
   allotmentChats, allotmentChatMessage, setAllotmentChatMessage,
   allotmentChatFile, setAllotmentChatFile, allotmentChatSubmitting,
-  handleSendAllotmentChat, openActionPopup,
+  handleSendAllotmentChat, allotmentChatMode, setAllotmentChatMode, openActionPopup,
 }) => {
   const allotmentChatFileRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -141,6 +145,7 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
       </div>
 
       <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
+        <ChatDeliveryModePicker value={allotmentChatMode} onChange={setAllotmentChatMode} className="mb-2" />
         {allotmentChatFile && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
             <FileText size={13} className="text-blue-500 shrink-0" />
@@ -234,6 +239,8 @@ interface RightPanelOccupiedProps extends PanelBase {
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
+  allotmentChatMode?: ChatDeliveryMode;
+  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
 }
 
 export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
@@ -251,6 +258,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
+  allotmentChatMode = 'IN_APP', setAllotmentChatMode,
 }) => {
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
@@ -634,6 +642,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
               )}
             </div>
             <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
+              <ChatDeliveryModePicker value={allotmentChatMode} onChange={v => setAllotmentChatMode?.(v)} className="mb-2" />
               {allotmentChatFile && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
                   <FileText size={13} className="text-blue-500 shrink-0" />
@@ -692,12 +701,15 @@ export const RightPanelDraft: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
+  allotmentChatMode?: ChatDeliveryMode;
+  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
   scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, addToast, loadData, setSelectedRequest, openNewModal,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
-  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
+  allotmentChatSubmitting = false, handleSendAllotmentChat,
+  allotmentChatMode = 'IN_APP', setAllotmentChatMode, scrollToChat = false,
 }) => {
   const draftChatFileRef = useRef<HTMLInputElement>(null);
   const draftChatSectionRef = useRef<HTMLDivElement>(null);
@@ -799,6 +811,7 @@ export const RightPanelDraft: React.FC<{
           )}
         </div>
         <div className="px-4 pb-4 pt-3 bg-white">
+          <ChatDeliveryModePicker value={allotmentChatMode} onChange={v => setAllotmentChatMode?.(v)} className="mb-2" />
           {allotmentChatFile && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
               <FileText size={13} className="text-blue-500 shrink-0" />
@@ -975,12 +988,15 @@ export const RightPanelSubmitted: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
+  allotmentChatMode?: ChatDeliveryMode;
+  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
   scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, user, handleWithdraw,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
-  allotmentChatSubmitting = false, handleSendAllotmentChat, scrollToChat = false,
+  allotmentChatSubmitting = false, handleSendAllotmentChat,
+  allotmentChatMode = 'IN_APP', setAllotmentChatMode, scrollToChat = false,
 }) => {
   const submittedChatFileRef = useRef<HTMLInputElement>(null);
   const submittedChatSectionRef = useRef<HTMLDivElement>(null);
@@ -1039,6 +1055,7 @@ export const RightPanelSubmitted: React.FC<{
           )}
         </div>
         <div className="px-4 pb-4 pt-3 bg-white">
+          <ChatDeliveryModePicker value={allotmentChatMode} onChange={v => setAllotmentChatMode?.(v)} className="mb-2" />
           {allotmentChatFile && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
               <FileText size={13} className="text-blue-500 shrink-0" />

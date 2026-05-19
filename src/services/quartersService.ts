@@ -775,19 +775,21 @@ export const quartersService = {
     _authorId: string,
     _authorRole: 'EMPLOYEE' | 'EO',
     _message: string,
-    _documentUrls: string[]
+    _documentUrls: string[],
+    _deliveryMode: QuarterServiceChat['delivery_mode'] = 'IN_APP',
   ): Promise<QuarterServiceChat> {
     if (DEMO_MODE) {
-      return Promise.resolve({ id: `sc-demo-${Date.now()}`, tenant_request_id: _tenantRequestId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, created_at: new Date().toISOString() });
+      return Promise.resolve({ id: `sc-demo-${Date.now()}`, tenant_request_id: _tenantRequestId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: _deliveryMode, created_at: new Date().toISOString() });
     }
     const tenantRequestId = _tenantRequestId;
     const authorId = _authorId;
     const authorRole = _authorRole;
     const message = _message;
     const documentUrls = _documentUrls;
+    const deliveryMode = _deliveryMode;
     const { data, error } = await supabase
       .from('quarter_service_chats')
-      .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
+      .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: deliveryMode })
       .select()
       .single();
     if (error) throw error;
@@ -864,18 +866,20 @@ export const quartersService = {
     _authorRole: 'employee' | 'eo' | 'system',
     _message: string,
     _documentUrls: string[] = [],
+    _deliveryMode: QuarterAllotmentChat['delivery_mode'] = 'IN_APP',
   ): Promise<QuarterAllotmentChat> {
     if (DEMO_MODE) {
-      return Promise.resolve({ id: `ac-demo-${Date.now()}`, allotment_id: _allotmentId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, created_at: new Date().toISOString() });
+      return Promise.resolve({ id: `ac-demo-${Date.now()}`, allotment_id: _allotmentId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: _deliveryMode, created_at: new Date().toISOString() });
     }
     const allotmentId = _allotmentId;
     const authorId = _authorId;
     const authorRole = _authorRole;
     const message = _message;
     const documentUrls = _documentUrls;
+    const deliveryMode = _deliveryMode;
     const { data, error } = await supabase
       .from('quarter_allotment_chats')
-      .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls })
+      .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: deliveryMode })
       .select()
       .single();
     if (error) throw error;
@@ -1322,10 +1326,10 @@ export const quartersService = {
     return (data ?? []) as QuarterInspectionChat[];
   },
 
-  async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = []): Promise<void> {
+  async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = [], _deliveryMode: QuarterInspectionChat['delivery_mode'] = 'IN_APP'): Promise<void> {
     if (DEMO_MODE) return Promise.resolve();
     const { error } = await supabase.from('quarter_inspection_chats').insert({
-      inspection_id: _inspectionId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _docUrls,
+      inspection_id: _inspectionId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _docUrls, delivery_mode: _deliveryMode,
     });
     if (error) throw error;
   },

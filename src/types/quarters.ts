@@ -85,6 +85,8 @@ export interface QuarterRequest {
   allotment?: QuarterAllotment | null;
 }
 
+export type ChatDeliveryMode = 'IN_APP' | 'EMAIL' | 'SMS' | 'WA';
+
 export interface QuarterServiceChat {
   id: string;
   tenant_request_id: string;
@@ -92,6 +94,7 @@ export interface QuarterServiceChat {
   author_role: 'EMPLOYEE' | 'EO';
   message: string;
   document_urls: string[];
+  delivery_mode: ChatDeliveryMode;
   created_at: string;
 }
 
@@ -102,6 +105,7 @@ export interface QuarterAllotmentChat {
   author_role: 'employee' | 'eo' | 'system';
   message: string;
   document_urls: string[];
+  delivery_mode: ChatDeliveryMode;
   created_at: string;
 }
 
@@ -391,6 +395,7 @@ export interface QuarterInspectionChat {
   author_role: string;
   message: string;
   document_urls: string[];
+  delivery_mode: ChatDeliveryMode;
   created_at: string;
 }
 

@@ -12,6 +12,8 @@ import {
   QuarterInspection, QuarterInspectionChat,
   QuarterHandover, QuarterGuestInfo, QuarterAllotmentChat, QuarterTenantRequest,
 } from '../../services/quartersService';
+import type { ChatDeliveryMode } from '../../types/quarters';
+import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types';
 import { QuarterOverrideModal } from './QuarterOverrideModal';
 import { InspectionFormModal } from './InspectionFormModal';
@@ -112,6 +114,8 @@ export interface EOActionPanelProps {
   handleStartInspection: () => void;
   handleSendInspectionChat: () => void;
   handleCloseInspection: () => void;
+  inspectionChatMode: ChatDeliveryMode;
+  setInspectionChatMode: (m: ChatDeliveryMode) => void;
 
   // Handover
   handover: QuarterHandover | null;
@@ -136,6 +140,8 @@ export interface EOActionPanelProps {
   setAllotmentChatFile: (f: File | null) => void;
   allotmentChatSubmitting: boolean;
   handleSendAllotmentChat: () => void;
+  allotmentChatMode: ChatDeliveryMode;
+  setAllotmentChatMode: (m: ChatDeliveryMode) => void;
 
   // Guest info
   showGuestInfoPopup: boolean;
@@ -234,6 +240,8 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   handleStartInspection,
   handleSendInspectionChat,
   handleCloseInspection,
+  inspectionChatMode,
+  setInspectionChatMode,
   handover,
   handoverKeyNo,
   setHandoverKeyNo,
@@ -254,6 +262,8 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   setAllotmentChatFile,
   allotmentChatSubmitting,
   handleSendAllotmentChat,
+  allotmentChatMode,
+  setAllotmentChatMode,
   showGuestInfoPopup,
   setShowGuestInfoPopup,
   guestForm,
@@ -385,6 +395,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
               )}
             </div>
             <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
+              <ChatDeliveryModePicker value={allotmentChatMode} onChange={setAllotmentChatMode} className="mb-2" />
               {allotmentChatFile && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
                   <FileText size={13} className="text-blue-500 shrink-0" />
@@ -751,6 +762,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
               ))}
             </div>
             <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
+              <ChatDeliveryModePicker value={inspectionChatMode} onChange={setInspectionChatMode} className="mb-2" />
               <div className="flex items-end gap-2">
                 <textarea
                   value={inspectionChatMsg}

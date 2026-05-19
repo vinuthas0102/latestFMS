@@ -31,6 +31,7 @@ function mapChat(row: Record<string, unknown>): BookingServiceChatDTO {
     authorRole: row.author_role as BookingServiceChatDTO['authorRole'],
     message: row.message as string,
     documentUrls: (row.document_urls as string[]) ?? [],
+    deliveryMode: (row.delivery_mode as BookingServiceChatDTO['deliveryMode']) ?? 'IN_APP',
     createdAt: row.created_at as string,
   };
 }
@@ -91,6 +92,7 @@ export const bookingServiceRequestService = {
     authorRole: BookingServiceChatDTO['authorRole'],
     message: string,
     documentUrls: string[] = [],
+    deliveryMode: BookingServiceChatDTO['deliveryMode'] = 'IN_APP',
   ): Promise<BookingServiceChatDTO> {
     const { data, error } = await supabase
       .from('booking_service_chats')
@@ -100,6 +102,7 @@ export const bookingServiceRequestService = {
         author_role: authorRole,
         message,
         document_urls: documentUrls,
+        delivery_mode: deliveryMode,
       })
       .select()
       .single();

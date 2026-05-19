@@ -199,7 +199,7 @@ export const QuarterRequestsPage: React.FC = () => {
     inspectionInitialCondition, setInspectionInitialCondition,
     inspectionChecklist, setInspectionChecklist,
     inspectionChatMsg, setInspectionChatMsg, inspectionChatFile, setInspectionChatFile,
-    inspectionSubmitting, setInspectionSubmitting,
+    inspectionSubmitting, setInspectionSubmitting, inspectionChatMode, setInspectionChatMode,
     inspectionCloseRemarks, setInspectionCloseRemarks, inspectionCondition, setInspectionCondition,
     showHandoverPopup, setShowHandoverPopup, handover, setHandover,
     handoverKeyNo, setHandoverKeyNo, handoverRemarks, setHandoverRemarks,
@@ -264,8 +264,10 @@ export const QuarterRequestsPage: React.FC = () => {
     serviceChats, setServiceChats, selectedServiceId, setSelectedServiceId,
     servicesHistoryMode, setServicesHistoryMode, chatMessage, setChatMessage,
     chatAttachFile, setChatAttachFile, chatSubmitting, setChatSubmitting,
+    serviceChatMode, setServiceChatMode,
     allotmentChats, setAllotmentChats, allotmentChatMessage, setAllotmentChatMessage,
     allotmentChatFile, setAllotmentChatFile, allotmentChatSubmitting, setAllotmentChatSubmitting,
+    allotmentChatMode, setAllotmentChatMode,
     availableQuarters, setAvailableQuarters, availableQuartersLoading, setAvailableQuartersLoading,
     avqSearch, setAvqSearch, avqBhkFilter, setAvqBhkFilter,
     avqFloorFilter, setAvqFloorFilter,
@@ -515,7 +517,7 @@ export const QuarterRequestsPage: React.FC = () => {
         const url = await uploadChatFile(chatAttachFile, `service-chats/${selectedServiceId}`);
         if (url) docUrls.push(url);
       }
-      await quartersService.addServiceChat(selectedServiceId, user.id, 'EMPLOYEE', chatMessage, docUrls);
+      await quartersService.addServiceChat(selectedServiceId, user.id, 'EMPLOYEE', chatMessage, docUrls, serviceChatMode);
       setChatMessage('');
       setChatAttachFile(null);
       const chats = await quartersService.getServiceChats(selectedServiceId);
@@ -534,7 +536,7 @@ export const QuarterRequestsPage: React.FC = () => {
         const url = await uploadChatFile(allotmentChatFile, `allotment-chats/${allotmentId}`);
         if (url) docUrls.push(url);
       }
-      await quartersService.addAllotmentChat(allotmentId, user.id, role, allotmentChatMessage, docUrls);
+      await quartersService.addAllotmentChat(allotmentId, user.id, role, allotmentChatMessage, docUrls, allotmentChatMode);
       setAllotmentChatMessage('');
       setAllotmentChatFile(null);
       const chats = await quartersService.getAllotmentChats(allotmentId);
@@ -1189,7 +1191,7 @@ export const QuarterRequestsPage: React.FC = () => {
         if (url) docUrls.push(url);
         setInspectionChatFile(null);
       }
-      await quartersService.addInspectionChat(selectedInspectionId, user.id, 'eo', inspectionChatMsg, docUrls);
+      await quartersService.addInspectionChat(selectedInspectionId, user.id, 'eo', inspectionChatMsg, docUrls, inspectionChatMode);
       setInspectionChatMsg('');
       const chats = await quartersService.getInspectionChats(selectedInspectionId);
       setInspectionChats(chats);
@@ -2532,6 +2534,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   handleStartInspection={handleStartInspection}
                   handleSendInspectionChat={handleSendInspectionChat}
                   handleCloseInspection={handleCloseInspection}
+                  inspectionChatMode={inspectionChatMode}
+                  setInspectionChatMode={setInspectionChatMode}
                   handover={handover}
                   handoverKeyNo={handoverKeyNo}
                   setHandoverKeyNo={setHandoverKeyNo}
@@ -2552,6 +2556,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   setAllotmentChatFile={setAllotmentChatFile}
                   allotmentChatSubmitting={allotmentChatSubmitting}
                   handleSendAllotmentChat={handleSendAllotmentChat}
+                  allotmentChatMode={allotmentChatMode}
+                  setAllotmentChatMode={setAllotmentChatMode}
                   showGuestInfoPopup={showGuestInfoPopup}
                   setShowGuestInfoPopup={setShowGuestInfoPopup}
                   guestForm={guestForm}
@@ -2603,6 +2609,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     setAllotmentChatFile={setAllotmentChatFile}
                     allotmentChatSubmitting={allotmentChatSubmitting}
                     handleSendAllotmentChat={handleSendAllotmentChat}
+                    allotmentChatMode={allotmentChatMode}
+                    setAllotmentChatMode={setAllotmentChatMode}
                     openActionPopup={openActionPopup as any}
                   />
                 </Suspense>
@@ -2621,6 +2629,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     setAllotmentChatFile={setAllotmentChatFile}
                     allotmentChatSubmitting={allotmentChatSubmitting}
                     handleSendAllotmentChat={handleSendAllotmentChat}
+                    allotmentChatMode={allotmentChatMode}
+                    setAllotmentChatMode={setAllotmentChatMode}
                     openActionPopup={openActionPopup as any}
                   />
                 </Suspense>
@@ -2671,6 +2681,8 @@ export const QuarterRequestsPage: React.FC = () => {
                     setAllotmentChatFile={setAllotmentChatFile}
                     allotmentChatSubmitting={allotmentChatSubmitting}
                     handleSendAllotmentChat={handleSendAllotmentChat}
+                    allotmentChatMode={allotmentChatMode}
+                    setAllotmentChatMode={setAllotmentChatMode}
                   />
                 </Suspense>
               );

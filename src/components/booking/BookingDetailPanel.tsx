@@ -8,7 +8,9 @@ import {
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { PhotoLightbox } from '../ui/PhotoGallery';
+import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { BookingDTO, BookingServiceRequestDTO, BookingServiceChatDTO } from '../../types';
+import type { ChatDeliveryMode } from '../../types/quarters';
 import { formatDate } from '../../utils/dateHelpers';
 import { formatCurrency } from '../../utils/formatters';
 import { useUIStore } from '../../stores/uiStore';
@@ -85,6 +87,8 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const directChatFileRef = useRef<HTMLInputElement>(null);
   const [directChats, setDirectChats] = useState<BookingServiceChatDTO[]>([]);
   const [sendingDirectChat, setSendingDirectChat] = useState(false);
+  const [directChatMode, setDirectChatMode] = useState<ChatDeliveryMode>('IN_APP');
+  const [perServiceChatMode, setPerServiceChatMode] = useState<Record<string, ChatDeliveryMode>>({});
 
   const activeServices = services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus));
 
@@ -125,9 +129,10 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const handleSendChat = async (serviceId: string) => {
     const msg = (chatInput[serviceId] || '').trim();
     if (!msg) return;
+    const mode = perServiceChatMode[serviceId] ?? 'IN_APP';
     setSendingChat(prev => ({ ...prev, [serviceId]: true }));
     try {
-      const chat = await bookingServiceRequestService.addServiceChat(serviceId, userId, 'employee', msg);
+      const chat = await bookingServiceRequestService.addServiceChat(serviceId, userId, 'employee', msg, [], mode);
       setChats(prev => ({ ...prev, [serviceId]: [...(prev[serviceId] || []), chat] }));
       setChatInput(prev => ({ ...prev, [serviceId]: '' }));
     } catch { addToast('Failed to send message', 'error'); }
@@ -139,19 +144,19 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     if (!msg) return;
     setSendingDirectChat(true);
     try {
-      // Use first active service for direct chat, or create a general one
       const targetServiceId = activeServices[0]?.id;
       if (targetServiceId) {
-        const chat = await bookingServiceRequestService.addServiceChat(targetServiceId, userId, 'employee', msg);
+        const chat = await bookingServiceRequestService.addServiceChat(targetServiceId, userId, 'employee', msg, [], directChatMode);
         setDirectChats(prev => [...prev, chat]);
       } else {
-        // Optimistic local message if no service exists
         setDirectChats(prev => [...prev, {
           id: `local-${Date.now()}`,
           serviceRequestId: '',
           authorId: userId,
           authorRole: 'employee',
           message: msg,
+          documentUrls: [],
+          deliveryMode: directChatMode,
           createdAt: new Date().toISOString(),
         } as BookingServiceChatDTO]);
       }
@@ -190,22 +195,29 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
             </div>
           );
         })}
-        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-          <textarea
-            rows={2}
-            placeholder="Type a message…"
-            value={chatInput[serviceId] || ''}
-            onChange={e => setChatInput(prev => ({ ...prev, [serviceId]: e.target.value }))}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(serviceId); } }}
-            className="flex-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300"
+        <div className="mt-2 pt-2 border-t border-gray-100">
+          <ChatDeliveryModePicker
+            value={perServiceChatMode[serviceId] ?? 'IN_APP'}
+            onChange={m => setPerServiceChatMode(prev => ({ ...prev, [serviceId]: m }))}
+            className="mb-2"
           />
-          <button
-            onClick={() => handleSendChat(serviceId)}
-            disabled={sendingChat[serviceId] || !(chatInput[serviceId] || '').trim()}
-            className="self-end flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs rounded-lg transition-colors font-medium"
-          >
-            {sendingChat[serviceId] ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-          </button>
+          <div className="flex gap-2">
+            <textarea
+              rows={2}
+              placeholder="Type a message…"
+              value={chatInput[serviceId] || ''}
+              onChange={e => setChatInput(prev => ({ ...prev, [serviceId]: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(serviceId); } }}
+              className="flex-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300"
+            />
+            <button
+              onClick={() => handleSendChat(serviceId)}
+              disabled={sendingChat[serviceId] || !(chatInput[serviceId] || '').trim()}
+              className="self-end flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs rounded-lg transition-colors font-medium"
+            >
+              {sendingChat[serviceId] ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -482,6 +494,7 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
               })}
             </div>
             <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
+              <ChatDeliveryModePicker value={directChatMode} onChange={setDirectChatMode} className="mb-2" />
               {directChatFile && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
                   <FileText size={13} className="text-blue-500 shrink-0" />

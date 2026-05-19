@@ -157,6 +157,8 @@ export interface BookingServiceRequestDTO {
   chats?: BookingServiceChatDTO[];
 }
 
+export type ChatDeliveryMode = 'IN_APP' | 'EMAIL' | 'SMS' | 'WA';
+
 export interface BookingServiceChatDTO {
   id: string;
   serviceRequestId: string;
@@ -164,6 +166,7 @@ export interface BookingServiceChatDTO {
   authorRole: BookingServiceAuthorRole;
   message: string;
   documentUrls: string[];
+  deliveryMode: ChatDeliveryMode;
   createdAt: string;
 }
 
