@@ -47,8 +47,8 @@ interface RightPanelAllottedProps extends PanelBase {
   setAllotmentChatFile: (f: File | null) => void;
   allotmentChatSubmitting: boolean;
   handleSendAllotmentChat: () => void;
-  allotmentChatMode: ChatDeliveryMode;
-  setAllotmentChatMode: (m: ChatDeliveryMode) => void;
+  allotmentChatMode: ChatDeliveryMode[];
+  setAllotmentChatMode: (m: ChatDeliveryMode[]) => void;
   openActionPopup: (type: 'INSPECTION' | 'HANDOVER', requestId: string, allotmentId: string) => void;
 }
 
@@ -239,8 +239,8 @@ interface RightPanelOccupiedProps extends PanelBase {
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
-  allotmentChatMode?: ChatDeliveryMode;
-  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
+  allotmentChatMode?: ChatDeliveryMode[];
+  setAllotmentChatMode?: (m: ChatDeliveryMode[]) => void;
 }
 
 export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
@@ -258,7 +258,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
-  allotmentChatMode = 'IN_APP', setAllotmentChatMode,
+  allotmentChatMode = ['IN_APP'] as ChatDeliveryMode[], setAllotmentChatMode,
 }) => {
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
@@ -701,15 +701,15 @@ export const RightPanelDraft: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
-  allotmentChatMode?: ChatDeliveryMode;
-  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
+  allotmentChatMode?: ChatDeliveryMode[];
+  setAllotmentChatMode?: (m: ChatDeliveryMode[]) => void;
   scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, addToast, loadData, setSelectedRequest, openNewModal,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
-  allotmentChatMode = 'IN_APP', setAllotmentChatMode, scrollToChat = false,
+  allotmentChatMode = ['IN_APP'] as ChatDeliveryMode[], setAllotmentChatMode, scrollToChat = false,
 }) => {
   const draftChatFileRef = useRef<HTMLInputElement>(null);
   const draftChatSectionRef = useRef<HTMLDivElement>(null);
@@ -988,15 +988,15 @@ export const RightPanelSubmitted: React.FC<{
   setAllotmentChatFile?: (f: File | null) => void;
   allotmentChatSubmitting?: boolean;
   handleSendAllotmentChat?: () => void;
-  allotmentChatMode?: ChatDeliveryMode;
-  setAllotmentChatMode?: (m: ChatDeliveryMode) => void;
+  allotmentChatMode?: ChatDeliveryMode[];
+  setAllotmentChatMode?: (m: ChatDeliveryMode[]) => void;
   scrollToChat?: boolean;
 }> = ({
   panelControls, selectedRequest, user, handleWithdraw,
   allotmentChats = {}, allotmentChatMessage = '', setAllotmentChatMessage,
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
-  allotmentChatMode = 'IN_APP', setAllotmentChatMode, scrollToChat = false,
+  allotmentChatMode = ['IN_APP'] as ChatDeliveryMode[], setAllotmentChatMode, scrollToChat = false,
 }) => {
   const submittedChatFileRef = useRef<HTMLInputElement>(null);
   const submittedChatSectionRef = useRef<HTMLDivElement>(null);

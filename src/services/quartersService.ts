@@ -68,6 +68,7 @@ import type {
   QuarterHandover,
   QuarterGuestInfo,
   QuarterRequestPreference,
+  ChatDeliveryMode,
 } from '../types/quarters';
 
 import type { ChecklistItemDraft } from '../constants/inspectionChecklist';
@@ -777,20 +778,20 @@ export const quartersService = {
     _authorRole: 'EMPLOYEE' | 'EO',
     _message: string,
     _documentUrls: string[],
-    _deliveryMode: QuarterServiceChat['delivery_mode'] = 'IN_APP',
+    _deliveryModes: ChatDeliveryMode[] = ['IN_APP'],
   ): Promise<QuarterServiceChat> {
+    const primaryMode = _deliveryModes[0] ?? 'IN_APP';
     if (DEMO_MODE) {
-      return Promise.resolve({ id: `sc-demo-${Date.now()}`, tenant_request_id: _tenantRequestId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: _deliveryMode, created_at: new Date().toISOString() });
+      return Promise.resolve({ id: `sc-demo-${Date.now()}`, tenant_request_id: _tenantRequestId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: primaryMode, created_at: new Date().toISOString() });
     }
     const tenantRequestId = _tenantRequestId;
     const authorId = _authorId;
     const authorRole = _authorRole;
     const message = _message;
     const documentUrls = _documentUrls;
-    const deliveryMode = _deliveryMode;
     const { data, error } = await supabase
       .from('quarter_service_chats')
-      .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: deliveryMode })
+      .insert({ tenant_request_id: tenantRequestId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: primaryMode })
       .select()
       .single();
     if (error) throw error;
@@ -867,20 +868,20 @@ export const quartersService = {
     _authorRole: 'employee' | 'eo' | 'system',
     _message: string,
     _documentUrls: string[] = [],
-    _deliveryMode: QuarterAllotmentChat['delivery_mode'] = 'IN_APP',
+    _deliveryModes: ChatDeliveryMode[] = ['IN_APP'],
   ): Promise<QuarterAllotmentChat> {
+    const primaryMode = _deliveryModes[0] ?? 'IN_APP';
     if (DEMO_MODE) {
-      return Promise.resolve({ id: `ac-demo-${Date.now()}`, allotment_id: _allotmentId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: _deliveryMode, created_at: new Date().toISOString() });
+      return Promise.resolve({ id: `ac-demo-${Date.now()}`, allotment_id: _allotmentId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _documentUrls, delivery_mode: primaryMode, created_at: new Date().toISOString() });
     }
     const allotmentId = _allotmentId;
     const authorId = _authorId;
     const authorRole = _authorRole;
     const message = _message;
     const documentUrls = _documentUrls;
-    const deliveryMode = _deliveryMode;
     const { data, error } = await supabase
       .from('quarter_allotment_chats')
-      .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: deliveryMode })
+      .insert({ allotment_id: allotmentId, author_id: authorId, author_role: authorRole, message, document_urls: documentUrls, delivery_mode: primaryMode })
       .select()
       .single();
     if (error) throw error;
@@ -1327,10 +1328,11 @@ export const quartersService = {
     return (data ?? []) as QuarterInspectionChat[];
   },
 
-  async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = [], _deliveryMode: QuarterInspectionChat['delivery_mode'] = 'IN_APP'): Promise<void> {
+  async addInspectionChat(_inspectionId: string, _authorId: string, _authorRole: string, _message: string, _docUrls: string[] = [], _deliveryModes: ChatDeliveryMode[] = ['IN_APP']): Promise<void> {
     if (DEMO_MODE) return Promise.resolve();
+    const primaryMode = _deliveryModes[0] ?? 'IN_APP';
     const { error } = await supabase.from('quarter_inspection_chats').insert({
-      inspection_id: _inspectionId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _docUrls, delivery_mode: _deliveryMode,
+      inspection_id: _inspectionId, author_id: _authorId, author_role: _authorRole, message: _message, document_urls: _docUrls, delivery_mode: primaryMode,
     });
     if (error) throw error;
   },

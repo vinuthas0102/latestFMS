@@ -114,8 +114,8 @@ export interface EOActionPanelProps {
   handleStartInspection: () => void;
   handleSendInspectionChat: () => void;
   handleCloseInspection: () => void;
-  inspectionChatMode: ChatDeliveryMode;
-  setInspectionChatMode: (m: ChatDeliveryMode) => void;
+  inspectionChatMode: ChatDeliveryMode[];
+  setInspectionChatMode: (m: ChatDeliveryMode[]) => void;
 
   // Handover
   handover: QuarterHandover | null;
@@ -140,8 +140,8 @@ export interface EOActionPanelProps {
   setAllotmentChatFile: (f: File | null) => void;
   allotmentChatSubmitting: boolean;
   handleSendAllotmentChat: () => void;
-  allotmentChatMode: ChatDeliveryMode;
-  setAllotmentChatMode: (m: ChatDeliveryMode) => void;
+  allotmentChatMode: ChatDeliveryMode[];
+  setAllotmentChatMode: (m: ChatDeliveryMode[]) => void;
 
   // Guest info
   showGuestInfoPopup: boolean;

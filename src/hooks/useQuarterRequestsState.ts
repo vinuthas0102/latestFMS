@@ -121,7 +121,7 @@ export function useQuarterRequestsState() {
   const [inspectionChatMsg, setInspectionChatMsg] = useState('');
   const [inspectionChatFile, setInspectionChatFile] = useState<File | null>(null);
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
-  const [inspectionChatMode, setInspectionChatMode] = useState<ChatDeliveryMode>('IN_APP');
+  const [inspectionChatMode, setInspectionChatMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
   const [inspectionCloseRemarks, setInspectionCloseRemarks] = useState('');
   const [inspectionCondition, setInspectionCondition] = useState('GOOD');
 
@@ -281,14 +281,14 @@ export function useQuarterRequestsState() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatAttachFile, setChatAttachFile] = useState<File | null>(null);
   const [chatSubmitting, setChatSubmitting] = useState(false);
-  const [serviceChatMode, setServiceChatMode] = useState<ChatDeliveryMode>('IN_APP');
+  const [serviceChatMode, setServiceChatMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
 
   // ── Allotment chats for allotted panel ────────────────────────────────────
   const [allotmentChats, setAllotmentChats] = useState<Record<string, QuarterAllotmentChat[]>>({});
   const [allotmentChatMessage, setAllotmentChatMessage] = useState('');
   const [allotmentChatFile, setAllotmentChatFile] = useState<File | null>(null);
   const [allotmentChatSubmitting, setAllotmentChatSubmitting] = useState(false);
-  const [allotmentChatMode, setAllotmentChatMode] = useState<ChatDeliveryMode>('IN_APP');
+  const [allotmentChatMode, setAllotmentChatMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
 
   // ── Available Quarters DP ─────────────────────────────────────────────────
   const [availableQuarters, setAvailableQuarters] = useState<Quarter[]>([]);

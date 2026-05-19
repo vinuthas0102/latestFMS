@@ -87,8 +87,8 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const directChatFileRef = useRef<HTMLInputElement>(null);
   const [directChats, setDirectChats] = useState<BookingServiceChatDTO[]>([]);
   const [sendingDirectChat, setSendingDirectChat] = useState(false);
-  const [directChatMode, setDirectChatMode] = useState<ChatDeliveryMode>('IN_APP');
-  const [perServiceChatMode, setPerServiceChatMode] = useState<Record<string, ChatDeliveryMode>>({});
+  const [directChatMode, setDirectChatMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
+  const [perServiceChatMode, setPerServiceChatMode] = useState<Record<string, ChatDeliveryMode[]>>({});
 
   const activeServices = services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus));
 
@@ -129,7 +129,8 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const handleSendChat = async (serviceId: string) => {
     const msg = (chatInput[serviceId] || '').trim();
     if (!msg) return;
-    const mode = perServiceChatMode[serviceId] ?? 'IN_APP';
+    const modes = perServiceChatMode[serviceId] ?? ['IN_APP'];
+    const mode = modes[0] ?? 'IN_APP';
     setSendingChat(prev => ({ ...prev, [serviceId]: true }));
     try {
       const chat = await bookingServiceRequestService.addServiceChat(serviceId, userId, 'employee', msg, [], mode);
@@ -146,7 +147,7 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     try {
       const targetServiceId = activeServices[0]?.id;
       if (targetServiceId) {
-        const chat = await bookingServiceRequestService.addServiceChat(targetServiceId, userId, 'employee', msg, [], directChatMode);
+        const chat = await bookingServiceRequestService.addServiceChat(targetServiceId, userId, 'employee', msg, [], directChatMode[0] ?? 'IN_APP');
         setDirectChats(prev => [...prev, chat]);
       } else {
         setDirectChats(prev => [...prev, {
@@ -156,7 +157,7 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
           authorRole: 'employee',
           message: msg,
           documentUrls: [],
-          deliveryMode: directChatMode,
+          deliveryMode: directChatMode[0] ?? 'IN_APP',
           createdAt: new Date().toISOString(),
         } as BookingServiceChatDTO]);
       }
@@ -197,7 +198,7 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
         })}
         <div className="mt-2 pt-2 border-t border-gray-100">
           <ChatDeliveryModePicker
-            value={perServiceChatMode[serviceId] ?? 'IN_APP'}
+            value={perServiceChatMode[serviceId] ?? ['IN_APP']}
             onChange={m => setPerServiceChatMode(prev => ({ ...prev, [serviceId]: m }))}
             className="mb-2"
           />
