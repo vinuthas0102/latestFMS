@@ -158,8 +158,11 @@ const BookingListCard: React.FC<{
   onRaiseService: (booking: BookingDTO, type: BookingServiceType) => void;
   onPayNow: (booking: BookingDTO) => void;
   onRecordManualPayment: (booking: BookingDTO) => void;
+  onCheckout: (booking: BookingDTO) => void;
   isManager?: boolean;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, isManager }) => {
+  isGovtOfficial?: boolean;
+  isUnderMaintenance?: boolean;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, onCheckout, isManager, isGovtOfficial, isUnderMaintenance }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -170,15 +173,20 @@ const BookingListCard: React.FC<{
   const nights = calcNights(booking.checkInDate, booking.checkOutDate);
   const thumbSrc = getPropertyImage(booking, index);
   const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
-  const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
+  const isCheckedIn = booking.status === 'CHECKED_IN';
+  const isVacated = booking.status === 'CHECKED_OUT';
+  const canCheckout = isCheckedIn && (isManager || isGovtOfficial);
+  const canRaiseService = !['CANCELLED', 'REJECTED'].includes(booking.status);
+  const vacatedServiceItems = ACTION_MENU_ITEMS.filter(i => i.type === 'MAINTENANCE');
+  const menuServiceItems = isVacated ? vacatedServiceItems : ACTION_MENU_ITEMS;
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    const extraItems = (canPay ? 1 : 0) + (canPay && isManager ? 1 : 0);
-    const menuHeight = (ACTION_MENU_ITEMS.length + extraItems) * 36 + 56;
+    const extraItems = (canPay ? 1 : 0) + (canPay && isManager ? 1 : 0) + (canCheckout ? 1 : 0);
+    const menuHeight = (menuServiceItems.length + extraItems) * 36 + 56;
     const openUp = rect.bottom + menuHeight > window.innerHeight;
     setMenuCoords({
       top: openUp ? rect.top - menuHeight - 4 : rect.bottom + 4,
@@ -257,9 +265,16 @@ const BookingListCard: React.FC<{
               <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
                 #{booking.bookingNumber}
               </span>
-              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
-                {statusCfg.label}
-              </span>
+              <div className="flex items-center gap-1">
+                {isUnderMaintenance && (
+                  <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
+                    <Wrench size={9} />Under Maintenance
+                  </span>
+                )}
+                <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                  {statusCfg.label}
+                </span>
+              </div>
             </div>
 
             {/* Row 2: key-value details */}
@@ -350,10 +365,28 @@ const BookingListCard: React.FC<{
                             <div className="border-t border-gray-100 mt-1 mb-1" />
                           </>
                         )}
+                        {/* Checkout action — only for CHECKED_IN, manager or govt official */}
+                        {canCheckout && (
+                          <>
+                            <div className="px-3 py-1.5 border-b border-gray-100">
+                              <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Checkout</span>
+                            </div>
+                            <button
+                              onClick={e => { e.stopPropagation(); setMenuOpen(false); onCheckout(booking); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors text-left"
+                            >
+                              <LogOut size={13} className="text-emerald-600" />
+                              Complete Checkout
+                            </button>
+                            <div className="border-t border-gray-100 mt-1 mb-1" />
+                          </>
+                        )}
                         <div className="px-3 py-1.5 border-b border-gray-100">
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Raise Service</span>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                            {isVacated ? 'Services' : 'Raise Service'}
+                          </span>
                         </div>
-                        {ACTION_MENU_ITEMS.map(({ type, label, Icon, color }) => (
+                        {menuServiceItems.map(({ type, label, Icon, color }) => (
                           <button
                             key={type}
                             onClick={e => { e.stopPropagation(); setMenuOpen(false); onRaiseService(booking, type); }}
@@ -615,6 +648,13 @@ export const BookingHistoryPage: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
 
+  // Demo hardcoded maintenance IDs — vacated bookings that are under maintenance
+  const [maintenanceBookingIds, setMaintenanceBookingIds] = useState<Set<string>>(
+    () => new Set([
+      'dffc4358-d2df-4264-9838-d402e0935bb7',
+    ])
+  );
+
   const [availableProperties, setAvailableProperties] = useState<PropertyDTO[]>([]);
   const [avPropSearch, setAvPropSearch] = useState('');
   const [avPropLoading, setAvPropLoading] = useState(false);
@@ -627,6 +667,10 @@ export const BookingHistoryPage: React.FC = () => {
   const [svcFormRemarks, setSvcFormRemarks] = useState('');
   const [svcFormUrgency, setSvcFormUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
   const [svcFormSubmitting, setSvcFormSubmitting] = useState(false);
+
+  // Checkout modal
+  const [checkoutBooking, setCheckoutBooking] = useState<BookingDTO | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Manual payment modal
   const [manualPayBooking, setManualPayBooking] = useState<BookingDTO | null>(null);
@@ -702,8 +746,10 @@ export const BookingHistoryPage: React.FC = () => {
         urgencyLevel: svcFormUrgency,
       });
       addToast('Service request submitted successfully', 'success');
-      // refresh count for this booking
       setActiveServiceCounts(prev => ({ ...prev, [svcFormBooking.id]: (prev[svcFormBooking.id] ?? 0) + 1 }));
+      if (svcFormType === 'MAINTENANCE' && svcFormBooking.status === 'CHECKED_OUT') {
+        setMaintenanceBookingIds(prev => new Set([...prev, svcFormBooking.id]));
+      }
       closeServiceForm();
     } catch {
       addToast('Failed to submit service request', 'error');
@@ -714,6 +760,25 @@ export const BookingHistoryPage: React.FC = () => {
 
   const handlePayNow = (booking: BookingDTO) => {
     navigate(`/payment?bookingId=${booking.id}&amount=${booking.balanceAmount}&returnUrl=/bookings`);
+  };
+
+  const handleCheckout = (booking: BookingDTO) => {
+    setCheckoutBooking(booking);
+  };
+
+  const processCheckout = async () => {
+    if (!checkoutBooking) return;
+    setCheckoutLoading(true);
+    try {
+      await bookingService.updateBookingStatus(checkoutBooking.id, 'CHECKED_OUT');
+      addToast('Guest checked out successfully', 'success');
+      setCheckoutBooking(null);
+      loadBookings();
+    } catch {
+      addToast('Failed to process checkout', 'error');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const openManualPayModal = (booking: BookingDTO) => {
@@ -1346,6 +1411,73 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       )}
 
+      {/* ── Checkout Confirmation Modal ── */}
+      {checkoutBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckoutBooking(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center">
+                    <LogOut size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Complete Checkout</h3>
+                </div>
+                <p className="text-xs text-gray-400 font-mono ml-8">#{checkoutBooking.bookingNumber}</p>
+              </div>
+              <button onClick={() => setCheckoutBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Guest</span>
+                  <span className="font-semibold text-gray-800">{checkoutBooking.guestDetails?.fullName ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Property</span>
+                  <span className="font-semibold text-gray-800 text-right max-w-[180px] truncate">{checkoutBooking.property?.name ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Check-out Date</span>
+                  <span className="font-semibold text-gray-800">{formatDate(checkoutBooking.checkOutDate)}</span>
+                </div>
+              </div>
+
+              {checkoutBooking.balanceAmount > 0 && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-xs font-semibold text-red-800">Outstanding Balance — ₹{checkoutBooking.balanceAmount.toLocaleString('en-IN')}</p>
+                  <p className="text-[11px] text-red-600 mt-0.5">Please collect payment before completing checkout.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setCheckoutBooking(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={processCheckout}
+                disabled={checkoutLoading || checkoutBooking.balanceAmount > 0}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                Confirm Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Manual Payment Modal ── */}
       {manualPayBooking && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setManualPayBooking(null)}>
@@ -1590,7 +1722,10 @@ export const BookingHistoryPage: React.FC = () => {
                           onRaiseService={openServiceForm}
                           onPayNow={handlePayNow}
                           onRecordManualPayment={openManualPayModal}
+                          onCheckout={handleCheckout}
                           isManager={isManager}
+                          isGovtOfficial={isGovtOfficial}
+                          isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
                         />
                       ))}
                     </div>
