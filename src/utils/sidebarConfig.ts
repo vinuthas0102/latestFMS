@@ -32,8 +32,8 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
         {
           title: 'Facilities',
           iconName: 'Building2',
-          route: ROUTES.PROPERTIES,
-          activePrefix: '/properties',
+          route: ROUTES.BOOKINGS,
+          activePrefix: '/bookings',
         },
         {
           title: 'Quarters',
