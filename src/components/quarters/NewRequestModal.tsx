@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, Send, Zap, Search, Filter, Building2, Plus, Star, ArrowUp, ArrowDown, Trash2,
   X, UserCheck, UserPlus, User, Users, CheckCircle, Home, FileText,
-  Phone, Mail, CreditCard, Download, Paperclip, Upload,
+  Phone, Mail, CreditCard, Download, Paperclip, Upload, GitMerge, ChevronRight, PlayCircle,
 } from 'lucide-react';
+import { quartersService } from '../../services/quartersService';
+import type { QuarterApprovalWorkflow } from '../../types/quarters';
 import { fmtINR, getImage } from './quarterShared';
 import { Quarter } from '../../services/quartersService';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
@@ -153,6 +155,17 @@ export interface NewRequestModalProps {
   onSubmit: () => void;
   onAllotNow: () => void;
   addToast: (msg: string, type: 'success' | 'error' | 'warning') => void;
+  // Allot with Approval
+  showAllotApprovalPopup: boolean;
+  setShowAllotApprovalPopup: (v: boolean) => void;
+  allotApprovalWflId: string;
+  setAllotApprovalWflId: (v: string) => void;
+  allotApprovalUsers: string[];
+  setAllotApprovalUsers: (v: string[]) => void;
+  allotApprovalSubmitting: boolean;
+  allotApprovalRequestId: string | null;
+  allotApprovalWorkflows: QuarterApprovalWorkflow[];
+  onAllotWithApproval: () => void;
 }
 
 export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
@@ -190,9 +203,45 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
     allotNowQuarter, setAllotNowQuarter,
     setPreviewQuarterId, setIsPreviewOpen,
     onClose, onSaveDraft, onSubmit, onAllotNow, addToast,
+    showAllotApprovalPopup, setShowAllotApprovalPopup,
+    allotApprovalWflId, setAllotApprovalWflId,
+    allotApprovalUsers, setAllotApprovalUsers,
+    allotApprovalSubmitting, allotApprovalRequestId,
+    allotApprovalWorkflows, onAllotWithApproval,
   } = props;
 
   const docsRequired = form.request_type === 'MEDICAL' || form.request_type === 'REFERENCE';
+
+  // ── Allot with Approval local state ──────────────────────────────────────────
+  const [approvalStage, setApprovalStage] = useState<'wfl' | 'users'>('wfl');
+  const [approvalUserSearch, setApprovalUserSearch] = useState('');
+  const [approvalUserList, setApprovalUserList] = useState<{ id: string; full_name: string; govt_department: string; govt_employee_id: string }[]>([]);
+  const [approvalUsersLoading, setApprovalUsersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showAllotApprovalPopup) { setApprovalStage('wfl'); setApprovalUserSearch(''); return; }
+    if (approvalStage === 'users' && approvalUserList.length === 0) {
+      setApprovalUsersLoading(true);
+      quartersService.getEmployeeUsers().then(list => {
+        setApprovalUserList(list);
+      }).catch(() => {}).finally(() => setApprovalUsersLoading(false));
+    }
+  }, [showAllotApprovalPopup, approvalStage]);
+
+  const filteredApprovalUsers = approvalUserList.filter(u =>
+    approvalUserSearch === '' ||
+    u.full_name.toLowerCase().includes(approvalUserSearch.toLowerCase()) ||
+    u.govt_department.toLowerCase().includes(approvalUserSearch.toLowerCase()) ||
+    u.govt_employee_id.toLowerCase().includes(approvalUserSearch.toLowerCase())
+  );
+
+  const toggleApprovalUser = (id: string) => {
+    setAllotApprovalUsers(
+      allotApprovalUsers.includes(id)
+        ? allotApprovalUsers.filter(u => u !== id)
+        : [...allotApprovalUsers, id]
+    );
+  };
 
   return createPortal(
     <div ref={modalRef} className="fixed inset-0 z-[1000] bg-gray-50 flex flex-col" style={{ fontFamily: 'inherit' }}>
@@ -264,6 +313,22 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
               title="Allot Now — pick a quarter and allot immediately (VVIP/priority cases)"
             >
               <Zap size={14} />Allot Now
+            </button>
+          )}
+          {/* Allot with Approval — EO only, highlighted after submit */}
+          {isEO && (
+            <button
+              onClick={() => setShowAllotApprovalPopup(true)}
+              disabled={submitting || allotNowSubmitting || allotApprovalSubmitting}
+              title="Allot with Approval — route through an approval workflow"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                allotApprovalRequestId
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200 ring-2 ring-blue-400/60 ring-offset-1 animate-pulse-once'
+                  : 'border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400'
+              } disabled:opacity-50`}
+            >
+              <GitMerge size={14} />Allot with Approval
+              {allotApprovalRequestId && <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping ml-0.5" />}
             </button>
           )}
         </div>
@@ -844,6 +909,215 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = (props) => {
           </div>
         );
       })()}
+
+      {/* ── Allot with Approval: Popup overlay (EO only) ── */}
+      {showAllotApprovalPopup && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: '85vh' }}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+              {approvalStage === 'users' && (
+                <button onClick={() => setApprovalStage('wfl')} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shrink-0">
+                  <ArrowLeft size={16} />
+                </button>
+              )}
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <GitMerge size={18} className="text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900">
+                  {approvalStage === 'wfl' ? 'Select Approval Workflow' : 'Select Approvers'}
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {approvalStage === 'wfl' ? 'Choose a workflow to route this allotment for approval' : 'Pick one or more approvers for this request'}
+                </p>
+              </div>
+              {/* Stage indicator */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${approvalStage === 'wfl' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>1</div>
+                <ChevronRight size={12} className="text-gray-300" />
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${approvalStage === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>2</div>
+              </div>
+              <button onClick={() => setShowAllotApprovalPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors shrink-0">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Stage 1: Workflow Selection */}
+            {approvalStage === 'wfl' && (
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
+                    Approval Workflow
+                  </label>
+                  {allotApprovalWorkflows.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                      <GitMerge size={24} className="mb-2 opacity-30" />
+                      <p className="text-sm">No workflows available</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allotApprovalWorkflows.map(wfl => {
+                        const levelCount = (wfl.levels as { level: number }[]).length;
+                        const isSelected = allotApprovalWflId === wfl.id;
+                        return (
+                          <button
+                            key={wfl.id}
+                            type="button"
+                            onClick={() => setAllotApprovalWflId(wfl.id)}
+                            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-600' : 'bg-gray-100'}`}>
+                                  <GitMerge size={14} className={isSelected ? 'text-white' : 'text-gray-400'} />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">{wfl.workflow_name}</p>
+                                  {wfl.description && <p className="text-[11px] text-gray-500 mt-0.5">{wfl.description}</p>}
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                {levelCount} level{levelCount !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Approval levels preview */}
+                {allotApprovalWflId && (() => {
+                  const wfl = allotApprovalWorkflows.find(w => w.id === allotApprovalWflId);
+                  if (!wfl) return null;
+                  return (
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 space-y-2">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
+                      {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
+                        <div key={lvl.level} className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-blue-700">{lvl.level}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs font-semibold text-gray-800">{lvl.approver_title || 'Approver'}</span>
+                            {lvl.approver_role && <span className="ml-1.5 text-[10px] text-gray-400">({lvl.approver_role})</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Stage 2: User Selection */}
+            {approvalStage === 'users' && (
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Selected users chips */}
+                {allotApprovalUsers.length > 0 && (
+                  <div className="px-5 pt-3 pb-2 flex flex-wrap gap-1.5 border-b border-gray-100 shrink-0">
+                    {allotApprovalUsers.map(uid => {
+                      const u = approvalUserList.find(x => x.id === uid);
+                      if (!u) return null;
+                      return (
+                        <span key={uid} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                          {u.full_name}
+                          <button type="button" onClick={() => toggleApprovalUser(uid)} className="hover:bg-blue-200 rounded-full p-0.5 transition-colors">
+                            <X size={10} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Search */}
+                <div className="px-5 py-3 shrink-0">
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      value={approvalUserSearch}
+                      onChange={e => setApprovalUserSearch(e.target.value)}
+                      placeholder="Search by name, department, or employee ID…"
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                {/* User list */}
+                <div className="flex-1 overflow-y-auto border-t border-gray-100 divide-y divide-gray-50 min-h-0">
+                  {approvalUsersLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="h-14 bg-gray-50 mx-3 my-1 rounded-lg animate-pulse" />
+                    ))
+                  ) : filteredApprovalUsers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                      <Users size={22} className="mb-2 opacity-30" />
+                      <p className="text-sm">No users found</p>
+                    </div>
+                  ) : filteredApprovalUsers.map(u => {
+                    const isSelected = allotApprovalUsers.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => toggleApprovalUser(u.id)}
+                        className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-blue-50/60 transition-colors text-left ${isSelected ? 'bg-blue-50' : ''}`}
+                      >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                          {u.full_name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
+                          <p className="text-[11px] text-gray-500 truncate">{u.govt_department} · {u.govt_employee_id}</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                          {isSelected && <CheckCircle size={12} className="text-white" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl shrink-0">
+              <button
+                onClick={() => setShowAllotApprovalPopup(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              {approvalStage === 'wfl' ? (
+                <button
+                  onClick={() => setApprovalStage('users')}
+                  disabled={!allotApprovalWflId}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  <Users size={14} />Next — Select Approvers
+                </button>
+              ) : (
+                <button
+                  onClick={onAllotWithApproval}
+                  disabled={allotApprovalUsers.length === 0 || allotApprovalSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {allotApprovalSubmitting
+                    ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Starting…</>
+                    : <><PlayCircle size={14} />Initiate Approval</>
+                  }
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Allot Now: Quarter Picker overlay (EO only) ── */}
       {showAllotNowPicker && (

@@ -299,6 +299,11 @@ export const QuarterRequestsPage: React.FC = () => {
     popupRetentionReason, setPopupRetentionReason, popupRequestedMonths, setPopupRequestedMonths,
     showUpgradeModal, setShowUpgradeModal,
     upgradeModalQuarters, setUpgradeModalQuarters, upgradeModalLoading, setUpgradeModalLoading,
+    showAllotApprovalPopup, setShowAllotApprovalPopup,
+    allotApprovalWflId, setAllotApprovalWflId,
+    allotApprovalUsers, setAllotApprovalUsers,
+    allotApprovalSubmitting, setAllotApprovalSubmitting,
+    allotApprovalRequestId, setAllotApprovalRequestId,
   } = useQuarterRequestsState();
 
   const isEO = user?.role === 'manager';
@@ -733,7 +738,7 @@ export const QuarterRequestsPage: React.FC = () => {
       if (requestDocuments.length > 0) await uploadRequestDocs(req.id);
       await quartersService.submitRequest(req.id);
       addToast('Request submitted successfully', 'success');
-      setShowNewModal(false);
+      setAllotApprovalRequestId(req.id);
       setRequestDocuments([]);
       loadData();
     } catch { addToast('Failed to submit request', 'error'); } finally { setSubmitting(false); }
@@ -860,6 +865,24 @@ export const QuarterRequestsPage: React.FC = () => {
       setAllotNowQuarter(null);
       loadData();
     } catch { addToast('Allot Now failed', 'error'); } finally { setAllotNowSubmitting(false); }
+  };
+
+  // ─── EO: Allot with Approval (submit submitted request through approval WFL) ─
+  const handleAllotWithApproval = async () => {
+    if (!user || !allotApprovalRequestId) { addToast('Please submit the request first', 'warning'); return; }
+    if (!allotApprovalWflId) { addToast('Please select an approval workflow', 'warning'); return; }
+    if (allotApprovalUsers.length === 0) { addToast('Please select at least one approver', 'warning'); return; }
+    setAllotApprovalSubmitting(true);
+    try {
+      await quartersService.submitRequestsForApproval([allotApprovalRequestId], allotApprovalWflId, user.id);
+      addToast('Approval workflow started', 'success');
+      setShowAllotApprovalPopup(false);
+      setShowNewModal(false);
+      setAllotApprovalRequestId(null);
+      setAllotApprovalWflId('');
+      setAllotApprovalUsers([]);
+      loadData();
+    } catch { addToast('Failed to start approval workflow', 'error'); } finally { setAllotApprovalSubmitting(false); }
   };
 
   // ─── EO Employee mode: manual allot ────────────────────────────────────────
@@ -4362,10 +4385,20 @@ export const QuarterRequestsPage: React.FC = () => {
             setAllotNowQuarter={setAllotNowQuarter}
             setPreviewQuarterId={setPreviewQuarterId}
             setIsPreviewOpen={setIsPreviewOpen}
-            onClose={() => { setShowNewModal(false); setRequestDocuments([]); }}
+            onClose={() => { setShowNewModal(false); setRequestDocuments([]); setAllotApprovalRequestId(null); setAllotApprovalWflId(''); setAllotApprovalUsers([]); }}
             onSaveDraft={handleSaveDraft}
             onSubmit={handleSubmit}
             onAllotNow={handleAllotNow}
+            showAllotApprovalPopup={showAllotApprovalPopup}
+            setShowAllotApprovalPopup={setShowAllotApprovalPopup}
+            allotApprovalWflId={allotApprovalWflId}
+            setAllotApprovalWflId={setAllotApprovalWflId}
+            allotApprovalUsers={allotApprovalUsers}
+            setAllotApprovalUsers={setAllotApprovalUsers}
+            allotApprovalSubmitting={allotApprovalSubmitting}
+            allotApprovalRequestId={allotApprovalRequestId}
+            allotApprovalWorkflows={allotRequestsWorkflows}
+            onAllotWithApproval={handleAllotWithApproval}
             addToast={addToast}
           />
         </Suspense>

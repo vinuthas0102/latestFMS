@@ -263,6 +263,13 @@ export function useQuarterRequestsState() {
   const [inspectChecklist, setInspectChecklist] = useState<ChecklistItemDraft[]>(() => buildDefaultChecklist());
   const [inspectSubmitting, setInspectSubmitting] = useState(false);
 
+  // ── Allot with Approval popup ─────────────────────────────────────────────
+  const [showAllotApprovalPopup, setShowAllotApprovalPopup] = useState(false);
+  const [allotApprovalWflId, setAllotApprovalWflId] = useState('');
+  const [allotApprovalUsers, setAllotApprovalUsers] = useState<string[]>([]);
+  const [allotApprovalSubmitting, setAllotApprovalSubmitting] = useState(false);
+  const [allotApprovalRequestId, setAllotApprovalRequestId] = useState<string | null>(null);
+
   // ── Quarter preview modal ─────────────────────────────────────────────────
   const [previewQuarterId, setPreviewQuarterId] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -520,6 +527,11 @@ export function useQuarterRequestsState() {
     inspectCondition, setInspectCondition,
     inspectChecklist, setInspectChecklist,
     inspectSubmitting, setInspectSubmitting,
+    showAllotApprovalPopup, setShowAllotApprovalPopup,
+    allotApprovalWflId, setAllotApprovalWflId,
+    allotApprovalUsers, setAllotApprovalUsers,
+    allotApprovalSubmitting, setAllotApprovalSubmitting,
+    allotApprovalRequestId, setAllotApprovalRequestId,
     previewQuarterId, setPreviewQuarterId,
     isPreviewOpen, setIsPreviewOpen,
     serviceChats, setServiceChats,
