@@ -3606,6 +3606,13 @@ export const QuarterRequestsPage: React.FC = () => {
                           <span className="w-6 h-6 rounded-lg bg-sky-100 flex items-center justify-center shrink-0"><HardHat size={12} className="text-sky-600" /></span>
                           New Inspection
                         </button>
+                        <button
+                          onClick={() => { setOpenMenuId(null); setMenuPos(null); openActionPopup('HANDOVER', req.id, req.allotment!.id); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0"><Key size={12} className="text-emerald-600" /></span>
+                          Handover
+                        </button>
                       </>
                     )}
                     {isOccupied && req.allotment && dpFilter !== 'accepted' && (() => {
