@@ -667,6 +667,7 @@ export const BookingHistoryPage: React.FC = () => {
   };
 
   const isGovtOfficial = user?.role === 'govt_official';
+  const isManager = user?.role === 'manager';
 
   const stats = {
     total: bookings.length,
@@ -684,7 +685,56 @@ export const BookingHistoryPage: React.FC = () => {
     declined: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
   };
 
-  const dpCards: DpCard[] = isGovtOfficial ? [
+  const dpCards: DpCard[] = isManager ? [
+    {
+      key: 'availableProperties',
+      label: 'Available Properties',
+      description: 'Browse & book',
+      count: availableProperties.length,
+      gradient: 'from-cyan-500 to-sky-400',
+      icon: <Building2 size={16} className="text-white" />,
+    },
+    {
+      key: 'submitted',
+      label: 'Submitted',
+      description: 'Pending review',
+      count: stats.submitted,
+      gradient: 'from-sky-500 to-blue-600',
+      icon: <Send size={16} className="text-white" />,
+    },
+    {
+      key: 'allotted',
+      label: 'Allotted',
+      description: 'Confirmed & allocated',
+      count: stats.allotted,
+      gradient: 'from-teal-500 to-emerald-500',
+      icon: <KeyRound size={16} className="text-white" />,
+    },
+    {
+      key: 'occupied',
+      label: 'Occupied',
+      description: 'Currently staying',
+      count: stats.occupied,
+      gradient: 'from-amber-500 to-orange-500',
+      icon: <Home size={16} className="text-white" />,
+    },
+    {
+      key: 'vacated',
+      label: 'Vacated',
+      description: 'Stay concluded',
+      count: stats.vacated,
+      gradient: 'from-emerald-500 to-cyan-500',
+      icon: <LogOut size={16} className="text-white" />,
+    },
+    {
+      key: 'cancelled',
+      label: 'Cancelled',
+      description: 'Booking cancelled',
+      count: stats.cancelled,
+      gradient: 'from-rose-500 to-pink-500',
+      icon: <XCircle size={16} className="text-white" />,
+    },
+  ] : isGovtOfficial ? [
     {
       key: 'availableProperties',
       label: 'Available Properties',

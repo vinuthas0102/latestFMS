@@ -28,6 +28,7 @@ export interface BookingDTO {
   roomType?: RoomTypeDTO;
   user?: UserDTO;
   allocations?: BookingAllocationDTO[];
+  occupants?: BookingOccupantDTO[];
   isGuestBooking?: boolean;
 }
 
@@ -48,6 +49,33 @@ export interface UpdateBookingDTO {
   quantity?: number;
   specialRequirements?: string;
   notes?: string;
+}
+
+export type OccupantRelation = 'primary' | 'spouse' | 'child' | 'parent' | 'other';
+export type OccupantIdProofType = 'aadhaar' | 'pan' | 'passport' | 'driving_licence' | 'voter_id';
+
+export interface BookingOccupantDTO {
+  id: string;
+  bookingId: string;
+  fullName: string;
+  relation: OccupantRelation;
+  idProofType: OccupantIdProofType | '';
+  idProofNumber: string;
+  aadhaarUrl: string;
+  panUrl: string;
+  photoUrl: string;
+  createdAt: string;
+}
+
+export interface CreateBookingOccupantDTO {
+  bookingId: string;
+  fullName: string;
+  relation: OccupantRelation;
+  idProofType: OccupantIdProofType | '';
+  idProofNumber: string;
+  aadhaarUrl?: string;
+  panUrl?: string;
+  photoUrl?: string;
 }
 
 export interface BookingAllocationDTO {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,17 +8,275 @@ import { Badge } from '../components/ui/Badge';
 import {
   Search, UserCheck, Key, Calendar, Home, DoorOpen,
   MoreVertical, Users, Phone, Mail, CreditCard, FileText,
-  ChevronRight, Building2,
+  ChevronRight, Building2, Plus, Trash2, Upload, X,
+  ChevronLeft, CheckCircle, AlertCircle, Loader2, Image,
 } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { allocationService } from '../services/allocationService';
 import { propertyService } from '../services/propertyService';
+import { occupantService } from '../services/occupantService';
 import { BookingDTO, RoomDTO } from '../types';
+import {
+  BookingOccupantDTO, CreateBookingOccupantDTO,
+  OccupantRelation, OccupantIdProofType,
+} from '../types/booking.types';
 import { formatDate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/formatters';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { useNavigate } from 'react-router-dom';
+
+// ─── Occupant form local state type ──────────────────────────────────────────
+
+interface OccupantDraft {
+  fullName: string;
+  relation: OccupantRelation;
+  idProofType: OccupantIdProofType | '';
+  idProofNumber: string;
+  aadhaarFile: File | null;
+  aadhaarPreview: string;
+  panFile: File | null;
+  panPreview: string;
+  uploading: boolean;
+}
+
+const RELATION_OPTIONS: { value: OccupantRelation; label: string }[] = [
+  { value: 'primary', label: 'Primary Guest' },
+  { value: 'spouse', label: 'Spouse' },
+  { value: 'child', label: 'Child' },
+  { value: 'parent', label: 'Parent' },
+  { value: 'other', label: 'Other' },
+];
+
+const ID_PROOF_OPTIONS: { value: OccupantIdProofType; label: string }[] = [
+  { value: 'aadhaar', label: 'Aadhaar Card' },
+  { value: 'pan', label: 'PAN Card' },
+  { value: 'passport', label: 'Passport' },
+  { value: 'driving_licence', label: 'Driving Licence' },
+  { value: 'voter_id', label: 'Voter ID' },
+];
+
+function emptyDraft(relation: OccupantRelation = 'primary'): OccupantDraft {
+  return {
+    fullName: '',
+    relation,
+    idProofType: '',
+    idProofNumber: '',
+    aadhaarFile: null,
+    aadhaarPreview: '',
+    panFile: null,
+    panPreview: '',
+    uploading: false,
+  };
+}
+
+// ─── Occupant row component ───────────────────────────────────────────────────
+
+const OccupantRow: React.FC<{
+  draft: OccupantDraft;
+  index: number;
+  onChange: (index: number, patch: Partial<OccupantDraft>) => void;
+  onRemove: (index: number) => void;
+  canRemove: boolean;
+}> = ({ draft, index, onChange, onRemove, canRemove }) => {
+  const aadhaarInputRef = useRef<HTMLInputElement>(null);
+  const panInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = useCallback((
+    e: React.ChangeEvent<HTMLInputElement>,
+    docType: 'aadhaar' | 'pan',
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    if (docType === 'aadhaar') {
+      onChange(index, { aadhaarFile: file, aadhaarPreview: preview });
+    } else {
+      onChange(index, { panFile: file, panPreview: preview });
+    }
+    e.target.value = '';
+  }, [index, onChange]);
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+          Occupant {index + 1}
+        </span>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+
+      {/* Name + Relation */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            Full Name *
+          </label>
+          <input
+            type="text"
+            value={draft.fullName}
+            onChange={e => onChange(index, { fullName: e.target.value })}
+            placeholder="Enter full name"
+            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            Relation
+          </label>
+          <select
+            value={draft.relation}
+            onChange={e => onChange(index, { relation: e.target.value as OccupantRelation })}
+            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 transition-all"
+          >
+            {RELATION_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* ID Proof */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            ID Proof Type *
+          </label>
+          <select
+            value={draft.idProofType}
+            onChange={e => onChange(index, { idProofType: e.target.value as OccupantIdProofType | '' })}
+            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 transition-all"
+          >
+            <option value="">Select type</option>
+            {ID_PROOF_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            ID Number *
+          </label>
+          <input
+            type="text"
+            value={draft.idProofNumber}
+            onChange={e => onChange(index, { idProofNumber: e.target.value })}
+            placeholder="Enter ID number"
+            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Document uploads */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Aadhaar */}
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            Aadhaar Card
+          </label>
+          <input
+            ref={aadhaarInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={e => handleFileChange(e, 'aadhaar')}
+          />
+          {draft.aadhaarPreview ? (
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-white h-16">
+              <img
+                src={draft.aadhaarPreview}
+                alt="Aadhaar"
+                className="w-full h-full object-cover"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors group">
+                <button
+                  type="button"
+                  onClick={() => onChange(index, { aadhaarFile: null, aadhaarPreview: '' })}
+                  className="opacity-0 group-hover:opacity-100 p-1 bg-white rounded-full shadow text-red-500 transition-opacity"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="absolute bottom-1 left-1">
+                <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-semibold">
+                  Uploaded
+                </span>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => aadhaarInputRef.current?.click()}
+              className="w-full h-16 rounded-xl border-2 border-dashed border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-blue-500"
+            >
+              <Upload size={14} />
+              <span className="text-[10px] font-medium">Upload Aadhaar</span>
+            </button>
+          )}
+        </div>
+
+        {/* PAN */}
+        <div>
+          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">
+            PAN Card
+          </label>
+          <input
+            ref={panInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={e => handleFileChange(e, 'pan')}
+          />
+          {draft.panPreview ? (
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-white h-16">
+              <img
+                src={draft.panPreview}
+                alt="PAN"
+                className="w-full h-full object-cover"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors group">
+                <button
+                  type="button"
+                  onClick={() => onChange(index, { panFile: null, panPreview: '' })}
+                  className="opacity-0 group-hover:opacity-100 p-1 bg-white rounded-full shadow text-red-500 transition-opacity"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="absolute bottom-1 left-1">
+                <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-semibold">
+                  Uploaded
+                </span>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => panInputRef.current?.click()}
+              className="w-full h-16 rounded-xl border-2 border-dashed border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-blue-500"
+            >
+              <Upload size={14} />
+              <span className="text-[10px] font-medium">Upload PAN</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const CheckInPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,14 +286,22 @@ export const CheckInPage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<BookingDTO[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
+
+  // Modal visibility
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [showGuestInfoModal, setShowGuestInfoModal] = useState(false);
+  const [showOccupantsModal, setShowOccupantsModal] = useState(false);
+
   const [otpInput, setOtpInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<RoomDTO[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+
+  // Occupant drafts for the occupant capture modal
+  const [occupantDrafts, setOccupantDrafts] = useState<OccupantDraft[]>([]);
+  const [savingOccupants, setSavingOccupants] = useState(false);
 
   // Action menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -87,18 +353,25 @@ export const CheckInPage: React.FC = () => {
       ];
       setBookings(allBookings);
       setFilteredBookings(allBookings);
-    } catch (error) {
-      console.error('Failed to load bookings:', error);
+    } catch {
       addToast('Failed to load bookings', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCheckIn = (booking: BookingDTO) => {
+  // Open occupant capture, then proceed to OTP
+  const openOccupantCapture = (booking: BookingDTO) => {
     setSelectedBooking(booking);
-    setShowOtpModal(true);
+    const primary = emptyDraft('primary');
+    primary.fullName = booking.guestDetails.fullName ?? '';
+    setOccupantDrafts([primary]);
+    setShowOccupantsModal(true);
     setOtpInput('');
+  };
+
+  const handleCheckIn = (booking: BookingDTO) => {
+    openOccupantCapture(booking);
   };
 
   const handleOpenAllocation = async (booking: BookingDTO) => {
@@ -106,18 +379,15 @@ export const CheckInPage: React.FC = () => {
     setProcessing(true);
     try {
       if (!booking.propertyId) throw new Error('Booking does not have a property ID');
-
       const rooms = await propertyService.getRoomsByProperty(booking.propertyId, {
         roomTypeId: booking.roomTypeId,
         status: 'AVAILABLE',
       });
-
       if (rooms.length === 0) {
         addToast('No available rooms found for this property and room type', 'error');
         setProcessing(false);
         return;
       }
-
       setAvailableRooms(rooms);
       setSelectedRoomIds([]);
       setShowAllocationModal(true);
@@ -146,7 +416,6 @@ export const CheckInPage: React.FC = () => {
       addToast(`Please select exactly ${selectedBooking?.quantity} room(s)`, 'error');
       return;
     }
-
     setProcessing(true);
     try {
       for (const roomId of selectedRoomIds) {
@@ -156,12 +425,75 @@ export const CheckInPage: React.FC = () => {
       addToast('Rooms allocated successfully', 'success');
       setShowAllocationModal(false);
       await loadTodayBookings();
-      setShowOtpModal(true);
-      setOtpInput('');
+      // Move to occupant capture step
+      openOccupantCapture(selectedBooking);
     } catch (error: any) {
       addToast(error.message || 'Allocation failed', 'error');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Occupant draft helpers
+  const updateOccupant = useCallback((index: number, patch: Partial<OccupantDraft>) => {
+    setOccupantDrafts(prev => prev.map((d, i) => i === index ? { ...d, ...patch } : d));
+  }, []);
+
+  const addOccupant = () => {
+    setOccupantDrafts(prev => [...prev, emptyDraft('spouse')]);
+  };
+
+  const removeOccupant = (index: number) => {
+    setOccupantDrafts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const validateOccupants = (): string | null => {
+    for (let i = 0; i < occupantDrafts.length; i++) {
+      const d = occupantDrafts[i];
+      if (!d.fullName.trim()) return `Occupant ${i + 1}: Full name is required`;
+      if (!d.idProofType) return `Occupant ${i + 1}: ID proof type is required`;
+      if (!d.idProofNumber.trim()) return `Occupant ${i + 1}: ID proof number is required`;
+    }
+    return null;
+  };
+
+  const handleSaveOccupantsAndContinue = async () => {
+    const validationError = validateOccupants();
+    if (validationError) {
+      addToast(validationError, 'warning');
+      return;
+    }
+    if (!selectedBooking) return;
+    setSavingOccupants(true);
+    try {
+      for (let i = 0; i < occupantDrafts.length; i++) {
+        const d = occupantDrafts[i];
+        let aadhaarUrl = '';
+        let panUrl = '';
+        if (d.aadhaarFile) {
+          aadhaarUrl = await occupantService.uploadDocument(selectedBooking.id, i, 'aadhaar', d.aadhaarFile);
+        }
+        if (d.panFile) {
+          panUrl = await occupantService.uploadDocument(selectedBooking.id, i, 'pan', d.panFile);
+        }
+        const dto: CreateBookingOccupantDTO = {
+          bookingId: selectedBooking.id,
+          fullName: d.fullName.trim(),
+          relation: d.relation,
+          idProofType: d.idProofType,
+          idProofNumber: d.idProofNumber.trim(),
+          aadhaarUrl,
+          panUrl,
+        };
+        await occupantService.saveOccupant(dto);
+      }
+      setShowOccupantsModal(false);
+      setShowOtpModal(true);
+      setOtpInput('');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to save occupant details', 'error');
+    } finally {
+      setSavingOccupants(false);
     }
   };
 
@@ -275,12 +607,9 @@ export const CheckInPage: React.FC = () => {
                   className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                 >
                   <div className="flex">
-                    {/* Left accent bar */}
                     <div className={`w-1 flex-none ${booking.status === 'CHECKED_IN' ? 'bg-emerald-500' : booking.status === 'ALLOCATED' ? 'bg-blue-500' : 'bg-amber-500'}`} />
-
                     <div className="flex-1 p-4">
                       <div className="flex items-start justify-between gap-3">
-                        {/* Left info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                             <span className="font-mono text-sm font-bold text-gray-900">{booking.bookingNumber}</span>
@@ -302,7 +631,6 @@ export const CheckInPage: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Right actions */}
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {booking.status === 'PROVISIONED' && (
                             <button
@@ -325,7 +653,6 @@ export const CheckInPage: React.FC = () => {
                               <UserCheck size={12} />Checked In
                             </span>
                           )}
-                          {/* Three-dot menu */}
                           <button
                             onClick={(e) => openMenu(e, booking.id)}
                             className={`p-1.5 rounded-lg border transition-colors ${openMenuId === booking.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
@@ -384,9 +711,146 @@ export const CheckInPage: React.FC = () => {
         document.body
       )}
 
+      {/* ── Occupant Identity Capture Modal ── */}
+      {showOccupantsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => {}}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <Users size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Occupant Identity Details</h3>
+                </div>
+                <p className="text-xs text-gray-500 ml-8">
+                  {selectedBooking?.bookingNumber} · {selectedBooking?.guestDetails.fullName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOccupantsModal(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Progress indicator */}
+            <div className="px-5 py-3 bg-blue-50 border-b border-blue-100 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <CheckCircle size={12} className="text-white" />
+                  </div>
+                  <span className="text-xs font-semibold text-emerald-700">Room Allocated</span>
+                </div>
+                <div className="h-px flex-1 bg-blue-200" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-white">2</span>
+                  </div>
+                  <span className="text-xs font-semibold text-blue-700">Occupant Details</span>
+                </div>
+                <div className="h-px flex-1 bg-blue-200" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-gray-500">3</span>
+                  </div>
+                  <span className="text-xs text-gray-400">OTP Verify</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Instruction */}
+            <div className="px-5 pt-4 pb-2 flex-shrink-0">
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">
+                  Capture identity details for all occupants. At least one government-issued ID
+                  must be recorded for the primary guest.
+                </p>
+              </div>
+            </div>
+
+            {/* Occupant list */}
+            <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-3">
+              {occupantDrafts.map((draft, i) => (
+                <OccupantRow
+                  key={i}
+                  draft={draft}
+                  index={i}
+                  onChange={updateOccupant}
+                  onRemove={removeOccupant}
+                  canRemove={i > 0}
+                />
+              ))}
+
+              <button
+                type="button"
+                onClick={addOccupant}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/40 transition-all text-sm font-medium"
+              >
+                <Plus size={14} />
+                Add Another Occupant
+              </button>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 flex-shrink-0">
+              <button
+                onClick={() => setShowOccupantsModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveOccupantsAndContinue}
+                disabled={savingOccupants}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+              >
+                {savingOccupants ? (
+                  <><Loader2 size={14} className="animate-spin" />Saving...</>
+                ) : (
+                  <>Save & Continue to OTP<ChevronRight size={14} /></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* OTP Modal */}
       <Modal isOpen={showOtpModal} onClose={() => setShowOtpModal(false)} title="Verify Check-In OTP">
         <div className="space-y-6">
+          {/* Progress */}
+          <div className="flex items-center gap-3 px-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                <CheckCircle size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-700">Room Allocated</span>
+            </div>
+            <div className="h-px flex-1 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                <CheckCircle size={12} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-700">Occupants Saved</span>
+            </div>
+            <div className="h-px flex-1 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-white">3</span>
+              </div>
+              <span className="text-xs font-semibold text-blue-700">OTP Verify</span>
+            </div>
+          </div>
+
           <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-100">
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1.5">Guest Information</p>
             <p className="text-base font-bold text-gray-900">{selectedBooking?.guestDetails.fullName}</p>
@@ -471,7 +935,6 @@ export const CheckInPage: React.FC = () => {
       <Modal isOpen={showGuestInfoModal} onClose={() => setShowGuestInfoModal(false)} title="Guest Information">
         {selectedBooking && (
           <div className="space-y-5">
-            {/* Header chip */}
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
                 {selectedBooking.guestDetails.fullName?.[0]?.toUpperCase() ?? 'G'}
@@ -485,7 +948,6 @@ export const CheckInPage: React.FC = () => {
               </Badge>
             </div>
 
-            {/* Contact details */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Contact Details</div>
               <div className="grid grid-cols-1 gap-2">
@@ -519,7 +981,6 @@ export const CheckInPage: React.FC = () => {
               </div>
             </div>
 
-            {/* ID Proof */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">ID Proof</div>
               {selectedBooking.guestDetails.idProofType || selectedBooking.guestDetails.idProofNumber ? (
@@ -541,7 +1002,6 @@ export const CheckInPage: React.FC = () => {
               )}
             </div>
 
-            {/* Stay Summary */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Stay</div>
               <div className="grid grid-cols-3 gap-2">
@@ -558,7 +1018,6 @@ export const CheckInPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Guest count */}
             {(selectedBooking.guestDetails.numberOfGuests || selectedBooking.guestDetails.numberOfAdults) && (
               <div className="flex items-center gap-3 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl text-sm">
                 <Users size={14} className="text-blue-500 flex-shrink-0" />
