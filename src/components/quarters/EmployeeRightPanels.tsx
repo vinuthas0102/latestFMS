@@ -255,8 +255,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
   const allotmentChatFileRef = useRef<HTMLInputElement>(null);
-  const resolvedInitialTab: 'services' | 'chat' = initialTab ?? (isEO ? 'services' : 'chat');
-  const [activeTab, setActiveTab] = useState<'services' | 'chat'>(resolvedInitialTab);
+  const [activeTab, setActiveTab] = useState<'chat'>('chat');
 
   if (!selectedRequest?.allotment) return null;
   const allotment = selectedRequest.allotment;
@@ -613,14 +612,6 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         >
           <Send size={12} /> Chat
         </button>
-        {isEO && (
-          <button
-            onClick={() => setActiveTab('services')}
-            className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'services' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            <Wrench size={12} /> Services
-          </button>
-        )}
       </div>
 
       {/* Chat tab */}
@@ -673,128 +664,6 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         );
       })()}
 
-      {/* Services tab */}
-      {activeTab === 'services' && (
-      <div className="flex-1 overflow-y-auto">
-      <div className="px-5 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">Raise New Service</span>
-          <button
-            onClick={() => setServicesHistoryMode(true)}
-            className="text-[11px] text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1 transition-colors"
-          >
-            <Clock size={11} /> History
-          </button>
-        </div>
-
-        {rightAction === null && (() => {
-          const hasActiveSvc = ['EXTEND_REQUESTED', 'VACATE_REQUESTED', 'EXCHANGE_REQUESTED'].includes(selectedRequest.request_status);
-          return (
-            <>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => openActionPopup('GRIEVANCE', selectedRequest.id, allotment.id)}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-rose-100 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-medium transition-colors"
-                >
-                  <Bell size={14} /><span>Grievance</span>
-                </button>
-                <button
-                  onClick={() => openActionPopup('MAINTENANCE', selectedRequest.id, allotment.id)}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-medium transition-colors"
-                >
-                  <Wrench size={14} /><span>Maintenance</span>
-                </button>
-                {!hasActiveSvc && (
-                  <button
-                    onClick={() => setRightAction('extend')}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-amber-100 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-medium transition-colors"
-                  >
-                    <RefreshCw size={14} /><span>Extend</span>
-                  </button>
-                )}
-                {!hasActiveSvc && (
-                  <button
-                    onClick={() => onUpgradeClick()}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-sky-100 bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-medium transition-colors"
-                  >
-                    <ArrowRightCircle size={14} /><span>Upgrade</span>
-                  </button>
-                )}
-                {!hasActiveSvc && (
-                  <button
-                    onClick={() => openActionPopup('VACATE', selectedRequest.id, allotment.id)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 text-orange-700 text-[11px] font-medium transition-colors"
-                  >
-                    <LogOut size={14} /><span>Vacate</span>
-                  </button>
-                )}
-                {!hasActiveSvc && (
-                  <button
-                    onClick={() => onExchangeClick()}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
-                  >
-                    <ArrowLeftRight size={14} /><span>Exchange</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => navigate(`${ROUTES.QUARTERS_RENT}?allotment_id=${allotment.id}`)}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-xl border border-teal-100 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[11px] font-medium transition-colors"
-                >
-                  <IndianRupee size={14} /><span>Rent</span>
-                </button>
-              </div>
-              {hasActiveSvc && (
-                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-orange-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
-                  <AlertCircle size={11} />
-                  Extend / Upgrade / Vacate / Exchange unavailable — a request is pending EO review.
-                </div>
-              )}
-            </>
-          );
-        })()}
-
-        {(rightAction === 'extend' || rightAction === 'vacate') && (() => {
-          const serviceType = (rightAction.toUpperCase()) as 'EXTEND' | 'VACATE';
-          const cfg = serviceTypeConfig(serviceType);
-          return (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-semibold flex items-center gap-1.5 ${cfg.cls.split(' ').filter((c: string) => c.startsWith('text-')).join(' ')}`}>
-                  {cfg.icon} {cfg.label} Request
-                </span>
-                <button onClick={resetActionForm} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Reason *</label>
-                <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Reason for this request…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Remarks</label>
-                <input value={actionRemarks} onChange={e => setActionRemarks(e.target.value)} placeholder="Additional remarks…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  {rightAction === 'extend' ? 'Extension Until Date' : 'Intended Vacate Date'}
-                </label>
-                <div className="relative">
-                  <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                </div>
-              </div>
-              <DocUpload value={actionDocUrl} onChange={setActionDocUrl} label="Document" optional />
-              <div className="flex gap-2 pt-1">
-                <button onClick={resetActionForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button onClick={() => handleTenantRequest(serviceType)} disabled={actionSubmitting} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  {actionSubmitting ? 'Submitting…' : 'Submit Request'}
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-      </div>
-      </div>
-      )}
     </div>
   );
 };

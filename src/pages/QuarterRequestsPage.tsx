@@ -2663,7 +2663,7 @@ export const QuarterRequestsPage: React.FC = () => {
                     setServiceChats={setServiceChats}
                     setPreviewQuarterId={setPreviewQuarterId}
                     setIsPreviewOpen={setIsPreviewOpen}
-                    initialTab={chatOpenForId === selectedRequest.id ? 'chat' : 'services'}
+                    initialTab="chat"
                     allotmentChats={allotmentChats}
                     allotmentChatMessage={allotmentChatMessage}
                     setAllotmentChatMessage={setAllotmentChatMessage}
