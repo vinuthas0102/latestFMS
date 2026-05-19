@@ -124,8 +124,8 @@ export const PropertyDetailPage: React.FC = () => {
 
   const tabBarRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
-  // Track if a programmatic scroll is in progress (suppress spy during it)
   const scrollingRef = useRef(false);
+  const scrollIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { blocks, floors, rooms, loading: hierarchyLoading } = usePropertyHierarchy(id);
 
@@ -134,6 +134,12 @@ export const PropertyDetailPage: React.FC = () => {
     setCurrentProperty(null);
     fetchPropertyById(id);
   }, [id, authLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollIdleTimerRef.current) clearTimeout(scrollIdleTimerRef.current);
+    };
+  }, []);
 
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
@@ -148,11 +154,6 @@ export const PropertyDetailPage: React.FC = () => {
           if (scrollingRef.current) return;
           if (entry.isIntersecting) {
             setActiveSection(sId);
-            // Keep tab button visible in the horizontal scroll strip
-            if (tabBarRef.current) {
-              const btn = tabBarRef.current.querySelector(`[data-tab="${sId}"]`) as HTMLElement | null;
-              btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-            }
           }
         },
         { rootMargin: `-${HEADER_OFFSET}px 0px -55% 0px`, threshold: 0 }
@@ -162,7 +163,7 @@ export const PropertyDetailPage: React.FC = () => {
     });
 
     return () => observers.forEach(o => o.disconnect());
-  }, [currentProperty]); // re-run once property loads so refs are populated
+  }, [currentProperty]);
 
   // Handle URL tab param — scroll to section on load
   useEffect(() => {
@@ -174,25 +175,48 @@ export const PropertyDetailPage: React.FC = () => {
     }
   }, [currentProperty]);
 
+  const syncTabBar = useCallback((sId: SectionId) => {
+    const bar = tabBarRef.current;
+    if (!bar) return;
+    const btn = bar.querySelector(`[data-tab="${sId}"]`) as HTMLElement | null;
+    if (!btn) return;
+    const btnLeft = btn.offsetLeft;
+    const btnRight = btnLeft + btn.offsetWidth;
+    const barLeft = bar.scrollLeft;
+    const barRight = barLeft + bar.clientWidth;
+    if (btnLeft < barLeft) {
+      bar.scrollLeft = btnLeft - 8;
+    } else if (btnRight > barRight) {
+      bar.scrollLeft = btnRight - bar.clientWidth + 8;
+    }
+  }, []);
+
   const scrollToSection = useCallback((sId: SectionId) => {
     const el = sectionRefs.current[sId];
     if (!el) return;
 
     scrollingRef.current = true;
     setActiveSection(sId);
-
-    // Scroll tab button into view in the tab strip
-    if (tabBarRef.current) {
-      const btn = tabBarRef.current.querySelector(`[data-tab="${sId}"]`) as HTMLElement | null;
-      btn?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    }
+    syncTabBar(sId);
 
     const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
     window.scrollTo({ top, behavior: 'smooth' });
 
-    // Re-enable spy after scroll settles
-    setTimeout(() => { scrollingRef.current = false; }, 800);
-  }, []);
+    // Re-enable spy once scrolling has been idle for 150ms
+    const onScroll = () => {
+      if (scrollIdleTimerRef.current) clearTimeout(scrollIdleTimerRef.current);
+      scrollIdleTimerRef.current = setTimeout(() => {
+        scrollingRef.current = false;
+        window.removeEventListener('scroll', onScroll);
+      }, 150);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Fallback: always re-enable after 1.5s in case scroll completes without events
+    scrollIdleTimerRef.current = setTimeout(() => {
+      scrollingRef.current = false;
+      window.removeEventListener('scroll', onScroll);
+    }, 1500);
+  }, [syncTabBar]);
 
   const canManage = user && canManageProperties(user.role);
   const isOtherFacilities = currentProperty?.module?.code === 'OTHER_FAC';
