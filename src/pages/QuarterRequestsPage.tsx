@@ -297,6 +297,7 @@ export const QuarterRequestsPage: React.FC = () => {
     popupChecklist, setPopupChecklist, popupCondition, setPopupCondition,
     popupKeyNumber, setPopupKeyNumber, popupHandoverDeadline, setPopupHandoverDeadline,
     popupRetentionReason, setPopupRetentionReason, popupRequestedMonths, setPopupRequestedMonths,
+    vacateDesignationName, setVacateDesignationName,
     showUpgradeModal, setShowUpgradeModal,
     upgradeModalQuarters, setUpgradeModalQuarters, upgradeModalLoading, setUpgradeModalLoading,
     showAllotApprovalPopup, setShowAllotApprovalPopup,
@@ -569,6 +570,12 @@ export const QuarterRequestsPage: React.FC = () => {
     setPopupDate(''); setPopupSubject(''); setPopupUrgency('NORMAL');
     setPopupInspectorName(''); setPopupCondition(''); setPopupKeyNumber(''); setPopupHandoverDeadline('');
     setPopupRetentionReason('On retirement'); setPopupRequestedMonths(2);
+
+    if (type === 'VACATE' && user?.designationId) {
+      quartersService.getDesignationName(user.designationId).then(name => {
+        setVacateDesignationName(name);
+      }).catch(() => {});
+    }
   }
 
   function closeActionPopup() {
@@ -4408,10 +4415,22 @@ export const QuarterRequestsPage: React.FC = () => {
       {(() => {
         const popupReq = actionPopup.requestId ? requests.find(r => r.id === actionPopup.requestId) : undefined;
         const pq = popupReq?.allotment?.quarter;
+        const pa = popupReq?.allotment;
         const allotmentInfo = pq ? {
           quarterNumber: pq.quarter_number ?? '',
           block: pq.block_name ?? '',
           quarterType: pq.quarter_type ?? '',
+          // VACATE-specific employee details
+          employeeId: user?.govtEmployeeId ?? '',
+          employeeName: user?.fullName ?? '',
+          designation: vacateDesignationName,
+          sapId: user?.sapId ?? '',
+          bhkEntitlement: user?.bhkEntitlement ?? '',
+          // VACATE-specific allotment details
+          allotmentDate: pa?.allotment_date ?? '',
+          possessionDate: pa?.possession_date ?? null,
+          billPreparingAuthority: pa?.bill_preparing_authority ?? null,
+          allotmentLetterUrl: pa?.allotment_letter_url ?? null,
         } : undefined;
         return (
           <ActionPopupModal

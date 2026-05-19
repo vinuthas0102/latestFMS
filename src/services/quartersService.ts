@@ -42,6 +42,7 @@ export type {
   QuarterHandover,
   QuarterGuestInfo,
   CreateQuarterInput,
+  ChatDeliveryMode,
 } from '../types/quarters';
 
 import type {
@@ -1494,5 +1495,16 @@ export const quartersService = {
       .update({ images: urls })
       .eq('id', quarterId);
     if (error) throw error;
+  },
+
+  async getDesignationName(designationId: string): Promise<string> {
+    if (!designationId) return '';
+    const { data, error } = await supabase
+      .from('designation_master')
+      .select('designation_name')
+      .eq('id', designationId)
+      .maybeSingle();
+    if (error || !data) return '';
+    return (data as any).designation_name ?? '';
   },
 };

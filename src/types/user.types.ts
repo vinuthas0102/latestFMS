@@ -11,6 +11,7 @@ export interface UserDTO {
   projectLocation?: string;
   sapId?: string;
   bhkEntitlement?: string;
+  designationId?: string;
   assignedEstateId?: string;
   metadata?: Record<string, any>;
   createdAt: string;

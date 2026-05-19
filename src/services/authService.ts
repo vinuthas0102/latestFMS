@@ -231,6 +231,7 @@ function mapUserFromDb(dbUser: any): UserDTO {
     projectLocation: dbUser.project_location ?? undefined,
     sapId: dbUser.sap_id ?? undefined,
     bhkEntitlement: dbUser.bhk_entitlement ?? undefined,
+    designationId: dbUser.designation_id ?? undefined,
     assignedEstateId: dbUser.assigned_estate_id,
     metadata: dbUser.metadata || {},
     createdAt: dbUser.created_at,

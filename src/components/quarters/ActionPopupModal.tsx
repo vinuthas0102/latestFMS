@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react';
 import {
   RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key,
   CalendarDays, Info, Paperclip, X, ChevronDown, ChevronUp,
-  Building2, FileText, CheckCircle2,
+  Building2, FileText, CheckCircle2, User, CreditCard, Home,
+  Briefcase,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DocUpload } from '../ui/DocUpload';
@@ -21,6 +22,16 @@ export interface AllotmentInfo {
   quarterNumber: string;
   block: string;
   quarterType: string;
+  // Extended fields for VACATE form
+  employeeId?: string;
+  employeeName?: string;
+  designation?: string;
+  sapId?: string;
+  bhkEntitlement?: string;
+  allotmentDate?: string;
+  possessionDate?: string | null;
+  billPreparingAuthority?: string | null;
+  allotmentLetterUrl?: string | null;
 }
 
 interface Props {
@@ -91,6 +102,276 @@ const PENAL_RENT_ROWS = [
   { type: 'Type - V',   rent: '₹16,000/-' },
   { type: 'Type - VI',  rent: '₹20,000/-' },
 ];
+
+function InfoField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5 text-current opacity-60">{label}</p>
+      <p className="text-sm font-semibold text-gray-800 truncate">{value || '—'}</p>
+    </div>
+  );
+}
+
+function VacateForm({
+  allotmentInfo,
+  reason,
+  remarks,
+  date,
+  docUrl,
+  submitting,
+  onReasonChange,
+  onRemarksChange,
+  onDateChange,
+  onDocChange,
+  onClose,
+  onSubmit,
+}: {
+  allotmentInfo?: AllotmentInfo;
+  reason: string;
+  remarks: string;
+  date: string;
+  docUrl: File | null;
+  submitting: boolean;
+  onReasonChange: (v: string) => void;
+  onRemarksChange: (v: string) => void;
+  onDateChange: (v: string) => void;
+  onDocChange: (f: File | null) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const fmtDate = (d: string | null | undefined) => {
+    if (!d) return null;
+    try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+    catch { return d; }
+  };
+
+  return (
+    <div className="flex flex-col" style={{ maxHeight: '92vh' }}>
+
+      {/* ── Sticky Header ───────────────────────────────────── */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+            <LogOut size={16} className="text-rose-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-900 leading-tight">Vacate Request</h2>
+            <p className="text-xs text-gray-400 mt-0.5 leading-tight">Submit your intention to vacate the allotted quarter</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all shrink-0 ml-4"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* ── Scrollable Body ─────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+        {/* ── 1. Employee Details card (blue) ─── */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-blue-100">
+            <User size={12} className="text-blue-600 shrink-0" />
+            <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">Employee Details</span>
+            <span className="ml-auto text-[10px] text-blue-400 font-medium">Read-only</span>
+          </div>
+          <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3 text-blue-700">
+            <InfoField label="Employee ID"   value={allotmentInfo?.employeeId} />
+            <InfoField label="Full Name"     value={allotmentInfo?.employeeName} />
+            <InfoField label="Designation"   value={allotmentInfo?.designation} />
+            <InfoField label="SAP ID"        value={allotmentInfo?.sapId} />
+            <InfoField label="BHK Entitlement" value={allotmentInfo?.bhkEntitlement} />
+          </div>
+        </div>
+
+        {/* ── 2. Occupied Quarter card (teal) ─── */}
+        <div className="rounded-xl border border-teal-200 bg-teal-50/50 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-teal-100">
+            <Home size={12} className="text-teal-600 shrink-0" />
+            <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest">Occupied Quarter</span>
+            <span className="ml-auto text-[10px] text-teal-400 font-medium">Read-only</span>
+          </div>
+          <div className="px-4 py-3 grid grid-cols-3 gap-4 text-teal-700">
+            <InfoField label="Quarter No."   value={allotmentInfo?.quarterNumber} />
+            <InfoField label="Block"         value={allotmentInfo?.block} />
+            <InfoField label="Quarter Type"  value={allotmentInfo?.quarterType} />
+          </div>
+        </div>
+
+        {/* ── 3. Allocation Details card (amber) ─── */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-amber-100">
+            <Briefcase size={12} className="text-amber-600 shrink-0" />
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Allocation Details</span>
+            <span className="ml-auto text-[10px] text-amber-400 font-medium">Read-only</span>
+          </div>
+          <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3 text-amber-700">
+            <InfoField label="Date of Allotment"  value={fmtDate(allotmentInfo?.allotmentDate)} />
+            <InfoField label="Date of Possession" value={fmtDate(allotmentInfo?.possessionDate)} />
+            <InfoField label="Bill Preparing Authority" value={allotmentInfo?.billPreparingAuthority} />
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5 text-amber-600 opacity-60">Allotment Letter</p>
+              {allotmentInfo?.allotmentLetterUrl ? (
+                <a
+                  href={allotmentInfo.allotmentLetterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                >
+                  <FileText size={12} />
+                  View Letter
+                </a>
+              ) : (
+                <p className="text-sm font-semibold text-gray-800">—</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Divider ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 pt-1">
+          <div className="h-px flex-1 bg-gray-100" />
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0">Your Vacate Details</span>
+          <div className="h-px flex-1 bg-gray-100" />
+        </div>
+
+        {/* ── Form Fields ─────────────────────────────────────── */}
+        <div className="space-y-5">
+
+          {/* Intended Vacate Date */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Intended Vacate Date
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <div className="relative">
+              <CalendarDays size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="date"
+                value={date}
+                onChange={e => onDateChange(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full pl-10 pr-4 py-3 text-sm text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400/40 focus:border-rose-400 transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Reason for Vacating
+              <span className="text-red-500 ml-0.5">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => onReasonChange(e.target.value)}
+              rows={3}
+              placeholder="State the reason for vacating (e.g., transfer, retirement, voluntary)…"
+              className="w-full px-4 py-3 text-sm text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400/40 focus:border-rose-400 resize-none placeholder-gray-300 transition-colors"
+            />
+          </div>
+
+          {/* Remarks */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Additional Remarks
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(Optional)</span>
+            </label>
+            <textarea
+              value={remarks}
+              onChange={e => onRemarksChange(e.target.value)}
+              rows={2}
+              placeholder="Any additional information for the Estate Officer…"
+              className="w-full px-4 py-3 text-sm text-gray-800 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400/40 focus:border-rose-400 resize-none placeholder-gray-300 transition-colors"
+            />
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Supporting Document
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(Optional — transfer order, retirement letter, etc.)</span>
+            </label>
+            {docUrl ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
+                  <FileText size={14} className="text-rose-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{docUrl.name}</p>
+                  <p className="text-xs text-gray-400">{(docUrl.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDocChange(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border-2 border-dashed border-gray-200 hover:border-rose-400 hover:bg-rose-50/40 transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-rose-100 flex items-center justify-center transition-colors">
+                  <Paperclip size={18} className="text-gray-400 group-hover:text-rose-600 transition-colors" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-600 group-hover:text-rose-700 transition-colors">Click to upload document</p>
+                  <p className="text-xs text-gray-400 mt-0.5">PDF, JPG, PNG — up to 10 MB</p>
+                </div>
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0] ?? null; onDocChange(f); e.target.value = ''; }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sticky Footer ────────────────────────────────────── */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex items-center gap-3 shrink-0">
+        <button
+          onClick={onClose}
+          className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={submitting || !date || !reason.trim()}
+          className="flex-1 py-3 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+        >
+          {submitting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Submitting…
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={16} />
+              Submit Vacate Request
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ExtendForm({
   allotmentInfo,
@@ -450,6 +731,30 @@ export function ActionPopupModal({
     );
   }
 
+  if (type === 'VACATE') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
+          <VacateForm
+            allotmentInfo={allotmentInfo}
+            reason={reason}
+            remarks={remarks}
+            date={date}
+            docUrl={docUrl}
+            submitting={submitting}
+            onReasonChange={onReasonChange}
+            onRemarksChange={onRemarksChange}
+            onDateChange={onDateChange}
+            onDocChange={onDocChange}
+            onClose={onClose}
+            onSubmit={onSubmit}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal isOpen={!!type} onClose={onClose} size="sm" noPadding={false}>
       {type && (() => {
@@ -555,18 +860,7 @@ export function ActionPopupModal({
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
 
-                {type === 'VACATE' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Intended Vacate Date</label>
-                    <div className="relative">
-                      <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="date" value={date} onChange={e => onDateChange(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                    </div>
-                  </div>
-                )}
-
-                <DocUpload value={docUrl} onChange={onDocChange} label="Document" optional />
+<DocUpload value={docUrl} onChange={onDocChange} label="Document" optional />
               </>
             )}
 

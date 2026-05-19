@@ -147,6 +147,9 @@ export interface QuarterAllotment {
   acknowledgement_remarks: string;
   rejection_reason: string;
   rejection_doc_url: string;
+  allotment_letter_url: string | null;
+  possession_date: string | null;
+  bill_preparing_authority: string | null;
   acknowledged_at: string | null;
   rejected_at: string | null;
   created_at: string;

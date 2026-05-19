@@ -347,6 +347,9 @@ export function useQuarterRequestsState() {
   const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
   const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
 
+  // ── Vacate popup: designation name resolved async ────────────────────────
+  const [vacateDesignationName, setVacateDesignationName] = useState('');
+
   // ── Upgrade Request Modal ─────────────────────────────────────────────────
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
@@ -595,6 +598,7 @@ export function useQuarterRequestsState() {
     popupHandoverDeadline, setPopupHandoverDeadline,
     popupRetentionReason, setPopupRetentionReason,
     popupRequestedMonths, setPopupRequestedMonths,
+    vacateDesignationName, setVacateDesignationName,
     showUpgradeModal, setShowUpgradeModal,
     upgradeModalQuarters, setUpgradeModalQuarters,
     upgradeModalLoading, setUpgradeModalLoading,
