@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
@@ -151,7 +152,9 @@ const BookingListCard: React.FC<{
 }> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const statusCfg = getBookingStatusConfig(booking.status);
   const nights = calcNights(booking.checkInDate, booking.checkOutDate);
@@ -159,15 +162,37 @@ const BookingListCard: React.FC<{
   const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
   const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
 
+  const openMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const menuHeight = ACTION_MENU_ITEMS.length * 36 + 40;
+    const openUp = rect.bottom + menuHeight > window.innerHeight;
+    setMenuCoords({
+      top: openUp ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      left: rect.right - 192,
+      openUp,
+    });
+    setMenuOpen(v => !v);
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const close = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
         setMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const closeOnScroll = () => setMenuOpen(false);
+    document.addEventListener('mousedown', close);
+    window.addEventListener('scroll', closeOnScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', closeOnScroll, true);
+    };
   }, [menuOpen]);
 
   const details = [
@@ -268,9 +293,10 @@ const BookingListCard: React.FC<{
               <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                 {/* Action menu */}
                 {canRaiseService && (
-                  <div className="relative" ref={menuRef}>
+                  <>
                     <button
-                      onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+                      ref={btnRef}
+                      onClick={openMenu}
                       className={`p-1 rounded-lg border transition-colors ${
                         menuOpen
                           ? 'bg-blue-50 border-blue-300 text-blue-600'
@@ -280,8 +306,13 @@ const BookingListCard: React.FC<{
                     >
                       <MoreVertical size={12} />
                     </button>
-                    {menuOpen && (
-                      <div className="absolute right-0 bottom-full mb-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                    {menuOpen && menuCoords && createPortal(
+                      <div
+                        ref={dropdownRef}
+                        style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, width: 192, zIndex: 9999 }}
+                        className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
+                        onClick={e => e.stopPropagation()}
+                      >
                         <div className="px-3 py-1.5 border-b border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Raise Service</span>
                         </div>
@@ -295,9 +326,10 @@ const BookingListCard: React.FC<{
                             {label}
                           </button>
                         ))}
-                      </div>
+                      </div>,
+                      document.body
                     )}
-                  </div>
+                  </>
                 )}
 
                 <button
