@@ -24,6 +24,7 @@ import { usePropertyStore } from '../stores/propertyStore';
 import { FadeIn } from '../components/animations/FadeIn';
 import { CountUp } from '../components/animations/CountUp';
 import { BookingDetailPanel } from '../components/booking/BookingDetailPanel';
+import { ServiceChatRightPanel } from '../components/booking/ServiceChatRightPanel';
 import {
   getBookingStatusConfig, calcNights, getPropertyImage, BOOKING_STATUS_ACCENT,
 } from '../utils/bookingFormatters';
@@ -242,7 +243,8 @@ const BookingListCard: React.FC<{
   isUnderMaintenance?: boolean;
   onUpdateServiceStatus?: (serviceId: string, bookingId: string, status: BookingServiceStatus) => void;
   onSubmitDraft?: (booking: BookingDTO) => void;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance, onUpdateServiceStatus, onSubmitDraft }) => {
+  onOpenServiceChat?: (svc: BookingServiceRequestDTO) => void;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance, onUpdateServiceStatus, onSubmitDraft, onOpenServiceChat }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -254,11 +256,6 @@ const BookingListCard: React.FC<{
   const svcMenuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const svcDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Inline service chat state
-  const [chatOpenSvcId, setChatOpenSvcId] = useState<string | null>(null);
-  const [svcChatMessages, setSvcChatMessages] = useState<Record<string, import('../types').BookingServiceChatDTO[]>>({});
-  const [svcChatInput, setSvcChatInput] = useState<Record<string, string>>({});
-  const [svcChatSending, setSvcChatSending] = useState<Record<string, boolean>>({});
 
   const openSvcMenu = useCallback((e: React.MouseEvent, svcId: string) => {
     e.stopPropagation();
@@ -277,33 +274,6 @@ const BookingListCard: React.FC<{
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const toggleSvcChat = useCallback(async (svcId: string) => {
-    if (chatOpenSvcId === svcId) {
-      setChatOpenSvcId(null);
-      return;
-    }
-    setChatOpenSvcId(svcId);
-    if (!svcChatMessages[svcId]) {
-      try {
-        const msgs = await bookingServiceRequestService.getServiceChats(svcId);
-        setSvcChatMessages(prev => ({ ...prev, [svcId]: msgs }));
-      } catch { /* silently ignore */ }
-    }
-  }, [chatOpenSvcId, svcChatMessages]);
-
-  const handleSvcChatSend = useCallback(async (svcId: string) => {
-    const msg = (svcChatInput[svcId] ?? '').trim();
-    if (!msg) return;
-    setSvcChatSending(prev => ({ ...prev, [svcId]: true }));
-    try {
-      const { user } = useAuthStore.getState();
-      const role = isManager ? 'manager' : 'employee';
-      const newMsg = await bookingServiceRequestService.addServiceChat(svcId, user?.id ?? '', role, msg);
-      setSvcChatMessages(prev => ({ ...prev, [svcId]: [...(prev[svcId] ?? []), newMsg] }));
-      setSvcChatInput(prev => ({ ...prev, [svcId]: '' }));
-    } catch { /* silently ignore */ }
-    finally { setSvcChatSending(prev => ({ ...prev, [svcId]: false })); }
-  }, [svcChatInput, isManager]);
 
   const statusCfg = getBookingStatusConfig(booking.status);
   const nights = calcNights(booking.checkInDate, booking.checkOutDate);
@@ -868,13 +838,9 @@ const BookingListCard: React.FC<{
                             </span>
                           </div>
                           <button
-                            onClick={e => { e.stopPropagation(); toggleSvcChat(svc.id); }}
-                            className={`p-1 rounded-lg border transition-colors ${
-                              chatOpenSvcId === svc.id
-                                ? 'bg-teal-50 border-teal-300 text-teal-600'
-                                : 'border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-200'
-                            }`}
-                            title="Chat"
+                            onClick={e => { e.stopPropagation(); onOpenServiceChat?.(svc); }}
+                            className="p-1 rounded-lg border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-200 transition-colors"
+                            title="Open Chat"
                           >
                             <MessageSquare size={11} />
                           </button>
@@ -929,7 +895,7 @@ const BookingListCard: React.FC<{
                               )}
                               <div className="border-t border-gray-100 my-0.5" />
                               <button
-                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); toggleSvcChat(svc.id); }}
+                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); onOpenServiceChat?.(svc); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors text-left"
                               >
                                 <MessageSquare size={12} className="text-teal-500" />
@@ -976,53 +942,6 @@ const BookingListCard: React.FC<{
                         </div>
                       )}
 
-                      {/* Inline chat panel */}
-                      {chatOpenSvcId === svc.id && (
-                        <div className="border-t border-teal-100 bg-teal-50/40 px-3 py-3 space-y-2" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[9px] font-bold text-teal-700 uppercase tracking-widest flex items-center gap-1">
-                              <MessageSquare size={9} />Chat
-                            </span>
-                          </div>
-                          {/* Messages */}
-                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                            {(svcChatMessages[svc.id] ?? []).length === 0 && (
-                              <p className="text-[10px] text-gray-400 text-center py-2">No messages yet</p>
-                            )}
-                            {(svcChatMessages[svc.id] ?? []).map(msg => {
-                              const isMine = msg.authorRole === (isManager ? 'manager' : 'employee');
-                              return (
-                                <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`max-w-[85%] text-[11px] px-2.5 py-1.5 rounded-xl leading-relaxed ${isMine ? 'bg-teal-600 text-white rounded-br-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm shadow-sm'}`}>
-                                    {msg.message}
-                                    <div className={`text-[9px] mt-0.5 ${isMine ? 'text-teal-100' : 'text-gray-400'}`}>
-                                      {isMine ? 'You' : (isManager ? 'Guest' : 'Manager')} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {/* Input */}
-                          <div className="flex gap-2">
-                            <textarea
-                              rows={2}
-                              placeholder="Type a message…"
-                              value={svcChatInput[svc.id] ?? ''}
-                              onChange={e => setSvcChatInput(prev => ({ ...prev, [svc.id]: e.target.value }))}
-                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSvcChatSend(svc.id); } }}
-                              className="flex-1 text-xs px-2.5 py-1.5 border border-teal-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                            />
-                            <button
-                              onClick={() => handleSvcChatSend(svc.id)}
-                              disabled={svcChatSending[svc.id] || !(svcChatInput[svc.id] ?? '').trim()}
-                              className="self-end flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white text-xs rounded-lg transition-colors font-medium"
-                            >
-                              {svcChatSending[svc.id] ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -1273,6 +1192,12 @@ export const BookingHistoryPage: React.FC = () => {
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
   const [bookingServices, setBookingServices] = useState<Record<string, BookingServiceRequestDTO[]>>({});
 
+  // Service chat right panel
+  const [serviceChatPanel, setServiceChatPanel] = useState<BookingServiceRequestDTO | null>(null);
+  const [svcPanelMessages, setSvcPanelMessages] = useState<Record<string, import('../types').BookingServiceChatDTO[]>>({});
+  const [svcPanelInput, setSvcPanelInput] = useState<Record<string, string>>({});
+  const [svcPanelSending, setSvcPanelSending] = useState<Record<string, boolean>>({});
+
   // Demo hardcoded maintenance IDs — vacated bookings that are under maintenance
   const [maintenanceBookingIds, setMaintenanceBookingIds] = useState<Set<string>>(
     () => new Set([
@@ -1495,6 +1420,33 @@ export const BookingHistoryPage: React.FC = () => {
     } finally {
       setSvcFormSubmitting(false);
     }
+  };
+
+  const handleOpenServiceChat = async (svc: BookingServiceRequestDTO) => {
+    setServiceChatPanel(svc);
+    setSelectedBooking(null);
+    if (!svcPanelMessages[svc.id]) {
+      try {
+        const msgs = await bookingServiceRequestService.getServiceChats(svc.id);
+        setSvcPanelMessages(prev => ({ ...prev, [svc.id]: msgs }));
+      } catch { /* silently ignore */ }
+    }
+  };
+
+  const handleSvcPanelSend = async () => {
+    if (!serviceChatPanel) return;
+    const svcId = serviceChatPanel.id;
+    const msg = (svcPanelInput[svcId] ?? '').trim();
+    if (!msg) return;
+    setSvcPanelSending(prev => ({ ...prev, [svcId]: true }));
+    try {
+      const { user } = useAuthStore.getState();
+      const role = isManager ? 'manager' : 'employee';
+      const newMsg = await bookingServiceRequestService.addServiceChat(svcId, user?.id ?? '', role, msg);
+      setSvcPanelMessages(prev => ({ ...prev, [svcId]: [...(prev[svcId] ?? []), newMsg] }));
+      setSvcPanelInput(prev => ({ ...prev, [svcId]: '' }));
+    } catch { /* silently ignore */ }
+    finally { setSvcPanelSending(prev => ({ ...prev, [svcId]: false })); }
   };
 
   const handleSubmitDraft = async (booking: BookingDTO) => {
@@ -3390,21 +3342,35 @@ export const BookingHistoryPage: React.FC = () => {
               defaultSplit={65}
               minLeft={40}
               maxLeft={80}
-              onClose={() => setSelectedBooking(null)}
-              renderRight={selectedBooking ? (controls) => (
-                <BookingDetailPanel
-                  booking={selectedBooking}
-                  userId={user!.id}
-                  isManager={isManager}
-                  isGovtOfficial={isGovtOfficial}
-                  onClose={() => setSelectedBooking(null)}
-                  onNavigate={(id) => navigate(`/bookings/${id}`)}
-                  onServiceCountChange={(count) =>
-                    setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))
-                  }
-                  panelControls={controls}
-                />
-              ) : undefined}
+              onClose={() => { setSelectedBooking(null); setServiceChatPanel(null); }}
+              renderRight={
+                serviceChatPanel ? (controls) => (
+                  <ServiceChatRightPanel
+                    service={serviceChatPanel}
+                    messages={svcPanelMessages[serviceChatPanel.id] ?? []}
+                    messageInput={svcPanelInput[serviceChatPanel.id] ?? ''}
+                    isSending={svcPanelSending[serviceChatPanel.id] ?? false}
+                    isManager={isManager}
+                    panelControls={controls}
+                    onClose={() => setServiceChatPanel(null)}
+                    onInputChange={val => setSvcPanelInput(prev => ({ ...prev, [serviceChatPanel.id]: val }))}
+                    onSend={handleSvcPanelSend}
+                  />
+                ) : selectedBooking ? (controls) => (
+                  <BookingDetailPanel
+                    booking={selectedBooking}
+                    userId={user!.id}
+                    isManager={isManager}
+                    isGovtOfficial={isGovtOfficial}
+                    onClose={() => setSelectedBooking(null)}
+                    onNavigate={(id) => navigate(`/bookings/${id}`)}
+                    onServiceCountChange={(count) =>
+                      setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))
+                    }
+                    panelControls={controls}
+                  />
+                ) : undefined
+              }
               left={
                 <div className="pr-1">
                   {filteredBookings.length === 0 ? (
@@ -3454,6 +3420,7 @@ export const BookingHistoryPage: React.FC = () => {
                           isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
                           onUpdateServiceStatus={handleUpdateServiceStatus}
                           onSubmitDraft={isGovtOfficial ? handleSubmitDraft : undefined}
+                          onOpenServiceChat={handleOpenServiceChat}
                         />
                       ))}
                     </div>
