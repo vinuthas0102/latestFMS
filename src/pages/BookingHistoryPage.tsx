@@ -177,6 +177,22 @@ const SVC_STATUS_CLS: Record<string, string> = {
   CLOSED:      'bg-gray-100 text-gray-500 border-gray-200',
 };
 
+const SVC_SHORT_LABEL: Record<string, string> = {
+  GRIEVANCE:            'Grievance',
+  MAINTENANCE:          'Maint',
+  EXTENSION:            'Ext',
+  CANCELLATION_REQUEST: 'Cancel',
+  GENERAL:              'General',
+};
+
+const SVC_CHIP_CLS: Record<string, string> = {
+  GRIEVANCE:            'bg-rose-50 text-rose-600 border-rose-200',
+  MAINTENANCE:          'bg-orange-50 text-orange-600 border-orange-200',
+  EXTENSION:            'bg-blue-50 text-blue-600 border-blue-200',
+  CANCELLATION_REQUEST: 'bg-red-50 text-red-600 border-red-200',
+  GENERAL:              'bg-slate-50 text-slate-600 border-slate-200',
+};
+
 const SVC_TYPE_ICON: Record<string, React.FC<{ size?: number; className?: string }>> = {
   GRIEVANCE:            AlertTriangle,
   MAINTENANCE:          Wrench,
@@ -210,6 +226,7 @@ const BookingListCard: React.FC<{
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
+  const [svcExpanded, setSvcExpanded] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -226,6 +243,10 @@ const BookingListCard: React.FC<{
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
+
+  // Distinct service types present (for chips on toggle button)
+  const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
+  const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -272,6 +293,7 @@ const BookingListCard: React.FC<{
 
   return (
     <FadeIn delay={index * 30}>
+      <div>
       <div
         onClick={onClick}
         className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
@@ -336,14 +358,24 @@ const BookingListCard: React.FC<{
             {/* Footer */}
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
               <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                {activeServiceCount > 0 && (
-                  <span className="relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border bg-orange-50 text-orange-700 border-orange-200 shrink-0 whitespace-nowrap">
-                    <span className="relative flex h-2 w-2 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                    </span>
-                    {activeServiceCount} svc{activeServiceCount > 1 ? 's' : ''}
-                  </span>
+                {services.length > 0 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setSvcExpanded(v => !v); }}
+                    className={`shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors whitespace-nowrap ${
+                      svcExpanded
+                        ? 'bg-teal-50 text-teal-700 border-teal-300'
+                        : 'bg-white text-teal-700 border-teal-300 hover:bg-teal-50'
+                    }`}
+                  >
+                    <Wrench size={9} className="shrink-0" />
+                    {activeSvcCount} svc{activeSvcCount !== 1 ? 's' : ''}
+                    {uniqueSvcTypes.map(type => (
+                      <span key={type} className={`text-[9px] font-semibold px-1.5 py-0 rounded border ${SVC_CHIP_CLS[type] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                        {SVC_SHORT_LABEL[type] ?? type}
+                      </span>
+                    ))}
+                    {svcExpanded ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />}
+                  </button>
                 )}
 
                 {booking.paymentStatus === 'COMPLETED' ? (
@@ -473,12 +505,13 @@ const BookingListCard: React.FC<{
           </div>
         </div>
       </div>
-        {/* Indented service sub-cards */}
-        {services.length > 0 && (
-          <div className="relative ml-6 mt-1 mb-1 mr-2">
-            {/* Vertical connector */}
-            <div className="absolute left-0 top-0 bottom-4 w-0.5 bg-gray-200 rounded-full" />
-            <div className="space-y-1.5 pl-5">
+
+        {/* Indented service sub-cards — shown when toggle is expanded */}
+        {svcExpanded && services.length > 0 && (
+          <div className="relative ml-8 mt-1.5 mb-2 mr-3">
+            {/* Vertical connector line */}
+            <div className="absolute left-0 top-0 bottom-4 w-0.5 bg-teal-200 rounded-full" />
+            <div className="space-y-2 pl-5">
               {services.map((svc, svcIdx) => {
                 const isLast = svcIdx === services.length - 1;
                 const SvcIcon = SVC_TYPE_ICON[svc.serviceType] ?? HelpCircle;
@@ -489,45 +522,41 @@ const BookingListCard: React.FC<{
                 return (
                   <div key={svc.id} className="relative">
                     {/* Horizontal nub */}
-                    <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-gray-200 rounded-full" />
+                    <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-teal-200 rounded-full" />
                     {/* Junction dot */}
-                    <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 bg-white border-gray-300" />
+                    <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 bg-white border-teal-300" />
                     {/* Cover bottom of vertical line for last item */}
                     {isLast && (
                       <div className="absolute -left-[1px] top-1/2 bottom-0 w-0.5 bg-white" />
                     )}
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                      <div className="flex min-h-[56px]">
-                        {/* Left accent */}
+                      <div className="flex min-h-[60px]">
+                        {/* Left accent bar */}
                         <div className={`w-1 shrink-0 rounded-l-xl ${accentCls}`} />
                         {/* Icon zone */}
-                        <div className={`w-10 shrink-0 flex items-center justify-center ${bgCls}`}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm ${bgCls}`}>
-                            <SvcIcon size={13} className="text-gray-600" />
+                        <div className={`w-11 shrink-0 flex items-center justify-center ${bgCls}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${bgCls}`}>
+                            <SvcIcon size={14} className="text-gray-600" />
                           </div>
                         </div>
                         {/* Body */}
-                        <div className="flex-1 px-3 py-2 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-gray-700 truncate leading-snug">{svc.subject}</p>
-                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${statusCls}`}>
-                                  {svc.requestStatus.replace('_', ' ')}
-                                </span>
-                                <span className="text-[9px] text-gray-400 font-medium">
-                                  {SVC_LABEL[svc.serviceType]}
-                                </span>
-                                {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
-                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${urgencyCls}`}>
-                                    {svc.urgencyLevel}
-                                  </span>
-                                )}
-                                <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
-                                  <Clock size={8} />{formatDate(svc.createdAt)}
-                                </span>
-                              </div>
-                            </div>
+                        <div className="flex-1 px-3 py-2.5 min-w-0">
+                          <p className="text-xs font-semibold text-gray-700 truncate leading-snug">{svc.subject}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${statusCls}`}>
+                              {svc.requestStatus.replace('_', ' ')}
+                            </span>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${SVC_CHIP_CLS[svc.serviceType] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                              {SVC_LABEL[svc.serviceType]}
+                            </span>
+                            {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${urgencyCls}`}>
+                                {svc.urgencyLevel}
+                              </span>
+                            )}
+                            <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
+                              <Clock size={8} />{formatDate(svc.createdAt)}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -538,6 +567,7 @@ const BookingListCard: React.FC<{
             </div>
           </div>
         )}
+      </div>
     </FadeIn>
   );
 };
