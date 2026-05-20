@@ -20,7 +20,7 @@ const DEMO_GOVT_OFFICIAL: UserDTO = {
 };
 
 const DEMO_EO_USER: UserDTO = {
-  id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+  id: 'e0000001-e000-0000-0000-000000000001',
   email: 'eo@fms.gov',
   fullName: 'Shankar',
   phone: '9876541230',

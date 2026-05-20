@@ -5,6 +5,28 @@ import {
   BookingServiceStatus,
   CreateBookingServiceRequestDTO,
 } from '../types';
+import { DEMO_MODE } from '../mocks/demoData';
+
+// Demo service requests keyed by booking id — used in DEMO_MODE to bypass RLS
+const DEMO_BOOKING_SERVICES: Record<string, BookingServiceRequestDTO[]> = {
+  // BK2026040100005 — CHECKED_OUT, has 1 open maintenance request
+  'dffc4358-d2df-4264-9838-d402e0935bb7': [
+    {
+      id: 'aa000001-0000-4000-8000-000000000001',
+      bookingId: 'dffc4358-d2df-4264-9838-d402e0935bb7',
+      employeeId: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+      serviceType: 'MAINTENANCE',
+      requestStatus: 'OPEN',
+      subject: 'AC not cooling properly',
+      remarks: 'Air conditioner in Room 204 not cooling after check-out. Needs servicing.',
+      urgencyLevel: 'MEDIUM',
+      eoNotes: '',
+      documentUrl: '',
+      createdAt: '2026-04-03T06:00:00Z',
+      updatedAt: '2026-04-03T06:00:00Z',
+    },
+  ],
+};
 
 function mapRequest(row: Record<string, unknown>): BookingServiceRequestDTO {
   return {
@@ -38,6 +60,7 @@ function mapChat(row: Record<string, unknown>): BookingServiceChatDTO {
 
 export const bookingServiceRequestService = {
   async getServiceRequests(bookingId: string): Promise<BookingServiceRequestDTO[]> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_BOOKING_SERVICES[bookingId] ?? []);
     const { data, error } = await supabase
       .from('booking_service_requests')
       .select('*')
