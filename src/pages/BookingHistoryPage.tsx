@@ -264,6 +264,10 @@ const BookingListCard: React.FC<{
   const canExtendStay = isManager && isCheckedIn;
   const canAdHocEdit = isManager && !['CANCELLED', 'REJECTED'].includes(booking.status);
 
+  const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
+    canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
+    (canRaiseService && menuServiceItems.length > 0);
+
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
   const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
@@ -376,8 +380,8 @@ const BookingListCard: React.FC<{
             </div>
 
             {/* Footer */}
-            <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 overflow-hidden min-h-0">
-              <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+            <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 min-h-0">
+              <div className="flex items-center gap-1 min-w-0 flex-1">
                 {services.length > 0 && (
                   <button
                     onClick={e => { e.stopPropagation(); setSvcExpanded(v => !v); }}
@@ -409,7 +413,7 @@ const BookingListCard: React.FC<{
                 ) : null}
 
                 {booking.property?.address && (
-                  <span className="text-[9px] text-gray-400 flex items-center gap-0.5 shrink-0 whitespace-nowrap overflow-hidden max-w-[200px] truncate">
+                  <span className="text-[9px] text-gray-400 flex items-center gap-0.5 shrink-0 whitespace-nowrap truncate max-w-[160px]">
                     <MapPin size={8} className="shrink-0" />{booking.property.address}
                   </span>
                 )}
@@ -417,7 +421,7 @@ const BookingListCard: React.FC<{
 
               <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                 {/* Action menu */}
-                {canRaiseService && (
+                {hasAnyAction && (
                   <>
                     <button
                       ref={btnRef}
@@ -2502,7 +2506,14 @@ export const BookingHistoryPage: React.FC = () => {
       )}
 
       {/* ── Enhanced Modify Booking Modal ── */}
-      {modifyBooking && (
+      {modifyBooking && (() => {
+        const isCheckedInBooking = modifyBooking.status === 'CHECKED_IN';
+        // For CHECKED_IN bookings: check-in date, guest info, and quantity are locked.
+        // Only check-out date (extend), room number (change room), price, and notes remain editable.
+        const checkedInLockedModes: ModifyMode[] = isCheckedInBooking
+          ? ['extend', 'room', 'price', 'adhoc']
+          : ['full', 'extend', 'room', 'guest', 'price', 'adhoc'];
+        return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setModifyBooking(null)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -2519,8 +2530,18 @@ export const BookingHistoryPage: React.FC = () => {
               <button onClick={() => setModifyBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
             </div>
 
-            {/* Activity type selector (only for full/adhoc modes) */}
-            {(modifyMode === 'full' || modifyMode === 'adhoc') && (
+            {/* CHECKED_IN lock banner */}
+            {isCheckedInBooking && (
+              <div className="mx-5 mt-4 shrink-0 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+                <ShieldCheck size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  <span className="font-semibold">Guest is currently checked in.</span> Check-in date, guest identity and room count are locked. You may extend the stay, change the room, adjust pricing or add remarks.
+                </p>
+              </div>
+            )}
+
+            {/* Activity type selector */}
+            {(!isCheckedInBooking && (modifyMode === 'full' || modifyMode === 'adhoc')) && (
               <div className="px-5 pt-4 pb-0 shrink-0">
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Edit Mode</label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -2529,6 +2550,34 @@ export const BookingHistoryPage: React.FC = () => {
                     { key: 'extend' as ModifyMode, label: 'Extend Stay', icon: CalendarCheck },
                     { key: 'room' as ModifyMode, label: 'Change Room', icon: ArrowRightLeft },
                     { key: 'guest' as ModifyMode, label: 'Guest Info', icon: Users },
+                    { key: 'price' as ModifyMode, label: 'Change Price', icon: Banknote },
+                    { key: 'adhoc' as ModifyMode, label: 'Ad-hoc', icon: Zap },
+                  ]).map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setModifyMode(key)}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl border text-[10px] font-semibold transition-all ${
+                        modifyMode === key
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon size={11} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* For CHECKED_IN: show allowed edit mode tabs */}
+            {isCheckedInBooking && (
+              <div className="px-5 pt-4 pb-0 shrink-0">
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Edit Mode</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    { key: 'extend' as ModifyMode, label: 'Extend Stay', icon: CalendarCheck },
+                    { key: 'room' as ModifyMode, label: 'Change Room', icon: ArrowRightLeft },
                     { key: 'price' as ModifyMode, label: 'Change Price', icon: Banknote },
                     { key: 'adhoc' as ModifyMode, label: 'Ad-hoc', icon: Zap },
                   ]).map(({ key, label, icon: Icon }) => (
@@ -2562,10 +2611,44 @@ export const BookingHistoryPage: React.FC = () => {
                     <span className="font-semibold text-gray-800">{modifyBooking.roomType.name}</span>
                   </div>
                 )}
+                {isCheckedInBooking && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Guest</span>
+                    <span className="font-semibold text-gray-800">{modifyBooking.guestDetails?.fullName ?? '—'}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Date fields — shown for full/extend/adhoc */}
-              {['full', 'extend', 'adhoc'].includes(modifyMode) && (
+              {/* Check-in date — locked for CHECKED_IN */}
+              {isCheckedInBooking && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Check-in (locked)</label>
+                    <input
+                      type="date"
+                      value={modifyCheckIn}
+                      readOnly
+                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed text-gray-500"
+                    />
+                  </div>
+                  {/* Check-out — editable for extend/adhoc */}
+                  {['extend', 'adhoc'].includes(modifyMode) && (
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">New Check-out *</label>
+                      <input
+                        type="date"
+                        value={modifyCheckOut}
+                        onChange={e => setModifyCheckOut(e.target.value)}
+                        min={modifyCheckIn || undefined}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Date fields — for non-CHECKED_IN full/extend/adhoc */}
+              {!isCheckedInBooking && ['full', 'extend', 'adhoc'].includes(modifyMode) && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
@@ -2592,8 +2675,20 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Room number — for room/full/adhoc */}
-              {['room', 'full', 'adhoc'].includes(modifyMode) && (
+              {/* Room number — for room/adhoc (all), extend excluded */}
+              {checkedInLockedModes.includes(modifyMode) && ['room', 'adhoc'].includes(modifyMode) && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Number</label>
+                  <input
+                    type="text"
+                    value={modifyRoomNumber}
+                    onChange={e => setModifyRoomNumber(e.target.value)}
+                    placeholder="e.g. 204, Block A-101"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                </div>
+              )}
+              {!isCheckedInBooking && ['room', 'full', 'adhoc'].includes(modifyMode) && (
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Number</label>
                   <input
@@ -2606,32 +2701,45 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Guest info — for guest/full/adhoc */}
-              {['guest', 'full', 'adhoc'].includes(modifyMode) && (
-                <div className="grid grid-cols-2 gap-3">
+              {/* Guest info — locked for CHECKED_IN; shown otherwise for guest/full/adhoc */}
+              {isCheckedInBooking ? (
+                <div className="grid grid-cols-2 gap-3 opacity-50 pointer-events-none">
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Name</label>
-                    <input
-                      type="text"
-                      value={modifyGuestName}
-                      onChange={e => setModifyGuestName(e.target.value)}
-                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Guest Name (locked)</label>
+                    <input type="text" value={modifyGuestName} readOnly className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed text-gray-500" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Mobile</label>
-                    <input
-                      type="tel"
-                      value={modifyGuestPhone}
-                      onChange={e => setModifyGuestPhone(e.target.value)}
-                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Guest Mobile (locked)</label>
+                    <input type="tel" value={modifyGuestPhone} readOnly className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl bg-gray-100 cursor-not-allowed text-gray-500" />
                   </div>
                 </div>
+              ) : (
+                ['guest', 'full', 'adhoc'].includes(modifyMode) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Name</label>
+                      <input
+                        type="text"
+                        value={modifyGuestName}
+                        onChange={e => setModifyGuestName(e.target.value)}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Mobile</label>
+                      <input
+                        type="tel"
+                        value={modifyGuestPhone}
+                        onChange={e => setModifyGuestPhone(e.target.value)}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                )
               )}
 
-              {/* Quantity — for full/adhoc */}
-              {['full', 'adhoc'].includes(modifyMode) && (
+              {/* Quantity — locked for CHECKED_IN; shown for full/adhoc otherwise */}
+              {!isCheckedInBooking && ['full', 'adhoc'].includes(modifyMode) && (
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Rooms / Quantity</label>
                   <input
@@ -2644,7 +2752,7 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Price — for price/full/adhoc */}
+              {/* Price — shown for price/full/adhoc in all statuses */}
               {['price', 'full', 'adhoc'].includes(modifyMode) && (
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Total Amount (₹)</label>
@@ -2659,9 +2767,9 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Reason */}
+              {/* Reason — always shown */}
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Reason for Modification (for audit log)</label>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Reason for Modification (audit log)</label>
                 <input
                   type="text"
                   value={modifyReason}
@@ -2671,7 +2779,7 @@ export const BookingHistoryPage: React.FC = () => {
                 />
               </div>
 
-              {/* Notes */}
+              {/* Notes — always shown */}
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Additional Notes</label>
                 <textarea
@@ -2697,7 +2805,8 @@ export const BookingHistoryPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
