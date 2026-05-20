@@ -319,15 +319,6 @@ const BookingListCard: React.FC<{
     };
   }, [menuOpen]);
 
-  const details = [
-    { label: 'Property', value: booking.property?.name },
-    { label: 'Check-in', value: formatDate(booking.checkInDate) },
-    { label: 'Check-out', value: formatDate(booking.checkOutDate) },
-    { label: 'Room Type', value: booking.roomType?.name },
-    { label: 'Nights', value: String(nights) },
-    { label: 'Amount', value: formatCurrency(booking.totalAmount) },
-  ].filter(d => d.value);
-
   return (
     <FadeIn delay={index * 30}>
       <div>
@@ -364,9 +355,9 @@ const BookingListCard: React.FC<{
           </div>
 
           {/* Body */}
-          <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
+          <div className="flex-1 px-3.5 py-2 min-w-0 flex flex-col gap-0">
             {/* Row 1: booking number + status badge */}
-            <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center justify-between gap-2 mb-2">
               <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
                 #{booking.bookingNumber}
               </span>
@@ -380,6 +371,52 @@ const BookingListCard: React.FC<{
                   {statusCfg.label}
                 </span>
               </div>
+            </div>
+
+            {/* Always-visible info grid — matches quarters card pattern */}
+            <div className="grid grid-cols-4 gap-x-4 gap-y-2 mb-2">
+              {booking.property?.name && (
+                <div className="col-span-2 flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Property</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.property.name}</span>
+                </div>
+              )}
+              {booking.checkInDate && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Check-in</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatDate(booking.checkInDate)}</span>
+                </div>
+              )}
+              {booking.checkOutDate && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Check-out</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatDate(booking.checkOutDate)}</span>
+                </div>
+              )}
+              {booking.roomType?.name && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Room Type</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.roomType.name}</span>
+                </div>
+              )}
+              {nights > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Nights</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{nights}</span>
+                </div>
+              )}
+              {booking.totalAmount > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Amount</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatCurrency(booking.totalAmount)}</span>
+                </div>
+              )}
+              {booking.isGuestBooking && booking.guestDetails?.fullName && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Guest</span>
+                  <span className="text-[11px] font-semibold text-blue-700 mt-0.5 leading-snug truncate">{booking.guestDetails.fullName}</span>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
@@ -587,136 +624,77 @@ const BookingListCard: React.FC<{
           </div>
         </div>
 
-        {/* Full booking + property details — expanded panel */}
+        {/* Secondary details — expanded panel (quarters-style grid) */}
         {cardExpanded && (
-          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/60 rounded-b-xl animate-in fade-in duration-150">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3">
-              {/* Booking Details */}
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Booking Details</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between gap-2">
-                    <span className="text-[10px] text-gray-500">Check-in</span>
-                    <span className="text-[10px] font-medium text-gray-700">{formatDate(booking.checkInDate)}</span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-[10px] text-gray-500">Check-out</span>
-                    <span className="text-[10px] font-medium text-gray-700">{formatDate(booking.checkOutDate)}</span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-[10px] text-gray-500">Duration</span>
-                    <span className="text-[10px] font-medium text-gray-700">{nights} night{nights !== 1 ? 's' : ''}</span>
-                  </div>
-                  {booking.roomType?.name && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Room Type</span>
-                      <span className="text-[10px] font-medium text-gray-700">{booking.roomType.name}</span>
-                    </div>
-                  )}
-                  {booking.quantity > 1 && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Qty</span>
-                      <span className="text-[10px] font-medium text-gray-700">{booking.quantity} room{booking.quantity !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
+          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 rounded-b-xl animate-in fade-in duration-150">
+            <div className="grid grid-cols-4 gap-x-4 gap-y-2.5">
+              {booking.paidAmount >= 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Paid</span>
+                  <span className="text-[11px] font-semibold text-emerald-700 mt-0.5 leading-snug">{formatCurrency(booking.paidAmount)}</span>
                 </div>
-              </div>
-
-              {/* Property Details */}
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Property</p>
-                <div className="space-y-1">
-                  {booking.property?.name && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500 shrink-0">Name</span>
-                      <span className="text-[10px] font-medium text-gray-700 text-right leading-snug">{booking.property.name}</span>
-                    </div>
-                  )}
-                  {booking.property?.address && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500 shrink-0">Address</span>
-                      <span className="text-[10px] font-medium text-gray-700 text-right leading-snug max-w-[160px]">{booking.property.address}</span>
-                    </div>
-                  )}
-                  {booking.property?.estate?.name && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Estate</span>
-                      <span className="text-[10px] font-medium text-gray-700">{booking.property.estate.name}</span>
-                    </div>
-                  )}
-                  {booking.property?.assetType?.name && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Type</span>
-                      <span className="text-[10px] font-medium text-gray-700">{booking.property.assetType.name}</span>
-                    </div>
-                  )}
+              )}
+              {booking.balanceAmount > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Balance</span>
+                  <span className="text-[11px] font-semibold text-orange-600 mt-0.5 leading-snug">{formatCurrency(booking.balanceAmount)}</span>
                 </div>
-              </div>
-
-              {/* Payment + Guest */}
-              <div>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Payment</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between gap-2">
-                    <span className="text-[10px] text-gray-500">Total</span>
-                    <span className="text-[10px] font-medium text-gray-700">{formatCurrency(booking.totalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <span className="text-[10px] text-gray-500">Paid</span>
-                    <span className="text-[10px] font-medium text-emerald-700">{formatCurrency(booking.paidAmount)}</span>
-                  </div>
-                  {booking.balanceAmount > 0 && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Balance</span>
-                      <span className="text-[10px] font-semibold text-orange-600">{formatCurrency(booking.balanceAmount)}</span>
-                    </div>
-                  )}
-                  {booking.paymentStatus && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-[10px] text-gray-500">Status</span>
-                      <span className="text-[10px] font-medium text-gray-700 capitalize">{booking.paymentStatus.replace(/_/g, ' ')}</span>
-                    </div>
-                  )}
+              )}
+              {booking.paymentStatus && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Payment Status</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug capitalize">{booking.paymentStatus.replace(/_/g, ' ')}</span>
                 </div>
-                {(booking.guestDetails?.fullName || booking.guestDetails?.email) && (
-                  <>
-                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-2.5">Guest</p>
-                    <div className="space-y-1">
-                      {booking.guestDetails.fullName && (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-[10px] text-gray-500">Name</span>
-                          <span className="text-[10px] font-medium text-gray-700">{booking.guestDetails.fullName}</span>
-                        </div>
-                      )}
-                      {booking.guestDetails.email && (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-[10px] text-gray-500">Email</span>
-                          <span className="text-[10px] font-medium text-gray-700 truncate max-w-[140px]">{booking.guestDetails.email}</span>
-                        </div>
-                      )}
-                      {booking.guestDetails.phone && (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-[10px] text-gray-500">Phone</span>
-                          <span className="text-[10px] font-medium text-gray-700">{booking.guestDetails.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-                {booking.specialRequirements && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg">
-                    <p className="text-[8px] font-bold text-amber-600 uppercase tracking-wide mb-0.5">Special Requirements</p>
-                    <p className="text-[10px] text-amber-800 leading-snug">{booking.specialRequirements}</p>
-                  </div>
-                )}
-                {booking.rejectionReason && (
-                  <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg">
-                    <p className="text-[8px] font-bold text-red-500 uppercase tracking-wide mb-0.5">Rejection Reason</p>
-                    <p className="text-[10px] text-red-700 leading-snug">{booking.rejectionReason}</p>
-                  </div>
-                )}
-              </div>
+              )}
+              {booking.quantity > 1 && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Qty</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{booking.quantity} room{booking.quantity !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {booking.property?.address && (
+                <div className="col-span-2 flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Address</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{booking.property.address}</span>
+                </div>
+              )}
+              {booking.property?.estate?.name && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Estate</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.property.estate.name}</span>
+                </div>
+              )}
+              {booking.property?.assetType?.name && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Asset Type</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.property.assetType.name}</span>
+                </div>
+              )}
+              {booking.guestDetails?.email && (
+                <div className="col-span-2 flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Guest Email</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.guestDetails.email}</span>
+                </div>
+              )}
+              {booking.guestDetails?.phone && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Guest Phone</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{booking.guestDetails.phone}</span>
+                </div>
+              )}
             </div>
+            {booking.specialRequirements && (
+              <div className="mt-2.5 px-2.5 py-2 bg-amber-50 border border-amber-100 rounded-lg">
+                <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wide">Special Requirements: </span>
+                <span className="text-[10px] text-amber-800 leading-snug">{booking.specialRequirements}</span>
+              </div>
+            )}
+            {booking.rejectionReason && (
+              <div className="mt-2 px-2.5 py-2 bg-red-50 border border-red-100 rounded-lg">
+                <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">Rejection Reason: </span>
+                <span className="text-[10px] text-red-700 leading-snug">{booking.rejectionReason}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
