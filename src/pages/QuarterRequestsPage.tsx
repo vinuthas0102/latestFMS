@@ -3717,7 +3717,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><RefreshCw size={12} className="text-amber-600" /></span>
-                                Extension/Retention
+                                Retention
                               </button>
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuPos(null); setSelectedRequest(req); openUpgradeModal(); }}

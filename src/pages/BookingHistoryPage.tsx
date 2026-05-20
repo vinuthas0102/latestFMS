@@ -253,6 +253,12 @@ const BookingListCard: React.FC<{
   const svcMenuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const svcDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Inline service chat state
+  const [chatOpenSvcId, setChatOpenSvcId] = useState<string | null>(null);
+  const [svcChatMessages, setSvcChatMessages] = useState<Record<string, import('../types').BookingServiceChatDTO[]>>({});
+  const [svcChatInput, setSvcChatInput] = useState<Record<string, string>>({});
+  const [svcChatSending, setSvcChatSending] = useState<Record<string, boolean>>({});
+
   const openSvcMenu = useCallback((e: React.MouseEvent, svcId: string) => {
     e.stopPropagation();
     const btn = svcMenuBtnRefs.current[svcId];
@@ -270,6 +276,34 @@ const BookingListCard: React.FC<{
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const toggleSvcChat = useCallback(async (svcId: string) => {
+    if (chatOpenSvcId === svcId) {
+      setChatOpenSvcId(null);
+      return;
+    }
+    setChatOpenSvcId(svcId);
+    if (!svcChatMessages[svcId]) {
+      try {
+        const msgs = await bookingServiceRequestService.getServiceChats(svcId);
+        setSvcChatMessages(prev => ({ ...prev, [svcId]: msgs }));
+      } catch { /* silently ignore */ }
+    }
+  }, [chatOpenSvcId, svcChatMessages]);
+
+  const handleSvcChatSend = useCallback(async (svcId: string) => {
+    const msg = (svcChatInput[svcId] ?? '').trim();
+    if (!msg) return;
+    setSvcChatSending(prev => ({ ...prev, [svcId]: true }));
+    try {
+      const { user } = useAuthStore.getState();
+      const role = isManager ? 'manager' : 'employee';
+      const newMsg = await bookingServiceRequestService.addServiceChat(svcId, user?.id ?? '', role, msg);
+      setSvcChatMessages(prev => ({ ...prev, [svcId]: [...(prev[svcId] ?? []), newMsg] }));
+      setSvcChatInput(prev => ({ ...prev, [svcId]: '' }));
+    } catch { /* silently ignore */ }
+    finally { setSvcChatSending(prev => ({ ...prev, [svcId]: false })); }
+  }, [svcChatInput, isManager]);
+
   const statusCfg = getBookingStatusConfig(booking.status);
   const nights = calcNights(booking.checkInDate, booking.checkOutDate);
   const thumbSrc = getPropertyImage(booking, index);
@@ -282,9 +316,11 @@ const BookingListCard: React.FC<{
   const isVacatedGovtOfficial = isGovtOfficial && isVacated;
   const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
   const upgradeEligibleStatuses: BookingStatus[] = ['ALLOCATED', 'CHECKED_IN'];
-  const menuServiceItems = ACTION_MENU_ITEMS.filter(
-    item => item.type !== 'UPGRADE' || upgradeEligibleStatuses.includes(booking.status as BookingStatus)
-  );
+  const menuServiceItems = ACTION_MENU_ITEMS.filter(item => {
+    if (item.type === 'UPGRADE') return upgradeEligibleStatuses.includes(booking.status as BookingStatus);
+    if (item.type === 'EXTENSION') return booking.status === 'CHECKED_IN';
+    return true;
+  });
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
@@ -802,6 +838,17 @@ const BookingListCard: React.FC<{
                             </span>
                           </div>
                           <button
+                            onClick={e => { e.stopPropagation(); toggleSvcChat(svc.id); }}
+                            className={`p-1 rounded-lg border transition-colors ${
+                              chatOpenSvcId === svc.id
+                                ? 'bg-teal-50 border-teal-300 text-teal-600'
+                                : 'border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-200'
+                            }`}
+                            title="Chat"
+                          >
+                            <MessageSquare size={11} />
+                          </button>
+                          <button
                             ref={el => { svcMenuBtnRefs.current[svc.id] = el; }}
                             onClick={e => openSvcMenu(e, svc.id)}
                             className={`p-1 rounded-lg border transition-colors ${
@@ -852,6 +899,14 @@ const BookingListCard: React.FC<{
                               )}
                               <div className="border-t border-gray-100 my-0.5" />
                               <button
+                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); toggleSvcChat(svc.id); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors text-left"
+                              >
+                                <MessageSquare size={12} className="text-teal-500" />
+                                {chatOpenSvcId === svc.id ? 'Close Chat' : 'Open Chat'}
+                              </button>
+                              <div className="border-t border-gray-100 my-0.5" />
+                              <button
                                 onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); toggleSvcDetail(svc.id); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors text-left"
                               >
@@ -881,6 +936,54 @@ const BookingListCard: React.FC<{
                               <span className="font-semibold text-gray-500 text-[9px] uppercase tracking-wide">Manager Notes: </span>{svc.eoNotes}
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Inline chat panel */}
+                      {chatOpenSvcId === svc.id && (
+                        <div className="border-t border-teal-100 bg-teal-50/40 px-3 py-3 space-y-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-bold text-teal-700 uppercase tracking-widest flex items-center gap-1">
+                              <MessageSquare size={9} />Chat
+                            </span>
+                          </div>
+                          {/* Messages */}
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {(svcChatMessages[svc.id] ?? []).length === 0 && (
+                              <p className="text-[10px] text-gray-400 text-center py-2">No messages yet</p>
+                            )}
+                            {(svcChatMessages[svc.id] ?? []).map(msg => {
+                              const isMine = msg.authorRole === (isManager ? 'manager' : 'employee');
+                              return (
+                                <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`max-w-[85%] text-[11px] px-2.5 py-1.5 rounded-xl leading-relaxed ${isMine ? 'bg-teal-600 text-white rounded-br-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm shadow-sm'}`}>
+                                    {msg.message}
+                                    <div className={`text-[9px] mt-0.5 ${isMine ? 'text-teal-100' : 'text-gray-400'}`}>
+                                      {isMine ? 'You' : (isManager ? 'Guest' : 'Manager')} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {/* Input */}
+                          <div className="flex gap-2">
+                            <textarea
+                              rows={2}
+                              placeholder="Type a message…"
+                              value={svcChatInput[svc.id] ?? ''}
+                              onChange={e => setSvcChatInput(prev => ({ ...prev, [svc.id]: e.target.value }))}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSvcChatSend(svc.id); } }}
+                              className="flex-1 text-xs px-2.5 py-1.5 border border-teal-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                            />
+                            <button
+                              onClick={() => handleSvcChatSend(svc.id)}
+                              disabled={svcChatSending[svc.id] || !(svcChatInput[svc.id] ?? '').trim()}
+                              className="self-end flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white text-xs rounded-lg transition-colors font-medium"
+                            >
+                              {svcChatSending[svc.id] ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2088,9 +2191,11 @@ export const BookingHistoryPage: React.FC = () => {
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Service Type</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(() => {
-                    const eligible = ACTION_MENU_ITEMS.filter(
-                      item => item.type !== 'UPGRADE' || ['ALLOCATED', 'CHECKED_IN'].includes(svcFormBooking?.status ?? '')
-                    );
+                    const eligible = ACTION_MENU_ITEMS.filter(item => {
+                      if (item.type === 'UPGRADE') return ['ALLOCATED', 'CHECKED_IN'].includes(svcFormBooking?.status ?? '');
+                      if (item.type === 'EXTENSION') return svcFormBooking?.status === 'CHECKED_IN';
+                      return true;
+                    });
                     return eligible.map(({ type, label, Icon, color }) => (
                       <button
                         key={type}

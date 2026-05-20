@@ -71,7 +71,7 @@ interface Props {
 }
 
 const TYPE_CONFIG: Record<ActionType, { title: string; color: string; icon: React.ReactNode }> = {
-  EXTEND:      { title: 'Extension/Retention Request', color: 'text-amber-700',   icon: <RefreshCw size={18} className="text-amber-600" /> },
+  EXTEND:      { title: 'Retention Request', color: 'text-amber-700',   icon: <RefreshCw size={18} className="text-amber-600" /> },
   VACATE:      { title: 'Vacate Request',               color: 'text-rose-700',    icon: <LogOut size={18} className="text-rose-600" /> },
   GRIEVANCE:   { title: 'Raise Grievance',              color: 'text-slate-700',   icon: <AlertCircle size={18} className="text-slate-600" /> },
   MAINTENANCE: { title: 'Maintenance Request',          color: 'text-teal-700',    icon: <Wrench size={18} className="text-teal-600" /> },
@@ -413,7 +413,7 @@ function ExtendForm({
             <RefreshCw size={16} className="text-amber-600" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-gray-900 leading-tight">Extension / Retention Request</h2>
+            <h2 className="text-base font-bold text-gray-900 leading-tight">Retention Request</h2>
             <p className="text-xs text-gray-400 mt-0.5 leading-tight">Submit a request to retain your quarter beyond the allotment period</p>
           </div>
         </div>
