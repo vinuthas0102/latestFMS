@@ -187,10 +187,11 @@ export interface AvailabilityResultDTO {
   totalAvailable: number;
 }
 
-export type BookingServiceType = 'GRIEVANCE' | 'MAINTENANCE' | 'EXTENSION' | 'CANCELLATION_REQUEST' | 'GENERAL';
+export type BookingServiceType = 'GRIEVANCE' | 'MAINTENANCE' | 'EXTENSION' | 'CANCELLATION_REQUEST' | 'UPGRADE' | 'GENERAL';
 export type BookingServiceStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type BookingServiceUrgency = 'LOW' | 'MEDIUM' | 'HIGH';
 export type BookingServiceAuthorRole = 'employee' | 'manager' | 'system';
+export type UpgradeStatus = 'PENDING_REVIEW' | 'APPROVED' | 'DECLINED';
 
 export interface BookingServiceRequestDTO {
   id: string;
@@ -203,6 +204,10 @@ export interface BookingServiceRequestDTO {
   urgencyLevel: BookingServiceUrgency;
   eoNotes: string;
   documentUrl: string;
+  upgradeTargetRoomTypeId: string | null;
+  upgradeOriginalRoomTypeId: string | null;
+  upgradePriceDifference: number;
+  upgradeStatus: UpgradeStatus | null;
   createdAt: string;
   updatedAt: string;
   chats?: BookingServiceChatDTO[];
@@ -228,4 +233,7 @@ export interface CreateBookingServiceRequestDTO {
   remarks: string;
   urgencyLevel?: BookingServiceUrgency;
   documentUrl?: string;
+  upgradeTargetRoomTypeId?: string;
+  upgradeOriginalRoomTypeId?: string;
+  upgradePriceDifference?: number;
 }

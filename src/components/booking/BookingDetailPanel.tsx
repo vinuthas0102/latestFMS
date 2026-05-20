@@ -4,10 +4,12 @@ import {
   CheckCircle, MessageSquare, Loader2, Send, ChevronDown, ChevronUp, Ban,
   AlertTriangle, Wrench, RefreshCw, HelpCircle, X,
   MessageCircle, Paperclip, PlayCircle, FileText,
+  ArrowUpCircle, ThumbsUp, ThumbsDown, Plus,
 } from 'lucide-react';
 import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { BookingDTO, BookingServiceRequestDTO, BookingServiceChatDTO } from '../../types';
 import type { ChatDeliveryMode } from '../../types/quarters';
+import type { RoomTypeDTO } from '../../types/property.types';
 import { useUIStore } from '../../stores/uiStore';
 import { bookingServiceRequestService } from '../../services/bookingServiceRequestService';
 import type { BookingServiceStatus } from '../../types/booking.types';
@@ -24,11 +26,12 @@ interface ServiceConfigEntry {
 }
 
 const SERVICE_CONFIGS: Record<string, ServiceConfigEntry> = {
-  GRIEVANCE:            { label: 'Grievance',            icon: AlertTriangle, color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200' },
-  MAINTENANCE:          { label: 'Maintenance',          icon: Wrench,        color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
-  EXTENSION:            { label: 'Extension Request',    icon: RefreshCw,     color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
-  CANCELLATION_REQUEST: { label: 'Cancellation Request', icon: Ban,           color: 'text-rose-600',   bg: 'bg-rose-50',   border: 'border-rose-200' },
-  GENERAL:              { label: 'General Enquiry',      icon: HelpCircle,    color: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-gray-200' },
+  GRIEVANCE:            { label: 'Grievance',            icon: AlertTriangle,  color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200' },
+  MAINTENANCE:          { label: 'Maintenance',          icon: Wrench,         color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+  EXTENSION:            { label: 'Extension Request',    icon: RefreshCw,      color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
+  CANCELLATION_REQUEST: { label: 'Cancellation Request', icon: Ban,            color: 'text-rose-600',   bg: 'bg-rose-50',   border: 'border-rose-200' },
+  UPGRADE:              { label: 'Room Upgrade Request', icon: ArrowUpCircle,  color: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200' },
+  GENERAL:              { label: 'General Enquiry',      icon: HelpCircle,     color: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-gray-200' },
 };
 
 const SERVICE_STATUS_BADGE: Record<string, string> = {
@@ -76,6 +79,20 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
   const [directChatMode, setDirectChatMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
   const [perServiceChatMode, setPerServiceChatMode] = useState<Record<string, ChatDeliveryMode[]>>({});
 
+  // New service request form
+  const [showNewRequestForm, setShowNewRequestForm] = useState(false);
+  const [newRequestType, setNewRequestType] = useState<string>('GRIEVANCE');
+  const [newRequestSubject, setNewRequestSubject] = useState('');
+  const [newRequestRemarks, setNewRequestRemarks] = useState('');
+  const [newRequestUrgency, setNewRequestUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
+  const [submittingNewRequest, setSubmittingNewRequest] = useState(false);
+
+  // Upgrade flow state
+  const [roomTypes, setRoomTypes] = useState<RoomTypeDTO[]>([]);
+  const [upgradeTargetTypeId, setUpgradeTargetTypeId] = useState('');
+  const [upgradePriceDiff, setUpgradePriceDiff] = useState(0);
+  const [processingUpgrade, setProcessingUpgrade] = useState<Record<string, boolean>>({});
+
   const activeServices = services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus));
 
   const headerColor = (() => {
@@ -89,6 +106,10 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
 
   useEffect(() => { loadServices(); }, [booking.id]);
   useEffect(() => { onServiceCountChange?.(activeServices.length); }, [activeServices.length]);
+  useEffect(() => {
+    bookingServiceRequestService.getRoomTypesForProperty(booking.propertyId)
+      .then(setRoomTypes).catch(() => {});
+  }, [booking.propertyId]);
 
   const loadServices = async () => {
     setServicesLoading(true);
@@ -128,6 +149,60 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     } finally {
       setSendingChat(prev => ({ ...prev, [serviceId]: false }));
     }
+  };
+
+  const handleSubmitNewRequest = async () => {
+    if (!newRequestSubject.trim()) return;
+    setSubmittingNewRequest(true);
+    try {
+      const dto: Parameters<typeof bookingServiceRequestService.createServiceRequest>[1] = {
+        bookingId: booking.id,
+        serviceType: newRequestType as BookingServiceRequestDTO['serviceType'],
+        subject: newRequestSubject.trim(),
+        remarks: newRequestRemarks.trim(),
+        urgencyLevel: newRequestUrgency,
+      };
+      if (newRequestType === 'UPGRADE' && upgradeTargetTypeId) {
+        dto.upgradeTargetRoomTypeId = upgradeTargetTypeId;
+        dto.upgradeOriginalRoomTypeId = booking.roomTypeId;
+        dto.upgradePriceDifference = upgradePriceDiff;
+      }
+      await bookingServiceRequestService.createServiceRequest(userId, dto);
+      addToast({ type: 'success', message: 'Service request raised' });
+      setShowNewRequestForm(false);
+      setNewRequestSubject(''); setNewRequestRemarks('');
+      setUpgradeTargetTypeId(''); setUpgradePriceDiff(0);
+      await loadServices();
+    } catch {
+      addToast({ type: 'error', message: 'Failed to raise request' });
+    } finally { setSubmittingNewRequest(false); }
+  };
+
+  const handleApproveUpgrade = async (svc: BookingServiceRequestDTO) => {
+    if (!svc.upgradeTargetRoomTypeId) return;
+    setProcessingUpgrade(p => ({ ...p, [svc.id]: true }));
+    try {
+      await bookingServiceRequestService.approveUpgradeRequest(
+        svc.id, booking.id, svc.upgradeTargetRoomTypeId, svc.upgradePriceDifference, userId,
+      );
+      addToast({ type: 'success', message: 'Upgrade approved — payment required' });
+      await loadServices();
+      loadChats(svc.id);
+    } catch { addToast({ type: 'error', message: 'Failed to approve upgrade' }); }
+    finally { setProcessingUpgrade(p => ({ ...p, [svc.id]: false })); }
+  };
+
+  const handleDeclineUpgrade = async (svc: BookingServiceRequestDTO) => {
+    setProcessingUpgrade(p => ({ ...p, [svc.id]: true }));
+    try {
+      await bookingServiceRequestService.declineUpgradeRequest(
+        svc.id, userId, 'Requested room type is not available for your stay dates.',
+      );
+      addToast({ type: 'success', message: 'Upgrade request declined' });
+      await loadServices();
+      loadChats(svc.id);
+    } catch { addToast({ type: 'error', message: 'Failed to decline upgrade' }); }
+    finally { setProcessingUpgrade(p => ({ ...p, [svc.id]: false })); }
   };
 
   const handleCloseService = async (serviceId: string) => {
@@ -220,6 +295,74 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     );
   };
 
+  const renderUpgradeManagerPanel = (svc: BookingServiceRequestDTO) => {
+    const targetType = roomTypes.find(rt => rt.id === svc.upgradeTargetRoomTypeId);
+    const originalType = roomTypes.find(rt => rt.id === svc.upgradeOriginalRoomTypeId);
+    const isPending = svc.upgradeStatus === 'PENDING_REVIEW';
+    const isApproved = svc.upgradeStatus === 'APPROVED';
+    const isDeclined = svc.upgradeStatus === 'DECLINED';
+    const isProcessing = processingUpgrade[svc.id];
+
+    return (
+      <div className="mt-2 rounded-xl border border-teal-200 bg-teal-50/60 px-3 py-3 space-y-3">
+        <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wide">Upgrade Details</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-gray-200 bg-white px-2.5 py-2">
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Current Room</p>
+            <p className="text-xs font-semibold text-gray-800">{originalType?.name ?? 'Current'}</p>
+          </div>
+          <div className="rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-2">
+            <p className="text-[9px] font-bold text-teal-500 uppercase tracking-wide mb-0.5">Requested Upgrade</p>
+            <p className="text-xs font-semibold text-teal-800">{targetType?.name ?? 'Upgraded'}</p>
+          </div>
+        </div>
+
+        {svc.upgradePriceDifference > 0 && (
+          <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <span className="text-[11px] text-amber-700 font-medium">Additional payment required</span>
+            <span className="text-sm font-bold text-amber-800">₹{svc.upgradePriceDifference.toLocaleString()}</span>
+          </div>
+        )}
+
+        {isPending && isManager && (
+          <div className="flex gap-2">
+            <button
+              onClick={e => { e.stopPropagation(); handleApproveUpgrade(svc); }}
+              disabled={isProcessing}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-[11px] font-bold transition-colors"
+            >
+              {isProcessing ? <Loader2 size={11} className="animate-spin" /> : <ThumbsUp size={11} />}
+              Approve Upgrade
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); handleDeclineUpgrade(svc); }}
+              disabled={isProcessing}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[11px] font-bold transition-colors"
+            >
+              {isProcessing ? <Loader2 size={11} className="animate-spin" /> : <ThumbsDown size={11} />}
+              Decline
+            </button>
+          </div>
+        )}
+
+        {isApproved && (
+          <div className="flex items-center gap-2 rounded-xl border border-teal-300 bg-teal-100 px-3 py-2">
+            <CheckCircle size={13} className="text-teal-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-teal-800">Upgrade approved — payment pending</span>
+          </div>
+        )}
+
+        {isDeclined && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2">
+            <X size={13} className="text-rose-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-rose-700">Upgrade declined</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderServiceCard = (svc: BookingServiceRequestDTO) => {
     const cfg = SERVICE_CONFIGS[svc.serviceType] ?? SERVICE_CONFIGS.GENERAL;
     const SvcIcon = cfg.icon;
@@ -227,8 +370,9 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
     const showDetailRow = (svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (svc.subject || svc.urgencyLevel);
     const ctrlRef = `#${svc.id.slice(-6).toUpperCase()}`;
     const isUpdating = updatingStatus[svc.id];
-    const canMarkInProgress = isManager && svc.requestStatus === 'OPEN';
-    const canMarkResolved = isManager && svc.requestStatus === 'IN_PROGRESS';
+    const isUpgrade = svc.serviceType === 'UPGRADE';
+    const canMarkInProgress = isManager && svc.requestStatus === 'OPEN' && !isUpgrade;
+    const canMarkResolved = isManager && svc.requestStatus === 'IN_PROGRESS' && !isUpgrade;
 
     return (
       <div key={svc.id} className={`rounded-xl border ${cfg.border} overflow-hidden`}>
@@ -257,9 +401,16 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
                 {svc.urgencyLevel}
               </span>
             )}
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${SERVICE_STATUS_BADGE[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-              {svc.requestStatus.replace('_', ' ')}
-            </span>
+            {isUpgrade && svc.upgradeStatus && (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${svc.upgradeStatus === 'APPROVED' ? 'bg-teal-100 text-teal-700 border-teal-200' : svc.upgradeStatus === 'DECLINED' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                {svc.upgradeStatus === 'PENDING_REVIEW' ? 'PENDING' : svc.upgradeStatus}
+              </span>
+            )}
+            {!isUpgrade && (
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${SERVICE_STATUS_BADGE[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                {svc.requestStatus.replace('_', ' ')}
+              </span>
+            )}
           </div>
           {isExpanded ? <ChevronUp size={12} className="text-gray-400 flex-shrink-0 absolute top-3 right-2" /> : <ChevronDown size={12} className="text-gray-400 flex-shrink-0 absolute top-3 right-2" />}
         </div>
@@ -274,7 +425,10 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
               </div>
             )}
 
-            {/* Manager action buttons */}
+            {/* Upgrade review panel */}
+            {isUpgrade && renderUpgradeManagerPanel(svc)}
+
+            {/* Standard manager action buttons (non-upgrade) */}
             {isManager && (canMarkInProgress || canMarkResolved) && (
               <div className="flex items-center gap-2 mb-2 pt-1">
                 {canMarkInProgress && (
@@ -302,7 +456,7 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
 
             {renderChat(svc.id)}
 
-            {['OPEN', 'IN_PROGRESS'].includes(svc.requestStatus) && (
+            {['OPEN', 'IN_PROGRESS'].includes(svc.requestStatus) && !isUpgrade && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleCloseService(svc.id); }}
                 className="mt-2 text-[10px] text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 hover:underline"
@@ -338,6 +492,21 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto flex flex-col">
 
+        {/* ── Upgrade payment banner ── */}
+        {(() => {
+          const approvedUpgrade = services.find(s => s.serviceType === 'UPGRADE' && s.upgradeStatus === 'APPROVED');
+          if (!approvedUpgrade || booking.paymentStatus === 'COMPLETED') return null;
+          return (
+            <div className="mx-4 mt-3 flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-300 bg-amber-50">
+              <ArrowUpCircle size={16} className="text-amber-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-amber-800">Room Upgrade — Payment Required</p>
+                <p className="text-[10px] text-amber-700">₹{approvedUpgrade.upgradePriceDifference.toLocaleString()} additional amount due</p>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Service Requests ── */}
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
@@ -345,12 +514,128 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
               <MessageSquare size={13} className="text-gray-400" />
               <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Service Requests</span>
             </div>
-            {services.length > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
-                {services.length} record{services.length !== 1 ? 's' : ''}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {services.length > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                  {services.length} record{services.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {(isGovtOfficial || isManager) && ['ALLOCATED', 'CHECKED_IN'].includes(booking.status) && !showNewRequestForm && (
+                <button
+                  onClick={() => setShowNewRequestForm(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-semibold transition-colors"
+                >
+                  <Plus size={10} /> Raise Request
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* New request form */}
+          {showNewRequestForm && (
+            <div className="mb-3 rounded-xl border border-teal-200 bg-teal-50 p-3 space-y-2.5">
+              <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wide">New Service Request</p>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Request Type</label>
+                <div className="relative">
+                  <select
+                    value={newRequestType}
+                    onChange={e => { setNewRequestType(e.target.value); setUpgradeTargetTypeId(''); setUpgradePriceDiff(0); }}
+                    className="w-full appearance-none text-xs px-2.5 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400"
+                  >
+                    {isGovtOfficial && <option value="UPGRADE">Room Upgrade</option>}
+                    <option value="MAINTENANCE">Maintenance</option>
+                    <option value="GRIEVANCE">Grievance</option>
+                    <option value="EXTENSION">Extension Request</option>
+                    <option value="GENERAL">General Enquiry</option>
+                    {isManager && <option value="UPGRADE">Room Upgrade (on behalf)</option>}
+                  </select>
+                </div>
+              </div>
+
+              {newRequestType === 'UPGRADE' && (
+                <div className="space-y-2 rounded-lg border border-teal-200 bg-white p-2.5">
+                  <p className="text-[10px] font-semibold text-teal-700">Select target room type</p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {roomTypes.filter(rt => rt.id !== booking.roomTypeId && rt.sortOrder > (roomTypes.find(r => r.id === booking.roomTypeId)?.sortOrder ?? 0)).map(rt => (
+                      <label key={rt.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg border cursor-pointer transition-colors ${upgradeTargetTypeId === rt.id ? 'border-teal-400 bg-teal-50' : 'border-gray-200 hover:border-teal-300 bg-white'}`}>
+                        <input type="radio" name="upgradeTarget" value={rt.id} checked={upgradeTargetTypeId === rt.id} onChange={() => setUpgradeTargetTypeId(rt.id)} className="accent-teal-600" />
+                        <span className="text-xs font-semibold text-gray-800">{rt.name}</span>
+                        {rt.description && <span className="text-[10px] text-gray-400">{rt.description}</span>}
+                      </label>
+                    ))}
+                    {roomTypes.filter(rt => rt.id !== booking.roomTypeId && rt.sortOrder > (roomTypes.find(r => r.id === booking.roomTypeId)?.sortOrder ?? 0)).length === 0 && (
+                      <p className="text-[11px] text-gray-400 py-1">No higher room types available at this property.</p>
+                    )}
+                  </div>
+                  {upgradeTargetTypeId && (
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1">Price Difference (₹)</label>
+                      <input
+                        type="number" min={0} value={upgradePriceDiff}
+                        onChange={e => setUpgradePriceDiff(Math.max(0, Number(e.target.value)))}
+                        className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400"
+                        placeholder="Enter additional amount"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Subject</label>
+                <input
+                  type="text" value={newRequestSubject}
+                  onChange={e => setNewRequestSubject(e.target.value)}
+                  placeholder="Brief description"
+                  className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Remarks</label>
+                <textarea
+                  rows={2} value={newRequestRemarks}
+                  onChange={e => setNewRequestRemarks(e.target.value)}
+                  placeholder="Details about the request…"
+                  className="w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400"
+                />
+              </div>
+
+              {newRequestType !== 'UPGRADE' && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">Urgency</label>
+                  <div className="flex gap-2">
+                    {(['LOW', 'MEDIUM', 'HIGH'] as const).map(u => (
+                      <label key={u} className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer transition-colors ${newRequestUrgency === u ? (u === 'HIGH' ? 'bg-red-600 border-red-600 text-white' : u === 'MEDIUM' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-gray-500 border-gray-500 text-white') : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        <input type="radio" name="urgency" value={u} checked={newRequestUrgency === u} onChange={() => setNewRequestUrgency(u)} className="hidden" />
+                        {u}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSubmitNewRequest}
+                  disabled={submittingNewRequest || !newRequestSubject.trim() || (newRequestType === 'UPGRADE' && !upgradeTargetTypeId)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-bold transition-colors"
+                >
+                  {submittingNewRequest ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                  Submit Request
+                </button>
+                <button
+                  onClick={() => { setShowNewRequestForm(false); setNewRequestSubject(''); setNewRequestRemarks(''); setUpgradeTargetTypeId(''); setUpgradePriceDiff(0); }}
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-gray-500 hover:text-gray-700 text-[11px] font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {servicesLoading ? (
             <div className="space-y-2">
               {[1, 2].map(i => (
