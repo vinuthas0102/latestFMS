@@ -6,6 +6,7 @@ import { mapPropertyFromDb } from './mappers';
 import { getRoomCountsForProperties } from './helpers';
 import { getBlocks, getFloors } from './blockService';
 import { getRooms } from './roomService';
+import { DEMO_MODE, DEMO_AVAILABLE_PROPERTIES } from '../../mocks/demoData';
 
 function getAllowedCategoriesForRole(userRole?: UserRole): string[] | null {
   if (!userRole || userRole === 'admin' || userRole === 'manager') return null;
@@ -22,6 +23,17 @@ export async function getProperties(filters?: {
   isExempt?: boolean;
   userRole?: UserRole;
 }): Promise<PropertyDTO[]> {
+  if (DEMO_MODE) {
+    let results = [...DEMO_AVAILABLE_PROPERTIES];
+    if (filters?.estateId) results = results.filter(p => p.estateId === filters.estateId);
+    if (filters?.assetTypeId) results = results.filter(p => p.assetTypeId === filters.assetTypeId);
+    if (filters?.status) results = results.filter(p => p.status === filters.status);
+    if (filters?.isExempt !== undefined) results = results.filter(p => p.isExempt === filters.isExempt);
+    const allowedCats = getAllowedCategoriesForRole(filters?.userRole);
+    if (allowedCats) results = results.filter(p => p.assetType && allowedCats.includes(p.assetType.category));
+    return Promise.resolve(results);
+  }
+
   let query = supabase
     .from('properties')
     .select('*, estate:estates(*), assetType:asset_types(*), module:modules(*), propertyType:property_types(*, module:modules(*))');
@@ -60,6 +72,10 @@ export async function getProperties(filters?: {
 }
 
 export async function getPropertyById(id: string): Promise<PropertyDTO | null> {
+  if (DEMO_MODE) {
+    return Promise.resolve(DEMO_AVAILABLE_PROPERTIES.find(p => p.id === id) ?? null);
+  }
+
   const { data, error } = await supabase
     .from('properties')
     .select('*, estate:estates(*), assetType:asset_types(*), module:modules(*), propertyType:property_types(*, module:modules(*))')
