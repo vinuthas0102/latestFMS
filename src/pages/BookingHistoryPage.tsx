@@ -141,10 +141,8 @@ const SVC_LABEL: Record<BookingServiceType, string> = {
 
 const ACTION_MENU_ITEMS: { type: BookingServiceType; label: string; Icon: React.FC<{ size?: number; className?: string }>; color: string }[] = [
   { type: 'GRIEVANCE',            label: 'Grievance',            Icon: AlertTriangle, color: 'text-red-600' },
-  { type: 'MAINTENANCE',          label: 'Maintenance',          Icon: Wrench,        color: 'text-orange-600' },
   { type: 'EXTENSION',            label: 'Extension Request',    Icon: RefreshCw,     color: 'text-blue-600' },
   { type: 'CANCELLATION_REQUEST', label: 'Cancellation Request', Icon: Ban,           color: 'text-rose-600' },
-  { type: 'GENERAL',              label: 'General Enquiry',      Icon: HelpCircle,    color: 'text-gray-600' },
 ];
 
 const PAYMENT_ACTION_STATUSES: BookingStatus[] = [
@@ -278,11 +276,10 @@ const BookingListCard: React.FC<{
   const isVacated = booking.status === 'CHECKED_OUT';
   const isRequested = booking.status === 'REQUESTED';
   const isAllocated = booking.status === 'ALLOCATED';
-  const canCheckout = isCheckedIn && (isManager || isGovtOfficial);
+  const canCheckout = isCheckedIn && isManager;
   const isVacatedGovtOfficial = isGovtOfficial && isVacated;
   const canRaiseService = !isGovtOfficial && !['CANCELLED', 'REJECTED'].includes(booking.status);
-  const vacatedServiceItems = ACTION_MENU_ITEMS.filter(i => i.type === 'MAINTENANCE');
-  const menuServiceItems = isVacated ? vacatedServiceItems : ACTION_MENU_ITEMS;
+  const menuServiceItems = ACTION_MENU_ITEMS;
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
@@ -1567,7 +1564,7 @@ export const BookingHistoryPage: React.FC = () => {
     rejected: bookings.filter(b => b.status === 'REJECTED').length,
     provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
     draft: bookings.filter(b => b.status === 'REQUESTED').length,
-    submitted: bookings.filter(b => ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
+    submitted: bookings.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
     allotted: bookings.filter(b => b.status === 'ALLOCATED').length,
     occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
     vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
@@ -1746,7 +1743,7 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
     else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
     else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED');
-    else if (dpFilter === 'submitted') result = result.filter(b => ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
+    else if (dpFilter === 'submitted') result = result.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
     else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
     else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
