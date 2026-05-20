@@ -10,7 +10,7 @@ import {
   Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
   Pencil, ShieldCheck, UserPlus, Users, CalendarCheck, ArrowRightLeft,
-  BadgeCheck, DoorOpen, Banknote,
+  BadgeCheck, DoorOpen, Banknote, UserCheck,
 } from 'lucide-react';
 import { BookingServiceType, BookingServiceRequestDTO } from '../types';
 import { bookingService } from '../services/bookingService';
@@ -184,14 +184,18 @@ const SVC_SHORT_LABEL: Record<string, string> = {
   EXTENSION:            'Ext',
   CANCELLATION_REQUEST: 'Cancel',
   GENERAL:              'General',
+  UPGRADE:              'Upgrade',
+  VACATE:               'Vacate',
 };
 
 const SVC_CHIP_CLS: Record<string, string> = {
-  GRIEVANCE:            'bg-rose-50 text-rose-600 border-rose-200',
-  MAINTENANCE:          'bg-orange-50 text-orange-600 border-orange-200',
-  EXTENSION:            'bg-blue-50 text-blue-600 border-blue-200',
+  GRIEVANCE:            'bg-rose-50 text-rose-700 border-rose-200',
+  MAINTENANCE:          'bg-slate-50 text-slate-600 border-slate-200',
+  EXTENSION:            'bg-amber-50 text-amber-700 border-amber-200',
   CANCELLATION_REQUEST: 'bg-red-50 text-red-600 border-red-200',
-  GENERAL:              'bg-slate-50 text-slate-600 border-slate-200',
+  GENERAL:              'bg-gray-50 text-gray-600 border-gray-200',
+  UPGRADE:              'bg-sky-50 text-sky-700 border-sky-200',
+  VACATE:               'bg-orange-50 text-orange-700 border-orange-200',
 };
 
 type ModifyMode = 'full' | 'extend' | 'room' | 'guest' | 'price' | 'adhoc';
@@ -381,40 +385,35 @@ const BookingListCard: React.FC<{
 
             {/* Footer */}
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 min-h-0">
-              <div className="flex items-center gap-1 min-w-0 flex-1">
+              <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                 {services.length > 0 && (
-                  <button
-                    onClick={e => { e.stopPropagation(); setSvcExpanded(v => !v); }}
-                    className={`shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors whitespace-nowrap ${
-                      svcExpanded
-                        ? 'bg-teal-50 text-teal-700 border-teal-300'
-                        : 'bg-white text-teal-700 border-teal-300 hover:bg-teal-50'
-                    }`}
-                  >
-                    <Wrench size={9} className="shrink-0" />
-                    {activeSvcCount} svc{activeSvcCount !== 1 ? 's' : ''}
+                  <>
+                    <button
+                      onClick={e => { e.stopPropagation(); setSvcExpanded(v => !v); }}
+                      className={`relative text-[10px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 border transition-colors shrink-0 whitespace-nowrap ${
+                        svcExpanded
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      </span>
+                      {activeSvcCount} svc{activeSvcCount !== 1 ? 's' : ''}
+                      {svcExpanded ? <ChevronUp size={9} className="shrink-0" /> : <ChevronDown size={9} className="shrink-0" />}
+                    </button>
                     {uniqueSvcTypes.map(type => (
-                      <span key={type} className={`text-[9px] font-semibold px-1.5 py-0 rounded border ${SVC_CHIP_CLS[type] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                      <span key={type} className={`text-[9px] px-1.5 py-0.5 rounded-md font-semibold border pointer-events-none shrink-0 whitespace-nowrap ${SVC_CHIP_CLS[type] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                         {SVC_SHORT_LABEL[type] ?? type}
                       </span>
                     ))}
-                    {svcExpanded ? <ChevronUp size={10} className="shrink-0" /> : <ChevronDown size={10} className="shrink-0" />}
-                  </button>
+                  </>
                 )}
 
-                {booking.paymentStatus === 'COMPLETED' ? (
-                  <span className="text-[9px] text-emerald-600 font-semibold flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
-                    <CheckCircle size={8} />Paid
-                  </span>
-                ) : booking.balanceAmount > 0 ? (
-                  <span className="text-[9px] text-amber-600 font-semibold flex items-center gap-0.5 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200 shrink-0">
-                    <CreditCard size={8} />Balance due
-                  </span>
-                ) : null}
-
-                {booking.property?.address && (
-                  <span className="text-[9px] text-gray-400 flex items-center gap-0.5 shrink-0 whitespace-nowrap truncate max-w-[160px]">
-                    <MapPin size={8} className="shrink-0" />{booking.property.address}
+                {booking.isGuestBooking && booking.guestDetails?.fullName && (
+                  <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5 shrink-0 whitespace-nowrap">
+                    <UserCheck size={8} />For: {booking.guestDetails.fullName.split(' ')[0]}
                   </span>
                 )}
               </div>
