@@ -280,12 +280,10 @@ const BookingListCard: React.FC<{
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
   const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
-  // Services with actionable status changes (for manager action menu)
-  const actionableSvcs = isManager ? services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus)) : [];
 
   const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
     canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
-    (canRaiseService && menuServiceItems.length > 0) || actionableSvcs.length > 0;
+    (canRaiseService && menuServiceItems.length > 0);
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -367,20 +365,11 @@ const BookingListCard: React.FC<{
 
           {/* Body */}
           <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
-            {/* Row 1: booking number + expand toggle + status badge */}
+            {/* Row 1: booking number + status badge */}
             <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
-                  #{booking.bookingNumber}
-                </span>
-                <button
-                  onClick={e => { e.stopPropagation(); setCardExpanded(v => !v); }}
-                  className="flex items-center gap-0.5 text-[9px] text-gray-400 hover:text-gray-600 transition-colors shrink-0"
-                  title={cardExpanded ? 'Collapse details' : 'Expand details'}
-                >
-                  {cardExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                </button>
-              </div>
+              <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
+                #{booking.bookingNumber}
+              </span>
               <div className="flex items-center gap-1">
                 {isUnderMaintenance && isManager && (
                   <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
@@ -392,18 +381,6 @@ const BookingListCard: React.FC<{
                 </span>
               </div>
             </div>
-
-            {/* Row 2: key-value details — collapsible */}
-            {cardExpanded && (
-              <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1 pb-1 border-b border-gray-100 animate-in fade-in duration-150">
-                {details.map((d, i) => (
-                  <div key={i} className="min-w-0">
-                    <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
-                    <div className="text-[10.5px] font-medium text-gray-700 leading-snug truncate max-w-[180px]">{d.value}</div>
-                  </div>
-                ))}
-              </div>
-            )}
 
             {/* Footer */}
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 min-h-0">
@@ -561,29 +538,6 @@ const BookingListCard: React.FC<{
                           </>
                         )}
 
-                        {/* ── Service Updates (manager only) ── */}
-                        {actionableSvcs.length > 0 && (
-                          <>
-                            <div className="px-3 py-1.5 border-b border-gray-100">
-                              <span className="text-[9px] font-bold text-teal-600 uppercase tracking-widest">Service Updates</span>
-                            </div>
-                            {actionableSvcs.map(svc => {
-                              const isOpen = svc.requestStatus === 'OPEN';
-                              return (
-                                <button
-                                  key={svc.id}
-                                  onClick={async e => { e.stopPropagation(); setMenuOpen(false); await onUpdateServiceStatus?.(svc.id, booking.id, isOpen ? 'IN_PROGRESS' : 'RESOLVED'); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-left ${isOpen ? 'text-blue-700 hover:bg-blue-50' : 'text-emerald-700 hover:bg-emerald-50'}`}
-                                >
-                                  {isOpen ? <PlayCircle size={13} className="text-blue-500 shrink-0" /> : <CheckCircle size={13} className="text-emerald-500 shrink-0" />}
-                                  <span className="truncate">{isOpen ? 'Mark In Progress' : 'Mark Resolved'} — {svc.subject || 'Service Request'}</span>
-                                </button>
-                              );
-                            })}
-                            <div className="border-t border-gray-100 my-1" />
-                          </>
-                        )}
-
                         {/* ── Raise Service ── */}
                         <div className="px-3 py-1.5 border-b border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
@@ -617,10 +571,154 @@ const BookingListCard: React.FC<{
                 >
                   <Eye size={12} />
                 </button>
+                <button
+                  onClick={e => { e.stopPropagation(); setCardExpanded(v => !v); }}
+                  className={`p-1 rounded-lg border transition-colors ${
+                    cardExpanded
+                      ? 'bg-gray-100 border-gray-300 text-gray-600'
+                      : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300'
+                  }`}
+                  title={cardExpanded ? 'Collapse booking details' : 'Expand booking details'}
+                >
+                  {cardExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Full booking + property details — expanded panel */}
+        {cardExpanded && (
+          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/60 rounded-b-xl animate-in fade-in duration-150">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-3">
+              {/* Booking Details */}
+              <div>
+                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Booking Details</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[10px] text-gray-500">Check-in</span>
+                    <span className="text-[10px] font-medium text-gray-700">{formatDate(booking.checkInDate)}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[10px] text-gray-500">Check-out</span>
+                    <span className="text-[10px] font-medium text-gray-700">{formatDate(booking.checkOutDate)}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[10px] text-gray-500">Duration</span>
+                    <span className="text-[10px] font-medium text-gray-700">{nights} night{nights !== 1 ? 's' : ''}</span>
+                  </div>
+                  {booking.roomType?.name && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Room Type</span>
+                      <span className="text-[10px] font-medium text-gray-700">{booking.roomType.name}</span>
+                    </div>
+                  )}
+                  {booking.quantity > 1 && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Qty</span>
+                      <span className="text-[10px] font-medium text-gray-700">{booking.quantity} room{booking.quantity !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Property Details */}
+              <div>
+                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Property</p>
+                <div className="space-y-1">
+                  {booking.property?.name && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500 shrink-0">Name</span>
+                      <span className="text-[10px] font-medium text-gray-700 text-right leading-snug">{booking.property.name}</span>
+                    </div>
+                  )}
+                  {booking.property?.address && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500 shrink-0">Address</span>
+                      <span className="text-[10px] font-medium text-gray-700 text-right leading-snug max-w-[160px]">{booking.property.address}</span>
+                    </div>
+                  )}
+                  {booking.property?.estate?.name && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Estate</span>
+                      <span className="text-[10px] font-medium text-gray-700">{booking.property.estate.name}</span>
+                    </div>
+                  )}
+                  {booking.property?.assetType?.name && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Type</span>
+                      <span className="text-[10px] font-medium text-gray-700">{booking.property.assetType.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment + Guest */}
+              <div>
+                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Payment</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[10px] text-gray-500">Total</span>
+                    <span className="text-[10px] font-medium text-gray-700">{formatCurrency(booking.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-[10px] text-gray-500">Paid</span>
+                    <span className="text-[10px] font-medium text-emerald-700">{formatCurrency(booking.paidAmount)}</span>
+                  </div>
+                  {booking.balanceAmount > 0 && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Balance</span>
+                      <span className="text-[10px] font-semibold text-orange-600">{formatCurrency(booking.balanceAmount)}</span>
+                    </div>
+                  )}
+                  {booking.paymentStatus && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-[10px] text-gray-500">Status</span>
+                      <span className="text-[10px] font-medium text-gray-700 capitalize">{booking.paymentStatus.replace(/_/g, ' ')}</span>
+                    </div>
+                  )}
+                </div>
+                {(booking.guestDetails?.fullName || booking.guestDetails?.email) && (
+                  <>
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 mt-2.5">Guest</p>
+                    <div className="space-y-1">
+                      {booking.guestDetails.fullName && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-[10px] text-gray-500">Name</span>
+                          <span className="text-[10px] font-medium text-gray-700">{booking.guestDetails.fullName}</span>
+                        </div>
+                      )}
+                      {booking.guestDetails.email && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-[10px] text-gray-500">Email</span>
+                          <span className="text-[10px] font-medium text-gray-700 truncate max-w-[140px]">{booking.guestDetails.email}</span>
+                        </div>
+                      )}
+                      {booking.guestDetails.phone && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-[10px] text-gray-500">Phone</span>
+                          <span className="text-[10px] font-medium text-gray-700">{booking.guestDetails.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                {booking.specialRequirements && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-100 rounded-lg">
+                    <p className="text-[8px] font-bold text-amber-600 uppercase tracking-wide mb-0.5">Special Requirements</p>
+                    <p className="text-[10px] text-amber-800 leading-snug">{booking.specialRequirements}</p>
+                  </div>
+                )}
+                {booking.rejectionReason && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg">
+                    <p className="text-[8px] font-bold text-red-500 uppercase tracking-wide mb-0.5">Rejection Reason</p>
+                    <p className="text-[10px] text-red-700 leading-snug">{booking.rejectionReason}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
         {/* Indented service sub-cards — shown when toggle is expanded */}
@@ -637,6 +735,8 @@ const BookingListCard: React.FC<{
                 const statusCls = SVC_STATUS_CLS[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200';
                 const urgencyCls = SVC_URGENCY_CLS[svc.urgencyLevel] ?? 'bg-gray-100 text-gray-600 border-gray-200';
                 const isDetailExpanded = expandedSvcIds.has(svc.id);
+                const isSvcActionable = isManager && ['OPEN', 'IN_PROGRESS'].includes(svc.requestStatus);
+                const isSvcOpen = svc.requestStatus === 'OPEN';
 
                 return (
                   <div key={svc.id} className="relative">
@@ -650,10 +750,7 @@ const BookingListCard: React.FC<{
                     )}
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                       {/* Header row — always visible */}
-                      <div
-                        className="relative flex min-h-[56px] cursor-pointer hover:bg-gray-50/50 transition-colors"
-                        onClick={e => { e.stopPropagation(); toggleSvcDetail(svc.id); }}
-                      >
+                      <div className="flex min-h-[56px]">
                         {/* Left accent bar */}
                         <div className={`w-1 shrink-0 rounded-l-xl ${accentCls}`} />
                         {/* Icon zone */}
@@ -662,8 +759,11 @@ const BookingListCard: React.FC<{
                             <SvcIcon size={14} className="text-gray-600" />
                           </div>
                         </div>
-                        {/* Body */}
-                        <div className="flex-1 px-3 py-2.5 min-w-0 pr-28">
+                        {/* Clickable body */}
+                        <div
+                          className="flex-1 px-3 py-2.5 min-w-0 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                          onClick={e => { e.stopPropagation(); toggleSvcDetail(svc.id); }}
+                        >
                           <p className="text-xs font-semibold text-gray-700 truncate leading-snug">{svc.subject}</p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${SVC_CHIP_CLS[svc.serviceType] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
@@ -674,23 +774,40 @@ const BookingListCard: React.FC<{
                             </span>
                           </div>
                         </div>
-                        {/* Status badge — top-right, matching booking card pattern */}
-                        <div className="absolute top-2 right-7 flex items-center gap-1">
-                          {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${urgencyCls}`}>
-                              {svc.urgencyLevel}
+                        {/* Right controls: badges + per-service action + expand toggle */}
+                        <div className="flex items-center gap-1.5 pr-2.5 shrink-0" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && svc.urgencyLevel && (
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${urgencyCls}`}>
+                                {svc.urgencyLevel}
+                              </span>
+                            )}
+                            <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
+                              {svc.requestStatus.replace('_', ' ')}
                             </span>
+                          </div>
+                          {isSvcActionable && (
+                            <button
+                              onClick={async e => { e.stopPropagation(); await onUpdateServiceStatus?.(svc.id, booking.id, isSvcOpen ? 'IN_PROGRESS' : 'RESOLVED'); }}
+                              className={`flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${
+                                isSvcOpen
+                                  ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                              }`}
+                              title={isSvcOpen ? 'Mark In Progress' : 'Mark Resolved'}
+                            >
+                              {isSvcOpen
+                                ? <><PlayCircle size={9} />In Progress</>
+                                : <><CheckCircle size={9} />Resolve</>
+                              }
+                            </button>
                           )}
-                          <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
-                            {svc.requestStatus.replace('_', ' ')}
-                          </span>
-                        </div>
-                        {/* Expand/collapse toggle */}
-                        <div className="absolute top-2.5 right-2">
-                          {isDetailExpanded
-                            ? <ChevronUp size={11} className="text-gray-400" />
-                            : <ChevronDown size={11} className="text-gray-400" />
-                          }
+                          <button
+                            onClick={e => { e.stopPropagation(); toggleSvcDetail(svc.id); }}
+                            className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            {isDetailExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                          </button>
                         </div>
                       </div>
 
