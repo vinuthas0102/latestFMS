@@ -277,15 +277,15 @@ const BookingListCard: React.FC<{
   const canExtendStay = isManager && isCheckedIn;
   const canAdHocEdit = isManager && !['CANCELLED', 'REJECTED'].includes(booking.status);
 
-  const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
-    canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
-    (canRaiseService && menuServiceItems.length > 0) || actionableSvcs.length > 0;
-
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
   const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
   // Services with actionable status changes (for manager action menu)
   const actionableSvcs = isManager ? services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus)) : [];
+
+  const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
+    canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
+    (canRaiseService && menuServiceItems.length > 0) || actionableSvcs.length > 0;
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
