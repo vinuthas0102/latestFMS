@@ -1084,6 +1084,32 @@ export const quartersService = {
     }
   },
 
+  async saveWorkflowForAllotment(_allotmentId: string, _workflowId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const { error } = await supabase
+      .from('quarter_allotments')
+      .update({ selected_workflow_id: _workflowId, updated_at: new Date().toISOString() })
+      .eq('id', _allotmentId);
+    if (error) throw error;
+  },
+
+  async initiateAllotmentApproval(_allotmentId: string, _workflowId: string, _eoId: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const now = new Date().toISOString();
+    const { data: wfl } = await supabase
+      .from('quarter_approval_workflows')
+      .select('*')
+      .eq('id', _workflowId)
+      .maybeSingle();
+    const maxLevel = wfl ? (wfl.levels as { level: number }[]).length : 1;
+    await supabase.from('quarter_allotments').update({ approval_status: 'PENDING', updated_at: now }).eq('id', _allotmentId);
+    const { error } = await supabase.from('quarter_allotment_approvals').insert({
+      allotment_id: _allotmentId, workflow_id: _workflowId, current_level: 1,
+      max_level: maxLevel, status: 'PENDING', initiated_by: _eoId,
+    });
+    if (error) throw error;
+  },
+
   async getApprovalWorkflows(): Promise<QuarterApprovalWorkflow[]> {
     if (DEMO_MODE) return Promise.resolve(DEMO_WORKFLOWS);
     const { data, error } = await supabase

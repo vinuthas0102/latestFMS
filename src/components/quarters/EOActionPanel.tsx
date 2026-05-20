@@ -72,6 +72,11 @@ export interface EOActionPanelProps {
   approvalSubmitting: boolean;
   handleApproveLevel: () => void;
   handleSendClarification: () => void;
+  handleSaveAllotmentWorkflow: (workflowId: string) => void;
+  savingAllotmentWorkflow: boolean;
+  handleInitiateAllotmentApproval: (workflowId: string) => void;
+  initiatingAllotmentApproval: boolean;
+  dpFilter: string;
 
   // Approval (request-level — for SUBMITTED records)
   requestApprovalRecord: QuarterRequestApproval | null;
@@ -202,6 +207,11 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   approvalSubmitting,
   handleApproveLevel,
   handleSendClarification,
+  handleSaveAllotmentWorkflow,
+  savingAllotmentWorkflow,
+  handleInitiateAllotmentApproval,
+  initiatingAllotmentApproval,
+  dpFilter,
   requestApprovalRecord,
   requestApprovalChats,
   requestApprovalAction,
@@ -302,10 +312,13 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
   const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
 
+  const isAllocatedStage = isAllotted && dpFilter === 'allocated_em' && isEO;
+  const isUnapprovedStage = isAllotted && dpFilter === 'unapproved' && isEO;
+
   type TabEntry = { key: EORightMode; label: string; icon: React.ReactNode; show: boolean };
   const tabs: TabEntry[] = ([
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: false },
-    { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && !!approvalRecord },
+    { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && isEO && (isAllocatedStage || isUnapprovedStage) },
     { key: 'request_approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isSubmitted && isEO },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'inspection_chat' as EORightMode, label: 'Insp. Chat', icon: <MessageSquare size={12} />, show: isAccepted && !isOccupied && isEO && !!selectedInspectionId },
@@ -431,10 +444,217 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
         {/* Detail tab */}
         {eoRightMode === 'detail' && <RequestSummaryBlock req={req} user={user} />}
 
-        {/* Approval tab — WFL selector */}
-        {eoRightMode === 'approval_chat' && (
+        {/* Approval tab — Allocated stage: choose WFL */}
+        {eoRightMode === 'approval_chat' && isAllocatedStage && (() => {
+          const savedWflId = allotment?.selected_workflow_id ?? '';
+          const effectiveWflId = wflSelectedId || savedWflId;
+          const isSaved = wflSubmitted || !!savedWflId;
+          return (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                  <GitMerge size={14} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Select Approval Workflow</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">Choose a workflow to route this allotment for approval</p>
+                </div>
+              </div>
+
+              {!isSaved ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Select Workflow (WFL)
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={wflSelectedId}
+                        onChange={e => setWflSelectedId(e.target.value)}
+                        className="w-full appearance-none px-3 py-2.5 pr-8 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white text-gray-700"
+                      >
+                        <option value="">-- Select a Workflow --</option>
+                        {requestApprovalWorkflows.map(wfl => (
+                          <option key={wfl.id} value={wfl.id}>
+                            {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {wflSelectedId && (() => {
+                    const wfl = requestApprovalWorkflows.find(w => w.id === wflSelectedId);
+                    if (!wfl) return null;
+                    return (
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
+                        {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
+                          <div key={lvl.level} className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center shrink-0">{lvl.level}</span>
+                            <span className="text-[11px] text-gray-700 font-medium">{lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    onClick={async () => {
+                      if (!wflSelectedId || !allotment) return;
+                      await handleSaveAllotmentWorkflow(wflSelectedId);
+                      setWflSubmitted(true);
+                    }}
+                    disabled={!wflSelectedId || savingAllotmentWorkflow}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {savingAllotmentWorkflow ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <PlayCircle size={13} />}
+                    Save Workflow
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(() => {
+                    const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
+                    const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
+                    return (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckSquare size={13} className="text-emerald-600 shrink-0" />
+                          <span className="text-xs font-bold text-emerald-800">Workflow Saved</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-700 ml-5">
+                          {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                  <button
+                    onClick={() => { setWflSelectedId(''); setWflSubmitted(false); }}
+                    className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
+                  >
+                    Change workflow
+                  </button>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <p className="text-[11px] text-blue-700 font-medium">Workflow saved. Go to the <span className="font-bold">Unapproved Allotment</span> stage to initiate approval.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Approval tab — Unapproved stage: initiate approval */}
+        {eoRightMode === 'approval_chat' && isUnapprovedStage && (() => {
+          const savedWflId = allotment?.selected_workflow_id ?? '';
+          const effectiveWflId = wflSelectedId || savedWflId;
+          const hasWorkflow = !!effectiveWflId;
+          return (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                  <GitMerge size={14} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Approval Workflow</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">Select a workflow to route this allotment for approval</p>
+                </div>
+              </div>
+
+              {!hasWorkflow || wflSelectedId ? (
+                /* WFL picker — shown when no saved workflow OR user wants to change */
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Select Workflow (WFL)
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={wflSelectedId || savedWflId}
+                        onChange={e => setWflSelectedId(e.target.value)}
+                        className="w-full appearance-none px-3 py-2.5 pr-8 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white text-gray-700"
+                      >
+                        <option value="">-- Select a Workflow --</option>
+                        {requestApprovalWorkflows.map(wfl => (
+                          <option key={wfl.id} value={wfl.id}>
+                            {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {effectiveWflId && (() => {
+                    const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
+                    if (!wfl) return null;
+                    return (
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
+                        {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
+                          <div key={lvl.level} className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center shrink-0">{lvl.level}</span>
+                            <span className="text-[11px] text-gray-700 font-medium">{lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    onClick={() => { if (effectiveWflId) setWflSubmitted(true); }}
+                    disabled={!effectiveWflId}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <PlayCircle size={13} /> Confirm Workflow
+                  </button>
+                </div>
+              ) : (
+                /* Confirmed state — show saved workflow + Initiate Approval */
+                <div className="space-y-3">
+                  {(() => {
+                    const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
+                    const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
+                    return (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckSquare size={13} className="text-emerald-600 shrink-0" />
+                          <span className="text-xs font-bold text-emerald-800">Workflow Selected</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-700 ml-5">
+                          {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    onClick={() => setWflSelectedId('')}
+                    className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
+                  >
+                    Change workflow
+                  </button>
+
+                  <button
+                    onClick={() => { if (effectiveWflId) handleInitiateAllotmentApproval(effectiveWflId); }}
+                    disabled={initiatingAllotmentApproval}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {initiatingAllotmentApproval
+                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <Zap size={14} />}
+                    Initiate Approval
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Approval tab — legacy fallback (non-EO allotted) */}
+        {eoRightMode === 'approval_chat' && !isAllocatedStage && !isUnapprovedStage && (
           <div className="p-4 space-y-4">
-            {/* Section heading */}
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
                 <GitMerge size={14} className="text-emerald-600" />
@@ -444,89 +664,6 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                 <p className="text-[10px] text-gray-400 leading-tight">Select a workflow to route this allotment for approval</p>
               </div>
             </div>
-
-            {!wflSubmitted ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Select Workflow (WFL)
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={wflSelectedId}
-                      onChange={e => setWflSelectedId(e.target.value)}
-                      className="w-full appearance-none px-3 py-2.5 pr-8 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white text-gray-700"
-                    >
-                      <option value="">-- Select a Workflow --</option>
-                      {requestApprovalWorkflows.map(wfl => (
-                        <option key={wfl.id} value={wfl.id}>
-                          {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Approval levels preview */}
-                {wflSelectedId && (() => {
-                  const wfl = requestApprovalWorkflows.find(w => w.id === wflSelectedId);
-                  if (!wfl) return null;
-                  return (
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
-                      {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
-                        <div key={lvl.level} className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center shrink-0">
-                            {lvl.level}
-                          </span>
-                          <span className="text-[11px] text-gray-700 font-medium">
-                            {lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                <button
-                  onClick={() => { if (wflSelectedId) setWflSubmitted(true); }}
-                  disabled={!wflSelectedId}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <PlayCircle size={13} /> Submit
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {(() => {
-                  const wfl = requestApprovalWorkflows.find(w => w.id === wflSelectedId);
-                  const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
-                  return (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CheckSquare size={13} className="text-emerald-600 shrink-0" />
-                        <span className="text-xs font-bold text-emerald-800">Workflow Selected</span>
-                      </div>
-                      <p className="text-[11px] text-emerald-700 ml-5">
-                        {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  );
-                })()}
-
-                <button
-                  onClick={() => setWflSubmitted(false)}
-                  className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-                >
-                  Change workflow
-                </button>
-
-                <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-200 transition-colors">
-                  <Zap size={14} /> Initiate Approval
-                </button>
-              </div>
-            )}
           </div>
         )}
 

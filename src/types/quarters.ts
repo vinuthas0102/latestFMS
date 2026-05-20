@@ -152,6 +152,7 @@ export interface QuarterAllotment {
   bill_preparing_authority: string | null;
   acknowledged_at: string | null;
   rejected_at: string | null;
+  selected_workflow_id: string | null;
   created_at: string;
   updated_at: string;
   quarter?: Quarter;

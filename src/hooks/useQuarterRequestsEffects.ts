@@ -36,6 +36,7 @@ interface EoRightModeCtx {
   selectedRequestId: string | undefined;
   selectedRequestStatus: string | undefined;
   selectedAllotmentApprovalStatus: string | undefined;
+  dpFilter: DPFilter;
   isEO: boolean;
   setEoRightMode: (v: EORightMode) => void;
   setApprovalAction: (v: 'approve' | 'clarify' | null) => void;
@@ -138,10 +139,12 @@ export function useQuarterRequestsEffects(
     const s = eoRight_.selectedRequestStatus;
     const isOcc = s ? isOccupiedStatus(s) : false;
     const hasPendingApproval = eoRight_.selectedAllotmentApprovalStatus === 'PENDING';
+    const isAllocatedEOStage = eoRight_.isEO && (eoRight_.dpFilter === 'allocated_em' || eoRight_.dpFilter === 'unapproved');
     const isSubOrAllot = s ? (s === 'SUBMITTED' || isAllottedStatus(s)) : false;
     const isSubmittedForEO = s === 'SUBMITTED' && eoRight_.isEO;
     eoRight_.setEoRightMode(
       isSubmittedForEO ? 'request_approval_chat'
+        : isAllocatedEOStage ? 'approval_chat'
         : isOcc || isSubOrAllot ? 'chat'
         : hasPendingApproval ? 'approval_chat'
         : 'detail'
@@ -154,7 +157,7 @@ export function useQuarterRequestsEffects(
     eoRight_.setEoTrId(null);
     eoRight_.setEoTrAction(null);
     eoRight_.setEoTrNotes('');
-  }, [eoRight_.selectedRequestId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [eoRight_.selectedRequestId, eoRight_.dpFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select top preference quarter for detail view
   useEffect(() => {

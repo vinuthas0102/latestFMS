@@ -108,6 +108,8 @@ export function useQuarterRequestsState() {
   const [requestApprovalSubmitting, setRequestApprovalSubmitting] = useState(false);
   const [requestApprovalWorkflows, setRequestApprovalWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
   const [initiatingRequestApproval, setInitiatingRequestApproval] = useState(false);
+  const [initiatingAllotmentApproval, setInitiatingAllotmentApproval] = useState(false);
+  const [savingAllotmentWorkflow, setSavingAllotmentWorkflow] = useState(false);
 
   // ── EO: Inspection panel ──────────────────────────────────────────────────
   const [inspections, setInspections] = useState<QuarterInspection[]>([]);
@@ -412,6 +414,8 @@ export function useQuarterRequestsState() {
     requestApprovalSubmitting, setRequestApprovalSubmitting,
     requestApprovalWorkflows, setRequestApprovalWorkflows,
     initiatingRequestApproval, setInitiatingRequestApproval,
+    initiatingAllotmentApproval, setInitiatingAllotmentApproval,
+    savingAllotmentWorkflow, setSavingAllotmentWorkflow,
     inspections, setInspections,
     inspectionChats, setInspectionChats,
     selectedInspectionId, setSelectedInspectionId,

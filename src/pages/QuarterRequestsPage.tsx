@@ -192,6 +192,8 @@ export const QuarterRequestsPage: React.FC = () => {
     requestApprovalSubmitting, setRequestApprovalSubmitting,
     requestApprovalWorkflows, setRequestApprovalWorkflows,
     initiatingRequestApproval, setInitiatingRequestApproval,
+    initiatingAllotmentApproval, setInitiatingAllotmentApproval,
+    savingAllotmentWorkflow, setSavingAllotmentWorkflow,
     inspections, setInspections, inspectionChats, setInspectionChats,
     selectedInspectionId, setSelectedInspectionId, inspectionPanel, setInspectionPanel,
     inspectionOpeningRemark, setInspectionOpeningRemark,
@@ -371,6 +373,7 @@ export const QuarterRequestsPage: React.FC = () => {
       selectedRequestId: selectedRequest?.id,
       selectedRequestStatus: selectedRequest?.request_status,
       selectedAllotmentApprovalStatus: selectedRequest?.allotment?.approval_status,
+      dpFilter,
       isEO,
       setEoRightMode, setApprovalAction, setApprovalRemarks,
       setInspectionPanel, setSelectedInspectionId,
@@ -1141,6 +1144,34 @@ export const QuarterRequestsPage: React.FC = () => {
         setEoRightMode('request_approval_chat');
       }
     } catch { addToast('Failed to start approval', 'error'); } finally { setInitiatingRequestApproval(false); }
+  };
+
+  // ─── EO: Save workflow to allotment (Allocated stage) ────────────────────
+  const handleSaveAllotmentWorkflow = async (workflowId: string) => {
+    if (!selectedRequest?.allotment?.id) return;
+    setSavingAllotmentWorkflow(true);
+    try {
+      await quartersService.saveWorkflowForAllotment(selectedRequest.allotment.id, workflowId);
+      addToast('Workflow saved', 'success');
+      await loadData();
+    } catch { addToast('Failed to save workflow', 'error'); } finally { setSavingAllotmentWorkflow(false); }
+  };
+
+  // ─── EO: Initiate allotment-level approval (Unapproved stage) ────────────
+  const handleInitiateAllotmentApproval = async (workflowId: string) => {
+    if (!user || !selectedRequest?.allotment?.id) return;
+    setInitiatingAllotmentApproval(true);
+    try {
+      await quartersService.initiateAllotmentApproval(selectedRequest.allotment.id, workflowId, user.id);
+      addToast('Approval workflow started', 'success');
+      const approval = await quartersService.getApprovalForAllotment(selectedRequest.allotment.id);
+      setApprovalRecord(approval);
+      if (approval) {
+        const chats = await quartersService.getApprovalChats(approval.id);
+        setApprovalChats(chats);
+      }
+      await loadData();
+    } catch { addToast('Failed to start approval', 'error'); } finally { setInitiatingAllotmentApproval(false); }
   };
 
   // ─── EO: Approve request-level approval level ─────────────────────────────
@@ -2526,6 +2557,11 @@ export const QuarterRequestsPage: React.FC = () => {
                   approvalSubmitting={approvalSubmitting}
                   handleApproveLevel={handleApproveLevel}
                   handleSendClarification={handleSendClarification}
+                  handleSaveAllotmentWorkflow={handleSaveAllotmentWorkflow}
+                  savingAllotmentWorkflow={savingAllotmentWorkflow}
+                  handleInitiateAllotmentApproval={handleInitiateAllotmentApproval}
+                  initiatingAllotmentApproval={initiatingAllotmentApproval}
+                  dpFilter={dpFilter}
                   requestApprovalRecord={requestApprovalRecord}
                   requestApprovalChats={requestApprovalChats}
                   requestApprovalAction={requestApprovalAction}
