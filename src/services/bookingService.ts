@@ -340,6 +340,65 @@ export const bookingService = {
     return mapBookingFromDb(data);
   },
 
+  saveDraftBooking: async (userId: string, bookingData: CreateBookingDTO): Promise<BookingDTO> => {
+    await validateRoomsExistForProperty(
+      bookingData.propertyId,
+      bookingData.roomTypeId,
+      bookingData.quantity
+    );
+
+    const otpResult = generateOTPService();
+
+    const totalAmount = await calculateBookingAmount(
+      bookingData.propertyId,
+      bookingData.roomTypeId,
+      bookingData.quantity,
+      bookingData.checkInDate,
+      bookingData.checkOutDate
+    );
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert([
+        {
+          user_id: userId,
+          property_id: bookingData.propertyId,
+          room_type_id: bookingData.roomTypeId,
+          quantity: bookingData.quantity,
+          check_in_date: bookingData.checkInDate,
+          check_out_date: bookingData.checkOutDate,
+          guest_details: bookingData.guestDetails,
+          special_requirements: bookingData.specialRequirements || '',
+          status: 'REQUESTED',
+          is_draft: true,
+          total_amount: totalAmount,
+          paid_amount: 0,
+          balance_amount: totalAmount,
+          payment_status: 'PENDING',
+          otp: otpResult.otp,
+          otp_expires_at: otpResult.otpExpiresAt,
+          is_guest_booking: false,
+        },
+      ])
+      .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
+      .single();
+
+    if (error) throw error;
+    return mapBookingFromDb(data);
+  },
+
+  submitDraft: async (bookingId: string): Promise<BookingDTO> => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ is_draft: false, updated_at: new Date().toISOString() })
+      .eq('id', bookingId)
+      .select('*, property:properties(*), roomType:room_types(*), user:users(*)')
+      .single();
+
+    if (error) throw error;
+    return mapBookingFromDb(data);
+  },
+
   cancelBooking: async (bookingId: string, _userId?: string): Promise<BookingDTO> => {
     if (DEMO_MODE) {
       const booking = DEMO_BOOKINGS.find(b => b.id === bookingId);
@@ -390,6 +449,7 @@ function mapBookingFromDb(dbBooking: any): BookingDTO {
     roomType: dbBooking.roomType,
     user: dbBooking.user,
     isGuestBooking: dbBooking.is_guest_booking || false,
+    isDraft: dbBooking.is_draft ?? false,
     paymentExpiresAt: dbBooking.payment_expires_at ?? undefined,
     paymentScenario: dbBooking.payment_scenario ?? undefined,
   };

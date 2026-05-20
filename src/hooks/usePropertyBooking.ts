@@ -26,6 +26,7 @@ export const usePropertyBooking = (propertyId: string | undefined, requiresLogin
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
   const [loading, setLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
 
   const createBooking = async (formData: BookingFormData) => {
     if (requiresLogin && !user) {
@@ -141,5 +142,57 @@ export const usePropertyBooking = (propertyId: string | undefined, requiresLogin
     }
   };
 
-  return { createBooking, loading };
+  const saveDraft = async (formData: BookingFormData) => {
+    if (!user) {
+      addToast('Please login to save a draft booking', 'error');
+      navigate(ROUTES.LOGIN);
+      return;
+    }
+
+    const validation = validateBookingForm({
+      checkIn: formData.checkIn,
+      checkOut: formData.checkOut,
+      roomTypeId: formData.roomTypeId,
+      guestName: formData.guestName,
+      guestEmail: formData.guestEmail,
+      guestPhone: formData.guestPhone,
+      adultCount: formData.adultCount,
+    });
+
+    if (!validation.valid) {
+      addToast(validation.error || 'Validation failed', 'error');
+      return;
+    }
+
+    setDraftLoading(true);
+    try {
+      const guestDetails: GuestDetails = {
+        fullName: formData.guestName,
+        email: formData.guestEmail,
+        phone: formData.guestPhone,
+        numberOfGuests: formData.adultCount + formData.childCount,
+        numberOfAdults: formData.adultCount,
+        numberOfChildren: formData.childCount,
+      };
+
+      await bookingService.saveDraftBooking(user.id, {
+        propertyId: propertyId!,
+        roomTypeId: formData.roomTypeId,
+        quantity: formData.quantity,
+        checkInDate: formData.checkIn,
+        checkOutDate: formData.checkOut,
+        guestDetails,
+        specialRequirements: formData.requirements,
+      });
+
+      addToast('Booking saved as draft', 'success');
+      navigate(ROUTES.BOOKINGS);
+    } catch (error: any) {
+      addToast(error.message || 'Failed to save draft', 'error');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  return { createBooking, loading, saveDraft, draftLoading };
 };

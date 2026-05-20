@@ -30,6 +30,7 @@ export interface BookingDTO {
   allocations?: BookingAllocationDTO[];
   occupants?: BookingOccupantDTO[];
   isGuestBooking?: boolean;
+  isDraft?: boolean;
   paymentExpiresAt?: string;
   paymentScenario?: PaymentScenario;
 }
@@ -43,6 +44,7 @@ export interface CreateBookingDTO {
   guestDetails: GuestDetails;
   specialRequirements?: string;
   auditoriumRequirements?: AuditoriumRequirements;
+  isDraft?: boolean;
 }
 
 export interface UpdateBookingDTO {

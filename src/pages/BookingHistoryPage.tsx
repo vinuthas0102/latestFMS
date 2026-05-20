@@ -241,7 +241,8 @@ const BookingListCard: React.FC<{
   isGovtOfficial?: boolean;
   isUnderMaintenance?: boolean;
   onUpdateServiceStatus?: (serviceId: string, bookingId: string, status: BookingServiceStatus) => void;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance, onUpdateServiceStatus }) => {
+  onSubmitDraft?: (booking: BookingDTO) => void;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance, onUpdateServiceStatus, onSubmitDraft }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -328,6 +329,7 @@ const BookingListCard: React.FC<{
   const canProcessCheckIn = isManager && isAllocated;
   const canExtendStay = isManager && isCheckedIn;
   const canAdHocEdit = isManager && !['CANCELLED', 'REJECTED'].includes(booking.status);
+  const isDraft = booking.isDraft === true && booking.status === 'REQUESTED';
 
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
@@ -336,7 +338,8 @@ const BookingListCard: React.FC<{
   const hasAnyAction = !isVacatedGovtOfficial && (
     canPay || canCheckout || canEarmark || canProcessCheckIn ||
     canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
-    (canRaiseService && menuServiceItems.length > 0)
+    (canRaiseService && menuServiceItems.length > 0) ||
+    (isDraft && !!onSubmitDraft)
   );
 
   const openMenu = useCallback((e: React.MouseEvent) => {
@@ -434,6 +437,11 @@ const BookingListCard: React.FC<{
                 {isUnderMaintenance && isManager && (
                   <span className="text-[10px] font-semibold px-2 py-0 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
                     <Wrench size={9} />Under Maintenance
+                  </span>
+                )}
+                {isDraft && (
+                  <span className="text-[10px] font-semibold px-2 py-0 rounded-full bg-slate-100 text-slate-600 border border-slate-300 flex items-center gap-0.5">
+                    <FileText size={8} />Draft
                   </span>
                 )}
                 <span className={`text-[10px] font-semibold px-2 py-0 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
@@ -550,6 +558,23 @@ const BookingListCard: React.FC<{
                         className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
                         onClick={e => e.stopPropagation()}
                       >
+                        {/* ── Submit Draft ── */}
+                        {isDraft && onSubmitDraft && (
+                          <>
+                            <div className="px-3 py-1.5 border-b border-gray-100">
+                              <span className="text-[9px] font-bold text-sky-500 uppercase tracking-widest">Draft</span>
+                            </div>
+                            <button
+                              onClick={e => { e.stopPropagation(); setMenuOpen(false); onSubmitDraft(booking); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors text-left"
+                            >
+                              <Send size={13} className="text-sky-500" />
+                              Submit Booking
+                            </button>
+                            <div className="border-t border-gray-100 my-1" />
+                          </>
+                        )}
+
                         {/* ── Booking Management ── */}
                         {(canEarmark || canProcessCheckIn || canExtendStay || canModify || canAdHocEdit) && (
                           <>
@@ -1472,6 +1497,17 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
+  const handleSubmitDraft = async (booking: BookingDTO) => {
+    try {
+      const updated = await bookingService.submitDraft(booking.id);
+      setBookings(prev => prev.map(b => b.id === booking.id ? updated : b));
+      addToast('Booking submitted successfully', 'success');
+      setDpFilter('submitted');
+    } catch {
+      addToast('Failed to submit booking', 'error');
+    }
+  };
+
   const handlePayNow = (booking: BookingDTO) => {
     navigate(`/payment?bookingId=${booking.id}&amount=${booking.balanceAmount}&returnUrl=/bookings`);
   };
@@ -1714,8 +1750,8 @@ export const BookingHistoryPage: React.FC = () => {
     cancelled: bookings.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status)).length,
     rejected: bookings.filter(b => b.status === 'REJECTED').length,
     provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
-    draft: bookings.filter(b => b.status === 'REQUESTED').length,
-    submitted: bookings.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
+    draft: bookings.filter(b => b.status === 'REQUESTED' && b.isDraft === true).length,
+    submitted: bookings.filter(b => (b.status === 'REQUESTED' && !b.isDraft) || b.status === 'PROVISIONED' || b.status === 'AWAITING_PAYMENT').length,
     allotted: bookings.filter(b => b.status === 'ALLOCATED').length,
     occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
     vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
@@ -1893,8 +1929,8 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'checkedIn') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
     else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
-    else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED');
-    else if (dpFilter === 'submitted') result = result.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
+    else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED' && b.isDraft === true);
+    else if (dpFilter === 'submitted') result = result.filter(b => (b.status === 'REQUESTED' && !b.isDraft) || b.status === 'PROVISIONED' || b.status === 'AWAITING_PAYMENT');
     else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
     else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
@@ -3417,6 +3453,7 @@ export const BookingHistoryPage: React.FC = () => {
                           isGovtOfficial={isGovtOfficial}
                           isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
                           onUpdateServiceStatus={handleUpdateServiceStatus}
+                          onSubmitDraft={isGovtOfficial ? handleSubmitDraft : undefined}
                         />
                       ))}
                     </div>

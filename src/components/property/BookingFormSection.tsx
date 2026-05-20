@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users } from 'lucide-react';
+import { Calendar, Users, FileText } from 'lucide-react';
 import { Card, CardBody } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -44,22 +44,23 @@ export const BookingFormSection: React.FC<BookingFormSectionProps> = ({
   const [childCount, setChildCount] = useState(0);
   const [requirements, setRequirements] = useState('');
 
-  const { createBooking, loading } = usePropertyBooking(propertyId, requiresLogin);
+  const { createBooking, loading, saveDraft, draftLoading } = usePropertyBooking(propertyId, requiresLogin);
 
-  const handleSubmit = () => {
-    createBooking({
-      checkIn,
-      checkOut,
-      roomTypeId,
-      quantity,
-      guestName,
-      guestEmail,
-      guestPhone,
-      adultCount,
-      childCount,
-      requirements,
-    });
+  const formData = {
+    checkIn,
+    checkOut,
+    roomTypeId,
+    quantity,
+    guestName,
+    guestEmail,
+    guestPhone,
+    adultCount,
+    childCount,
+    requirements,
   };
+
+  const handleSubmit = () => createBooking(formData);
+  const handleSaveDraft = () => saveDraft(formData);
 
   return (
     <div>
@@ -203,12 +204,26 @@ export const BookingFormSection: React.FC<BookingFormSectionProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex items-center justify-end gap-3 pt-4">
+              {isGovtFacilities && isLoggedIn && (
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={draftLoading || loading}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {draftLoading ? (
+                    <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <FileText size={15} />
+                  )}
+                  Save as Draft
+                </button>
+              )}
               <Button
                 onClick={handleSubmit}
                 size="lg"
                 loading={loading}
-                className="min-w-64"
+                className="min-w-52"
               >
                 Proceed to Payment
               </Button>
