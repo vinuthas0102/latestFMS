@@ -279,7 +279,8 @@ const BookingListCard: React.FC<{
   const isRequested = booking.status === 'REQUESTED';
   const isAllocated = booking.status === 'ALLOCATED';
   const canCheckout = isCheckedIn && (isManager || isGovtOfficial);
-  const canRaiseService = !['CANCELLED', 'REJECTED'].includes(booking.status);
+  const isVacatedGovtOfficial = isGovtOfficial && isVacated;
+  const canRaiseService = !isGovtOfficial && !['CANCELLED', 'REJECTED'].includes(booking.status);
   const vacatedServiceItems = ACTION_MENU_ITEMS.filter(i => i.type === 'MAINTENANCE');
   const menuServiceItems = isVacated ? vacatedServiceItems : ACTION_MENU_ITEMS;
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
@@ -294,9 +295,11 @@ const BookingListCard: React.FC<{
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
   const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
 
-  const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
+  const hasAnyAction = !isVacatedGovtOfficial && (
+    canPay || canCheckout || canEarmark || canProcessCheckIn ||
     canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
-    (canRaiseService && menuServiceItems.length > 0);
+    (canRaiseService && menuServiceItems.length > 0)
+  );
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -454,7 +457,7 @@ const BookingListCard: React.FC<{
             {/* Footer */}
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 min-h-0">
               <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-                {services.length > 0 && (
+                {services.length > 0 && (!isGovtOfficial || isCheckedIn) && (
                   <>
                     <button
                       onClick={e => { e.stopPropagation(); setSvcExpanded(v => !v); }}
