@@ -9,7 +9,8 @@ import {
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
   Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
-  Pencil,
+  Pencil, ShieldCheck, UserPlus, Users, CalendarCheck, ArrowRightLeft,
+  BadgeCheck, DoorOpen, Banknote,
 } from 'lucide-react';
 import { BookingServiceType, BookingServiceRequestDTO } from '../types';
 import { bookingService } from '../services/bookingService';
@@ -193,6 +194,17 @@ const SVC_CHIP_CLS: Record<string, string> = {
   GENERAL:              'bg-slate-50 text-slate-600 border-slate-200',
 };
 
+type ModifyMode = 'full' | 'extend' | 'room' | 'guest' | 'price' | 'adhoc';
+
+const MODIFY_MODE_LABELS: Record<ModifyMode, string> = {
+  full:   'Modify Booking',
+  extend: 'Extend Stay',
+  room:   'Change Room',
+  guest:  'Change Guest Info',
+  price:  'Change Pricing',
+  adhoc:  'Ad-hoc Edit',
+};
+
 const SVC_TYPE_ICON: Record<string, React.FC<{ size?: number; className?: string }>> = {
   GRIEVANCE:            AlertTriangle,
   MAINTENANCE:          Wrench,
@@ -218,11 +230,13 @@ const BookingListCard: React.FC<{
   onPayNow: (booking: BookingDTO) => void;
   onRecordManualPayment: (booking: BookingDTO) => void;
   onCheckout: (booking: BookingDTO) => void;
-  onModify: (booking: BookingDTO) => void;
+  onModify: (booking: BookingDTO, mode?: ModifyMode) => void;
+  onEarmark: (booking: BookingDTO) => void;
+  onProcessCheckIn: (booking: BookingDTO) => void;
   isManager?: boolean;
   isGovtOfficial?: boolean;
   isUnderMaintenance?: boolean;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, isManager, isGovtOfficial, isUnderMaintenance }) => {
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -236,6 +250,8 @@ const BookingListCard: React.FC<{
   const accentColor = BOOKING_STATUS_ACCENT[booking.status] ?? 'bg-gray-300';
   const isCheckedIn = booking.status === 'CHECKED_IN';
   const isVacated = booking.status === 'CHECKED_OUT';
+  const isRequested = booking.status === 'REQUESTED';
+  const isAllocated = booking.status === 'ALLOCATED';
   const canCheckout = isCheckedIn && (isManager || isGovtOfficial);
   const canRaiseService = !['CANCELLED', 'REJECTED'].includes(booking.status);
   const vacatedServiceItems = ACTION_MENU_ITEMS.filter(i => i.type === 'MAINTENANCE');
@@ -243,6 +259,10 @@ const BookingListCard: React.FC<{
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
+  const canEarmark = isManager && isRequested;
+  const canProcessCheckIn = isManager && isAllocated;
+  const canExtendStay = isManager && isCheckedIn;
+  const canAdHocEdit = isManager && !['CANCELLED', 'REJECTED'].includes(booking.status);
 
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
@@ -414,11 +434,66 @@ const BookingListCard: React.FC<{
                     {menuOpen && menuCoords && createPortal(
                       <div
                         ref={dropdownRef}
-                        style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, width: 210, zIndex: 9999 }}
+                        style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, width: 224, zIndex: 9999 }}
                         className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
                         onClick={e => e.stopPropagation()}
                       >
-                        {/* Payment actions — shown when balance is due */}
+                        {/* ── Booking Management ── */}
+                        {(canEarmark || canProcessCheckIn || canExtendStay || canModify || canAdHocEdit) && (
+                          <>
+                            <div className="px-3 py-1.5 border-b border-gray-100">
+                              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">Booking Management</span>
+                            </div>
+                            {canEarmark && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onEarmark(booking); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors text-left"
+                              >
+                                <ShieldCheck size={13} className="text-sky-500" />
+                                Earmark / Provision Room
+                              </button>
+                            )}
+                            {canProcessCheckIn && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onProcessCheckIn(booking); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors text-left"
+                              >
+                                <DoorOpen size={13} className="text-emerald-500" />
+                                Process Check-in
+                              </button>
+                            )}
+                            {canExtendStay && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking, 'extend'); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors text-left"
+                              >
+                                <CalendarCheck size={13} className="text-teal-500" />
+                                Extend Stay
+                              </button>
+                            )}
+                            {canModify && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking, 'full'); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors text-left"
+                              >
+                                <Pencil size={13} className="text-blue-500" />
+                                Modify Booking
+                              </button>
+                            )}
+                            {canAdHocEdit && !canModify && isCheckedIn && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking, 'adhoc'); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-violet-700 hover:bg-violet-50 transition-colors text-left"
+                              >
+                                <ArrowRightLeft size={13} className="text-violet-500" />
+                                Ad-hoc Edit
+                              </button>
+                            )}
+                            <div className="border-t border-gray-100 my-1" />
+                          </>
+                        )}
+
+                        {/* ── Payment ── */}
                         {canPay && (
                           <>
                             <div className="px-3 py-1.5 border-b border-gray-100">
@@ -440,10 +515,11 @@ const BookingListCard: React.FC<{
                                 Record Manual Payment
                               </button>
                             )}
-                            <div className="border-t border-gray-100 mt-1 mb-1" />
+                            <div className="border-t border-gray-100 my-1" />
                           </>
                         )}
-                        {/* Checkout action — only for CHECKED_IN, manager or govt official */}
+
+                        {/* ── Checkout ── */}
                         {canCheckout && (
                           <>
                             <div className="px-3 py-1.5 border-b border-gray-100">
@@ -456,23 +532,16 @@ const BookingListCard: React.FC<{
                               <LogOut size={13} className="text-emerald-600" />
                               Complete Checkout
                             </button>
-                            <div className="border-t border-gray-100 mt-1 mb-1" />
+                            <div className="border-t border-gray-100 my-1" />
                           </>
                         )}
+
+                        {/* ── Raise Service ── */}
                         <div className="px-3 py-1.5 border-b border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                             {isVacated ? 'Services' : 'Raise Service'}
                           </span>
                         </div>
-                        {canModify && (
-                          <button
-                            onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors text-left"
-                          >
-                            <Pencil size={13} className="text-blue-500" />
-                            Modify Booking
-                          </button>
-                        )}
                         {menuServiceItems.map(({ type, label, Icon, color }) => (
                           <button
                             key={type}
@@ -599,7 +668,9 @@ const AvailablePropertyCard: React.FC<{
   index: number;
   onView: () => void;
   onBook: () => void;
-}> = ({ property, index, onView, onBook }) => {
+  onBookForEmployee?: () => void;
+  isManager?: boolean;
+}> = ({ property, index, onView, onBook, onBookForEmployee, isManager }) => {
   const [primaryImgError, setPrimaryImgError] = useState(false);
   const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
 
@@ -763,6 +834,15 @@ const AvailablePropertyCard: React.FC<{
             <Plus size={14} />
             Book Now
           </button>
+          {isManager && onBookForEmployee && (
+            <button
+              onClick={e => { e.stopPropagation(); onBookForEmployee(); }}
+              className="w-full flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-teal-200"
+            >
+              <UserPlus size={13} />
+              Book for Emp / TP
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); onView(); }}
             className="w-full flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
@@ -834,11 +914,53 @@ export const BookingHistoryPage: React.FC = () => {
 
   // Modify booking modal
   const [modifyBooking, setModifyBooking] = useState<BookingDTO | null>(null);
+  const [modifyMode, setModifyMode] = useState<ModifyMode>('full');
   const [modifyCheckIn, setModifyCheckIn] = useState('');
   const [modifyCheckOut, setModifyCheckOut] = useState('');
   const [modifyQuantity, setModifyQuantity] = useState('1');
+  const [modifyRoomNumber, setModifyRoomNumber] = useState('');
+  const [modifyGuestName, setModifyGuestName] = useState('');
+  const [modifyGuestPhone, setModifyGuestPhone] = useState('');
+  const [modifyTotalAmount, setModifyTotalAmount] = useState('');
+  const [modifyReason, setModifyReason] = useState('');
   const [modifyNotes, setModifyNotes] = useState('');
   const [modifyLoading, setModifyLoading] = useState(false);
+
+  // Earmark / Provision modal
+  const [earmarkBooking, setEarmarkBooking] = useState<BookingDTO | null>(null);
+  const [earmarkRoomNumber, setEarmarkRoomNumber] = useState('');
+  const [earmarkNote, setEarmarkNote] = useState('');
+  const [earmarkLoading, setEarmarkLoading] = useState(false);
+
+  // Process Check-in modal
+  const [checkInBooking, setCheckInBooking] = useState<BookingDTO | null>(null);
+  const [checkInGuestCount, setCheckInGuestCount] = useState('1');
+  const [checkInIdType, setCheckInIdType] = useState('Aadhaar');
+  const [checkInIdNumber, setCheckInIdNumber] = useState('');
+  const [checkInAddress, setCheckInAddress] = useState('');
+  const [checkInRoomNumber, setCheckInRoomNumber] = useState('');
+  const [checkInActualDate, setCheckInActualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [checkInExpectedOut, setCheckInExpectedOut] = useState('');
+  const [checkInSecurityDeposit, setCheckInSecurityDeposit] = useState('');
+  const [checkInDepositMode, setCheckInDepositMode] = useState<ManualPaymentMode>('CASH');
+  const [checkInRemarks, setCheckInRemarks] = useState('');
+  const [checkInLoading, setCheckInLoading] = useState(false);
+
+  // Book for Employee / TP modal
+  const [bookForEmpProperty, setBookForEmpProperty] = useState<PropertyDTO | null>(null);
+  const [empGuestName, setEmpGuestName] = useState('');
+  const [empGuestEmail, setEmpGuestEmail] = useState('');
+  const [empGuestPhone, setEmpGuestPhone] = useState('');
+  const [empDesignation, setEmpDesignation] = useState('');
+  const [empDepartment, setEmpDepartment] = useState('');
+  const [empIsTP, setEmpIsTP] = useState(false);
+  const [empCheckIn, setEmpCheckIn] = useState('');
+  const [empCheckOut, setEmpCheckOut] = useState('');
+  const [empRoomTypeId, setEmpRoomTypeId] = useState('');
+  const [empQuantity, setEmpQuantity] = useState('1');
+  const [empPaymentMode, setEmpPaymentMode] = useState<'PAID' | 'COMPLIMENTARY' | 'ACCOUNT_TRANSFER'>('PAID');
+  const [empRemarks, setEmpRemarks] = useState('');
+  const [empLoading, setEmpLoading] = useState(false);
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1004,27 +1126,36 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
-  const openModifyModal = (booking: BookingDTO) => {
+  const openModifyModal = (booking: BookingDTO, mode: ModifyMode = 'full') => {
     setModifyBooking(booking);
+    setModifyMode(mode);
     setModifyCheckIn(booking.checkInDate?.split('T')[0] ?? '');
     setModifyCheckOut(booking.checkOutDate?.split('T')[0] ?? '');
     setModifyQuantity(String(booking.quantity ?? 1));
+    setModifyRoomNumber('');
+    setModifyGuestName(booking.guestDetails?.fullName ?? '');
+    setModifyGuestPhone(booking.guestDetails?.phone ?? '');
+    setModifyTotalAmount(String(booking.totalAmount ?? ''));
+    setModifyReason('');
     setModifyNotes(booking.notes ?? '');
   };
 
   const handleSubmitModify = async () => {
     if (!modifyBooking) return;
-    if (!modifyCheckIn || !modifyCheckOut) { addToast('Check-in and check-out dates are required', 'warning'); return; }
-    if (new Date(modifyCheckOut) <= new Date(modifyCheckIn)) { addToast('Check-out must be after check-in', 'warning'); return; }
+    if (['full', 'extend', 'adhoc'].includes(modifyMode)) {
+      if (!modifyCheckIn || !modifyCheckOut) { addToast('Check-in and check-out dates are required', 'warning'); return; }
+      if (new Date(modifyCheckOut) <= new Date(modifyCheckIn)) { addToast('Check-out must be after check-in', 'warning'); return; }
+    }
     const qty = parseInt(modifyQuantity, 10);
     if (!qty || qty < 1) { addToast('Quantity must be at least 1', 'warning'); return; }
     setModifyLoading(true);
     try {
+      const noteWithReason = [modifyReason.trim(), modifyNotes.trim()].filter(Boolean).join(' | ');
       await bookingService.updateBooking(modifyBooking.id, {
-        checkInDate: modifyCheckIn,
-        checkOutDate: modifyCheckOut,
+        checkInDate: modifyCheckIn || undefined,
+        checkOutDate: modifyCheckOut || undefined,
         quantity: qty,
-        notes: modifyNotes.trim(),
+        notes: noteWithReason || modifyBooking.notes,
       });
       addToast('Booking updated successfully', 'success');
       setModifyBooking(null);
@@ -1033,6 +1164,128 @@ export const BookingHistoryPage: React.FC = () => {
       addToast('Failed to update booking', 'error');
     } finally {
       setModifyLoading(false);
+    }
+  };
+
+  const openEarmarkModal = (booking: BookingDTO) => {
+    setEarmarkBooking(booking);
+    setEarmarkRoomNumber('');
+    setEarmarkNote('');
+  };
+
+  const handleSubmitEarmark = async () => {
+    if (!earmarkBooking) return;
+    setEarmarkLoading(true);
+    try {
+      const note = [
+        earmarkRoomNumber ? `Room: ${earmarkRoomNumber}` : '',
+        earmarkNote.trim(),
+        'Earmarked by Estate Manager',
+      ].filter(Boolean).join('. ');
+      await bookingService.updateBookingStatus(earmarkBooking.id, 'PROVISIONED', note);
+      addToast('Room earmarked — booking is now Provisional', 'success');
+      setEarmarkBooking(null);
+      loadBookings();
+    } catch {
+      addToast('Failed to earmark room', 'error');
+    } finally {
+      setEarmarkLoading(false);
+    }
+  };
+
+  const openProcessCheckInModal = (booking: BookingDTO) => {
+    setCheckInBooking(booking);
+    setCheckInGuestCount('1');
+    setCheckInIdType('Aadhaar');
+    setCheckInIdNumber('');
+    setCheckInAddress('');
+    setCheckInRoomNumber('');
+    setCheckInActualDate(new Date().toISOString().split('T')[0]);
+    setCheckInExpectedOut(booking.checkOutDate?.split('T')[0] ?? '');
+    setCheckInSecurityDeposit('');
+    setCheckInDepositMode('CASH');
+    setCheckInRemarks('');
+  };
+
+  const handleSubmitCheckIn = async () => {
+    if (!checkInBooking) return;
+    if (!checkInIdNumber.trim()) { addToast('ID proof number is required', 'warning'); return; }
+    setCheckInLoading(true);
+    try {
+      const note = [
+        checkInRoomNumber ? `Room: ${checkInRoomNumber}` : '',
+        `Guests: ${checkInGuestCount}`,
+        `ID: ${checkInIdType} ${checkInIdNumber}`,
+        checkInAddress ? `Address: ${checkInAddress}` : '',
+        checkInSecurityDeposit ? `Security deposit: ₹${checkInSecurityDeposit} (${checkInDepositMode})` : '',
+        checkInRemarks,
+      ].filter(Boolean).join('. ');
+      await bookingService.updateBookingStatus(checkInBooking.id, 'CHECKED_IN', note);
+      if (checkInExpectedOut && checkInExpectedOut !== checkInBooking.checkOutDate?.split('T')[0]) {
+        await bookingService.updateBooking(checkInBooking.id, { checkOutDate: checkInExpectedOut });
+      }
+      addToast('Check-in processed successfully', 'success');
+      setCheckInBooking(null);
+      loadBookings();
+    } catch {
+      addToast('Failed to process check-in', 'error');
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const openBookForEmpModal = (property: PropertyDTO) => {
+    setBookForEmpProperty(property);
+    setEmpGuestName('');
+    setEmpGuestEmail('');
+    setEmpGuestPhone('');
+    setEmpDesignation('');
+    setEmpDepartment('');
+    setEmpIsTP(false);
+    setEmpCheckIn('');
+    setEmpCheckOut('');
+    setEmpRoomTypeId('');
+    setEmpQuantity('1');
+    setEmpPaymentMode('PAID');
+    setEmpRemarks('');
+  };
+
+  const handleSubmitBookForEmp = async () => {
+    if (!bookForEmpProperty) return;
+    if (!empGuestName.trim()) { addToast('Guest name is required', 'warning'); return; }
+    if (!empCheckIn || !empCheckOut) { addToast('Check-in and check-out dates are required', 'warning'); return; }
+    if (!empRoomTypeId) { addToast('Please select a room type', 'warning'); return; }
+    setEmpLoading(true);
+    try {
+      const qty = parseInt(empQuantity, 10) || 1;
+      const newBooking = await bookingService.createBooking(user!.id, {
+        propertyId: bookForEmpProperty.id,
+        roomTypeId: empRoomTypeId,
+        quantity: qty,
+        checkInDate: empCheckIn,
+        checkOutDate: empCheckOut,
+        guestDetails: {
+          fullName: empGuestName.trim(),
+          email: empGuestEmail.trim(),
+          phone: empGuestPhone.trim(),
+          designation: empDesignation.trim(),
+          department: empDepartment.trim(),
+        },
+        specialRequirements: [
+          empIsTP ? 'THIRD_PARTY_GUEST' : 'EMPLOYEE_BOOKING',
+          `Payment: ${empPaymentMode}`,
+          empRemarks.trim(),
+        ].filter(Boolean).join('. '),
+      });
+      // Advance to PROVISIONED immediately (manager bypass)
+      await bookingService.updateBookingStatus(newBooking.id, 'PROVISIONED', 'Manager-initiated booking. Room provisionally held.');
+      addToast('Booking created and provisioned successfully', 'success');
+      setBookForEmpProperty(null);
+      loadBookings();
+    } catch {
+      addToast('Failed to create booking', 'error');
+    } finally {
+      setEmpLoading(false);
     }
   };
 
@@ -1830,103 +2083,612 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Modify Booking Modal ── */}
-      {modifyBooking && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setModifyBooking(null)}>
+      {/* ── Earmark / Provision Modal ── */}
+      {earmarkBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setEarmarkBooking(null)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
-                    <Pencil size={13} className="text-white" />
+                  <div className="w-6 h-6 rounded-lg bg-sky-600 flex items-center justify-center">
+                    <ShieldCheck size={13} className="text-white" />
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900">Modify Booking</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Earmark / Provision Room</h3>
                 </div>
-                <p className="text-xs text-gray-400 font-mono ml-8">#{modifyBooking.bookingNumber}</p>
+                <p className="text-xs text-gray-400 font-mono ml-8">#{earmarkBooking.bookingNumber}</p>
               </div>
-              <button onClick={() => setModifyBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-                <X size={16} />
+              <button onClick={() => setEarmarkBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
+            </div>
+            <div className="mx-5 mt-4 p-3 bg-sky-50 border border-sky-200 rounded-xl">
+              <p className="text-xs font-semibold text-sky-700 mb-1">{earmarkBooking.property?.name ?? '—'}</p>
+              <p className="text-[11px] text-sky-600">
+                {earmarkBooking.guestDetails?.fullName ?? '—'} · {formatDate(earmarkBooking.checkInDate)} → {formatDate(earmarkBooking.checkOutDate)}
+              </p>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Number (optional)</label>
+                <input
+                  type="text"
+                  value={earmarkRoomNumber}
+                  onChange={e => setEarmarkRoomNumber(e.target.value)}
+                  placeholder="e.g. 204, Block A-101"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-300 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Remarks (optional)</label>
+                <textarea
+                  rows={2}
+                  value={earmarkNote}
+                  onChange={e => setEarmarkNote(e.target.value)}
+                  placeholder="e.g. Room reserved pending clearance, adjacent room arranged…"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-300 bg-white"
+                />
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-[11px] text-amber-700 font-medium">This will change the booking status to <strong>Provisional</strong>. The guest will be notified to proceed with payment.</p>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button onClick={() => setEarmarkBooking(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+              <button
+                onClick={handleSubmitEarmark}
+                disabled={earmarkLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {earmarkLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                Confirm Earmark
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Property summary */}
-            <div className="mx-5 mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Property</span>
-                <span className="font-semibold text-gray-800 text-right max-w-[200px] truncate">{modifyBooking.property?.name ?? '—'}</span>
-              </div>
-              {modifyBooking.roomType?.name && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Room Type</span>
-                  <span className="font-semibold text-gray-800">{modifyBooking.roomType.name}</span>
+      {/* ── Process Check-in Modal ── */}
+      {checkInBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setCheckInBooking(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center">
+                    <DoorOpen size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Process Check-in</h3>
                 </div>
-              )}
+                <p className="text-xs text-gray-400 font-mono ml-8">#{checkInBooking.bookingNumber}</p>
+              </div>
+              <button onClick={() => setCheckInBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
             </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              {/* Guest summary */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <p className="text-xs font-semibold text-emerald-700">{checkInBooking.guestDetails?.fullName ?? '—'}</p>
+                <p className="text-[11px] text-emerald-600">{checkInBooking.property?.name ?? '—'} · {formatDate(checkInBooking.checkInDate)} → {formatDate(checkInBooking.checkOutDate)}</p>
+              </div>
 
-            <div className="px-5 py-4 space-y-4">
+              {/* Row 1: Room + Guest Count */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Number *</label>
+                  <input
+                    type="text"
+                    value={checkInRoomNumber}
+                    onChange={e => setCheckInRoomNumber(e.target.value)}
+                    placeholder="e.g. 102, Block B-204"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Actual No. of Guests</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={checkInGuestCount}
+                    onChange={e => setCheckInGuestCount(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* ID Proof */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">ID Proof Type</label>
+                  <select
+                    value={checkInIdType}
+                    onChange={e => setCheckInIdType(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  >
+                    {['Aadhaar', 'Passport', 'Voter ID', 'Driving License', 'PAN Card', 'Employee ID'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">ID Number *</label>
+                  <input
+                    type="text"
+                    value={checkInIdNumber}
+                    onChange={e => setCheckInIdNumber(e.target.value)}
+                    placeholder="xxxx xxxx xxxx"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Permanent Address</label>
+                <textarea
+                  rows={2}
+                  value={checkInAddress}
+                  onChange={e => setCheckInAddress(e.target.value)}
+                  placeholder="Home / official address…"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                />
+              </div>
+
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-in Date</label>
+                  <input
+                    type="date"
+                    value={checkInActualDate}
+                    onChange={e => setCheckInActualDate(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Expected Check-out</label>
+                  <input
+                    type="date"
+                    value={checkInExpectedOut}
+                    onChange={e => setCheckInExpectedOut(e.target.value)}
+                    min={checkInActualDate || undefined}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Security Deposit */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Security Deposit (₹)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={checkInSecurityDeposit}
+                    onChange={e => setCheckInSecurityDeposit(e.target.value)}
+                    placeholder="0"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Deposit Mode</label>
+                  <select
+                    value={checkInDepositMode}
+                    onChange={e => setCheckInDepositMode(e.target.value as ManualPaymentMode)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                  >
+                    {(['CASH', 'DD', 'CHEQUE', 'NEFT', 'RTGS', 'UPI'] as ManualPaymentMode[]).map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Internal Remarks</label>
+                <textarea
+                  rows={2}
+                  value={checkInRemarks}
+                  onChange={e => setCheckInRemarks(e.target.value)}
+                  placeholder="Optional remarks for records…"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-300 bg-white"
+                />
+              </div>
+            </div>
+            <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 shrink-0">
+              <button onClick={() => setCheckInBooking(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+              <button
+                onClick={handleSubmitCheckIn}
+                disabled={checkInLoading || !checkInIdNumber.trim()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {checkInLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                Confirm Check-in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Book for Employee / TP Modal ── */}
+      {bookForEmpProperty && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setBookForEmpProperty(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-teal-600 flex items-center justify-center">
+                    <UserPlus size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Book for Employee / TP</h3>
+                </div>
+                <p className="text-xs text-gray-500 ml-8">{bookForEmpProperty.name}</p>
+              </div>
+              <button onClick={() => setBookForEmpProperty(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+              {/* Guest type toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEmpIsTP(false)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all ${!empIsTP ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                >
+                  <Users size={13} />Employee
+                </button>
+                <button
+                  onClick={() => setEmpIsTP(true)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all ${empIsTP ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                >
+                  <Building2 size={13} />Third Party (TP)
+                </button>
+              </div>
+
+              {/* Guest details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Full Name *</label>
+                  <input
+                    type="text"
+                    value={empGuestName}
+                    onChange={e => setEmpGuestName(e.target.value)}
+                    placeholder="Guest full name"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Mobile</label>
+                  <input
+                    type="tel"
+                    value={empGuestPhone}
+                    onChange={e => setEmpGuestPhone(e.target.value)}
+                    placeholder="10-digit mobile"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    value={empGuestEmail}
+                    onChange={e => setEmpGuestEmail(e.target.value)}
+                    placeholder="email@domain.gov.in"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Designation</label>
+                  <input
+                    type="text"
+                    value={empDesignation}
+                    onChange={e => setEmpDesignation(e.target.value)}
+                    placeholder={empIsTP ? 'Representative title' : 'e.g. Deputy Secretary'}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{empIsTP ? 'Organisation' : 'Department'}</label>
+                  <input
+                    type="text"
+                    value={empDepartment}
+                    onChange={e => setEmpDepartment(e.target.value)}
+                    placeholder={empIsTP ? 'Organisation name' : 'e.g. Ministry of Finance'}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Dates + Rooms */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-in *</label>
                   <input
                     type="date"
-                    value={modifyCheckIn}
-                    onChange={e => setModifyCheckIn(e.target.value)}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                    value={empCheckIn}
+                    onChange={e => setEmpCheckIn(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-out *</label>
                   <input
                     type="date"
-                    value={modifyCheckOut}
-                    onChange={e => setModifyCheckOut(e.target.value)}
-                    min={modifyCheckIn || undefined}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                    value={empCheckOut}
+                    onChange={e => setEmpCheckOut(e.target.value)}
+                    min={empCheckIn || undefined}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Rooms</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={empQuantity}
+                    onChange={e => setEmpQuantity(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
                   />
                 </div>
               </div>
 
-              {/* Quantity */}
+              {/* Room Type */}
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Rooms / Quantity</label>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Type *</label>
+                <select
+                  value={empRoomTypeId}
+                  onChange={e => setEmpRoomTypeId(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                >
+                  <option value="">Select room type…</option>
+                  {(bookForEmpProperty.roomTypes ?? []).map((rt: any) => (
+                    <option key={rt.id} value={rt.id}>{rt.name}</option>
+                  ))}
+                  {/* Fallback options if roomTypes not loaded on card */}
+                  {(bookForEmpProperty.roomTypes ?? []).length === 0 && (
+                    <>
+                      <option value="7fc1c91a-4beb-4760-b149-3001a2310764">Standard</option>
+                      <option value="deccd249-2c5a-41be-9c9a-139794277acb">Deluxe</option>
+                      <option value="5fcb45e8-2857-419d-a7f6-d4a4741d30d1">Suite</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Payment mode */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setEmpPaymentMode(mode)}
+                      className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold transition-all ${
+                        empPaymentMode === mode
+                          ? 'bg-teal-50 border-teal-300 text-teal-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : 'Account Transfer'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Remarks</label>
+                <textarea
+                  rows={2}
+                  value={empRemarks}
+                  onChange={e => setEmpRemarks(e.target.value)}
+                  placeholder="Optional remarks or special instructions…"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                />
+              </div>
+            </div>
+            <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 shrink-0">
+              <button onClick={() => setBookForEmpProperty(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+              <button
+                onClick={handleSubmitBookForEmp}
+                disabled={empLoading || !empGuestName.trim() || !empCheckIn || !empCheckOut || !empRoomTypeId}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+              >
+                {empLoading ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                Create Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Enhanced Modify Booking Modal ── */}
+      {modifyBooking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setModifyBooking(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <Pencil size={13} className="text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">{MODIFY_MODE_LABELS[modifyMode]}</h3>
+                </div>
+                <p className="text-xs text-gray-400 font-mono ml-8">#{modifyBooking.bookingNumber}</p>
+              </div>
+              <button onClick={() => setModifyBooking(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
+            </div>
+
+            {/* Activity type selector (only for full/adhoc modes) */}
+            {(modifyMode === 'full' || modifyMode === 'adhoc') && (
+              <div className="px-5 pt-4 pb-0 shrink-0">
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Edit Mode</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { key: 'full' as ModifyMode, label: 'Full Edit', icon: Pencil },
+                    { key: 'extend' as ModifyMode, label: 'Extend Stay', icon: CalendarCheck },
+                    { key: 'room' as ModifyMode, label: 'Change Room', icon: ArrowRightLeft },
+                    { key: 'guest' as ModifyMode, label: 'Guest Info', icon: Users },
+                    { key: 'price' as ModifyMode, label: 'Change Price', icon: Banknote },
+                    { key: 'adhoc' as ModifyMode, label: 'Ad-hoc', icon: Zap },
+                  ]).map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setModifyMode(key)}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl border text-[10px] font-semibold transition-all ${
+                        modifyMode === key
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon size={11} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              {/* Property summary */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Property</span>
+                  <span className="font-semibold text-gray-800 text-right max-w-[240px] truncate">{modifyBooking.property?.name ?? '—'}</span>
+                </div>
+                {modifyBooking.roomType?.name && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Room Type</span>
+                    <span className="font-semibold text-gray-800">{modifyBooking.roomType.name}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Date fields — shown for full/extend/adhoc */}
+              {['full', 'extend', 'adhoc'].includes(modifyMode) && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                      {modifyMode === 'extend' ? 'Check-in (locked)' : 'Check-in *'}
+                    </label>
+                    <input
+                      type="date"
+                      value={modifyCheckIn}
+                      onChange={e => setModifyCheckIn(e.target.value)}
+                      readOnly={modifyMode === 'extend'}
+                      className={`w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 ${modifyMode === 'extend' ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-out *</label>
+                    <input
+                      type="date"
+                      value={modifyCheckOut}
+                      onChange={e => setModifyCheckOut(e.target.value)}
+                      min={modifyCheckIn || undefined}
+                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Room number — for room/full/adhoc */}
+              {['room', 'full', 'adhoc'].includes(modifyMode) && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Number</label>
+                  <input
+                    type="text"
+                    value={modifyRoomNumber}
+                    onChange={e => setModifyRoomNumber(e.target.value)}
+                    placeholder="e.g. 204, Block A-101"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                </div>
+              )}
+
+              {/* Guest info — for guest/full/adhoc */}
+              {['guest', 'full', 'adhoc'].includes(modifyMode) && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Name</label>
+                    <input
+                      type="text"
+                      value={modifyGuestName}
+                      onChange={e => setModifyGuestName(e.target.value)}
+                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Guest Mobile</label>
+                    <input
+                      type="tel"
+                      value={modifyGuestPhone}
+                      onChange={e => setModifyGuestPhone(e.target.value)}
+                      className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Quantity — for full/adhoc */}
+              {['full', 'adhoc'].includes(modifyMode) && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Rooms / Quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={modifyQuantity}
+                    onChange={e => setModifyQuantity(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                </div>
+              )}
+
+              {/* Price — for price/full/adhoc */}
+              {['price', 'full', 'adhoc'].includes(modifyMode) && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Total Amount (₹)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={modifyTotalAmount}
+                    onChange={e => setModifyTotalAmount(e.target.value)}
+                    placeholder="Enter revised total"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Reason for Modification (for audit log)</label>
                 <input
-                  type="number"
-                  min={1}
-                  value={modifyQuantity}
-                  onChange={e => setModifyQuantity(e.target.value)}
+                  type="text"
+                  value={modifyReason}
+                  onChange={e => setModifyReason(e.target.value)}
+                  placeholder="e.g. Room 102 reported maintenance issue, guest shifted to 204"
                   className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
                 />
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Notes</label>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Additional Notes</label>
                 <textarea
                   rows={2}
                   value={modifyNotes}
                   onChange={e => setModifyNotes(e.target.value)}
-                  placeholder="Optional remarks about the modification…"
+                  placeholder="Optional additional remarks…"
                   className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
                 />
               </div>
             </div>
 
-            <div className="px-5 pb-5 flex gap-3">
-              <button
-                onClick={() => setModifyBooking(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 shrink-0">
+              <button onClick={() => setModifyBooking(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
               <button
                 onClick={handleSubmitModify}
-                disabled={modifyLoading || !modifyCheckIn || !modifyCheckOut}
+                disabled={modifyLoading}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
               >
                 {modifyLoading ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
@@ -1974,6 +2736,8 @@ export const BookingHistoryPage: React.FC = () => {
                     index={i}
                     onView={() => setSelectedPropertyId(property.id)}
                     onBook={() => navigate(`/properties/${property.id}`)}
+                    onBookForEmployee={() => openBookForEmpModal(property)}
+                    isManager={isManager}
                   />
                 ))}
               </div>
@@ -2053,6 +2817,8 @@ export const BookingHistoryPage: React.FC = () => {
                           onRecordManualPayment={openManualPayModal}
                           onCheckout={handleCheckout}
                           onModify={openModifyModal}
+                          onEarmark={openEarmarkModal}
+                          onProcessCheckIn={openProcessCheckInModal}
                           isManager={isManager}
                           isGovtOfficial={isGovtOfficial}
                           isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
