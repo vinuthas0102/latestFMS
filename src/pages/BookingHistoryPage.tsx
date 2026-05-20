@@ -272,7 +272,7 @@ const BookingListCard: React.FC<{
                 #{booking.bookingNumber}
               </span>
               <div className="flex items-center gap-1">
-                {isUnderMaintenance && (
+                {isUnderMaintenance && isManager && (
                   <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
                     <Wrench size={9} />Under Maintenance
                   </span>
