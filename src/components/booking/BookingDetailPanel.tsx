@@ -463,6 +463,37 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
                 <div className="text-xs text-red-600">{booking.rejectionReason}</div>
               </div>
             )}
+
+            {/* Services */}
+            {(servicesLoading || services.length > 0) && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Services</div>
+                  {services.length > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                      {services.length} record{services.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                {servicesLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2].map(i => (
+                      <div key={i} className="h-10 rounded-xl bg-gray-100 animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {booking.status === 'CHECKED_OUT'
+                      ? [
+                          ...services.filter(s => s.serviceType === 'MAINTENANCE'),
+                          ...services.filter(s => s.serviceType !== 'MAINTENANCE'),
+                        ].map(svc => renderServiceCard(svc))
+                      : services.map(svc => renderServiceCard(svc))
+                    }
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
