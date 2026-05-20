@@ -9,7 +9,38 @@ import { DEMO_MODE } from '../mocks/demoData';
 
 // Demo service requests keyed by booking id — used in DEMO_MODE to bypass RLS
 const DEMO_BOOKING_SERVICES: Record<string, BookingServiceRequestDTO[]> = {
-  // BK2026040100005 — CHECKED_OUT, has 1 open maintenance request
+  // BK2026051800011 — CHECKED_IN, 2 active service requests
+  'dd000002-0000-4000-a000-000000000002': [
+    {
+      id: 'aa000002-0000-4000-8000-000000000002',
+      bookingId: 'dd000002-0000-4000-a000-000000000002',
+      employeeId: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+      serviceType: 'MAINTENANCE',
+      requestStatus: 'OPEN',
+      subject: 'Bathroom tap leaking',
+      remarks: 'The cold water tap in the attached bathroom has been dripping since day 1. Please repair.',
+      urgencyLevel: 'HIGH',
+      eoNotes: '',
+      documentUrl: '',
+      createdAt: '2026-05-17T08:30:00Z',
+      updatedAt: '2026-05-17T08:30:00Z',
+    },
+    {
+      id: 'aa000003-0000-4000-8000-000000000003',
+      bookingId: 'dd000002-0000-4000-a000-000000000002',
+      employeeId: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+      serviceType: 'GRIEVANCE',
+      requestStatus: 'IN_PROGRESS',
+      subject: 'Noise from adjacent room at night',
+      remarks: 'Loud noise from Room 205 between 11 PM and 1 AM. Requested intervention from management.',
+      urgencyLevel: 'NORMAL',
+      eoNotes: 'Estate office notified. Guest in Room 205 has been spoken to.',
+      documentUrl: '',
+      createdAt: '2026-05-18T22:45:00Z',
+      updatedAt: '2026-05-19T09:00:00Z',
+    },
+  ],
+  // BK2026040100005 — CHECKED_OUT, 1 open maintenance request (post-vacate)
   'dffc4358-d2df-4264-9838-d402e0935bb7': [
     {
       id: 'aa000001-0000-4000-8000-000000000001',
@@ -18,7 +49,7 @@ const DEMO_BOOKING_SERVICES: Record<string, BookingServiceRequestDTO[]> = {
       serviceType: 'MAINTENANCE',
       requestStatus: 'OPEN',
       subject: 'AC not cooling properly',
-      remarks: 'Air conditioner in Room 204 not cooling after check-out. Needs servicing.',
+      remarks: 'Air conditioner in the room not cooling adequately. Needs servicing before next occupancy.',
       urgencyLevel: 'MEDIUM',
       eoNotes: '',
       documentUrl: '',

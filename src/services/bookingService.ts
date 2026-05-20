@@ -124,7 +124,7 @@ export const bookingService = {
   getBookings: async (filters?: BookingFilters): Promise<BookingDTO[]> => {
     if (DEMO_MODE) {
       let results = [...DEMO_BOOKINGS];
-      if (filters?.userId) results = results.filter(b => b.userId === filters.userId);
+      if (!filters?.allBookings && filters?.userId) results = results.filter(b => b.userId === filters.userId);
       if (filters?.propertyId) results = results.filter(b => b.propertyId === filters.propertyId);
       if (filters?.status) results = results.filter(b => b.status === filters.status);
       if (filters?.fromDate) results = results.filter(b => b.checkInDate >= filters.fromDate!);
@@ -136,7 +136,7 @@ export const bookingService = {
       .from('bookings')
       .select('*, property:properties(*), roomType:room_types(*), user:users(*)');
 
-    if (filters?.userId) query = query.eq('user_id', filters.userId);
+    if (!filters?.allBookings && filters?.userId) query = query.eq('user_id', filters.userId);
     if (filters?.propertyId) query = query.eq('property_id', filters.propertyId);
     if (filters?.status) query = query.eq('status', filters.status);
     if (filters?.fromDate) query = query.gte('check_in_date', filters.fromDate);

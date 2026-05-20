@@ -980,7 +980,10 @@ export const BookingHistoryPage: React.FC = () => {
 
   const loadBookings = async () => {
     try {
-      const data = await bookingService.getBookings({ userId: user!.id });
+      const isManagerRole = user?.role === 'manager';
+      const data = await bookingService.getBookings(
+        isManagerRole ? { allBookings: true } : { userId: user!.id }
+      );
       setBookings(data);
       // Bulk-fetch service records for all bookings in parallel
       const entries = await Promise.all(

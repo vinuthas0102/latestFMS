@@ -165,6 +165,7 @@ export interface CreateAdHocLinkDTO {
 
 export interface BookingFilters {
   userId?: string;
+  allBookings?: boolean;
   propertyId?: string;
   status?: BookingStatus;
   fromDate?: string;
