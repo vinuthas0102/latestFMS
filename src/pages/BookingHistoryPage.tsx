@@ -33,7 +33,6 @@ import { ROUTES } from '../constants/routes';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
 import { paymentService, ManualPaymentMode } from '../services/paymentService';
-import { CancellationModal } from '../components/booking/CancellationModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -152,7 +151,6 @@ const PAYMENT_ACTION_STATUSES: BookingStatus[] = [
 ];
 
 const MODIFIABLE_STATUSES: BookingStatus[] = ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT', 'ALLOCATED'];
-const CANCELLABLE_STATUSES: BookingStatus[] = ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT', 'ALLOCATED', 'CHECKED_IN'];
 
 const BookingListCard: React.FC<{
   booking: BookingDTO;
@@ -165,11 +163,10 @@ const BookingListCard: React.FC<{
   onRecordManualPayment: (booking: BookingDTO) => void;
   onCheckout: (booking: BookingDTO) => void;
   onModify: (booking: BookingDTO) => void;
-  onCancel: (booking: BookingDTO) => void;
   isManager?: boolean;
   isGovtOfficial?: boolean;
   isUnderMaintenance?: boolean;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onCancel, isManager, isGovtOfficial, isUnderMaintenance }) => {
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, isManager, isGovtOfficial, isUnderMaintenance }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -189,14 +186,12 @@ const BookingListCard: React.FC<{
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
-  const canCancel = isPrivileged && CANCELLABLE_STATUSES.includes(booking.status as BookingStatus);
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    const bookingActionItems = (canModify ? 1 : 0) + (canCancel ? 1 : 0);
-    const extraItems = (canPay ? 1 : 0) + (canPay && isManager ? 1 : 0) + (canCheckout ? 1 : 0) + bookingActionItems;
+    const extraItems = (canPay ? 1 : 0) + (canPay && isManager ? 1 : 0) + (canCheckout ? 1 : 0) + (canModify ? 1 : 0);
     const menuHeight = (menuServiceItems.length + extraItems) * 36 + 56;
     const openUp = rect.bottom + menuHeight > window.innerHeight;
     setMenuCoords({
@@ -351,33 +346,6 @@ const BookingListCard: React.FC<{
                         className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
                         onClick={e => e.stopPropagation()}
                       >
-                        {/* Booking management actions — managers & govt officials only */}
-                        {(canModify || canCancel) && (
-                          <>
-                            <div className="px-3 py-1.5 border-b border-gray-100">
-                              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">Booking</span>
-                            </div>
-                            {canModify && (
-                              <button
-                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors text-left"
-                              >
-                                <Pencil size={13} className="text-blue-500" />
-                                Modify Booking
-                              </button>
-                            )}
-                            {canCancel && (
-                              <button
-                                onClick={e => { e.stopPropagation(); setMenuOpen(false); onCancel(booking); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50 transition-colors text-left"
-                              >
-                                <XCircle size={13} className="text-rose-500" />
-                                Cancel Booking
-                              </button>
-                            )}
-                            <div className="border-t border-gray-100 mt-1 mb-1" />
-                          </>
-                        )}
                         {/* Payment actions — shown when balance is due */}
                         {canPay && (
                           <>
@@ -424,6 +392,15 @@ const BookingListCard: React.FC<{
                             {isVacated ? 'Services' : 'Raise Service'}
                           </span>
                         </div>
+                        {canModify && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setMenuOpen(false); onModify(booking); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors text-left"
+                          >
+                            <Pencil size={13} className="text-blue-500" />
+                            Modify Booking
+                          </button>
+                        )}
                         {menuServiceItems.map(({ type, label, Icon, color }) => (
                           <button
                             key={type}
@@ -727,9 +704,6 @@ export const BookingHistoryPage: React.FC = () => {
   const [modifyNotes, setModifyNotes] = useState('');
   const [modifyLoading, setModifyLoading] = useState(false);
 
-  // Cancel booking modal
-  const [cancelBooking, setCancelBooking] = useState<BookingDTO | null>(null);
-  const [cancelLoading, setCancelLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -894,21 +868,6 @@ export const BookingHistoryPage: React.FC = () => {
       addToast('Failed to update booking', 'error');
     } finally {
       setModifyLoading(false);
-    }
-  };
-
-  const handleConfirmCancel = async (reason: string) => {
-    if (!cancelBooking) return;
-    setCancelLoading(true);
-    try {
-      await bookingService.updateBookingStatus(cancelBooking.id, 'CANCELLED', reason);
-      addToast('Booking cancelled successfully', 'success');
-      setCancelBooking(null);
-      loadBookings();
-    } catch {
-      addToast('Failed to cancel booking', 'error');
-    } finally {
-      setCancelLoading(false);
     }
   };
 
@@ -1813,15 +1772,6 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Cancel Booking Modal ── */}
-      <CancellationModal
-        isOpen={!!cancelBooking}
-        onClose={() => setCancelBooking(null)}
-        onConfirm={handleConfirmCancel}
-        bookingNumber={cancelBooking?.bookingNumber ?? ''}
-        cancelling={cancelLoading}
-      />
-
       {/* ── Content area ── */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-full py-4">
@@ -1937,7 +1887,6 @@ export const BookingHistoryPage: React.FC = () => {
                           onRecordManualPayment={openManualPayModal}
                           onCheckout={handleCheckout}
                           onModify={openModifyModal}
-                          onCancel={setCancelBooking}
                           isManager={isManager}
                           isGovtOfficial={isGovtOfficial}
                           isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
