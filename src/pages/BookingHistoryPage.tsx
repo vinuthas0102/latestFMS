@@ -10,7 +10,7 @@ import {
   Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
   Pencil, ShieldCheck, UserPlus, Users, CalendarCheck, ArrowRightLeft,
-  BadgeCheck, DoorOpen, Banknote, UserCheck, PlayCircle,
+  BadgeCheck, DoorOpen, Banknote, UserCheck, PlayCircle, ArrowUpCircle,
 } from 'lucide-react';
 import { BookingServiceType, BookingServiceRequestDTO, BookingServiceStatus } from '../types';
 import { bookingService } from '../services/bookingService';
@@ -136,13 +136,15 @@ const SVC_LABEL: Record<BookingServiceType, string> = {
   MAINTENANCE:          'Maintenance',
   EXTENSION:            'Extension Request',
   CANCELLATION_REQUEST: 'Cancellation Request',
+  UPGRADE:              'Room Upgrade',
   GENERAL:              'General Enquiry',
 };
 
 const ACTION_MENU_ITEMS: { type: BookingServiceType; label: string; Icon: React.FC<{ size?: number; className?: string }>; color: string }[] = [
-  { type: 'GRIEVANCE',            label: 'Grievance',            Icon: AlertTriangle, color: 'text-red-600' },
-  { type: 'EXTENSION',            label: 'Extension Request',    Icon: RefreshCw,     color: 'text-blue-600' },
-  { type: 'CANCELLATION_REQUEST', label: 'Cancellation Request', Icon: Ban,           color: 'text-rose-600' },
+  { type: 'GRIEVANCE',            label: 'Grievance',            Icon: AlertTriangle,  color: 'text-red-600' },
+  { type: 'EXTENSION',            label: 'Extension Request',    Icon: RefreshCw,      color: 'text-blue-600' },
+  { type: 'CANCELLATION_REQUEST', label: 'Cancellation Request', Icon: Ban,            color: 'text-rose-600' },
+  { type: 'UPGRADE',              label: 'Room Upgrade',         Icon: ArrowUpCircle,  color: 'text-teal-600' },
 ];
 
 const PAYMENT_ACTION_STATUSES: BookingStatus[] = [
@@ -278,8 +280,11 @@ const BookingListCard: React.FC<{
   const isAllocated = booking.status === 'ALLOCATED';
   const canCheckout = isCheckedIn && isManager;
   const isVacatedGovtOfficial = isGovtOfficial && isVacated;
-  const canRaiseService = !isGovtOfficial && !['CANCELLED', 'REJECTED'].includes(booking.status);
-  const menuServiceItems = ACTION_MENU_ITEMS;
+  const canRaiseService = !['CANCELLED', 'REJECTED', 'CHECKED_OUT'].includes(booking.status);
+  const upgradeEligibleStatuses: BookingStatus[] = ['ALLOCATED', 'CHECKED_IN'];
+  const menuServiceItems = ACTION_MENU_ITEMS.filter(
+    item => item.type !== 'UPGRADE' || upgradeEligibleStatuses.includes(booking.status as BookingStatus)
+  );
   const canPay = (booking.balanceAmount > 0) && PAYMENT_ACTION_STATUSES.includes(booking.status as BookingStatus);
   const isPrivileged = isManager || isGovtOfficial;
   const canModify = isPrivileged && MODIFIABLE_STATUSES.includes(booking.status as BookingStatus);
@@ -1147,6 +1152,9 @@ export const BookingHistoryPage: React.FC = () => {
   const [svcFormRemarks, setSvcFormRemarks] = useState('');
   const [svcFormUrgency, setSvcFormUrgency] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
   const [svcFormSubmitting, setSvcFormSubmitting] = useState(false);
+  const [svcFormUpgradeTargetId, setSvcFormUpgradeTargetId] = useState('');
+  const [svcFormUpgradePriceDiff, setSvcFormUpgradePriceDiff] = useState(0);
+  const [svcFormRoomTypes, setSvcFormRoomTypes] = useState<import('../types/property.types').RoomTypeDTO[]>([]);
 
   // Checkout modal
   const [checkoutBooking, setCheckoutBooking] = useState<BookingDTO | null>(null);
@@ -1279,6 +1287,12 @@ export const BookingHistoryPage: React.FC = () => {
     setSvcFormSubject('');
     setSvcFormRemarks('');
     setSvcFormUrgency('MEDIUM');
+    setSvcFormUpgradeTargetId('');
+    setSvcFormUpgradePriceDiff(0);
+    if (type === 'UPGRADE' || booking.roomTypeId) {
+      bookingServiceRequestService.getRoomTypesForProperty(booking.propertyId)
+        .then(setSvcFormRoomTypes).catch(() => {});
+    }
   };
 
   const closeServiceForm = () => {
@@ -1286,6 +1300,8 @@ export const BookingHistoryPage: React.FC = () => {
     setSvcFormType(null);
     setSvcFormSubject('');
     setSvcFormRemarks('');
+    setSvcFormUpgradeTargetId('');
+    setSvcFormUpgradePriceDiff(0);
   };
 
   const handleSubmitService = async () => {
@@ -1293,15 +1309,25 @@ export const BookingHistoryPage: React.FC = () => {
       addToast('Please fill in all required fields', 'warning');
       return;
     }
+    if (svcFormType === 'UPGRADE' && !svcFormUpgradeTargetId) {
+      addToast('Please select a target room type for the upgrade', 'warning');
+      return;
+    }
     setSvcFormSubmitting(true);
     try {
-      const created = await bookingServiceRequestService.createServiceRequest(user!.id, {
+      const dto: Parameters<typeof bookingServiceRequestService.createServiceRequest>[1] = {
         bookingId: svcFormBooking.id,
         serviceType: svcFormType,
         subject: svcFormSubject.trim(),
         remarks: svcFormRemarks.trim(),
         urgencyLevel: svcFormUrgency,
-      });
+      };
+      if (svcFormType === 'UPGRADE') {
+        dto.upgradeTargetRoomTypeId = svcFormUpgradeTargetId;
+        dto.upgradeOriginalRoomTypeId = svcFormBooking.roomTypeId;
+        dto.upgradePriceDifference = svcFormUpgradePriceDiff;
+      }
+      const created = await bookingServiceRequestService.createServiceRequest(user!.id, dto);
       addToast('Service request submitted successfully', 'success');
       setActiveServiceCounts(prev => ({ ...prev, [svcFormBooking.id]: (prev[svcFormBooking.id] ?? 0) + 1 }));
       if (created) {
@@ -2061,22 +2087,63 @@ export const BookingHistoryPage: React.FC = () => {
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Service Type</label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {ACTION_MENU_ITEMS.map(({ type, label, Icon, color }) => (
-                    <button
-                      key={type}
-                      onClick={() => setSvcFormType(type)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
-                        svcFormType === type
-                          ? 'bg-blue-50 border-blue-300 text-blue-700'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Icon size={13} className={svcFormType === type ? 'text-blue-600' : color} />
-                      {label}
-                    </button>
-                  ))}
+                  {(() => {
+                    const eligible = ACTION_MENU_ITEMS.filter(
+                      item => item.type !== 'UPGRADE' || ['ALLOCATED', 'CHECKED_IN'].includes(svcFormBooking?.status ?? '')
+                    );
+                    return eligible.map(({ type, label, Icon, color }) => (
+                      <button
+                        key={type}
+                        onClick={() => { setSvcFormType(type); setSvcFormUpgradeTargetId(''); setSvcFormUpgradePriceDiff(0); }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                          svcFormType === type
+                            ? type === 'UPGRADE' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Icon size={13} className={svcFormType === type ? (type === 'UPGRADE' ? 'text-teal-600' : 'text-blue-600') : color} />
+                        {label}
+                      </button>
+                    ));
+                  })()}
                 </div>
               </div>
+
+              {/* Upgrade room type selector */}
+              {svcFormType === 'UPGRADE' && (
+                <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3 space-y-3">
+                  <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wide">Select Target Room Type</p>
+                  {(() => {
+                    const currentSort = svcFormRoomTypes.find(r => r.id === svcFormBooking?.roomTypeId)?.sortOrder ?? 0;
+                    const upgradable = svcFormRoomTypes.filter(rt => rt.sortOrder > currentSort);
+                    if (upgradable.length === 0) {
+                      return <p className="text-xs text-gray-400">No higher room types available at this property.</p>;
+                    }
+                    return (
+                      <div className="space-y-1.5">
+                        {upgradable.map(rt => (
+                          <label key={rt.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${svcFormUpgradeTargetId === rt.id ? 'border-teal-400 bg-teal-50' : 'border-gray-200 hover:border-teal-300 bg-white'}`}>
+                            <input type="radio" name="svcUpgradeTarget" value={rt.id} checked={svcFormUpgradeTargetId === rt.id} onChange={() => setSvcFormUpgradeTargetId(rt.id)} className="accent-teal-600" />
+                            <span className="text-sm font-semibold text-gray-800">{rt.name}</span>
+                            {rt.description && <span className="text-xs text-gray-400">{rt.description}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {svcFormUpgradeTargetId && (
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Additional Amount (₹)</label>
+                      <input
+                        type="number" min={0} value={svcFormUpgradePriceDiff}
+                        onChange={e => setSvcFormUpgradePriceDiff(Math.max(0, Number(e.target.value)))}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
+                        placeholder="Enter price difference"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Subject */}
               <div>
