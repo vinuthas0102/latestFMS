@@ -823,6 +823,11 @@ const BookingListCard: React.FC<{
                             <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
                               <Clock size={8} />{formatDate(svc.createdAt)}
                             </span>
+                            {svc.serviceType === 'EXTENSION' && svc.extensionUntil && (
+                              <span className="text-[9px] font-semibold text-blue-600 flex items-center gap-0.5 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md">
+                                <Calendar size={8} />Until {formatDate(svc.extensionUntil)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         {/* Right controls: badges + actions menu + expand toggle */}
@@ -926,10 +931,17 @@ const BookingListCard: React.FC<{
                       </div>
 
                       {/* Expanded detail section */}
-                      {isDetailExpanded && (svc.remarks || svc.eoNotes) && (
-                        <div className={`px-3 py-2.5 border-t border-gray-100 ${bgCls}`}>
+                      {isDetailExpanded && (svc.remarks || svc.eoNotes || (svc.serviceType === 'EXTENSION' && svc.extensionUntil)) && (
+                        <div className={`px-3 py-2.5 border-t border-gray-100 ${bgCls} space-y-1.5`}>
+                          {svc.serviceType === 'EXTENSION' && svc.extensionUntil && (
+                            <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5">
+                              <Calendar size={11} className="text-blue-500 shrink-0" />
+                              <span className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">Extension Until:</span>
+                              <span className="text-[11px] font-bold text-blue-800">{formatDate(svc.extensionUntil)}</span>
+                            </div>
+                          )}
                           {svc.remarks && (
-                            <p className="text-[11px] text-gray-600 leading-relaxed mb-1">{svc.remarks}</p>
+                            <p className="text-[11px] text-gray-600 leading-relaxed">{svc.remarks}</p>
                           )}
                           {svc.eoNotes && (
                             <div className="bg-white/80 border border-gray-200 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-700">
@@ -1258,6 +1270,7 @@ export const BookingHistoryPage: React.FC = () => {
   const [svcFormUpgradeTargetId, setSvcFormUpgradeTargetId] = useState('');
   const [svcFormUpgradePriceDiff, setSvcFormUpgradePriceDiff] = useState(0);
   const [svcFormRoomTypes, setSvcFormRoomTypes] = useState<import('../types/property.types').RoomTypeDTO[]>([]);
+  const [svcFormExtensionUntil, setSvcFormExtensionUntil] = useState('');
 
   // Checkout modal
   const [checkoutBooking, setCheckoutBooking] = useState<BookingDTO | null>(null);
@@ -1392,6 +1405,7 @@ export const BookingHistoryPage: React.FC = () => {
     setSvcFormUrgency('MEDIUM');
     setSvcFormUpgradeTargetId('');
     setSvcFormUpgradePriceDiff(0);
+    setSvcFormExtensionUntil('');
     if (type === 'UPGRADE' || booking.roomTypeId) {
       bookingServiceRequestService.getRoomTypesForProperty(booking.propertyId)
         .then(setSvcFormRoomTypes).catch(() => {});
@@ -1405,6 +1419,7 @@ export const BookingHistoryPage: React.FC = () => {
     setSvcFormRemarks('');
     setSvcFormUpgradeTargetId('');
     setSvcFormUpgradePriceDiff(0);
+    setSvcFormExtensionUntil('');
   };
 
   const handleSubmitService = async () => {
@@ -1414,6 +1429,10 @@ export const BookingHistoryPage: React.FC = () => {
     }
     if (svcFormType === 'UPGRADE' && !svcFormUpgradeTargetId) {
       addToast('Please select a target room type for the upgrade', 'warning');
+      return;
+    }
+    if (svcFormType === 'EXTENSION' && !svcFormExtensionUntil) {
+      addToast('Please select the date until which you need the extension', 'warning');
       return;
     }
     setSvcFormSubmitting(true);
@@ -1429,6 +1448,9 @@ export const BookingHistoryPage: React.FC = () => {
         dto.upgradeTargetRoomTypeId = svcFormUpgradeTargetId;
         dto.upgradeOriginalRoomTypeId = svcFormBooking.roomTypeId;
         dto.upgradePriceDifference = svcFormUpgradePriceDiff;
+      }
+      if (svcFormType === 'EXTENSION') {
+        dto.extensionUntil = svcFormExtensionUntil;
       }
       const created = await bookingServiceRequestService.createServiceRequest(user!.id, dto);
       addToast('Service request submitted successfully', 'success');
@@ -2273,6 +2295,23 @@ export const BookingHistoryPage: React.FC = () => {
                   className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
                 />
               </div>
+
+              {/* Extension Until — only for extension requests */}
+              {svcFormType === 'EXTENSION' && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                    Extension Until *
+                  </label>
+                  <input
+                    type="date"
+                    value={svcFormExtensionUntil}
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                    onChange={e => setSvcFormExtensionUntil(e.target.value)}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Select the date until which you need the stay extended</p>
+                </div>
+              )}
 
               {/* Urgency — only for grievance/maintenance */}
               {(svcFormType === 'GRIEVANCE' || svcFormType === 'MAINTENANCE') && (

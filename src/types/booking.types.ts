@@ -208,6 +208,7 @@ export interface BookingServiceRequestDTO {
   upgradeOriginalRoomTypeId: string | null;
   upgradePriceDifference: number;
   upgradeStatus: UpgradeStatus | null;
+  extensionUntil: string | null;
   createdAt: string;
   updatedAt: string;
   chats?: BookingServiceChatDTO[];
@@ -236,4 +237,5 @@ export interface CreateBookingServiceRequestDTO {
   upgradeTargetRoomTypeId?: string;
   upgradeOriginalRoomTypeId?: string;
   upgradePriceDifference?: number;
+  extensionUntil?: string;
 }

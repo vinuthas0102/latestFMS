@@ -128,6 +128,7 @@ function mapRequest(row: Record<string, unknown>): BookingServiceRequestDTO {
     upgradeOriginalRoomTypeId: (row.upgrade_original_room_type_id as string) ?? null,
     upgradePriceDifference: (row.upgrade_price_difference as number) ?? 0,
     upgradeStatus: (row.upgrade_status as UpgradeStatus) ?? null,
+    extensionUntil: (row.extension_until as string) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -176,6 +177,9 @@ export const bookingServiceRequestService = {
       insertPayload.upgrade_original_room_type_id = input.upgradeOriginalRoomTypeId ?? null;
       insertPayload.upgrade_price_difference = input.upgradePriceDifference ?? 0;
       insertPayload.upgrade_status = 'PENDING_REVIEW';
+    }
+    if (input.serviceType === 'EXTENSION' && input.extensionUntil) {
+      insertPayload.extension_until = input.extensionUntil;
     }
     const { data, error } = await supabase
       .from('booking_service_requests')
