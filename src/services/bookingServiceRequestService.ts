@@ -40,6 +40,23 @@ const DEMO_BOOKING_SERVICES: Record<string, BookingServiceRequestDTO[]> = {
       updatedAt: '2026-05-19T09:00:00Z',
     },
   ],
+  // BK2026052000023 — ALLOCATED, 1 cancellation request awaiting EO approval
+  'a2000001-b000-4000-8000-000000000001': [
+    {
+      id: 'ab000001-0000-4000-8000-000000000001',
+      bookingId: 'a2000001-b000-4000-8000-000000000001',
+      employeeId: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+      serviceType: 'CANCELLATION_REQUEST',
+      requestStatus: 'OPEN',
+      subject: 'Request to cancel booking',
+      remarks: 'Plans have changed due to official travel rescheduling. Requesting cancellation of this booking.',
+      urgencyLevel: 'MEDIUM',
+      eoNotes: '',
+      documentUrl: '',
+      createdAt: '2026-05-20T10:00:00Z',
+      updatedAt: '2026-05-20T10:00:00Z',
+    },
+  ],
   // BK2026040100005 — CHECKED_OUT, 1 open maintenance request (post-vacate)
   'dffc4358-d2df-4264-9838-d402e0935bb7': [
     {

@@ -1,24 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ExternalLink, Building2, MapPin, Bed, Layers, Images,
+  ExternalLink,
   CheckCircle, MessageSquare, Loader2, Send, ChevronDown, ChevronUp, Ban,
   AlertTriangle, Wrench, RefreshCw, HelpCircle, X,
-  FileText, Calendar, Users, CreditCard, MessageCircle,
-  Paperclip, PlayCircle,
+  MessageCircle, Paperclip, PlayCircle, FileText,
 } from 'lucide-react';
-import { Badge } from '../ui/Badge';
-import { PhotoLightbox } from '../ui/PhotoGallery';
 import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { BookingDTO, BookingServiceRequestDTO, BookingServiceChatDTO } from '../../types';
 import type { ChatDeliveryMode } from '../../types/quarters';
-import { formatDate } from '../../utils/dateHelpers';
-import { formatCurrency } from '../../utils/formatters';
 import { useUIStore } from '../../stores/uiStore';
 import { bookingServiceRequestService } from '../../services/bookingServiceRequestService';
 import type { BookingServiceStatus } from '../../types/booking.types';
-import {
-  getBookingStatusConfig, calcNights, getPropertyImages, PROPERTY_FALLBACK_IMAGES,
-} from '../../utils/bookingFormatters';
+import { getBookingStatusConfig } from '../../utils/bookingFormatters';
 
 // ── Service configs ─────────────────────────────────────────────────
 
@@ -64,17 +57,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
 }) => {
   const addToast = useUIStore((s) => s.addToast);
   const statusCfg = getBookingStatusConfig(booking.status);
-  const nights = calcNights(booking.checkInDate, booking.checkOutDate);
-  const images = getPropertyImages(booking);
-  const hasFallback = images.length === 0;
-  const displayImages = hasFallback ? [PROPERTY_FALLBACK_IMAGES[0]] : images;
-
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [imgErr, setImgErr] = useState(false);
-
-  // Summary collapsed by default; chat always visible
-  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   // Services
   const [services, setServices] = useState<BookingServiceRequestDTO[]>([]);
@@ -356,156 +338,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto flex flex-col">
 
-        {/* ── Collapsible Booking Summary ── */}
-        <div className="border-b border-gray-100">
-          <button
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-            onClick={() => setSummaryExpanded(v => !v)}
-          >
-            <div className="flex items-center gap-2">
-              <FileText size={13} className="text-gray-400" />
-              <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">Booking Details</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400">{summaryExpanded ? 'Collapse' : 'Expand'}</span>
-              {summaryExpanded ? <ChevronUp size={13} className="text-gray-400" /> : <ChevronDown size={13} className="text-gray-400" />}
-            </div>
-          </button>
-
-          {summaryExpanded && (
-            <div className="px-4 pb-4 space-y-4 border-t border-gray-50">
-              {/* Image tiles */}
-              {!hasFallback ? (
-                <div className="flex gap-2 overflow-x-auto pb-1 pt-3">
-                  {displayImages.slice(0, 5).map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { setLightboxIndex(i); setLightboxOpen(true); }}
-                      className="relative flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all group"
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                      {i === 4 && displayImages.length > 5 && (
-                        <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-0.5">
-                          <Images size={12} className="text-white" />
-                          <span className="text-white text-xs font-bold">+{displayImages.length - 5}</span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-20 rounded-xl bg-gray-50 border border-gray-200 relative overflow-hidden mt-3">
-                  {!imgErr ? (
-                    <img src={PROPERTY_FALLBACK_IMAGES[0]} alt="" className="w-full h-full object-cover opacity-60" onError={() => setImgErr(true)} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Building2 size={28} className="text-gray-300" /></div>
-                  )}
-                </div>
-              )}
-
-              {/* Property */}
-              {booking.property && (
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Property</div>
-                  <div className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-1.5">
-                    <div className="font-bold text-gray-900 text-sm">{booking.property.name}</div>
-                    {booking.property.address && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin size={11} className="flex-shrink-0" />{booking.property.address}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {booking.roomType?.name && <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full"><Bed size={10} />{booking.roomType.name}</span>}
-                      {booking.quantity > 0 && <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full"><Layers size={10} />{booking.quantity} room{booking.quantity !== 1 ? 's' : ''}</span>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Stay */}
-              <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Stay Details</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'Check-in',  value: formatDate(booking.checkInDate),  cls: 'bg-gray-50 border-gray-100' },
-                    { label: 'Check-out', value: formatDate(booking.checkOutDate), cls: 'bg-gray-50 border-gray-100' },
-                    { label: 'Duration',  value: `${nights}n`, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
-                  ].map(item => (
-                    <div key={item.label} className={`${item.cls} rounded-xl p-2.5 border`}>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-0.5">{item.label}</div>
-                      <div className="text-xs font-bold text-gray-800">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Guest */}
-              {booking.guestDetails && (
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Guest</div>
-                  <div className="bg-gray-50 rounded-xl border border-gray-100 p-3 grid grid-cols-2 gap-2 text-xs">
-                    {[
-                      { label: 'Name',   value: booking.guestDetails.fullName },
-                      { label: 'Email',  value: booking.guestDetails.email },
-                      { label: 'Phone',  value: booking.guestDetails.phone },
-                      { label: 'Guests', value: booking.guestDetails.numberOfGuests ? `${booking.guestDetails.numberOfGuests}` : null },
-                    ].filter(i => i.value).map(item => (
-                      <div key={item.label} className={item.label === 'Email' || item.label === 'Name' ? 'col-span-2' : ''}>
-                        <div className="text-gray-400 mb-0.5">{item.label}</div>
-                        <div className="font-semibold text-gray-800 truncate">{item.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Payment */}
-              <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment</div>
-                <div className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-2">
-                  <div className="flex items-end justify-between">
-                    <span className="text-xs text-gray-500">Total Amount</span>
-                    <span className="text-lg font-black text-gray-900">{formatCurrency(booking.totalAmount)}</span>
-                  </div>
-                  {booking.paidAmount > 0 && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Paid</span>
-                      <span className="font-semibold text-emerald-700">{formatCurrency(booking.paidAmount)}</span>
-                    </div>
-                  )}
-                  {booking.balanceAmount > 0 && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Balance Due</span>
-                      <span className="font-semibold text-amber-700">{formatCurrency(booking.balanceAmount)}</span>
-                    </div>
-                  )}
-                  <div className="pt-1 border-t border-gray-200">
-                    <Badge variant={booking.paymentStatus === 'COMPLETED' ? 'success' : 'warning'} className="text-xs">
-                      {booking.paymentStatus === 'COMPLETED' ? 'Paid in Full' : 'Payment Pending'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Special requirements */}
-              {booking.specialRequirements && (
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Special Requirements</div>
-                  <div className="text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">{booking.specialRequirements}</div>
-                </div>
-              )}
-
-              {/* Rejection reason */}
-              {booking.rejectionReason && (
-                <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-                  <div className="text-xs font-semibold text-red-700 mb-1">Rejection Reason</div>
-                  <div className="text-xs text-red-600">{booking.rejectionReason}</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* ── Service Requests ── */}
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
@@ -604,13 +436,6 @@ export const BookingDetailPanel: React.FC<BookingDetailPanelProps> = ({
         </div>
       </div>
 
-      {lightboxOpen && (
-        <PhotoLightbox
-          images={displayImages}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxOpen(false)}
-        />
-      )}
     </div>
   );
 };

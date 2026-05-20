@@ -246,8 +246,8 @@ const BookingListCard: React.FC<{
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
   const [svcExpanded, setSvcExpanded] = useState(false);
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [expandedSvcIds, setExpandedSvcIds] = useState<Set<string>>(new Set());
-  const [updatingSvcIds, setUpdatingSvcIds] = useState<Set<string>>(new Set());
 
   const toggleSvcDetail = (id: string) => setExpandedSvcIds(prev => {
     const next = new Set(prev);
@@ -279,11 +279,13 @@ const BookingListCard: React.FC<{
 
   const hasAnyAction = canPay || canCheckout || canEarmark || canProcessCheckIn ||
     canExtendStay || canModify || (canAdHocEdit && isCheckedIn) ||
-    (canRaiseService && menuServiceItems.length > 0);
+    (canRaiseService && menuServiceItems.length > 0) || actionableSvcs.length > 0;
 
   // Distinct service types present (for chips on toggle button)
   const uniqueSvcTypes = Array.from(new Set(services.map(s => s.serviceType))).slice(0, 3);
   const activeSvcCount = services.filter(s => s.requestStatus !== 'CLOSED').length;
+  // Services with actionable status changes (for manager action menu)
+  const actionableSvcs = isManager ? services.filter(s => ['OPEN', 'IN_PROGRESS'].includes(s.requestStatus)) : [];
 
   const openMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -365,11 +367,20 @@ const BookingListCard: React.FC<{
 
           {/* Body */}
           <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col justify-between gap-0">
-            {/* Row 1: booking number + status badge */}
+            {/* Row 1: booking number + expand toggle + status badge */}
             <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
-                #{booking.bookingNumber}
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
+                  #{booking.bookingNumber}
+                </span>
+                <button
+                  onClick={e => { e.stopPropagation(); setCardExpanded(v => !v); }}
+                  className="flex items-center gap-0.5 text-[9px] text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                  title={cardExpanded ? 'Collapse details' : 'Expand details'}
+                >
+                  {cardExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                </button>
+              </div>
               <div className="flex items-center gap-1">
                 {isUnderMaintenance && isManager && (
                   <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
@@ -382,15 +393,17 @@ const BookingListCard: React.FC<{
               </div>
             </div>
 
-            {/* Row 2: key-value details */}
-            <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1">
-              {details.map((d, i) => (
-                <div key={i} className="min-w-0">
-                  <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
-                  <div className="text-[10.5px] font-medium text-gray-700 leading-snug truncate max-w-[180px]">{d.value}</div>
-                </div>
-              ))}
-            </div>
+            {/* Row 2: key-value details — collapsible */}
+            {cardExpanded && (
+              <div className="flex flex-wrap gap-x-5 gap-y-0.5 mb-1 pb-1 border-b border-gray-100 animate-in fade-in duration-150">
+                {details.map((d, i) => (
+                  <div key={i} className="min-w-0">
+                    <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{d.label}</div>
+                    <div className="text-[10.5px] font-medium text-gray-700 leading-snug truncate max-w-[180px]">{d.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-auto flex items-center gap-1 pt-0.5 border-t border-gray-100 min-h-0">
@@ -548,6 +561,29 @@ const BookingListCard: React.FC<{
                           </>
                         )}
 
+                        {/* ── Service Updates (manager only) ── */}
+                        {actionableSvcs.length > 0 && (
+                          <>
+                            <div className="px-3 py-1.5 border-b border-gray-100">
+                              <span className="text-[9px] font-bold text-teal-600 uppercase tracking-widest">Service Updates</span>
+                            </div>
+                            {actionableSvcs.map(svc => {
+                              const isOpen = svc.requestStatus === 'OPEN';
+                              return (
+                                <button
+                                  key={svc.id}
+                                  onClick={async e => { e.stopPropagation(); setMenuOpen(false); await onUpdateServiceStatus?.(svc.id, booking.id, isOpen ? 'IN_PROGRESS' : 'RESOLVED'); }}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-left ${isOpen ? 'text-blue-700 hover:bg-blue-50' : 'text-emerald-700 hover:bg-emerald-50'}`}
+                                >
+                                  {isOpen ? <PlayCircle size={13} className="text-blue-500 shrink-0" /> : <CheckCircle size={13} className="text-emerald-500 shrink-0" />}
+                                  <span className="truncate">{isOpen ? 'Mark In Progress' : 'Mark Resolved'} — {svc.subject || 'Service Request'}</span>
+                                </button>
+                              );
+                            })}
+                            <div className="border-t border-gray-100 my-1" />
+                          </>
+                        )}
+
                         {/* ── Raise Service ── */}
                         <div className="px-3 py-1.5 border-b border-gray-100">
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
@@ -601,16 +637,6 @@ const BookingListCard: React.FC<{
                 const statusCls = SVC_STATUS_CLS[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200';
                 const urgencyCls = SVC_URGENCY_CLS[svc.urgencyLevel] ?? 'bg-gray-100 text-gray-600 border-gray-200';
                 const isDetailExpanded = expandedSvcIds.has(svc.id);
-                const isUpdating = updatingSvcIds.has(svc.id);
-                const canMarkInProgress = isManager && svc.requestStatus === 'OPEN';
-                const canMarkResolved = isManager && svc.requestStatus === 'IN_PROGRESS';
-
-                const handleSvcStatusChange = async (e: React.MouseEvent, newStatus: BookingServiceStatus) => {
-                  e.stopPropagation();
-                  setUpdatingSvcIds(prev => new Set(prev).add(svc.id));
-                  await onUpdateServiceStatus?.(svc.id, booking.id, newStatus);
-                  setUpdatingSvcIds(prev => { const n = new Set(prev); n.delete(svc.id); return n; });
-                };
 
                 return (
                   <div key={svc.id} className="relative">
@@ -669,39 +695,14 @@ const BookingListCard: React.FC<{
                       </div>
 
                       {/* Expanded detail section */}
-                      {isDetailExpanded && (
+                      {isDetailExpanded && (svc.remarks || svc.eoNotes) && (
                         <div className={`px-3 py-2.5 border-t border-gray-100 ${bgCls}`}>
                           {svc.remarks && (
-                            <p className="text-[11px] text-gray-600 leading-relaxed mb-2">{svc.remarks}</p>
+                            <p className="text-[11px] text-gray-600 leading-relaxed mb-1">{svc.remarks}</p>
                           )}
                           {svc.eoNotes && (
-                            <div className="bg-white/80 border border-gray-200 rounded-lg px-2.5 py-1.5 mb-2 text-[11px] text-gray-700">
+                            <div className="bg-white/80 border border-gray-200 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-700">
                               <span className="font-semibold text-gray-500 text-[9px] uppercase tracking-wide">Manager Notes: </span>{svc.eoNotes}
-                            </div>
-                          )}
-                          {/* Manager action buttons */}
-                          {(canMarkInProgress || canMarkResolved) && (
-                            <div className="flex items-center gap-2 mt-1">
-                              {canMarkInProgress && (
-                                <button
-                                  onClick={e => handleSvcStatusChange(e, 'IN_PROGRESS')}
-                                  disabled={isUpdating}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-semibold transition-colors"
-                                >
-                                  {isUpdating ? <Loader2 size={9} className="animate-spin" /> : <PlayCircle size={9} />}
-                                  Mark In Progress
-                                </button>
-                              )}
-                              {canMarkResolved && (
-                                <button
-                                  onClick={e => handleSvcStatusChange(e, 'RESOLVED')}
-                                  disabled={isUpdating}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-semibold transition-colors"
-                                >
-                                  {isUpdating ? <Loader2 size={9} className="animate-spin" /> : <CheckCircle size={9} />}
-                                  Mark Resolved
-                                </button>
-                              )}
                             </div>
                           )}
                         </div>
@@ -1392,7 +1393,7 @@ export const BookingHistoryPage: React.FC = () => {
     rejected: bookings.filter(b => b.status === 'REJECTED').length,
     provisioned: bookings.filter(b => b.status === 'PROVISIONED').length,
     draft: bookings.filter(b => b.status === 'REQUESTED').length,
-    submitted: bookings.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
+    submitted: bookings.filter(b => ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status)).length,
     allotted: bookings.filter(b => b.status === 'ALLOCATED').length,
     occupied: bookings.filter(b => b.status === 'CHECKED_IN').length,
     vacated: bookings.filter(b => b.status === 'CHECKED_OUT').length,
@@ -1571,7 +1572,7 @@ export const BookingHistoryPage: React.FC = () => {
     else if (dpFilter === 'completed') result = result.filter(b => b.status === 'CHECKED_OUT');
     else if (dpFilter === 'cancelled') result = result.filter(b => ['CANCELLED', 'REJECTED'].includes(b.status));
     else if (dpFilter === 'draft') result = result.filter(b => b.status === 'REQUESTED');
-    else if (dpFilter === 'submitted') result = result.filter(b => ['PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
+    else if (dpFilter === 'submitted') result = result.filter(b => ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT'].includes(b.status));
     else if (dpFilter === 'allotted') result = result.filter(b => b.status === 'ALLOCATED');
     else if (dpFilter === 'occupied') result = result.filter(b => b.status === 'CHECKED_IN');
     else if (dpFilter === 'vacated') result = result.filter(b => b.status === 'CHECKED_OUT');
@@ -1951,6 +1952,19 @@ export const BookingHistoryPage: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Cancellation refund notice */}
+              {svcFormType === 'CANCELLATION_REQUEST' && (
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-white text-[10px] font-black">i</span>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    <span className="font-semibold">Refund Policy: </span>
+                    Refunds will be processed to the original payment method within 7 business days once your cancellation is approved.
+                  </p>
                 </div>
               )}
             </div>
