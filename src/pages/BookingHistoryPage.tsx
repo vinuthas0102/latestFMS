@@ -11,7 +11,7 @@ import {
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
   Pencil,
 } from 'lucide-react';
-import { BookingServiceType } from '../types';
+import { BookingServiceType, BookingServiceRequestDTO } from '../types';
 import { bookingService } from '../services/bookingService';
 import { getProperties } from '../services/property/corePropertyService';
 import { BookingDTO, BookingStatus, PropertyDTO } from '../types';
@@ -152,12 +152,52 @@ const PAYMENT_ACTION_STATUSES: BookingStatus[] = [
 
 const MODIFIABLE_STATUSES: BookingStatus[] = ['REQUESTED', 'PROVISIONED', 'AWAITING_PAYMENT', 'ALLOCATED'];
 
+// ─── Service sub-card colors ──────────────────────────────────────────────────
+
+const SVC_ACCENT: Record<string, string> = {
+  GRIEVANCE:            'bg-rose-400',
+  MAINTENANCE:          'bg-orange-400',
+  EXTENSION:            'bg-blue-400',
+  CANCELLATION_REQUEST: 'bg-red-400',
+  GENERAL:              'bg-slate-400',
+};
+
+const SVC_BG: Record<string, string> = {
+  GRIEVANCE:            'bg-rose-50',
+  MAINTENANCE:          'bg-orange-50',
+  EXTENSION:            'bg-blue-50',
+  CANCELLATION_REQUEST: 'bg-red-50',
+  GENERAL:              'bg-slate-50',
+};
+
+const SVC_STATUS_CLS: Record<string, string> = {
+  OPEN:        'bg-amber-100 text-amber-700 border-amber-200',
+  IN_PROGRESS: 'bg-sky-100 text-sky-700 border-sky-200',
+  RESOLVED:    'bg-emerald-100 text-emerald-700 border-emerald-200',
+  CLOSED:      'bg-gray-100 text-gray-500 border-gray-200',
+};
+
+const SVC_TYPE_ICON: Record<string, React.FC<{ size?: number; className?: string }>> = {
+  GRIEVANCE:            AlertTriangle,
+  MAINTENANCE:          Wrench,
+  EXTENSION:            RefreshCw,
+  CANCELLATION_REQUEST: Ban,
+  GENERAL:              HelpCircle,
+};
+
+const SVC_URGENCY_CLS: Record<string, string> = {
+  HIGH:   'bg-red-100 text-red-700 border-red-200',
+  MEDIUM: 'bg-amber-100 text-amber-700 border-amber-200',
+  LOW:    'bg-gray-100 text-gray-600 border-gray-200',
+};
+
 const BookingListCard: React.FC<{
   booking: BookingDTO;
   index: number;
   isSelected: boolean;
   onClick: () => void;
   activeServiceCount?: number;
+  services?: BookingServiceRequestDTO[];
   onRaiseService: (booking: BookingDTO, type: BookingServiceType) => void;
   onPayNow: (booking: BookingDTO) => void;
   onRecordManualPayment: (booking: BookingDTO) => void;
@@ -166,7 +206,7 @@ const BookingListCard: React.FC<{
   isManager?: boolean;
   isGovtOfficial?: boolean;
   isUnderMaintenance?: boolean;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, isManager, isGovtOfficial, isUnderMaintenance }) => {
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, isManager, isGovtOfficial, isUnderMaintenance }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
@@ -433,6 +473,71 @@ const BookingListCard: React.FC<{
           </div>
         </div>
       </div>
+        {/* Indented service sub-cards */}
+        {services.length > 0 && (
+          <div className="relative ml-6 mt-1 mb-1 mr-2">
+            {/* Vertical connector */}
+            <div className="absolute left-0 top-0 bottom-4 w-0.5 bg-gray-200 rounded-full" />
+            <div className="space-y-1.5 pl-5">
+              {services.map((svc, svcIdx) => {
+                const isLast = svcIdx === services.length - 1;
+                const SvcIcon = SVC_TYPE_ICON[svc.serviceType] ?? HelpCircle;
+                const accentCls = SVC_ACCENT[svc.serviceType] ?? 'bg-slate-400';
+                const bgCls = SVC_BG[svc.serviceType] ?? 'bg-slate-50';
+                const statusCls = SVC_STATUS_CLS[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200';
+                const urgencyCls = SVC_URGENCY_CLS[svc.urgencyLevel] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+                return (
+                  <div key={svc.id} className="relative">
+                    {/* Horizontal nub */}
+                    <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-gray-200 rounded-full" />
+                    {/* Junction dot */}
+                    <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 bg-white border-gray-300" />
+                    {/* Cover bottom of vertical line for last item */}
+                    {isLast && (
+                      <div className="absolute -left-[1px] top-1/2 bottom-0 w-0.5 bg-white" />
+                    )}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                      <div className="flex min-h-[56px]">
+                        {/* Left accent */}
+                        <div className={`w-1 shrink-0 rounded-l-xl ${accentCls}`} />
+                        {/* Icon zone */}
+                        <div className={`w-10 shrink-0 flex items-center justify-center ${bgCls}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm ${bgCls}`}>
+                            <SvcIcon size={13} className="text-gray-600" />
+                          </div>
+                        </div>
+                        {/* Body */}
+                        <div className="flex-1 px-3 py-2 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-gray-700 truncate leading-snug">{svc.subject}</p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${statusCls}`}>
+                                  {svc.requestStatus.replace('_', ' ')}
+                                </span>
+                                <span className="text-[9px] text-gray-400 font-medium">
+                                  {SVC_LABEL[svc.serviceType]}
+                                </span>
+                                {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${urgencyCls}`}>
+                                    {svc.urgencyLevel}
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
+                                  <Clock size={8} />{formatDate(svc.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
     </FadeIn>
   );
 };
@@ -662,6 +767,7 @@ export const BookingHistoryPage: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
   const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
+  const [bookingServices, setBookingServices] = useState<Record<string, BookingServiceRequestDTO[]>>({});
 
   // Demo hardcoded maintenance IDs — vacated bookings that are under maintenance
   const [maintenanceBookingIds, setMaintenanceBookingIds] = useState<Set<string>>(
@@ -721,6 +827,29 @@ export const BookingHistoryPage: React.FC = () => {
     try {
       const data = await bookingService.getBookings({ userId: user!.id });
       setBookings(data);
+      // Bulk-fetch service records for all bookings in parallel
+      const entries = await Promise.all(
+        data.map(async (b) => {
+          try {
+            const svcs = await bookingServiceRequestService.getServiceRequests(b.id);
+            return [b.id, svcs] as const;
+          } catch {
+            return [b.id, []] as const;
+          }
+        })
+      );
+      const svcMap: Record<string, BookingServiceRequestDTO[]> = {};
+      for (const [id, svcs] of entries) {
+        if (svcs.length > 0) svcMap[id] = svcs;
+      }
+      setBookingServices(svcMap);
+      // Sync active service counts from real data
+      const countMap: Record<string, number> = {};
+      for (const [id, svcs] of entries) {
+        const active = svcs.filter(s => s.requestStatus !== 'CLOSED').length;
+        if (active > 0) countMap[id] = active;
+      }
+      setActiveServiceCounts(countMap);
     } catch {
       addToast('Failed to load booking history', 'error');
     } finally {
@@ -762,7 +891,7 @@ export const BookingHistoryPage: React.FC = () => {
     }
     setSvcFormSubmitting(true);
     try {
-      await bookingServiceRequestService.createServiceRequest(user!.id, {
+      const created = await bookingServiceRequestService.createServiceRequest(user!.id, {
         bookingId: svcFormBooking.id,
         serviceType: svcFormType,
         subject: svcFormSubject.trim(),
@@ -771,6 +900,12 @@ export const BookingHistoryPage: React.FC = () => {
       });
       addToast('Service request submitted successfully', 'success');
       setActiveServiceCounts(prev => ({ ...prev, [svcFormBooking.id]: (prev[svcFormBooking.id] ?? 0) + 1 }));
+      if (created) {
+        setBookingServices(prev => ({
+          ...prev,
+          [svcFormBooking.id]: [created, ...(prev[svcFormBooking.id] ?? [])],
+        }));
+      }
       if (svcFormType === 'MAINTENANCE' && svcFormBooking.status === 'CHECKED_OUT') {
         setMaintenanceBookingIds(prev => new Set([...prev, svcFormBooking.id]));
       }
@@ -1882,6 +2017,7 @@ export const BookingHistoryPage: React.FC = () => {
                           isSelected={selectedBooking?.id === booking.id}
                           onClick={() => setSelectedBooking(booking)}
                           activeServiceCount={activeServiceCounts[booking.id] ?? 0}
+                          services={bookingServices[booking.id] ?? []}
                           onRaiseService={openServiceForm}
                           onPayNow={handlePayNow}
                           onRecordManualPayment={openManualPayModal}
