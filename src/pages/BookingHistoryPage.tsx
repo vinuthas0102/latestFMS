@@ -10,9 +10,9 @@ import {
   Zap, Droplets, LayoutDashboard, MoreVertical, AlertTriangle,
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
   Pencil, ShieldCheck, UserPlus, Users, CalendarCheck, ArrowRightLeft,
-  BadgeCheck, DoorOpen, Banknote, UserCheck,
+  BadgeCheck, DoorOpen, Banknote, UserCheck, PlayCircle,
 } from 'lucide-react';
-import { BookingServiceType, BookingServiceRequestDTO } from '../types';
+import { BookingServiceType, BookingServiceRequestDTO, BookingServiceStatus } from '../types';
 import { bookingService } from '../services/bookingService';
 import { getProperties } from '../services/property/corePropertyService';
 import { BookingDTO, BookingStatus, PropertyDTO } from '../types';
@@ -240,11 +240,20 @@ const BookingListCard: React.FC<{
   isManager?: boolean;
   isGovtOfficial?: boolean;
   isUnderMaintenance?: boolean;
-}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance }) => {
+  onUpdateServiceStatus?: (serviceId: string, bookingId: string, status: BookingServiceStatus) => void;
+}> = ({ booking, index, isSelected, onClick, activeServiceCount = 0, services = [], onRaiseService, onPayNow, onRecordManualPayment, onCheckout, onModify, onEarmark, onProcessCheckIn, isManager, isGovtOfficial, isUnderMaintenance, onUpdateServiceStatus }) => {
   const [thumbErr, setThumbErr] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null);
   const [svcExpanded, setSvcExpanded] = useState(false);
+  const [expandedSvcIds, setExpandedSvcIds] = useState<Set<string>>(new Set());
+  const [updatingSvcIds, setUpdatingSvcIds] = useState<Set<string>>(new Set());
+
+  const toggleSvcDetail = (id: string) => setExpandedSvcIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -591,18 +600,34 @@ const BookingListCard: React.FC<{
                 const bgCls = SVC_BG[svc.serviceType] ?? 'bg-slate-50';
                 const statusCls = SVC_STATUS_CLS[svc.requestStatus] ?? 'bg-gray-100 text-gray-500 border-gray-200';
                 const urgencyCls = SVC_URGENCY_CLS[svc.urgencyLevel] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+                const isDetailExpanded = expandedSvcIds.has(svc.id);
+                const isUpdating = updatingSvcIds.has(svc.id);
+                const canMarkInProgress = isManager && svc.requestStatus === 'OPEN';
+                const canMarkResolved = isManager && svc.requestStatus === 'IN_PROGRESS';
+
+                const handleSvcStatusChange = async (e: React.MouseEvent, newStatus: BookingServiceStatus) => {
+                  e.stopPropagation();
+                  setUpdatingSvcIds(prev => new Set(prev).add(svc.id));
+                  await onUpdateServiceStatus?.(svc.id, booking.id, newStatus);
+                  setUpdatingSvcIds(prev => { const n = new Set(prev); n.delete(svc.id); return n; });
+                };
+
                 return (
                   <div key={svc.id} className="relative">
                     {/* Horizontal nub */}
-                    <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-teal-200 rounded-full" />
+                    <div className="absolute -left-5 top-5 w-4 h-0.5 bg-teal-200 rounded-full" />
                     {/* Junction dot */}
-                    <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 bg-white border-teal-300" />
+                    <div className="absolute -left-[22px] top-[14px] w-2.5 h-2.5 rounded-full border-2 bg-white border-teal-300" />
                     {/* Cover bottom of vertical line for last item */}
                     {isLast && (
-                      <div className="absolute -left-[1px] top-1/2 bottom-0 w-0.5 bg-white" />
+                      <div className="absolute -left-[1px] top-5 bottom-0 w-0.5 bg-white" />
                     )}
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                      <div className="flex min-h-[60px]">
+                      {/* Header row — always visible */}
+                      <div
+                        className="relative flex min-h-[56px] cursor-pointer hover:bg-gray-50/50 transition-colors"
+                        onClick={e => { e.stopPropagation(); toggleSvcDetail(svc.id); }}
+                      >
                         {/* Left accent bar */}
                         <div className={`w-1 shrink-0 rounded-l-xl ${accentCls}`} />
                         {/* Icon zone */}
@@ -612,26 +637,75 @@ const BookingListCard: React.FC<{
                           </div>
                         </div>
                         {/* Body */}
-                        <div className="flex-1 px-3 py-2.5 min-w-0">
+                        <div className="flex-1 px-3 py-2.5 min-w-0 pr-28">
                           <p className="text-xs font-semibold text-gray-700 truncate leading-snug">{svc.subject}</p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${statusCls}`}>
-                              {svc.requestStatus.replace('_', ' ')}
-                            </span>
                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${SVC_CHIP_CLS[svc.serviceType] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
                               {SVC_LABEL[svc.serviceType]}
                             </span>
-                            {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${urgencyCls}`}>
-                                {svc.urgencyLevel}
-                              </span>
-                            )}
                             <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
                               <Clock size={8} />{formatDate(svc.createdAt)}
                             </span>
                           </div>
                         </div>
+                        {/* Status badge — top-right, matching booking card pattern */}
+                        <div className="absolute top-2 right-7 flex items-center gap-1">
+                          {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${urgencyCls}`}>
+                              {svc.urgencyLevel}
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
+                            {svc.requestStatus.replace('_', ' ')}
+                          </span>
+                        </div>
+                        {/* Expand/collapse toggle */}
+                        <div className="absolute top-2.5 right-2">
+                          {isDetailExpanded
+                            ? <ChevronUp size={11} className="text-gray-400" />
+                            : <ChevronDown size={11} className="text-gray-400" />
+                          }
+                        </div>
                       </div>
+
+                      {/* Expanded detail section */}
+                      {isDetailExpanded && (
+                        <div className={`px-3 py-2.5 border-t border-gray-100 ${bgCls}`}>
+                          {svc.remarks && (
+                            <p className="text-[11px] text-gray-600 leading-relaxed mb-2">{svc.remarks}</p>
+                          )}
+                          {svc.eoNotes && (
+                            <div className="bg-white/80 border border-gray-200 rounded-lg px-2.5 py-1.5 mb-2 text-[11px] text-gray-700">
+                              <span className="font-semibold text-gray-500 text-[9px] uppercase tracking-wide">Manager Notes: </span>{svc.eoNotes}
+                            </div>
+                          )}
+                          {/* Manager action buttons */}
+                          {(canMarkInProgress || canMarkResolved) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {canMarkInProgress && (
+                                <button
+                                  onClick={e => handleSvcStatusChange(e, 'IN_PROGRESS')}
+                                  disabled={isUpdating}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-semibold transition-colors"
+                                >
+                                  {isUpdating ? <Loader2 size={9} className="animate-spin" /> : <PlayCircle size={9} />}
+                                  Mark In Progress
+                                </button>
+                              )}
+                              {canMarkResolved && (
+                                <button
+                                  onClick={e => handleSvcStatusChange(e, 'RESOLVED')}
+                                  disabled={isUpdating}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-semibold transition-colors"
+                                >
+                                  {isUpdating ? <Loader2 size={9} className="animate-spin" /> : <CheckCircle size={9} />}
+                                  Mark Resolved
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1081,6 +1155,17 @@ export const BookingHistoryPage: React.FC = () => {
 
   const handleCheckout = (booking: BookingDTO) => {
     setCheckoutBooking(booking);
+  };
+
+  const handleUpdateServiceStatus = async (serviceId: string, bookingId: string, status: BookingServiceStatus) => {
+    try {
+      await bookingServiceRequestService.updateServiceStatus(serviceId, status);
+      const updated = await bookingServiceRequestService.getServiceRequests(bookingId);
+      setBookingServices(prev => ({ ...prev, [bookingId]: updated }));
+      addToast({ type: 'success', message: `Service request marked as ${status.replace('_', ' ').toLowerCase()}` });
+    } catch {
+      addToast({ type: 'error', message: 'Failed to update service status' });
+    }
   };
 
   const processCheckout = async () => {
@@ -2878,6 +2963,8 @@ export const BookingHistoryPage: React.FC = () => {
                 <BookingDetailPanel
                   booking={selectedBooking}
                   userId={user!.id}
+                  isManager={isManager}
+                  isGovtOfficial={isGovtOfficial}
                   onClose={() => setSelectedBooking(null)}
                   onNavigate={(id) => navigate(`/bookings/${id}`)}
                   onServiceCountChange={(count) =>
@@ -2933,6 +3020,7 @@ export const BookingHistoryPage: React.FC = () => {
                           isManager={isManager}
                           isGovtOfficial={isGovtOfficial}
                           isUnderMaintenance={maintenanceBookingIds.has(booking.id)}
+                          onUpdateServiceStatus={handleUpdateServiceStatus}
                         />
                       ))}
                     </div>

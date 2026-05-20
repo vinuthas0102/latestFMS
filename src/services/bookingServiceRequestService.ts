@@ -123,6 +123,13 @@ export const bookingServiceRequestService = {
   },
 
   async updateServiceStatus(requestId: string, status: BookingServiceStatus): Promise<void> {
+    if (DEMO_MODE) {
+      for (const list of Object.values(DEMO_BOOKING_SERVICES)) {
+        const svc = list.find(s => s.id === requestId);
+        if (svc) { svc.requestStatus = status; svc.updatedAt = new Date().toISOString(); }
+      }
+      return;
+    }
     const { error } = await supabase
       .from('booking_service_requests')
       .update({ request_status: status, updated_at: new Date().toISOString() })
