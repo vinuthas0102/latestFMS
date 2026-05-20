@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
-  Building2, Eye, ChevronLeft, Search, SlidersHorizontal,
+  Building2, Eye, MessageSquare, ChevronLeft, Search, SlidersHorizontal,
   CreditCard, MapPin, X, Download,
   ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
@@ -248,6 +248,19 @@ const BookingListCard: React.FC<{
   const [svcExpanded, setSvcExpanded] = useState(false);
   const [cardExpanded, setCardExpanded] = useState(false);
   const [expandedSvcIds, setExpandedSvcIds] = useState<Set<string>>(new Set());
+  const [svcMenuOpenId, setSvcMenuOpenId] = useState<string | null>(null);
+  const [svcMenuCoords, setSvcMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const svcMenuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const svcDropdownRef = useRef<HTMLDivElement>(null);
+
+  const openSvcMenu = useCallback((e: React.MouseEvent, svcId: string) => {
+    e.stopPropagation();
+    const btn = svcMenuBtnRefs.current[svcId];
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setSvcMenuCoords({ top: rect.bottom + 4, left: rect.right - 160 });
+    setSvcMenuOpenId(prev => prev === svcId ? null : svcId);
+  }, []);
 
   const toggleSvcDetail = (id: string) => setExpandedSvcIds(prev => {
     const next = new Set(prev);
@@ -319,6 +332,22 @@ const BookingListCard: React.FC<{
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!svcMenuOpenId) return;
+    const close = (e: MouseEvent) => {
+      if (svcDropdownRef.current && !svcDropdownRef.current.contains(e.target as Node)) {
+        setSvcMenuOpenId(null);
+      }
+    };
+    const closeOnScroll = () => setSvcMenuOpenId(null);
+    document.addEventListener('mousedown', close);
+    window.addEventListener('scroll', closeOnScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', closeOnScroll, true);
+    };
+  }, [svcMenuOpenId]);
+
   return (
     <FadeIn delay={index * 30}>
       <div>
@@ -333,17 +362,16 @@ const BookingListCard: React.FC<{
           <div className={`w-1 shrink-0 ${accentColor} rounded-l-xl`} />
 
           {/* Thumbnail */}
-          <div className="w-24 shrink-0 relative group/thumb bg-gray-100 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="w-20 h-[96px] shrink-0 relative group/thumb bg-gray-100 overflow-hidden self-center" onClick={e => e.stopPropagation()}>
             {!thumbErr ? (
               <img
                 src={thumbSrc}
                 alt=""
                 className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300"
-                style={{ minHeight: 88 }}
                 onError={() => setThumbErr(true)}
               />
             ) : (
-              <div className="w-full h-full min-h-[88px] flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                 <Building2 size={22} className="text-gray-300" />
               </div>
             )}
@@ -355,66 +383,70 @@ const BookingListCard: React.FC<{
           </div>
 
           {/* Body */}
-          <div className="flex-1 px-3.5 py-2 min-w-0 flex flex-col gap-0">
+          <div className="flex-1 px-3.5 py-1.5 min-w-0 flex flex-col gap-0">
             {/* Row 1: booking number + status badge */}
-            <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center justify-between gap-2 mb-1">
               <span className="font-mono text-[10.5px] font-bold text-gray-700 tracking-wide">
                 #{booking.bookingNumber}
               </span>
               <div className="flex items-center gap-1">
                 {isUnderMaintenance && isManager && (
-                  <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
+                  <span className="text-[10px] font-semibold px-2 py-0 rounded-full bg-orange-100 text-orange-700 border border-orange-300 flex items-center gap-1">
                     <Wrench size={9} />Under Maintenance
                   </span>
                 )}
-                <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                <span className={`text-[10px] font-semibold px-2 py-0 rounded-full ${STATUS_BADGE_CLS[booking.status] ?? 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
                   {statusCfg.label}
                 </span>
               </div>
             </div>
 
-            {/* Always-visible info grid — matches quarters card pattern */}
-            <div className="grid grid-cols-4 gap-x-4 gap-y-2 mb-2">
+            {/* Row 2: Property + Check-in + Check-out + Amount */}
+            <div className="grid grid-cols-4 gap-x-3 gap-y-0.5 mb-1">
               {booking.property?.name && (
                 <div className="col-span-2 flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Property</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.property.name}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Property</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight truncate">{booking.property.name}</span>
                 </div>
               )}
               {booking.checkInDate && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Check-in</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatDate(booking.checkInDate)}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Check-in</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight">{formatDate(booking.checkInDate)}</span>
                 </div>
               )}
               {booking.checkOutDate && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Check-out</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatDate(booking.checkOutDate)}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Check-out</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight">{formatDate(booking.checkOutDate)}</span>
                 </div>
               )}
+            </div>
+
+            {/* Row 3: Room Type + Nights + Amount + Guest */}
+            <div className="grid grid-cols-4 gap-x-3 gap-y-0.5 mb-1">
               {booking.roomType?.name && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Room Type</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug truncate">{booking.roomType.name}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Room Type</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight truncate">{booking.roomType.name}</span>
                 </div>
               )}
               {nights > 0 && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Nights</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{nights}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Nights</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight">{nights}</span>
                 </div>
               )}
               {booking.totalAmount > 0 && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Amount</span>
-                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-snug">{formatCurrency(booking.totalAmount)}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Amount</span>
+                  <span className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-tight">{formatCurrency(booking.totalAmount)}</span>
                 </div>
               )}
               {booking.isGuestBooking && booking.guestDetails?.fullName && (
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide leading-tight">Guest</span>
-                  <span className="text-[11px] font-semibold text-blue-700 mt-0.5 leading-snug truncate">{booking.guestDetails.fullName}</span>
+                  <span className="text-[8.5px] text-gray-400 font-medium uppercase tracking-wide leading-none">Guest</span>
+                  <span className="text-[11px] font-semibold text-blue-700 mt-0.5 leading-tight truncate">{booking.guestDetails.fullName}</span>
                 </div>
               )}
             </div>
@@ -604,9 +636,9 @@ const BookingListCard: React.FC<{
                       ? 'bg-blue-50 border-blue-300 text-blue-600'
                       : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
                   }`}
-                  title="View details"
+                  title="Notes / Chat"
                 >
-                  <Eye size={12} />
+                  <MessageSquare size={12} />
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); setCardExpanded(v => !v); }}
@@ -752,7 +784,7 @@ const BookingListCard: React.FC<{
                             </span>
                           </div>
                         </div>
-                        {/* Right controls: badges + per-service action + expand toggle */}
+                        {/* Right controls: badges + actions menu + expand toggle */}
                         <div className="flex items-center gap-1.5 pr-2.5 shrink-0" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
                             {(svc.serviceType === 'GRIEVANCE' || svc.serviceType === 'MAINTENANCE') && svc.urgencyLevel && (
@@ -764,21 +796,65 @@ const BookingListCard: React.FC<{
                               {svc.requestStatus.replace('_', ' ')}
                             </span>
                           </div>
-                          {isSvcActionable && (
-                            <button
-                              onClick={async e => { e.stopPropagation(); await onUpdateServiceStatus?.(svc.id, booking.id, isSvcOpen ? 'IN_PROGRESS' : 'RESOLVED'); }}
-                              className={`flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${
-                                isSvcOpen
-                                  ? 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100'
-                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              }`}
-                              title={isSvcOpen ? 'Mark In Progress' : 'Mark Resolved'}
+                          <button
+                            ref={el => { svcMenuBtnRefs.current[svc.id] = el; }}
+                            onClick={e => openSvcMenu(e, svc.id)}
+                            className={`p-1 rounded-lg border transition-colors ${
+                              svcMenuOpenId === svc.id
+                                ? 'bg-blue-50 border-blue-300 text-blue-600'
+                                : 'border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-200'
+                            }`}
+                            title="Service actions"
+                          >
+                            <MoreVertical size={11} />
+                          </button>
+                          {svcMenuOpenId === svc.id && svcMenuCoords && createPortal(
+                            <div
+                              ref={svcDropdownRef}
+                              style={{ position: 'fixed', top: svcMenuCoords.top, left: svcMenuCoords.left, width: 160, zIndex: 9999 }}
+                              className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1"
+                              onClick={e => e.stopPropagation()}
                             >
-                              {isSvcOpen
-                                ? <><PlayCircle size={9} />In Progress</>
-                                : <><CheckCircle size={9} />Resolve</>
-                              }
-                            </button>
+                              <div className="px-3 py-1.5 border-b border-gray-100">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Service</span>
+                              </div>
+                              {svc.requestStatus !== 'IN_PROGRESS' && svc.requestStatus !== 'RESOLVED' && svc.requestStatus !== 'CLOSED' && (
+                                <button
+                                  onClick={async e => { e.stopPropagation(); setSvcMenuOpenId(null); await onUpdateServiceStatus?.(svc.id, booking.id, 'IN_PROGRESS'); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 transition-colors text-left"
+                                >
+                                  <PlayCircle size={12} className="text-sky-500" />
+                                  Mark In Progress
+                                </button>
+                              )}
+                              {svc.requestStatus === 'IN_PROGRESS' && (
+                                <button
+                                  onClick={async e => { e.stopPropagation(); setSvcMenuOpenId(null); await onUpdateServiceStatus?.(svc.id, booking.id, 'RESOLVED'); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors text-left"
+                                >
+                                  <CheckCircle size={12} className="text-emerald-500" />
+                                  Mark Resolved
+                                </button>
+                              )}
+                              {(svc.requestStatus === 'RESOLVED' || svc.requestStatus === 'CLOSED') && (
+                                <button
+                                  onClick={async e => { e.stopPropagation(); setSvcMenuOpenId(null); await onUpdateServiceStatus?.(svc.id, booking.id, 'OPEN'); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-orange-700 hover:bg-orange-50 transition-colors text-left"
+                                >
+                                  <RefreshCw size={12} className="text-orange-500" />
+                                  Reopen
+                                </button>
+                              )}
+                              <div className="border-t border-gray-100 my-0.5" />
+                              <button
+                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); toggleSvcDetail(svc.id); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors text-left"
+                              >
+                                {isDetailExpanded ? <ChevronUp size={12} className="text-gray-400" /> : <ChevronDown size={12} className="text-gray-400" />}
+                                {isDetailExpanded ? 'Collapse' : 'View Details'}
+                              </button>
+                            </div>,
+                            document.body
                           )}
                           <button
                             onClick={e => { e.stopPropagation(); toggleSvcDetail(svc.id); }}
