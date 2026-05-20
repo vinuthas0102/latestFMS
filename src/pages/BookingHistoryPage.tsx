@@ -320,7 +320,7 @@ const BookingListCard: React.FC<{
       <div>
       <div
         onClick={onClick}
-        className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
+        className={`bg-white rounded-xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${
           isSelected ? 'border-blue-400 shadow-lg ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'
         }`}
       >
@@ -329,7 +329,7 @@ const BookingListCard: React.FC<{
           <div className={`w-1 shrink-0 ${accentColor} rounded-l-xl`} />
 
           {/* Thumbnail */}
-          <div className="w-24 shrink-0 relative group/thumb bg-gray-100" onClick={e => e.stopPropagation()}>
+          <div className="w-24 shrink-0 relative group/thumb bg-gray-100 overflow-hidden" onClick={e => e.stopPropagation()}>
             {!thumbErr ? (
               <img
                 src={thumbSrc}

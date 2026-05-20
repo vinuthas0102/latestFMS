@@ -2995,16 +2995,28 @@ export const QuarterRequestsPage: React.FC = () => {
                               {expandedCardId === req.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                             </button>
 
-                            {/* Action menu — hidden for ALLOTTED (unless in allotted/allocated_em filter) and terminal statuses */}
-                            {(!(req.request_status === 'ALLOTTED') || dpFilter === 'allotted' || dpFilter === 'allocated_em') && !['VACATED', 'WITHDRAWN', 'REJECTED'].includes(req.request_status) && (
-                              <button
-                                onClick={e => openMenu(e, req.id)}
-                                className={`p-1 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
-                                title="Actions"
-                              >
-                                <MoreVertical size={12} />
-                              </button>
-                            )}
+                            {/* Action menu — only show when at least one action applies */}
+                            {(() => {
+                              const isOccupiedReq = req.request_status === 'ACKNOWLEDGED';
+                              const hasAction =
+                                (req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && isEO && eoMode === 'employee' && !!req.allotment?.id) ||
+                                (req.request_status === 'ALLOTTED' && dpFilter === 'allocated_em' && isEO && eoMode === 'employee' && !!req.allotment?.id) ||
+                                (req.request_status === 'ALLOTTED' && dpFilter === 'allotted' && !isEO) ||
+                                req.request_status === 'DRAFT' ||
+                                (req.request_status === 'SUBMITTED' && !(isEO && eoMode === 'employee')) ||
+                                (req.request_status === 'UPGRADE_REQUESTED' && !!req.allotment) ||
+                                (isOccupiedReq && !!req.allotment);
+                              if (!hasAction) return null;
+                              return (
+                                <button
+                                  onClick={e => openMenu(e, req.id)}
+                                  className={`p-1 rounded-lg border transition-colors shrink-0 ${openMenuId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                  title="Actions"
+                                >
+                                  <MoreVertical size={12} />
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
