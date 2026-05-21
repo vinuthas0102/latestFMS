@@ -4,7 +4,7 @@ import {
   Home, FileText, XCircle, Key, MessageSquare, GitMerge, HardHat,
   X, Search, Building2, Send, Paperclip, Upload, Plus, ArrowLeft,
   PlayCircle, CheckSquare, SkipForward, ClipboardCheck, Handshake, Users,
-  ChevronDown, Zap,
+  ChevronDown, Zap, Image as ImageIcon,
 } from 'lucide-react';
 import {
   Quarter, QuarterRequest, QuarterAllotment, QuarterAllotmentApproval,
@@ -910,25 +910,84 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Remarks</label>
                     <textarea value={handoverRemarks} onChange={e => setHandoverRemarks(e.target.value)} rows={2} placeholder="Handover notes…" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Interior Photo</label>
-                      <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors text-gray-400 hover:text-teal-600">
-                        <Upload size={14} />
-                        <span className="text-[10px] mt-1">{handoverInteriorFile?.name ?? 'Upload'}</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={e => setHandoverInteriorFile(e.target.files?.[0] ?? null)} />
-                      </label>
+                  {/* Mandatory Documents */}
+                  <div className="rounded-xl border border-red-100 bg-red-50/60 px-3 pt-3 pb-3 space-y-2.5">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <FileText size={11} className="text-red-500 shrink-0" />
+                      <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Mandatory Documents</span>
+                      <span className="ml-auto text-[9px] font-semibold text-red-400 bg-red-100 px-1.5 py-0.5 rounded-full">Both Required</span>
                     </div>
+
+                    {/* Interior Photo */}
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Inspection Report</label>
-                      <label className="flex flex-col items-center justify-center w-full py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors text-gray-400 hover:text-teal-600">
-                        <Upload size={14} />
-                        <span className="text-[10px] mt-1">{handoverReportFile?.name ?? 'Upload'}</span>
-                        <input type="file" className="hidden" onChange={e => setHandoverReportFile(e.target.files?.[0] ?? null)} />
-                      </label>
+                      <div className="flex items-center gap-1 mb-1">
+                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Interior Photo</label>
+                        <span className="text-red-500 text-[10px] font-bold">*</span>
+                      </div>
+                      {handoverInteriorFile ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg">
+                          <div className="w-6 h-6 rounded-md bg-teal-100 flex items-center justify-center shrink-0">
+                            <ImageIcon size={11} className="text-teal-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-gray-800 truncate">{handoverInteriorFile.name}</p>
+                            <p className="text-[9px] text-gray-400">{(handoverInteriorFile.size / 1024).toFixed(1)} KB</p>
+                          </div>
+                          <button type="button" onClick={() => setHandoverInteriorFile(null)}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-3 w-full px-3 py-3 border-2 border-dashed border-red-200 rounded-lg cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-all group">
+                          <div className="w-7 h-7 rounded-lg bg-red-100 group-hover:bg-teal-100 flex items-center justify-center shrink-0 transition-colors">
+                            <Upload size={13} className="text-red-400 group-hover:text-teal-600 transition-colors" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-600 group-hover:text-teal-700 transition-colors">Click to upload</p>
+                            <p className="text-[9px] text-gray-400">JPG, PNG, WEBP accepted</p>
+                          </div>
+                          <input type="file" accept="image/*" className="hidden" onChange={e => setHandoverInteriorFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Inspection Report */}
+                    <div>
+                      <div className="flex items-center gap-1 mb-1">
+                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Inspection Report</label>
+                        <span className="text-red-500 text-[10px] font-bold">*</span>
+                      </div>
+                      {handoverReportFile ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg">
+                          <div className="w-6 h-6 rounded-md bg-teal-100 flex items-center justify-center shrink-0">
+                            <FileText size={11} className="text-teal-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-gray-800 truncate">{handoverReportFile.name}</p>
+                            <p className="text-[9px] text-gray-400">{(handoverReportFile.size / 1024).toFixed(1)} KB</p>
+                          </div>
+                          <button type="button" onClick={() => setHandoverReportFile(null)}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-3 w-full px-3 py-3 border-2 border-dashed border-red-200 rounded-lg cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-all group">
+                          <div className="w-7 h-7 rounded-lg bg-red-100 group-hover:bg-teal-100 flex items-center justify-center shrink-0 transition-colors">
+                            <Upload size={13} className="text-red-400 group-hover:text-teal-600 transition-colors" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-600 group-hover:text-teal-700 transition-colors">Click to upload</p>
+                            <p className="text-[9px] text-gray-400">PDF, JPG, PNG accepted</p>
+                          </div>
+                          <input type="file" accept="application/pdf,image/*" className="hidden" onChange={e => setHandoverReportFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                      )}
                     </div>
                   </div>
-                  <button onClick={handleCreateHandover} disabled={handoverSubmitting || !handoverKeyNo.trim() || !handoverDeadline} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
+
+                  <button onClick={handleCreateHandover} disabled={handoverSubmitting || !handoverKeyNo.trim() || !handoverDeadline || !handoverInteriorFile || !handoverReportFile} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors">
                     <Handshake size={14} />{handoverSubmitting ? 'Recording…' : 'Record Handover & Confirm Occupancy'}
                   </button>
                 </div>

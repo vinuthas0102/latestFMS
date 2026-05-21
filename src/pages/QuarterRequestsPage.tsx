@@ -1283,6 +1283,9 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user || !selectedRequest?.allotment?.id || !handoverKeyNo.trim() || !handoverDeadline) {
       addToast('Key number and deadline are required', 'warning'); return;
     }
+    if (!handoverInteriorFile || !handoverReportFile) {
+      addToast('Interior photo and inspection report are required', 'warning'); return;
+    }
     setHandoverSubmitting(true);
     try {
       await quartersService.createHandover(selectedRequest.allotment.id, user.id, {
