@@ -346,6 +346,8 @@ export function useQuarterRequestsState() {
   const [popupCondition, setPopupCondition] = useState('GOOD');
   const [popupKeyNumber, setPopupKeyNumber] = useState('');
   const [popupHandoverDeadline, setPopupHandoverDeadline] = useState('');
+  const [popupHandoverInteriorFile, setPopupHandoverInteriorFile] = useState<File | null>(null);
+  const [popupHandoverReportFile, setPopupHandoverReportFile] = useState<File | null>(null);
   const [popupRetentionReason, setPopupRetentionReason] = useState('On retirement');
   const [popupRequestedMonths, setPopupRequestedMonths] = useState(2);
 
@@ -600,6 +602,8 @@ export function useQuarterRequestsState() {
     popupCondition, setPopupCondition,
     popupKeyNumber, setPopupKeyNumber,
     popupHandoverDeadline, setPopupHandoverDeadline,
+    popupHandoverInteriorFile, setPopupHandoverInteriorFile,
+    popupHandoverReportFile, setPopupHandoverReportFile,
     popupRetentionReason, setPopupRetentionReason,
     popupRequestedMonths, setPopupRequestedMonths,
     vacateDesignationName, setVacateDesignationName,

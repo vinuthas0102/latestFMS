@@ -3,7 +3,7 @@ import {
   RefreshCw, LogOut, AlertCircle, Wrench, HardHat, Key,
   CalendarDays, Info, Paperclip, X, ChevronDown, ChevronUp,
   Building2, FileText, CheckCircle2, User, CreditCard, Home,
-  Briefcase,
+  Briefcase, Upload, Image as ImageIcon,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DocUpload } from '../ui/DocUpload';
@@ -64,8 +64,12 @@ interface Props {
   onOpeningRemarksChange: (v: string) => void;
   onConditionChange: (v: string) => void;
   onChecklistChange: (items: ChecklistItemDraft[]) => void;
+  handoverInteriorFile: File | null;
+  handoverReportFile: File | null;
   onKeyNumberChange: (v: string) => void;
   onHandoverDeadlineChange: (v: string) => void;
+  onHandoverInteriorFileChange: (f: File | null) => void;
+  onHandoverReportFileChange: (f: File | null) => void;
   onRetentionReasonChange: (v: string) => void;
   onRequestedMonthsChange: (v: number) => void;
 }
@@ -678,11 +682,13 @@ export function ActionPopupModal({
   actionPopup, onClose, onSubmit, submitting,
   reason, remarks, docUrl, date, subject, urgency,
   inspectorName, openingRemarks, condition, checklist, keyNumber, handoverDeadline,
+  handoverInteriorFile, handoverReportFile,
   retentionReason, requestedMonths, allotmentInfo,
   onReasonChange, onRemarksChange, onDocChange, onDateChange,
   onSubjectChange, onUrgencyChange, onInspectorNameChange,
   onOpeningRemarksChange, onConditionChange, onChecklistChange,
   onKeyNumberChange, onHandoverDeadlineChange,
+  onHandoverInteriorFileChange, onHandoverReportFileChange,
   onRetentionReasonChange, onRequestedMonthsChange,
 }: Props) {
   const type = actionPopup.type;
@@ -812,6 +818,85 @@ export function ActionPopupModal({
                     placeholder="Additional remarks…"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                 </div>
+
+                {/* Mandatory Documents */}
+                <div className="rounded-xl border border-red-100 bg-red-50/50 px-3 pt-3 pb-3 space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <FileText size={12} className="text-red-500 shrink-0" />
+                    <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Mandatory Documents</span>
+                    <span className="ml-auto text-[9px] font-semibold text-red-400 bg-red-100 px-1.5 py-0.5 rounded-full">Both Required</span>
+                  </div>
+
+                  {/* Interior Photo */}
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Interior Photo</label>
+                      <span className="text-red-500 text-xs font-bold">*</span>
+                    </div>
+                    {handoverInteriorFile ? (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg">
+                        <div className="w-7 h-7 rounded-md bg-teal-100 flex items-center justify-center shrink-0">
+                          <ImageIcon size={13} className="text-teal-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{handoverInteriorFile.name}</p>
+                          <p className="text-[10px] text-gray-400">{(handoverInteriorFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <button type="button" onClick={() => onHandoverInteriorFileChange(null)}
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-3 w-full px-3 py-3 border-2 border-dashed border-red-200 rounded-lg cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-all group">
+                        <div className="w-8 h-8 rounded-lg bg-red-100 group-hover:bg-teal-100 flex items-center justify-center shrink-0 transition-colors">
+                          <Upload size={14} className="text-red-400 group-hover:text-teal-600 transition-colors" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 group-hover:text-teal-700 transition-colors">Click to upload</p>
+                          <p className="text-[10px] text-gray-400">JPG, PNG, WEBP accepted</p>
+                        </div>
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={e => onHandoverInteriorFileChange(e.target.files?.[0] ?? null)} />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Inspection Report */}
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Inspection Report</label>
+                      <span className="text-red-500 text-xs font-bold">*</span>
+                    </div>
+                    {handoverReportFile ? (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-teal-50 border border-teal-200 rounded-lg">
+                        <div className="w-7 h-7 rounded-md bg-teal-100 flex items-center justify-center shrink-0">
+                          <FileText size={13} className="text-teal-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{handoverReportFile.name}</p>
+                          <p className="text-[10px] text-gray-400">{(handoverReportFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <button type="button" onClick={() => onHandoverReportFileChange(null)}
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-3 w-full px-3 py-3 border-2 border-dashed border-red-200 rounded-lg cursor-pointer hover:border-teal-400 hover:bg-teal-50/40 transition-all group">
+                        <div className="w-8 h-8 rounded-lg bg-red-100 group-hover:bg-teal-100 flex items-center justify-center shrink-0 transition-colors">
+                          <Upload size={14} className="text-red-400 group-hover:text-teal-600 transition-colors" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 group-hover:text-teal-700 transition-colors">Click to upload</p>
+                          <p className="text-[10px] text-gray-400">PDF, JPG, PNG accepted</p>
+                        </div>
+                        <input type="file" accept="application/pdf,image/*" className="hidden"
+                          onChange={e => onHandoverReportFileChange(e.target.files?.[0] ?? null)} />
+                      </label>
+                    )}
+                  </div>
+                </div>
               </>
             )}
 
@@ -869,7 +954,8 @@ export function ActionPopupModal({
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
-              <button onClick={onSubmit} disabled={submitting}
+              <button onClick={onSubmit}
+                disabled={submitting || (isHandover && (!handoverInteriorFile || !handoverReportFile))}
                 className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>

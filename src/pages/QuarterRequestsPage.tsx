@@ -298,6 +298,8 @@ export const QuarterRequestsPage: React.FC = () => {
     popupInspectorName, setPopupInspectorName, popupOpeningRemarks, setPopupOpeningRemarks,
     popupChecklist, setPopupChecklist, popupCondition, setPopupCondition,
     popupKeyNumber, setPopupKeyNumber, popupHandoverDeadline, setPopupHandoverDeadline,
+    popupHandoverInteriorFile, setPopupHandoverInteriorFile,
+    popupHandoverReportFile, setPopupHandoverReportFile,
     popupRetentionReason, setPopupRetentionReason, popupRequestedMonths, setPopupRequestedMonths,
     vacateDesignationName, setVacateDesignationName,
     showUpgradeModal, setShowUpgradeModal,
@@ -583,6 +585,8 @@ export const QuarterRequestsPage: React.FC = () => {
 
   function closeActionPopup() {
     setActionPopup({ type: null, requestId: '', allotmentId: '' });
+    setPopupHandoverInteriorFile(null);
+    setPopupHandoverReportFile(null);
   }
 
 
@@ -959,6 +963,9 @@ export const QuarterRequestsPage: React.FC = () => {
       }
       if (actionPopup.type === 'HANDOVER') {
         if (!popupKeyNumber.trim()) { addToast('Please enter key number', 'warning'); setPopupSubmitting(false); return; }
+        if (!popupHandoverInteriorFile || !popupHandoverReportFile) {
+          addToast('Interior photo and inspection report are required', 'warning'); setPopupSubmitting(false); return;
+        }
         await quartersService.createHandover(actionPopup.allotmentId, user.id, {
           key_number: popupKeyNumber,
           occupying_deadline: popupHandoverDeadline || '',
@@ -4501,6 +4508,8 @@ export const QuarterRequestsPage: React.FC = () => {
             checklist={popupChecklist}
             keyNumber={popupKeyNumber}
             handoverDeadline={popupHandoverDeadline}
+            handoverInteriorFile={popupHandoverInteriorFile}
+            handoverReportFile={popupHandoverReportFile}
             retentionReason={popupRetentionReason}
             requestedMonths={popupRequestedMonths}
             allotmentInfo={allotmentInfo}
@@ -4516,6 +4525,8 @@ export const QuarterRequestsPage: React.FC = () => {
             onChecklistChange={setPopupChecklist}
             onKeyNumberChange={setPopupKeyNumber}
             onHandoverDeadlineChange={setPopupHandoverDeadline}
+            onHandoverInteriorFileChange={setPopupHandoverInteriorFile}
+            onHandoverReportFileChange={setPopupHandoverReportFile}
             onRetentionReasonChange={setPopupRetentionReason}
             onRequestedMonthsChange={setPopupRequestedMonths}
           />
