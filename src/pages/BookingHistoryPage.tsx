@@ -899,7 +899,7 @@ const BookingListCard: React.FC<{
                                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors text-left"
                               >
                                 <MessageSquare size={12} className="text-teal-500" />
-                                {chatOpenSvcId === svc.id ? 'Close Chat' : 'Open Chat'}
+                                Open Chat
                               </button>
                               <div className="border-t border-gray-100 my-0.5" />
                               <button

@@ -510,7 +510,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     {savingAllotmentWorkflow ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <PlayCircle size={13} />}
-                    Save Workflow
+                    Confirm Workflow
                   </button>
                 </div>
               ) : (
@@ -545,11 +545,11 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
           );
         })()}
 
-        {/* Approval tab — Unapproved stage: initiate approval */}
+        {/* Approval tab — Unapproved stage: review confirmed workflow + initiate approval */}
         {eoRightMode === 'approval_chat' && isUnapprovedStage && (() => {
-          const savedWflId = allotment?.selected_workflow_id ?? '';
-          const effectiveWflId = wflSelectedId || savedWflId;
-          const hasWorkflow = !!effectiveWflId;
+          const effectiveWflId = allotment?.selected_workflow_id ?? '';
+          const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
+          const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
           return (
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-2.5">
@@ -558,83 +558,37 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-800">Approval Workflow</p>
-                  <p className="text-[10px] text-gray-400 leading-tight">Select a workflow to route this allotment for approval</p>
+                  <p className="text-[10px] text-gray-400 leading-tight">Review the confirmed workflow and initiate the approval process</p>
                 </div>
               </div>
 
-              {!hasWorkflow || wflSelectedId ? (
-                /* WFL picker — shown when no saved workflow OR user wants to change */
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                      Select Workflow (WFL)
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={wflSelectedId || savedWflId}
-                        onChange={e => setWflSelectedId(e.target.value)}
-                        className="w-full appearance-none px-3 py-2.5 pr-8 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white text-gray-700"
-                      >
-                        <option value="">-- Select a Workflow --</option>
-                        {requestApprovalWorkflows.map(wfl => (
-                          <option key={wfl.id} value={wfl.id}>
-                            {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {effectiveWflId && (() => {
-                    const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
-                    if (!wfl) return null;
-                    return (
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
-                        {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
-                          <div key={lvl.level} className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center shrink-0">{lvl.level}</span>
-                            <span className="text-[11px] text-gray-700 font-medium">{lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-
-                  <button
-                    onClick={() => { if (effectiveWflId) setWflSubmitted(true); }}
-                    disabled={!effectiveWflId}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <PlayCircle size={13} /> Confirm Workflow
-                  </button>
+              {!effectiveWflId ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-[11px] text-amber-700 font-medium">No workflow has been confirmed yet. Go to the <span className="font-bold">Allocated</span> stage to select and confirm a workflow first.</p>
                 </div>
               ) : (
-                /* Confirmed state — show saved workflow + Initiate Approval */
                 <div className="space-y-3">
-                  {(() => {
-                    const wfl = requestApprovalWorkflows.find(w => w.id === effectiveWflId);
-                    const levelCount = (wfl?.levels as { level: number }[] | undefined)?.length ?? 0;
-                    return (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CheckSquare size={13} className="text-emerald-600 shrink-0" />
-                          <span className="text-xs font-bold text-emerald-800">Workflow Selected</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-700 ml-5">
-                          {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                    );
-                  })()}
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare size={13} className="text-emerald-600 shrink-0" />
+                      <span className="text-xs font-bold text-emerald-800">Workflow Confirmed</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 ml-5">
+                      {wfl?.workflow_name ?? 'Selected workflow'} — {levelCount} approval level{levelCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
 
-                  <button
-                    onClick={() => setWflSelectedId('')}
-                    className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-                  >
-                    Change workflow
-                  </button>
+                  {wfl && (
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Approval Levels</p>
+                      {(wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]).map(lvl => (
+                        <div key={lvl.level} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold flex items-center justify-center shrink-0">{lvl.level}</span>
+                          <span className="text-[11px] text-gray-700 font-medium">{lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <button
                     onClick={() => { if (effectiveWflId) handleInitiateAllotmentApproval(effectiveWflId); }}
