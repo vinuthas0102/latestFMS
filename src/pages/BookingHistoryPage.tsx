@@ -1012,7 +1012,7 @@ const AvailablePropertyCard: React.FC<{
   const [avLoading, setAvLoading] = useState(false);
   const [avStatus, setAvStatus] = useState<'idle' | 'available' | 'unavailable'>('idle');
 
-  const roomTypes: { id: string; name: string }[] = (property as any).roomTypes ?? [];
+  const roomTypes = usePropertyStore(s => s.roomTypes);
 
   useEffect(() => {
     if (!avCheckIn || !avCheckOut || !avRoomTypeId) { setAvStatus('idle'); return; }
@@ -1278,7 +1278,9 @@ export const BookingHistoryPage: React.FC = () => {
   const { user } = useAuthStore();
   const addToast = useUIStore((state) => state.addToast);
   const fetchAmenities = usePropertyStore(s => s.fetchAmenities);
+  const fetchRoomTypes = usePropertyStore(s => s.fetchRoomTypes);
   const amenitiesLoaded = usePropertyStore(s => s.amenities.length > 0);
+  const allRoomTypes = usePropertyStore(s => s.roomTypes);
 
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1400,6 +1402,7 @@ export const BookingHistoryPage: React.FC = () => {
     loadBookings();
     loadAvailableProperties();
     if (!amenitiesLoaded) fetchAmenities().catch(() => {});
+    if (allRoomTypes.length === 0) fetchRoomTypes().catch(() => {});
     const status = searchParams.get('status');
     if (status === 'upcoming') setDpFilter('upcoming');
     else if (status === 'cancelled') setDpFilter('cancelled');
@@ -3145,16 +3148,9 @@ export const BookingHistoryPage: React.FC = () => {
                         className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
                       >
                         <option value="">Select room type…</option>
-                        {(bookForEmpProperty.roomTypes ?? []).map((rt: any) => (
+                        {allRoomTypes.map((rt) => (
                           <option key={rt.id} value={rt.id}>{rt.name}</option>
                         ))}
-                        {(bookForEmpProperty.roomTypes ?? []).length === 0 && (
-                          <>
-                            <option value="7fc1c91a-4beb-4760-b149-3001a2310764">Standard</option>
-                            <option value="deccd249-2c5a-41be-9c9a-139794277acb">Deluxe</option>
-                            <option value="5fcb45e8-2857-419d-a7f6-d4a4741d30d1">Suite</option>
-                          </>
-                        )}
                       </select>
                     </div>
                     <div>
