@@ -1391,8 +1391,12 @@ export const BookingHistoryPage: React.FC = () => {
   const [empCheckOut, setEmpCheckOut] = useState('');
   const [empRoomTypeId, setEmpRoomTypeId] = useState('');
   const [empQuantity, setEmpQuantity] = useState('1');
-  const [empPaymentMode, setEmpPaymentMode] = useState<'PAID' | 'COMPLIMENTARY' | 'ACCOUNT_TRANSFER'>('PAID');
+  const [empPaymentMode, setEmpPaymentMode] = useState<'PAID' | 'COMPLIMENTARY' | 'ACCOUNT_TRANSFER' | 'COUNTER'>('PAID');
   const [empRemarks, setEmpRemarks] = useState('');
+  const [empNumAdults, setEmpNumAdults] = useState('1');
+  const [empNumChildren, setEmpNumChildren] = useState('0');
+  const [empSpecialReqs, setEmpSpecialReqs] = useState('');
+  const [empSelfPhone, setEmpSelfPhone] = useState('');
   const [empLoading, setEmpLoading] = useState(false);
 
 
@@ -1853,6 +1857,10 @@ export const BookingHistoryPage: React.FC = () => {
     setEmpQuantity('1');
     setEmpPaymentMode('PAID');
     setEmpRemarks('');
+    setEmpNumAdults('1');
+    setEmpNumChildren('0');
+    setEmpSpecialReqs('');
+    setEmpSelfPhone('');
   };
 
   const handleSubmitBookForEmp = async () => {
@@ -1864,10 +1872,12 @@ export const BookingHistoryPage: React.FC = () => {
     setEmpLoading(true);
     try {
       const qty = parseInt(empQuantity, 10) || 1;
+      const adults = parseInt(empNumAdults, 10) || 1;
+      const children = parseInt(empNumChildren, 10) || 0;
       const guestDetails = isSelf ? {
         fullName: user?.name ?? '',
         email: user?.email ?? '',
-        phone: '',
+        phone: empSelfPhone.trim(),
       } : {
         fullName: empGuestName.trim(),
         email: empGuestEmail.trim(),
@@ -1884,7 +1894,9 @@ export const BookingHistoryPage: React.FC = () => {
         guestDetails,
         specialRequirements: [
           isSelf ? 'SELF_BOOKING' : empIsTP ? 'THIRD_PARTY_GUEST' : 'EMPLOYEE_BOOKING',
+          `Adults: ${adults}, Children: ${children}`,
           `Payment: ${empPaymentMode}`,
+          empSpecialReqs.trim(),
           empRemarks.trim(),
         ].filter(Boolean).join('. '),
       });
@@ -3068,12 +3080,12 @@ export const BookingHistoryPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Mobile</label>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Phone Number</label>
                         <input
                           type="tel"
                           value={empGuestPhone}
                           onChange={e => setEmpGuestPhone(e.target.value)}
-                          placeholder="10-digit mobile"
+                          placeholder="+91 XXXXX XXXXX"
                           className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
                         />
                       </div>
@@ -3114,6 +3126,71 @@ export const BookingHistoryPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Guest Details (adults / children) — always shown */}
+                <div>
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Guest Details</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {isSelf && (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Phone Number</label>
+                          <input
+                            type="tel"
+                            value={empSelfPhone}
+                            onChange={e => setEmpSelfPhone(e.target.value)}
+                            placeholder="+91 XXXXX XXXXX"
+                            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                          />
+                        </div>
+                        <div />
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Number of Adults</label>
+                      <div className="relative">
+                        <Users size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={1}
+                          value={empNumAdults}
+                          onChange={e => setEmpNumAdults(e.target.value)}
+                          className="w-full text-sm pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Number of Children</label>
+                      <div className="relative">
+                        <Users size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="number"
+                          min={0}
+                          value={empNumChildren}
+                          onChange={e => setEmpNumChildren(e.target.value)}
+                          className="w-full text-sm pl-8 pr-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Special Requirements <span className="normal-case font-normal text-gray-400">(Optional)</span></label>
+                      <input
+                        type="text"
+                        value={empSpecialReqs}
+                        onChange={e => setEmpSpecialReqs(e.target.value)}
+                        placeholder="Any special needs or requests"
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                  {/* Total guests summary */}
+                  <div className="mt-2 bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-600">
+                    <span className="font-semibold">Total Guests:</span>{' '}
+                    {(parseInt(empNumAdults, 10) || 1) + (parseInt(empNumChildren, 10) || 0)}{' '}
+                    ({parseInt(empNumAdults, 10) || 1} {parseInt(empNumAdults, 10) === 1 ? 'Adult' : 'Adults'},{' '}
+                    {parseInt(empNumChildren, 10) || 0} {parseInt(empNumChildren, 10) === 1 ? 'Child' : 'Children'})
+                  </div>
+                </div>
 
                 {/* Booking Details */}
                 <div>
@@ -3169,8 +3246,8 @@ export const BookingHistoryPage: React.FC = () => {
                 {/* Payment mode */}
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER'] as const).map(mode => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER', 'COUNTER'] as const).map(mode => (
                       <button
                         key={mode}
                         onClick={() => setEmpPaymentMode(mode)}
@@ -3180,10 +3257,16 @@ export const BookingHistoryPage: React.FC = () => {
                             : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
                       >
-                        {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : 'Acct Transfer'}
+                        {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : mode === 'ACCOUNT_TRANSFER' ? 'Acct Transfer' : 'Payable at Counter'}
                       </button>
                     ))}
                   </div>
+                  {isSelf && empPaymentMode === 'PAID' && (
+                    <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                      <CreditCard size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-amber-700">You will be directed to the payment gateway after confirming this booking.</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Remarks */}
