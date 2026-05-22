@@ -1007,6 +1007,19 @@ const AvailablePropertyCard: React.FC<{
 }> = ({ property, index, onView, onBook, onBookForEmployee, isManager }) => {
   const [primaryImgError, setPrimaryImgError] = useState(false);
   const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
+  const [bookDropdownOpen, setBookDropdownOpen] = useState(false);
+  const bookDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!bookDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (bookDropdownRef.current && !bookDropdownRef.current.contains(e.target as Node)) {
+        setBookDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [bookDropdownOpen]);
 
   const allImages = resolvePropertyImages(property, index);
   const primaryImage = allImages[0];
@@ -1043,6 +1056,15 @@ const AvailablePropertyCard: React.FC<{
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+          {/* Eye icon overlay */}
+          <button
+            onClick={e => { e.stopPropagation(); onView(); }}
+            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20"
+          >
+            <div className="bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-lg">
+              <Eye size={18} className="text-gray-800" />
+            </div>
+          </button>
           <div className="absolute top-3 left-3">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 bg-white/90 backdrop-blur-sm">
               Available
@@ -1161,30 +1183,53 @@ const AvailablePropertyCard: React.FC<{
         onClick={e => e.stopPropagation()}
       >
         <div className="flex flex-col gap-2 mt-4">
-          <button
-            onClick={e => { e.stopPropagation(); onBook(); }}
-            className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
-          >
-            <Plus size={14} />
-            Book Now
-          </button>
-          {isManager && onBookForEmployee && (
+          {isManager && onBookForEmployee ? (
+            <div className="relative" ref={bookDropdownRef}>
+              <button
+                onClick={e => { e.stopPropagation(); setBookDropdownOpen(o => !o); }}
+                className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
+              >
+                <Plus size={14} />
+                Book Now
+                <ChevronDown size={13} className={`ml-auto transition-transform duration-200 ${bookDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {bookDropdownOpen && (
+                <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-20">
+                  <button
+                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBook(); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                  >
+                    <Users size={14} className="text-blue-500 flex-shrink-0" />
+                    <span className="font-medium">Book for Self</span>
+                  </button>
+                  <div className="border-t border-gray-100" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBookForEmployee(); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                  >
+                    <UserPlus size={14} className="text-teal-500 flex-shrink-0" />
+                    <span className="font-medium">Book for Employee</span>
+                  </button>
+                  <div className="border-t border-gray-100" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBookForEmployee(); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                  >
+                    <UserCheck size={14} className="text-orange-500 flex-shrink-0" />
+                    <span className="font-medium">Book for Third Party</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
             <button
-              onClick={e => { e.stopPropagation(); onBookForEmployee(); }}
-              className="w-full flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-teal-200"
+              onClick={e => { e.stopPropagation(); onBook(); }}
+              className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
             >
-              <UserPlus size={13} />
-              Book for Emp / TP
+              <Plus size={14} />
+              Book Now
             </button>
           )}
-          <button
-            onClick={e => { e.stopPropagation(); onView(); }}
-            className="w-full flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
-          >
-            <Eye size={13} />
-            View Details
-            <ChevronRight size={12} />
-          </button>
         </div>
       </div>
     </div>

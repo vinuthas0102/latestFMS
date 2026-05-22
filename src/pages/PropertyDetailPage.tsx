@@ -120,6 +120,8 @@ export const PropertyDetailPage: React.FC = () => {
   const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
   const [checkOut, setCheckOut] = useState(searchParams.get('checkOut') || '');
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const [availPopupOpen, setAvailPopupOpen] = useState(false);
+  const availPopupRef = useRef<HTMLDivElement>(null);
 
   const tabBarRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement>>>({});
@@ -139,6 +141,17 @@ export const PropertyDetailPage: React.FC = () => {
       if (scrollIdleTimerRef.current) clearTimeout(scrollIdleTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!availPopupOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (availPopupRef.current && !availPopupRef.current.contains(e.target as Node)) {
+        setAvailPopupOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [availPopupOpen]);
 
   // ── Scroll-spy via IntersectionObserver ────────────────────────
   useEffect(() => {
@@ -668,13 +681,69 @@ export const PropertyDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => scrollToSection('book')}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all duration-200"
-            >
-              <Calendar size={15} />
-              Book Now
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Check Availability popup */}
+              <div className="relative" ref={availPopupRef}>
+                <button
+                  onClick={() => setAvailPopupOpen(o => !o)}
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow transition-all duration-200"
+                >
+                  <Calendar size={15} />
+                  Check Availability
+                </button>
+                {availPopupOpen && (
+                  <div className="absolute bottom-full right-0 mb-2 w-[340px] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-30">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-gray-900">Check Availability</h4>
+                      <button onClick={() => setAvailPopupOpen(false)} className="text-gray-400 hover:text-gray-600 p-0.5 rounded-lg hover:bg-gray-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                    <div className="overflow-auto max-h-[340px]">
+                      <PropertyAvailabilityCalendar
+                        propertyId={id!}
+                        onDateSelect={(date) => {
+                          if (!checkIn) {
+                            setCheckIn(date);
+                          } else if (!checkOut && date > checkIn) {
+                            setCheckOut(date);
+                          } else {
+                            setCheckIn(date);
+                            setCheckOut('');
+                          }
+                        }}
+                        onClearDates={() => { setCheckIn(''); setCheckOut(''); }}
+                        selectedStartDate={checkIn}
+                        selectedEndDate={checkOut}
+                      />
+                    </div>
+                    {checkIn && checkOut && (
+                      <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 flex items-center justify-between gap-2">
+                        <div className="text-xs text-blue-700">
+                          <span className="font-semibold">{new Date(checkIn + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          <span className="mx-1.5 opacity-60">→</span>
+                          <span className="font-semibold">{new Date(checkOut + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                        </div>
+                        <button
+                          onClick={() => { setAvailPopupOpen(false); scrollToSection('book'); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors"
+                        >
+                          <Calendar size={12} />
+                          Book Now
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => scrollToSection('book')}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Calendar size={15} />
+                Book Now
+              </button>
+            </div>
           </div>
         </div>
       )}
