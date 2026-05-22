@@ -997,29 +997,46 @@ function resolvePropertyImages(property: PropertyDTO, idx: number): string[] {
   return result;
 }
 
-type BookingFor = 'self' | 'employee' | 'tp';
-
 const AvailablePropertyCard: React.FC<{
   property: PropertyDTO;
   index: number;
   onView: () => void;
-  onBook: () => void;
-  onBookForEmployee?: (isTP: boolean) => void;
+  onBook: (checkIn?: string, checkOut?: string, roomTypeId?: string) => void;
   isManager?: boolean;
-}> = ({ property, index, onView, onBook, onBookForEmployee, isManager }) => {
+}> = ({ property, index, onView, onBook, isManager }) => {
   const [primaryImgError, setPrimaryImgError] = useState(false);
   const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
-  const [bookingFor, setBookingFor] = useState<BookingFor>('self');
+  const [avCheckIn, setAvCheckIn] = useState('');
+  const [avCheckOut, setAvCheckOut] = useState('');
+  const [avRoomTypeId, setAvRoomTypeId] = useState('');
+  const [avLoading, setAvLoading] = useState(false);
+  const [avStatus, setAvStatus] = useState<'idle' | 'available' | 'unavailable'>('idle');
 
-  const handleBookNow = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isManager && onBookForEmployee) {
-      if (bookingFor === 'self') onBook();
-      else onBookForEmployee(bookingFor === 'tp');
-    } else {
-      onBook();
-    }
-  };
+  const roomTypes: { id: string; name: string }[] = (property as any).roomTypes ?? [];
+
+  useEffect(() => {
+    if (!avCheckIn || !avCheckOut || !avRoomTypeId) { setAvStatus('idle'); return; }
+    let cancelled = false;
+    setAvLoading(true);
+    supabase
+      .from('bookings')
+      .select('quantity')
+      .eq('property_id', property.id)
+      .eq('room_type_id', avRoomTypeId)
+      .neq('status', 'CANCELLED')
+      .neq('status', 'REJECTED')
+      .lte('check_in_date', avCheckOut)
+      .gte('check_out_date', avCheckIn)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const booked = (data ?? []).reduce((s: number, b: any) => s + (b.quantity || 0), 0);
+        const rt = roomTypes.find(r => r.id === avRoomTypeId) as any;
+        const total = rt?.totalRooms ?? rt?.total_rooms ?? 1;
+        setAvStatus(booked < total ? 'available' : 'unavailable');
+        setAvLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [avCheckIn, avCheckOut, avRoomTypeId, property.id]);
 
   const allImages = resolvePropertyImages(property, index);
   const primaryImage = allImages[0];
@@ -1177,52 +1194,77 @@ const AvailablePropertyCard: React.FC<{
         )}
       </div>
 
-      {/* Right: CTA */}
+      {/* Right: Check Availability + CTA */}
       <div
-        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-52 flex-shrink-0 bg-gray-50/40"
+        className="flex flex-col p-4 sm:border-l border-gray-100 sm:w-60 flex-shrink-0 bg-gray-50/40 gap-3"
         onClick={e => e.stopPropagation()}
       >
-        {isManager && onBookForEmployee && (
-          <div className="mb-3">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Book as</p>
-            <div className="flex flex-col gap-1.5">
-              {([
-                { value: 'self' as BookingFor,     label: 'Self',           icon: <Users size={12} /> },
-                { value: 'employee' as BookingFor, label: 'Other Employee', icon: <UserPlus size={12} /> },
-                { value: 'tp' as BookingFor,       label: 'Third Party',    icon: <UserCheck size={12} /> },
-              ] as { value: BookingFor; label: string; icon: React.ReactNode }[]).map(opt => (
-                <label
-                  key={opt.value}
-                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none text-xs font-medium ${
-                    bookingFor === opt.value
-                      ? 'bg-blue-50 border-blue-300 text-blue-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                  }`}
-                  onClick={e => { e.stopPropagation(); setBookingFor(opt.value); }}
-                >
-                  <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    bookingFor === opt.value ? 'border-blue-500' : 'border-gray-300'
-                  }`}>
-                    {bookingFor === opt.value && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 block" />
-                    )}
-                  </span>
-                  {opt.icon}
-                  {opt.label}
-                </label>
-              ))}
+        {/* Check Availability */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <CalendarCheck size={13} className="text-blue-500" />
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Check Availability</p>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Check-in</p>
+              <input
+                type="date"
+                value={avCheckIn}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setAvCheckIn(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Check-out</p>
+              <input
+                type="date"
+                value={avCheckOut}
+                min={avCheckIn || new Date().toISOString().split('T')[0]}
+                onChange={e => setAvCheckOut(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
             </div>
           </div>
-        )}
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={handleBookNow}
-            className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
-          >
-            <Plus size={14} />
-            Book Now
-          </button>
+          <div className="mb-1.5">
+            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Room Type</p>
+            <select
+              value={avRoomTypeId}
+              onChange={e => setAvRoomTypeId(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+            >
+              <option value="">Select type…</option>
+              {roomTypes.map(rt => (
+                <option key={rt.id} value={rt.id}>{rt.name}</option>
+              ))}
+            </select>
+          </div>
+          {/* Availability status indicator */}
+          {avLoading && (
+            <div className="flex items-center gap-1.5 py-1 text-xs text-gray-400">
+              <Loader2 size={11} className="animate-spin" /> Checking…
+            </div>
+          )}
+          {!avLoading && avStatus === 'available' && (
+            <div className="flex items-center gap-1.5 py-1 text-xs font-semibold text-emerald-600">
+              <CheckCircle size={12} /> Available
+            </div>
+          )}
+          {!avLoading && avStatus === 'unavailable' && (
+            <div className="flex items-center gap-1.5 py-1 text-xs font-semibold text-red-500">
+              <XCircle size={12} /> Not Available
+            </div>
+          )}
         </div>
+        {/* Book Now */}
+        <button
+          onClick={e => { e.stopPropagation(); onBook(avCheckIn || undefined, avCheckOut || undefined, avRoomTypeId || undefined); }}
+          className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
+        >
+          <Plus size={14} />
+          Book Now
+        </button>
       </div>
     </div>
   );
@@ -1333,8 +1375,10 @@ export const BookingHistoryPage: React.FC = () => {
   const [checkInRemarks, setCheckInRemarks] = useState('');
   const [checkInLoading, setCheckInLoading] = useState(false);
 
-  // Book for Employee / TP modal
+  // Book for Self / Employee / TP modal
+  type EmpBookingFor = 'self' | 'employee' | 'tp';
   const [bookForEmpProperty, setBookForEmpProperty] = useState<PropertyDTO | null>(null);
+  const [empBookingFor, setEmpBookingFor] = useState<EmpBookingFor>('self');
   const [empGuestName, setEmpGuestName] = useState('');
   const [empGuestEmail, setEmpGuestEmail] = useState('');
   const [empGuestPhone, setEmpGuestPhone] = useState('');
@@ -1787,17 +1831,22 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
-  const openBookForEmpModal = (property: PropertyDTO, initialIsTP = false) => {
+  const openBookForEmpModal = (
+    property: PropertyDTO,
+    bookingFor: 'self' | 'employee' | 'tp' = 'self',
+    prefill?: { checkIn?: string; checkOut?: string; roomTypeId?: string },
+  ) => {
     setBookForEmpProperty(property);
+    setEmpBookingFor(bookingFor);
+    setEmpIsTP(bookingFor === 'tp');
     setEmpGuestName('');
     setEmpGuestEmail('');
     setEmpGuestPhone('');
     setEmpDesignation('');
     setEmpDepartment('');
-    setEmpIsTP(initialIsTP);
-    setEmpCheckIn('');
-    setEmpCheckOut('');
-    setEmpRoomTypeId('');
+    setEmpCheckIn(prefill?.checkIn ?? '');
+    setEmpCheckOut(prefill?.checkOut ?? '');
+    setEmpRoomTypeId(prefill?.roomTypeId ?? '');
     setEmpQuantity('1');
     setEmpPaymentMode('PAID');
     setEmpRemarks('');
@@ -1805,32 +1854,37 @@ export const BookingHistoryPage: React.FC = () => {
 
   const handleSubmitBookForEmp = async () => {
     if (!bookForEmpProperty) return;
-    if (!empGuestName.trim()) { addToast('Guest name is required', 'warning'); return; }
+    const isSelf = empBookingFor === 'self';
+    if (!isSelf && !empGuestName.trim()) { addToast('Guest name is required', 'warning'); return; }
     if (!empCheckIn || !empCheckOut) { addToast('Check-in and check-out dates are required', 'warning'); return; }
     if (!empRoomTypeId) { addToast('Please select a room type', 'warning'); return; }
     setEmpLoading(true);
     try {
       const qty = parseInt(empQuantity, 10) || 1;
+      const guestDetails = isSelf ? {
+        fullName: user?.name ?? '',
+        email: user?.email ?? '',
+        phone: '',
+      } : {
+        fullName: empGuestName.trim(),
+        email: empGuestEmail.trim(),
+        phone: empGuestPhone.trim(),
+        designation: empDesignation.trim(),
+        department: empDepartment.trim(),
+      };
       const newBooking = await bookingService.createBooking(user!.id, {
         propertyId: bookForEmpProperty.id,
         roomTypeId: empRoomTypeId,
         quantity: qty,
         checkInDate: empCheckIn,
         checkOutDate: empCheckOut,
-        guestDetails: {
-          fullName: empGuestName.trim(),
-          email: empGuestEmail.trim(),
-          phone: empGuestPhone.trim(),
-          designation: empDesignation.trim(),
-          department: empDepartment.trim(),
-        },
+        guestDetails,
         specialRequirements: [
-          empIsTP ? 'THIRD_PARTY_GUEST' : 'EMPLOYEE_BOOKING',
+          isSelf ? 'SELF_BOOKING' : empIsTP ? 'THIRD_PARTY_GUEST' : 'EMPLOYEE_BOOKING',
           `Payment: ${empPaymentMode}`,
           empRemarks.trim(),
         ].filter(Boolean).join('. '),
       });
-      // Advance to PROVISIONED immediately (manager bypass)
       await bookingService.updateBookingStatus(newBooking.id, 'PROVISIONED', 'Manager-initiated booking. Room provisionally held.');
       addToast('Booking created and provisioned successfully', 'success');
       setBookForEmpProperty(null);
@@ -2937,196 +2991,232 @@ export const BookingHistoryPage: React.FC = () => {
       )}
 
       {/* ── Book for Employee / TP Modal ── */}
-      {bookForEmpProperty && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setBookForEmpProperty(null)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <div className="w-6 h-6 rounded-lg bg-teal-600 flex items-center justify-center">
-                    <UserPlus size={13} className="text-white" />
+      {bookForEmpProperty && (() => {
+        const isSelf = empBookingFor === 'self';
+        const isTP = empBookingFor === 'tp';
+        const chipOptions: { value: 'self' | 'employee' | 'tp'; label: string; icon: React.ReactNode }[] = [
+          { value: 'self',     label: 'Self',         icon: <Users size={13} /> },
+          { value: 'employee', label: 'Employee',     icon: <UserPlus size={13} /> },
+          { value: 'tp',       label: 'Third Party',  icon: <UserCheck size={13} /> },
+        ];
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setBookForEmpProperty(null)}>
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="px-5 py-4 border-b border-gray-100 shrink-0">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
+                        <CalendarCheck size={13} className="text-white" />
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-900">Book This Property</h3>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-8">{bookForEmpProperty.name}</p>
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900">Book for Employee / TP</h3>
+                  <button onClick={() => setBookForEmpProperty(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
                 </div>
-                <p className="text-xs text-gray-500 ml-8">{bookForEmpProperty.name}</p>
-              </div>
-              <button onClick={() => setBookForEmpProperty(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-
-              {/* Guest type toggle */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEmpIsTP(false)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all ${!empIsTP ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                >
-                  <Users size={13} />Employee
-                </button>
-                <button
-                  onClick={() => setEmpIsTP(true)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all ${empIsTP ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                >
-                  <Building2 size={13} />Third Party (TP)
-                </button>
-              </div>
-
-              {/* Guest details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Full Name *</label>
-                  <input
-                    type="text"
-                    value={empGuestName}
-                    onChange={e => setEmpGuestName(e.target.value)}
-                    placeholder="Guest full name"
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Mobile</label>
-                  <input
-                    type="tel"
-                    value={empGuestPhone}
-                    onChange={e => setEmpGuestPhone(e.target.value)}
-                    placeholder="10-digit mobile"
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={empGuestEmail}
-                    onChange={e => setEmpGuestEmail(e.target.value)}
-                    placeholder="email@domain.gov.in"
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Designation</label>
-                  <input
-                    type="text"
-                    value={empDesignation}
-                    onChange={e => setEmpDesignation(e.target.value)}
-                    placeholder={empIsTP ? 'Representative title' : 'e.g. Deputy Secretary'}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{empIsTP ? 'Organisation' : 'Department'}</label>
-                  <input
-                    type="text"
-                    value={empDepartment}
-                    onChange={e => setEmpDepartment(e.target.value)}
-                    placeholder={empIsTP ? 'Organisation name' : 'e.g. Ministry of Finance'}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Dates + Rooms */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-in *</label>
-                  <input
-                    type="date"
-                    value={empCheckIn}
-                    onChange={e => setEmpCheckIn(e.target.value)}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-out *</label>
-                  <input
-                    type="date"
-                    value={empCheckOut}
-                    onChange={e => setEmpCheckOut(e.target.value)}
-                    min={empCheckIn || undefined}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Rooms</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={empQuantity}
-                    onChange={e => setEmpQuantity(e.target.value)}
-                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Room Type */}
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Type *</label>
-                <select
-                  value={empRoomTypeId}
-                  onChange={e => setEmpRoomTypeId(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                >
-                  <option value="">Select room type…</option>
-                  {(bookForEmpProperty.roomTypes ?? []).map((rt: any) => (
-                    <option key={rt.id} value={rt.id}>{rt.name}</option>
-                  ))}
-                  {/* Fallback options if roomTypes not loaded on card */}
-                  {(bookForEmpProperty.roomTypes ?? []).length === 0 && (
-                    <>
-                      <option value="7fc1c91a-4beb-4760-b149-3001a2310764">Standard</option>
-                      <option value="deccd249-2c5a-41be-9c9a-139794277acb">Deluxe</option>
-                      <option value="5fcb45e8-2857-419d-a7f6-d4a4741d30d1">Suite</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* Payment mode */}
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER'] as const).map(mode => (
+                {/* Booking for chip selector */}
+                <div className="flex gap-2">
+                  {chipOptions.map(opt => (
                     <button
-                      key={mode}
-                      onClick={() => setEmpPaymentMode(mode)}
-                      className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold transition-all ${
-                        empPaymentMode === mode
-                          ? 'bg-teal-50 border-teal-300 text-teal-700'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      key={opt.value}
+                      onClick={() => { setEmpBookingFor(opt.value); setEmpIsTP(opt.value === 'tp'); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                        empBookingFor === opt.value
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
                       }`}
                     >
-                      {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : 'Account Transfer'}
+                      {opt.icon}{opt.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Remarks */}
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Remarks</label>
-                <textarea
-                  rows={2}
-                  value={empRemarks}
-                  onChange={e => setEmpRemarks(e.target.value)}
-                  placeholder="Optional remarks or special instructions…"
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-300 bg-white"
-                />
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+                {/* Self info banner */}
+                {isSelf && (
+                  <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-2.5">
+                    <BadgeCheck size={15} className="text-blue-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-blue-700">{user?.name ?? 'You'}</p>
+                      <p className="text-[11px] text-blue-500">{user?.email ?? ''}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Guest details — hidden for Self */}
+                {!isSelf && (
+                  <div>
+                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+                      {isTP ? 'Third Party Details' : 'Employee Details'}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Full Name *</label>
+                        <input
+                          type="text"
+                          value={empGuestName}
+                          onChange={e => setEmpGuestName(e.target.value)}
+                          placeholder={isTP ? 'Representative name' : 'Employee full name'}
+                          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Mobile</label>
+                        <input
+                          type="tel"
+                          value={empGuestPhone}
+                          onChange={e => setEmpGuestPhone(e.target.value)}
+                          placeholder="10-digit mobile"
+                          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Email</label>
+                        <input
+                          type="email"
+                          value={empGuestEmail}
+                          onChange={e => setEmpGuestEmail(e.target.value)}
+                          placeholder={isTP ? 'contact@org.com' : 'email@domain.gov.in'}
+                          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                          {isTP ? 'Designation / Title' : 'Designation'}
+                        </label>
+                        <input
+                          type="text"
+                          value={empDesignation}
+                          onChange={e => setEmpDesignation(e.target.value)}
+                          placeholder={isTP ? 'Representative title' : 'e.g. Deputy Secretary'}
+                          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                          {isTP ? 'Organisation' : 'Department'}
+                        </label>
+                        <input
+                          type="text"
+                          value={empDepartment}
+                          onChange={e => setEmpDepartment(e.target.value)}
+                          placeholder={isTP ? 'Organisation name' : 'e.g. Ministry of Finance'}
+                          className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Booking Details */}
+                <div>
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Booking Details</h4>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-in *</label>
+                      <input
+                        type="date"
+                        value={empCheckIn}
+                        onChange={e => setEmpCheckIn(e.target.value)}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Check-out *</label>
+                      <input
+                        type="date"
+                        value={empCheckOut}
+                        onChange={e => setEmpCheckOut(e.target.value)}
+                        min={empCheckIn || undefined}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Room Type *</label>
+                      <select
+                        value={empRoomTypeId}
+                        onChange={e => setEmpRoomTypeId(e.target.value)}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      >
+                        <option value="">Select room type…</option>
+                        {(bookForEmpProperty.roomTypes ?? []).map((rt: any) => (
+                          <option key={rt.id} value={rt.id}>{rt.name}</option>
+                        ))}
+                        {(bookForEmpProperty.roomTypes ?? []).length === 0 && (
+                          <>
+                            <option value="7fc1c91a-4beb-4760-b149-3001a2310764">Standard</option>
+                            <option value="deccd249-2c5a-41be-9c9a-139794277acb">Deluxe</option>
+                            <option value="5fcb45e8-2857-419d-a7f6-d4a4741d30d1">Suite</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">No. of Rooms</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={empQuantity}
+                        onChange={e => setEmpQuantity(e.target.value)}
+                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment mode */}
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setEmpPaymentMode(mode)}
+                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold transition-all ${
+                          empPaymentMode === mode
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : 'Acct Transfer'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Remarks */}
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Remarks</label>
+                  <textarea
+                    rows={2}
+                    value={empRemarks}
+                    onChange={e => setEmpRemarks(e.target.value)}
+                    placeholder="Optional remarks or special instructions…"
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-300 bg-white"
+                  />
+                </div>
+              </div>
+              <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 shrink-0">
+                <button onClick={() => setBookForEmpProperty(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button
+                  onClick={handleSubmitBookForEmp}
+                  disabled={empLoading || (!isSelf && !empGuestName.trim()) || !empCheckIn || !empCheckOut || !empRoomTypeId}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+                >
+                  {empLoading ? <Loader2 size={14} className="animate-spin" /> : <CalendarCheck size={14} />}
+                  Confirm Booking
+                </button>
               </div>
             </div>
-            <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-3 shrink-0">
-              <button onClick={() => setBookForEmpProperty(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
-              <button
-                onClick={handleSubmitBookForEmp}
-                disabled={empLoading || !empGuestName.trim() || !empCheckIn || !empCheckOut || !empRoomTypeId}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
-              >
-                {empLoading ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                Create Booking
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Enhanced Modify Booking Modal ── */}
       {modifyBooking && (() => {
@@ -3467,8 +3557,13 @@ export const BookingHistoryPage: React.FC = () => {
                     property={property}
                     index={i}
                     onView={() => setSelectedPropertyId(property.id)}
-                    onBook={() => navigate(`/properties/${property.id}`)}
-                    onBookForEmployee={(isTP) => openBookForEmpModal(property, isTP)}
+                    onBook={(checkIn, checkOut, roomTypeId) => {
+                      if (isManager) {
+                        openBookForEmpModal(property, 'self', { checkIn, checkOut, roomTypeId });
+                      } else {
+                        navigate(`/properties/${property.id}`);
+                      }
+                    }}
                     isManager={isManager}
                   />
                 ))}
