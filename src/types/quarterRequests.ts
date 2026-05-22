@@ -81,10 +81,11 @@ export type EOMode = 'self' | 'employee' | null;
 export type EORightMode =
   | 'detail'
   | 'allot'
-  | 'rejection_chat'
   | 'override'
   | 'approval_chat'
+  | 'request_approval_chat'
   | 'inspection'
+  | 'inspection_chat'
   | 'handover'
   | 'chat';
 

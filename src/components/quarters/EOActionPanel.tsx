@@ -15,6 +15,7 @@ import {
 import type { ChatDeliveryMode } from '../../types/quarters';
 import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types';
+import { EORightMode } from '../../types/quarterRequests';
 import { QuarterOverrideModal } from './QuarterOverrideModal';
 import { InspectionFormModal } from './InspectionFormModal';
 import {
@@ -22,7 +23,7 @@ import {
   ChatBubble, CompactQuarterRow, RequestSummaryBlock, getImage,
 } from './quarterShared';
 
-export type EORightMode = 'detail' | 'allot' | 'rejection_chat' | 'override' | 'approval_chat' | 'request_approval_chat' | 'inspection' | 'inspection_chat' | 'handover' | 'chat';
+export type { EORightMode };
 
 export interface EOActionPanelProps {
   selectedRequest: QuarterRequest;

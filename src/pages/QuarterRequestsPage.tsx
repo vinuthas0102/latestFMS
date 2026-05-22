@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Home, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Plus, FileText, CheckCircle, Clock, XCircle,
-  ArrowUp, ArrowDown, Trash2, Search, Star, X, Eye, Send,
+  Trash2, Search, Star, X, Eye, Send,
   Bed, Ruler, AlertCircle, Building2, CalendarDays, Upload,
   ThumbsUp, ThumbsDown, ArrowRightCircle, RefreshCw, LogOut,
   MapPin, Layers, IndianRupee, Wrench, Filter, MoreVertical,
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
-  ArrowLeft, ExternalLink, Zap, ShieldCheck, UserCog,
-  GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare, SkipForward,
-  UserX, HardHat, Package, ClipboardCheck, Handshake, Download,
+  ArrowLeft, ExternalLink, ShieldCheck, UserCog,
+  GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
+  HardHat, ClipboardCheck, Download,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -50,7 +50,7 @@ import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
-import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE } from '../mocks/demoData';
+import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES } from '../mocks/demoData';
 import {
   PLACEHOLDER_IMAGES, getImage, resolveAllImages,
   fmtINR, fmtDate, statusAccentColor,
@@ -88,44 +88,10 @@ import { useQuarterRequestsEffects } from '../hooks/useQuarterRequestsEffects';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-// Demo employee list for EO "Another Employee" picker
-const DEMO_EMPLOYEES = [
-  { id: 'EMP-1001', name: 'Rajesh Kumar',     dept: 'Ministry of Finance',    email: 'rajesh.kumar@mof.gov.in',    designation: 'Under Secretary' },
-  { id: 'EMP-1002', name: 'Sunita Sharma',    dept: 'Dept. of Telecom',        email: 'sunita.sharma@dot.gov.in',   designation: 'Section Officer' },
-  { id: 'EMP-1003', name: 'Anil Verma',       dept: 'Ministry of Defence',     email: 'anil.verma@mod.gov.in',      designation: 'Deputy Secretary' },
-  { id: 'EMP-1004', name: 'Priya Nair',       dept: 'Ministry of Home Affairs', email: 'priya.nair@mha.gov.in',     designation: 'Assistant Director' },
-  { id: 'EMP-1005', name: 'Vikram Singh',     dept: 'Ministry of Rural Dev.',  email: 'vikram.singh@mord.gov.in',   designation: 'Director' },
-  { id: 'EMP-1006', name: 'Meera Pillai',     dept: 'Ministry of Commerce',    email: 'meera.pillai@commerce.gov.in', designation: 'Joint Secretary' },
-  { id: 'EMP-1007', name: 'Suresh Babu',      dept: 'DOPT',                    email: 'suresh.babu@dopt.gov.in',    designation: 'Section Officer' },
-  { id: 'EMP-1008', name: 'Anita Desai',      dept: 'Ministry of Health',      email: 'anita.desai@mohfw.gov.in',   designation: 'Under Secretary' },
-  { id: 'EMP-1009', name: 'Ramesh Gupta',     dept: 'NIC',                     email: 'ramesh.gupta@nic.in',        designation: 'Senior Technical Director' },
-  { id: 'EMP-1010', name: 'Kavitha Reddy',    dept: 'Ministry of Education',   email: 'kavitha.reddy@education.gov.in', designation: 'Deputy Director' },
-  { id: 'EMP-1011', name: 'Dinesh Patel',     dept: 'Ministry of Railways',    email: 'dinesh.patel@railways.gov.in', designation: 'Assistant Secretary' },
-  { id: 'EMP-1012', name: 'Lalitha Menon',    dept: 'Ministry of Agriculture', email: 'lalitha.menon@agri.gov.in',  designation: 'Senior Analyst' },
-];
-
-// Demo TP profiles for quick-fill in the Third Party picker
-const DEMO_TP_PROFILES = [
-  { id: 'TP-001', name: 'Arjun Mehta',       organization: 'Tata Consultancy Services',   mobile: '9810001001', email: 'arjun.mehta@tcs.com',          pan: 'ARJPM1234A', type: 'Consultant' },
-  { id: 'TP-002', name: 'Divya Krishnan',    organization: 'Infosys Ltd.',                mobile: '9820002002', email: 'divya.k@infosys.com',           pan: 'DIVKR5678B', type: 'Contractor' },
-  { id: 'TP-003', name: 'Sanjay Bose',       organization: 'NASSCOM Foundation',          mobile: '9830003003', email: 's.bose@nasscom.org',            pan: 'SNJBS9012C', type: 'NGO' },
-  { id: 'TP-004', name: 'Nisha Agarwal',     organization: 'World Bank India',            mobile: '9840004004', email: 'n.agarwal@worldbank.org',       pan: 'NSHAG3456D', type: 'Guest' },
-  { id: 'TP-005', name: 'Karan Malhotra',    organization: 'L&T Infrastructure',         mobile: '9850005005', email: 'k.malhotra@lnt.com',            pan: 'KRNML7890E', type: 'Contractor' },
-  { id: 'TP-006', name: 'Rekha Venkatesh',   organization: 'UNICEF India',               mobile: '9860006006', email: 'r.venkatesh@unicef.org',        pan: 'RKHVN2345F', type: 'NGO' },
-  { id: 'TP-007', name: 'Amit Joshi',        organization: 'Ernst & Young LLP',          mobile: '9870007007', email: 'a.joshi@ey.com',                pan: 'AMTJS6789G', type: 'Consultant' },
-  { id: 'TP-008', name: 'Sunaina Kapoor',    organization: 'FICCI',                      mobile: '9880008008', email: 's.kapoor@ficci.in',             pan: 'SNKPR1230H', type: 'Guest' },
-];
-
 function getRequestTypeBadge(rt: string) {
   if (rt === 'MEDICAL')   return { cls: 'bg-red-50 text-red-700 border-red-200',    label: 'Medical' };
   if (rt === 'REFERENCE') return { cls: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Reference' };
   return { cls: 'bg-gray-100 text-gray-600 border-gray-200', label: 'General' };
-}
-
-function getOccupancyBadge(status: string) {
-  if (status === 'AVAILABLE') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (status === 'OCCUPIED')  return 'bg-red-50 text-red-700 border-red-200';
-  return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
 const DP_LABELS: Record<DPFilter, string> = {

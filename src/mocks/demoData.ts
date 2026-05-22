@@ -1,6 +1,7 @@
 // DEMO_MODE: Set to false to restore live Supabase data fetching.
 export const DEMO_MODE = true;
 
+import type { DemoEmployee, TPInfo } from '../types/quarterRequests';
 import type { PropertyDTO } from '../types/property.types';
 import type {
   Quarter,
@@ -19,6 +20,34 @@ import type {
   QuarterApprovalChat,
 } from '../types/quarters';
 import type { BookingDTO } from '../types';
+
+// ─── Shared demo people ──────────────────────────────────────────────────────
+
+export const DEMO_EMPLOYEES: DemoEmployee[] = [
+  { id: 'EMP-1001', name: 'Rajesh Kumar',   dept: 'Ministry of Finance',       email: 'rajesh.kumar@mof.gov.in',        designation: 'Under Secretary' },
+  { id: 'EMP-1002', name: 'Sunita Sharma',  dept: 'Dept. of Telecom',          email: 'sunita.sharma@dot.gov.in',       designation: 'Section Officer' },
+  { id: 'EMP-1003', name: 'Anil Verma',     dept: 'Ministry of Defence',       email: 'anil.verma@mod.gov.in',          designation: 'Deputy Secretary' },
+  { id: 'EMP-1004', name: 'Priya Nair',     dept: 'Ministry of Home Affairs',  email: 'priya.nair@mha.gov.in',          designation: 'Assistant Director' },
+  { id: 'EMP-1005', name: 'Vikram Singh',   dept: 'Ministry of Rural Dev.',    email: 'vikram.singh@mord.gov.in',       designation: 'Director' },
+  { id: 'EMP-1006', name: 'Meera Pillai',   dept: 'Ministry of Commerce',      email: 'meera.pillai@commerce.gov.in',   designation: 'Joint Secretary' },
+  { id: 'EMP-1007', name: 'Suresh Babu',    dept: 'DOPT',                      email: 'suresh.babu@dopt.gov.in',        designation: 'Section Officer' },
+  { id: 'EMP-1008', name: 'Anita Desai',    dept: 'Ministry of Health',        email: 'anita.desai@mohfw.gov.in',       designation: 'Under Secretary' },
+  { id: 'EMP-1009', name: 'Ramesh Gupta',   dept: 'NIC',                       email: 'ramesh.gupta@nic.in',            designation: 'Senior Technical Director' },
+  { id: 'EMP-1010', name: 'Kavitha Reddy',  dept: 'Ministry of Education',     email: 'kavitha.reddy@education.gov.in', designation: 'Deputy Director' },
+  { id: 'EMP-1011', name: 'Dinesh Patel',   dept: 'Ministry of Railways',      email: 'dinesh.patel@railways.gov.in',   designation: 'Assistant Secretary' },
+  { id: 'EMP-1012', name: 'Lalitha Menon',  dept: 'Ministry of Agriculture',   email: 'lalitha.menon@agri.gov.in',      designation: 'Senior Analyst' },
+];
+
+export const DEMO_TP_PROFILES: (TPInfo & { id: string; type: string })[] = [
+  { id: 'TP-001', name: 'Arjun Mehta',     organization: 'Tata Consultancy Services', mobile: '9810001001', email: 'arjun.mehta@tcs.com',    pan: 'ARJPM1234A', notes: '', type: 'Consultant' },
+  { id: 'TP-002', name: 'Divya Krishnan',  organization: 'Infosys Ltd.',              mobile: '9820002002', email: 'divya.k@infosys.com',    pan: 'DIVKR5678B', notes: '', type: 'Contractor' },
+  { id: 'TP-003', name: 'Sanjay Bose',     organization: 'NASSCOM Foundation',        mobile: '9830003003', email: 's.bose@nasscom.org',     pan: 'SNJBS9012C', notes: '', type: 'NGO' },
+  { id: 'TP-004', name: 'Nisha Agarwal',   organization: 'World Bank India',          mobile: '9840004004', email: 'n.agarwal@worldbank.org', pan: 'NSHAG3456D', notes: '', type: 'Guest' },
+  { id: 'TP-005', name: 'Karan Malhotra',  organization: 'L&T Infrastructure',        mobile: '9850005005', email: 'k.malhotra@lnt.com',     pan: 'KRNML7890E', notes: '', type: 'Contractor' },
+  { id: 'TP-006', name: 'Rekha Venkatesh', organization: 'UNICEF India',              mobile: '9860006006', email: 'r.venkatesh@unicef.org', pan: 'RKHVN2345F', notes: '', type: 'NGO' },
+  { id: 'TP-007', name: 'Amit Joshi',      organization: 'Ernst & Young LLP',         mobile: '9870007007', email: 'a.joshi@ey.com',         pan: 'AMTJS6789G', notes: '', type: 'Consultant' },
+  { id: 'TP-008', name: 'Sunaina Kapoor',  organization: 'FICCI',                     mobile: '9880008008', email: 's.kapoor@ficci.in',      pan: 'SNKPR1230H', notes: '', type: 'Guest' },
+];
 
 // ─── Shared quarters ─────────────────────────────────────────────────────────
 
