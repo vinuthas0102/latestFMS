@@ -1001,7 +1001,7 @@ const AvailablePropertyCard: React.FC<{
   property: PropertyDTO;
   index: number;
   onView: () => void;
-  onBook: (checkIn?: string, checkOut?: string, roomTypeId?: string) => void;
+  onBook: (checkIn?: string, checkOut?: string, roomTypeId?: string, numRooms?: string, numOccupants?: string) => void;
   isManager?: boolean;
 }> = ({ property, index, onView, onBook, isManager }) => {
   const [primaryImgError, setPrimaryImgError] = useState(false);
@@ -1009,6 +1009,8 @@ const AvailablePropertyCard: React.FC<{
   const [avCheckIn, setAvCheckIn] = useState('');
   const [avCheckOut, setAvCheckOut] = useState('');
   const [avRoomTypeId, setAvRoomTypeId] = useState('');
+  const [avNumRooms, setAvNumRooms] = useState('1');
+  const [avNumOccupants, setAvNumOccupants] = useState('1');
   const [avLoading, setAvLoading] = useState(false);
   const [avStatus, setAvStatus] = useState<'idle' | 'available' | 'unavailable'>('idle');
 
@@ -1240,6 +1242,28 @@ const AvailablePropertyCard: React.FC<{
               ))}
             </select>
           </div>
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">No. of Rooms</p>
+              <input
+                type="number"
+                min={1}
+                value={avNumRooms}
+                onChange={e => setAvNumRooms(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">No. of Occupants</p>
+              <input
+                type="number"
+                min={1}
+                value={avNumOccupants}
+                onChange={e => setAvNumOccupants(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
+            </div>
+          </div>
           {/* Availability status indicator */}
           {avLoading && (
             <div className="flex items-center gap-1.5 py-1 text-xs text-gray-400">
@@ -1259,7 +1283,7 @@ const AvailablePropertyCard: React.FC<{
         </div>
         {/* Book Now */}
         <button
-          onClick={e => { e.stopPropagation(); onBook(avCheckIn || undefined, avCheckOut || undefined, avRoomTypeId || undefined); }}
+          onClick={e => { e.stopPropagation(); onBook(avCheckIn || undefined, avCheckOut || undefined, avRoomTypeId || undefined, avNumRooms, avNumOccupants); }}
           className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
         >
           <Plus size={14} />
@@ -1401,6 +1425,7 @@ export const BookingHistoryPage: React.FC = () => {
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const empModalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadBookings();
@@ -1412,6 +1437,12 @@ export const BookingHistoryPage: React.FC = () => {
     else if (status === 'cancelled') setDpFilter('cancelled');
     else if (status === 'completed') setDpFilter('completed');
   }, []);
+
+  useEffect(() => {
+    if (bookForEmpProperty && empModalBodyRef.current) {
+      empModalBodyRef.current.scrollTop = 0;
+    }
+  }, [bookForEmpProperty]);
 
   const loadBookings = async () => {
     try {
@@ -1841,7 +1872,7 @@ export const BookingHistoryPage: React.FC = () => {
   const openBookForEmpModal = (
     property: PropertyDTO,
     bookingFor: 'self' | 'employee' | 'tp' = 'self',
-    prefill?: { checkIn?: string; checkOut?: string; roomTypeId?: string },
+    prefill?: { checkIn?: string; checkOut?: string; roomTypeId?: string; numRooms?: string; numOccupants?: string },
   ) => {
     setBookForEmpProperty(property);
     setEmpBookingFor(bookingFor);
@@ -1854,10 +1885,10 @@ export const BookingHistoryPage: React.FC = () => {
     setEmpCheckIn(prefill?.checkIn ?? '');
     setEmpCheckOut(prefill?.checkOut ?? '');
     setEmpRoomTypeId(prefill?.roomTypeId ?? '');
-    setEmpQuantity('1');
+    setEmpQuantity(prefill?.numRooms ?? '1');
     setEmpPaymentMode('PAID');
     setEmpRemarks('');
-    setEmpNumAdults('1');
+    setEmpNumAdults(prefill?.numOccupants ?? '1');
     setEmpNumChildren('0');
     setEmpSpecialReqs('');
     setEmpSelfPhone('');
@@ -3037,7 +3068,7 @@ export const BookingHistoryPage: React.FC = () => {
                   {chipOptions.map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => { setEmpBookingFor(opt.value); setEmpIsTP(opt.value === 'tp'); }}
+                      onClick={() => { setEmpBookingFor(opt.value); setEmpIsTP(opt.value === 'tp'); if (opt.value !== 'self' && empPaymentMode === 'PAID') setEmpPaymentMode('COMPLIMENTARY'); }}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
                         empBookingFor === opt.value
                           ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -3050,7 +3081,7 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              <div ref={empModalBodyRef} className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
                 {/* Self info banner */}
                 {isSelf && (
                   <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-2.5">
@@ -3247,7 +3278,7 @@ export const BookingHistoryPage: React.FC = () => {
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER', 'COUNTER'] as const).map(mode => (
+                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER', 'COUNTER'] as const).filter(mode => mode !== 'PAID' || isSelf).map(mode => (
                       <button
                         key={mode}
                         onClick={() => setEmpPaymentMode(mode)}
@@ -3636,9 +3667,9 @@ export const BookingHistoryPage: React.FC = () => {
                     property={property}
                     index={i}
                     onView={() => setSelectedPropertyId(property.id)}
-                    onBook={(checkIn, checkOut, roomTypeId) => {
-                      if (isManager) {
-                        openBookForEmpModal(property, 'self', { checkIn, checkOut, roomTypeId });
+                    onBook={(checkIn, checkOut, roomTypeId, numRooms, numOccupants) => {
+                      if (isManager || isGovtOfficial) {
+                        openBookForEmpModal(property, 'self', { checkIn, checkOut, roomTypeId, numRooms, numOccupants });
                       } else {
                         navigate(`/properties/${property.id}`);
                       }
