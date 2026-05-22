@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   X, MessageSquare, Send, Loader2,
   AlertTriangle, Wrench, RefreshCw, Ban, ArrowUpCircle, HelpCircle,
+  Paperclip, FileText,
 } from 'lucide-react';
 import { BookingServiceRequestDTO, BookingServiceChatDTO } from '../../types';
 
@@ -34,8 +35,10 @@ interface ServiceChatRightPanelProps {
   isSending: boolean;
   isManager: boolean;
   panelControls?: React.ReactNode;
+  attachFile?: File | null;
   onClose: () => void;
   onInputChange: (value: string) => void;
+  onAttachFileChange?: (f: File | null) => void;
   onSend: () => void;
 }
 
@@ -46,10 +49,13 @@ export const ServiceChatRightPanel: React.FC<ServiceChatRightPanelProps> = ({
   isSending,
   isManager,
   panelControls,
+  attachFile,
   onClose,
   onInputChange,
+  onAttachFileChange,
   onSend,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const cfg = SERVICE_CONFIG[service.serviceType] ?? SERVICE_CONFIG.GENERAL;
   const { Icon } = cfg;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -202,7 +208,40 @@ export const ServiceChatRightPanel: React.FC<ServiceChatRightPanelProps> = ({
 
       {/* Input */}
       <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
+        {/* Attached file indicator */}
+        {attachFile && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 border border-teal-200 rounded-lg mb-2">
+            <FileText size={12} className="text-teal-500 shrink-0" />
+            <span className="flex-1 min-w-0 text-[11px] font-medium text-teal-800 truncate">{attachFile.name}</span>
+            <button
+              type="button"
+              onClick={() => onAttachFileChange?.(null)}
+              className="p-0.5 rounded text-teal-400 hover:text-red-500 transition-colors shrink-0"
+            >
+              <X size={11} />
+            </button>
+          </div>
+        )}
         <div className="flex gap-2 items-end">
+          {onAttachFileChange && (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors mb-0.5"
+                title="Attach file"
+              >
+                <Paperclip size={13} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,image/*"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0] ?? null; onAttachFileChange(f); e.target.value = ''; }}
+              />
+            </>
+          )}
           <textarea
             ref={textareaRef}
             rows={2}
@@ -214,7 +253,7 @@ export const ServiceChatRightPanel: React.FC<ServiceChatRightPanelProps> = ({
           />
           <button
             onClick={onSend}
-            disabled={isSending || !messageInput.trim()}
+            disabled={isSending || (!messageInput.trim() && !attachFile)}
             className="flex items-center justify-center w-8 h-8 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors shrink-0 mb-0.5"
             title="Send"
           >

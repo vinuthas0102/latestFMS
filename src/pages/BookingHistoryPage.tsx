@@ -11,6 +11,7 @@ import {
   Wrench, RefreshCw, HelpCircle, Loader2, Receipt, Clock,
   Pencil, ShieldCheck, UserPlus, Users, CalendarCheck, ArrowRightLeft,
   BadgeCheck, DoorOpen, Banknote, UserCheck, PlayCircle, ArrowUpCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { BookingServiceType, BookingServiceRequestDTO, BookingServiceStatus } from '../types';
 import { bookingService } from '../services/bookingService';
@@ -35,6 +36,8 @@ import { ROUTES } from '../constants/routes';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
 import { paymentService, ManualPaymentMode } from '../services/paymentService';
+import { supabase } from '../lib/supabase';
+import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -659,6 +662,17 @@ const BookingListCard: React.FC<{
                             {label}
                           </button>
                         ))}
+                        <div className="border-t border-gray-100 my-1" />
+                        <div className="px-3 py-1.5 border-b border-gray-100">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Activity</span>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setMenuOpen(false); openBookingLog(booking); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                        >
+                          <ClipboardList size={13} className="text-slate-500" />
+                          Log Details
+                        </button>
                       </div>,
                       document.body
                     )}
@@ -900,6 +914,13 @@ const BookingListCard: React.FC<{
                               >
                                 <MessageSquare size={12} className="text-teal-500" />
                                 Open Chat
+                              </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(null); openServiceLog(svc); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                <ClipboardList size={12} className="text-slate-500" />
+                                Log Details
                               </button>
                               <div className="border-t border-gray-100 my-0.5" />
                               <button
@@ -1197,6 +1218,12 @@ export const BookingHistoryPage: React.FC = () => {
   const [svcPanelMessages, setSvcPanelMessages] = useState<Record<string, import('../types').BookingServiceChatDTO[]>>({});
   const [svcPanelInput, setSvcPanelInput] = useState<Record<string, string>>({});
   const [svcPanelSending, setSvcPanelSending] = useState<Record<string, boolean>>({});
+  const [svcPanelAttachFile, setSvcPanelAttachFile] = useState<Record<string, File | null>>({});
+
+  // Log Details modal
+  const [logModal, setLogModal] = useState<{ title: string; subtitle?: string } | null>(null);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
 
   // Demo hardcoded maintenance IDs — vacated bookings that are under maintenance
   const [maintenanceBookingIds, setMaintenanceBookingIds] = useState<Set<string>>(
@@ -1433,18 +1460,34 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
+  const uploadSvcChatFile = async (file: File, svcId: string): Promise<string | null> => {
+    const ext = file.name.split('.').pop() ?? 'bin';
+    const path = `booking-service-chats/${svcId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('booking-docs').upload(path, file);
+    if (error) return null;
+    const { data: pub } = supabase.storage.from('booking-docs').getPublicUrl(path);
+    return pub?.publicUrl ?? null;
+  };
+
   const handleSvcPanelSend = async () => {
     if (!serviceChatPanel) return;
     const svcId = serviceChatPanel.id;
     const msg = (svcPanelInput[svcId] ?? '').trim();
-    if (!msg) return;
+    const attachFile = svcPanelAttachFile[svcId] ?? null;
+    if (!msg && !attachFile) return;
     setSvcPanelSending(prev => ({ ...prev, [svcId]: true }));
     try {
       const { user } = useAuthStore.getState();
       const role = isManager ? 'manager' : 'employee';
-      const newMsg = await bookingServiceRequestService.addServiceChat(svcId, user?.id ?? '', role, msg);
+      const docUrls: string[] = [];
+      if (attachFile) {
+        const url = await uploadSvcChatFile(attachFile, svcId);
+        if (url) docUrls.push(url);
+      }
+      const newMsg = await bookingServiceRequestService.addServiceChat(svcId, user?.id ?? '', role, msg || '(attachment)', docUrls);
       setSvcPanelMessages(prev => ({ ...prev, [svcId]: [...(prev[svcId] ?? []), newMsg] }));
       setSvcPanelInput(prev => ({ ...prev, [svcId]: '' }));
+      setSvcPanelAttachFile(prev => ({ ...prev, [svcId]: null }));
     } catch { /* silently ignore */ }
     finally { setSvcPanelSending(prev => ({ ...prev, [svcId]: false })); }
   };
@@ -1458,6 +1501,77 @@ export const BookingHistoryPage: React.FC = () => {
     } catch {
       addToast('Failed to submit booking', 'error');
     }
+  };
+
+  const openBookingLog = async (booking: BookingDTO) => {
+    setLogModal({ title: `Booking Log — #${booking.bookingNumber}`, subtitle: `${booking.propertyName} · ${booking.status}` });
+    setLogLoading(true);
+    setLogEntries([]);
+    try {
+      const svcs = await bookingServiceRequestService.getServiceRequests(booking.id).catch(() => []);
+      const entries: LogEntry[] = [];
+      entries.push({
+        id: `created-${booking.id}`,
+        timestamp: booking.createdAt,
+        actorRole: 'system',
+        message: `Booking created with status ${booking.status}`,
+        tag: booking.status,
+        tagColor: 'gray',
+      });
+      for (const svc of svcs) {
+        entries.push({
+          id: `svc-${svc.id}`,
+          timestamp: svc.createdAt,
+          actorRole: 'employee',
+          message: `Service request raised: ${svc.subject || svc.serviceType}`,
+          tag: svc.serviceType,
+          tagColor: 'blue',
+          documentUrls: svc.documentUrl ? [svc.documentUrl] : [],
+        });
+        const chats = await bookingServiceRequestService.getServiceChats(svc.id).catch(() => []);
+        for (const c of chats) {
+          entries.push({
+            id: c.id,
+            timestamp: c.createdAt,
+            actorRole: c.authorRole,
+            message: c.message,
+            documentUrls: c.documentUrls,
+          });
+        }
+      }
+      entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      setLogEntries(entries);
+    } catch { /* silently ignore */ }
+    finally { setLogLoading(false); }
+  };
+
+  const openServiceLog = async (svc: BookingServiceRequestDTO) => {
+    setLogModal({ title: `Service Log`, subtitle: svc.subject || svc.serviceType });
+    setLogLoading(true);
+    setLogEntries([]);
+    try {
+      const chats = await bookingServiceRequestService.getServiceChats(svc.id).catch(() => []);
+      const entries: LogEntry[] = [
+        {
+          id: `svc-created-${svc.id}`,
+          timestamp: svc.createdAt,
+          actorRole: 'employee',
+          message: `Service request opened: ${svc.remarks || svc.subject || svc.serviceType}`,
+          tag: svc.requestStatus,
+          tagColor: svc.requestStatus === 'RESOLVED' ? 'emerald' : svc.requestStatus === 'OPEN' ? 'amber' : 'blue',
+          documentUrls: svc.documentUrl ? [svc.documentUrl] : [],
+        },
+        ...chats.map(c => ({
+          id: c.id,
+          timestamp: c.createdAt,
+          actorRole: c.authorRole,
+          message: c.message,
+          documentUrls: c.documentUrls,
+        })),
+      ];
+      setLogEntries(entries);
+    } catch { /* silently ignore */ }
+    finally { setLogLoading(false); }
   };
 
   const handlePayNow = (booking: BookingDTO) => {
@@ -1927,6 +2041,7 @@ export const BookingHistoryPage: React.FC = () => {
   };
 
   return (
+    <>
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50/20">
       {/* ── Frozen header ── */}
       <div className="flex-none px-4 sm:px-6 lg:px-8 pt-3 pb-0 z-20">
@@ -3352,8 +3467,10 @@ export const BookingHistoryPage: React.FC = () => {
                     isSending={svcPanelSending[serviceChatPanel.id] ?? false}
                     isManager={isManager}
                     panelControls={controls}
+                    attachFile={svcPanelAttachFile[serviceChatPanel.id] ?? null}
                     onClose={() => setServiceChatPanel(null)}
                     onInputChange={val => setSvcPanelInput(prev => ({ ...prev, [serviceChatPanel.id]: val }))}
+                    onAttachFileChange={f => setSvcPanelAttachFile(prev => ({ ...prev, [serviceChatPanel.id]: f }))}
                     onSend={handleSvcPanelSend}
                   />
                 ) : selectedBooking ? (controls) => (
@@ -3432,5 +3549,17 @@ export const BookingHistoryPage: React.FC = () => {
         </div>
       </div>
     </div>
+
+    {/* Log Details Modal */}
+    {logModal && (
+      <LogDetailsModal
+        title={logModal.title}
+        subtitle={logModal.subtitle}
+        entries={logEntries}
+        loading={logLoading}
+        onClose={() => { setLogModal(null); setLogEntries([]); }}
+      />
+    )}
+    </>
   );
 };

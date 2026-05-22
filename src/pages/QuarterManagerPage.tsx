@@ -6,6 +6,7 @@ import {
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
   HardHat, MoreVertical, MessageSquare, PlayCircle, X, Download,
+  ClipboardList,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -28,6 +29,7 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { downloadPageAsHtml } from '../utils/downloadHtml';
+import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal';
 
 const PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80',
@@ -163,6 +165,11 @@ export const QuarterManagerPage: React.FC = () => {
   const [dpExpandedInspRowId, setDpExpandedInspRowId] = useState<string | null>(null);
   const [dpActionMenuReqId, setDpActionMenuReqId] = useState<string | null>(null);
   const dpActionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Log Details modal
+  const [logModal, setLogModal] = useState<{ title: string; subtitle?: string } | null>(null);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
 
   // New Inspection popup
   const [inspectTarget, setInspectTarget] = useState<QuarterRequest | null>(null);
@@ -395,6 +402,45 @@ export const QuarterManagerPage: React.FC = () => {
     } catch {
       addToast('Failed to send message', 'error');
     }
+  };
+
+  const openQuarterLog = async (req: QuarterRequest) => {
+    const quarterLabel = req.allotment?.quarter?.quarter_number ?? req.request_number;
+    setLogModal({ title: `Activity Log — ${req.request_number}`, subtitle: quarterLabel });
+    setLogLoading(true);
+    setLogEntries([]);
+    try {
+      const entries: LogEntry[] = [];
+      entries.push({
+        id: `req-created-${req.id}`,
+        timestamp: req.created_at,
+        actorRole: 'employee',
+        message: `Request submitted`,
+        tag: req.request_status,
+        tagColor: 'gray',
+      });
+      if (req.allotment?.id) {
+        const allotChats = await quartersService.getAllotmentChats(req.allotment.id).catch(() => []);
+        for (const c of allotChats) {
+          entries.push({ id: c.id, timestamp: c.created_at, actorRole: c.author_role, message: c.message, documentUrls: c.document_urls });
+        }
+        const svcChatsAll = await quartersService.getServiceChatsForAllotment(req.allotment.id).catch(() => []);
+        for (const c of svcChatsAll) {
+          entries.push({ id: c.id, timestamp: c.created_at, actorRole: c.author_role, message: c.message, documentUrls: c.document_urls });
+        }
+        const inspections = await quartersService.getInspections(req.allotment.id).catch(() => []);
+        for (const insp of inspections) {
+          entries.push({ id: `insp-${insp.id}`, timestamp: insp.created_at, actorRole: 'EO', message: `Inspection by ${insp.inspector_name ?? 'EO'} — ${insp.condition ?? ''}`, tag: 'INSPECTION', tagColor: 'sky' });
+        }
+        const handover = await quartersService.getHandover(req.allotment.id).catch(() => null);
+        if (handover) {
+          entries.push({ id: `hnd-${handover.id}`, timestamp: handover.created_at, actorRole: 'EO', message: `Handover recorded. Key: ${handover.key_number ?? '—'}`, tag: 'HANDOVER', tagColor: 'emerald' });
+        }
+      }
+      entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      setLogEntries(entries);
+    } catch { /* silently ignore */ }
+    finally { setLogLoading(false); }
   };
 
   const filteredAllRequests = React.useMemo(() => {
@@ -809,6 +855,14 @@ export const QuarterManagerPage: React.FC = () => {
                                         <div className="w-6 h-6 rounded-lg bg-sky-50 flex items-center justify-center shrink-0 group-hover:bg-sky-100"><HardHat size={11} className="text-sky-600" /></div>
                                         <span className="text-xs font-semibold text-gray-800">New Inspection</span>
                                       </button>
+                                      <div className="mx-2 border-t border-gray-100" />
+                                      <button
+                                        onClick={() => { setDpActionMenuReqId(null); openQuarterLog(req); }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors group"
+                                      >
+                                        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-slate-200"><ClipboardList size={11} className="text-slate-600" /></div>
+                                        <span className="text-xs font-semibold text-gray-800">Log Details</span>
+                                      </button>
                                     </div>
                                   )}
                                 </div>
@@ -1221,6 +1275,17 @@ export const QuarterManagerPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Log Details Modal */}
+      {logModal && (
+        <LogDetailsModal
+          title={logModal.title}
+          subtitle={logModal.subtitle}
+          entries={logEntries}
+          loading={logLoading}
+          onClose={() => { setLogModal(null); setLogEntries([]); }}
+        />
       )}
     </div>
   );

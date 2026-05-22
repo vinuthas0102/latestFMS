@@ -46,6 +46,7 @@ import {
   CreateTenantRequestInput,
 } from '../services/quartersService';
 import { supabase } from '../lib/supabase';
+import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
@@ -310,6 +311,11 @@ export const QuarterRequestsPage: React.FC = () => {
     allotApprovalSubmitting, setAllotApprovalSubmitting,
     allotApprovalRequestId, setAllotApprovalRequestId,
   } = useQuarterRequestsState();
+
+  // ── Log Details modal ───────────────────────────────────────────────────────
+  const [logModal, setLogModal] = useState<{ title: string; subtitle?: string } | null>(null);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
 
   const isEO = user?.role === 'manager';
 
@@ -590,6 +596,51 @@ export const QuarterRequestsPage: React.FC = () => {
   }
 
 
+
+  // ─── log details helper ─────────────────────────────────────────────────────
+
+  const openQuarterLog = async (req: QuarterRequest) => {
+    const quarterLabel = req.allotment?.quarter?.quarter_number ?? req.request_number;
+    setLogModal({ title: `Activity Log — ${req.request_number}`, subtitle: quarterLabel });
+    setLogLoading(true);
+    setLogEntries([]);
+    try {
+      const entries: LogEntry[] = [];
+      entries.push({
+        id: `req-created-${req.id}`,
+        timestamp: req.created_at,
+        actorRole: 'employee',
+        message: `Request submitted (${req.request_type ?? 'ALLOTMENT'})`,
+        tag: req.request_status,
+        tagColor: 'gray',
+      });
+      // Allotment-level chats
+      if (req.allotment?.id) {
+        const allotChats = await quartersService.getAllotmentChats(req.allotment.id).catch(() => []);
+        for (const c of allotChats) {
+          entries.push({ id: c.id, timestamp: c.created_at, actorRole: c.author_role, message: c.message, documentUrls: c.document_urls });
+        }
+        // Service chats
+        const svcChatsAll = await quartersService.getServiceChatsForAllotment(req.allotment.id).catch(() => []);
+        for (const c of svcChatsAll) {
+          entries.push({ id: c.id, timestamp: c.created_at, actorRole: c.author_role, message: c.message, documentUrls: c.document_urls });
+        }
+        // Inspections
+        const inspections = await quartersService.getInspections(req.allotment.id).catch(() => []);
+        for (const insp of inspections) {
+          entries.push({ id: `insp-${insp.id}`, timestamp: insp.created_at, actorRole: 'EO', message: `Inspection conducted by ${insp.inspector_name ?? 'EO'} — ${insp.condition ?? ''}`, tag: 'INSPECTION', tagColor: 'sky' });
+        }
+        // Handover
+        const handover = await quartersService.getHandover(req.allotment.id).catch(() => null);
+        if (handover) {
+          entries.push({ id: `hnd-${handover.id}`, timestamp: handover.created_at, actorRole: 'EO', message: `Handover recorded. Key: ${handover.key_number ?? '—'}`, tag: 'HANDOVER', tagColor: 'emerald' });
+        }
+      }
+      entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      setLogEntries(entries);
+    } catch { /* silently ignore */ }
+    finally { setLogLoading(false); }
+  };
 
   // ─── pref list helpers ──────────────────────────────────────────────────────
 
@@ -3778,6 +3829,15 @@ export const QuarterRequestsPage: React.FC = () => {
                         </>
                       );
                     })()}
+                    {/* Log Details — visible for all roles */}
+                    <div className="mx-2 border-t border-gray-100 my-1" />
+                    <button
+                      onClick={() => { setOpenMenuId(null); setMenuPos(null); openQuarterLog(req); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><ClipboardList size={12} className="text-slate-600" /></span>
+                      Log Details
+                    </button>
                   </div>
                 </div>,
                 document.body
@@ -4998,6 +5058,17 @@ export const QuarterRequestsPage: React.FC = () => {
             onOverrideSaved={() => { setShowOverrideModal(false); setOverrideAllotment(null); setOverrideRequest(null); loadData(); }}
           />
         </Suspense>
+      )}
+
+      {/* Log Details Modal */}
+      {logModal && (
+        <LogDetailsModal
+          title={logModal.title}
+          subtitle={logModal.subtitle}
+          entries={logEntries}
+          loading={logLoading}
+          onClose={() => { setLogModal(null); setLogEntries([]); }}
+        />
       )}
     </div>
   );
