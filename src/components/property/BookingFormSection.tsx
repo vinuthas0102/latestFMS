@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, FileText } from 'lucide-react';
+import { Calendar, Users, FileText, CalendarCheck } from 'lucide-react';
 import { Card, CardBody } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -8,6 +8,11 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { usePropertyBooking } from '../../hooks/usePropertyBooking';
 import { ROUTES } from '../../constants/routes';
+
+const formatDate = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return new Date(+y, +m - 1, +d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 interface BookingFormSectionProps {
   propertyId: string;
@@ -35,6 +40,21 @@ export const BookingFormSection: React.FC<BookingFormSectionProps> = ({
   const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
+  const [datesFromCalendar, setDatesFromCalendar] = useState(false);
+
+  useEffect(() => {
+    if (initialCheckIn) {
+      setCheckIn(initialCheckIn);
+      setDatesFromCalendar(true);
+    }
+  }, [initialCheckIn]);
+
+  useEffect(() => {
+    if (initialCheckOut) {
+      setCheckOut(initialCheckOut);
+      setDatesFromCalendar(true);
+    }
+  }, [initialCheckOut]);
   const [roomTypeId, setRoomTypeId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [guestName, setGuestName] = useState('');
@@ -97,10 +117,15 @@ export const BookingFormSection: React.FC<BookingFormSectionProps> = ({
         </div>
       )}
 
-      {showDatesPrefilled && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-green-800">
-            <strong>Dates Prefilled:</strong> Your search dates have been automatically filled in below.
+      {(showDatesPrefilled || datesFromCalendar) && checkIn && checkOut && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-6">
+          <CalendarCheck size={16} className="text-emerald-600 flex-shrink-0" />
+          <p className="text-sm text-emerald-800 flex-1">
+            <span className="font-semibold">Dates selected from calendar</span>
+            {' — '}
+            <span className="font-medium">{formatDate(checkIn)}</span>
+            <span className="mx-1.5 text-emerald-500">→</span>
+            <span className="font-medium">{formatDate(checkOut)}</span>
           </p>
         </div>
       )}

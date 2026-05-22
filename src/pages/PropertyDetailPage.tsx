@@ -548,10 +548,7 @@ export const PropertyDetailPage: React.FC = () => {
               <div className="w-1 h-7 bg-blue-600 rounded-full" />
               <h2 className="text-xl font-bold text-gray-900">Availability</h2>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <p className="text-sm text-gray-500 mb-4">
-                Select check-in and check-out dates. After choosing your dates the booking form will open automatically.
-              </p>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <PropertyAvailabilityCalendar
                 propertyId={id!}
                 onDateSelect={(date) => {
@@ -565,21 +562,25 @@ export const PropertyDetailPage: React.FC = () => {
                     setCheckOut('');
                   }
                 }}
+                onClearDates={() => { setCheckIn(''); setCheckOut(''); }}
                 selectedStartDate={checkIn}
                 selectedEndDate={checkOut}
               />
               {checkIn && checkOut && (
-                <div className="mt-4 flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="text-sm">
-                    <span className="font-semibold text-blue-800">{checkIn}</span>
-                    <span className="text-blue-500 mx-2">→</span>
-                    <span className="font-semibold text-blue-800">{checkOut}</span>
+                <div className="flex items-center justify-between px-5 py-3 bg-blue-600 border-t border-blue-700">
+                  <div className="text-sm text-white">
+                    <span className="font-semibold">{new Date(checkIn + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span className="mx-2 opacity-70">→</span>
+                    <span className="font-semibold">{new Date(checkOut + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span className="ml-3 opacity-75 text-xs">
+                      {Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))} nights
+                    </span>
                   </div>
                   <button
                     onClick={() => scrollToSection('book')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                    className="px-4 py-1.5 bg-white text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
                   >
-                    Proceed to Book
+                    Book Now
                   </button>
                 </div>
               )}
@@ -656,7 +657,7 @@ export const PropertyDetailPage: React.FC = () => {
                   isLoggedIn={!!user}
                   initialCheckIn={checkIn}
                   initialCheckOut={checkOut}
-                  showDatesPrefilled={!!(searchParams.get('checkIn') && searchParams.get('checkOut'))}
+                  showDatesPrefilled={!!(checkIn && checkOut)}
                 />
               </div>
             </div>

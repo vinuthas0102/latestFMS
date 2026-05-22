@@ -619,10 +619,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 >
                   <SectionHeading icon={<Calendar size={15} className="text-blue-500" />} label="Availability" />
 
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                    <p className="text-xs text-gray-500 mb-4">
-                      Select check-in and check-out dates — the booking form will open automatically.
-                    </p>
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <PropertyAvailabilityCalendar
                       propertyId={propertyId}
                       onDateSelect={(date) => {
@@ -636,21 +633,25 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                           setCheckOut('');
                         }
                       }}
+                      onClearDates={() => { setCheckIn(''); setCheckOut(''); }}
                       selectedStartDate={checkIn}
                       selectedEndDate={checkOut}
                     />
                     {checkIn && checkOut && (
-                      <div className="mt-4 flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-200">
-                        <div className="text-sm">
-                          <span className="font-semibold text-blue-800">{checkIn}</span>
-                          <span className="text-blue-400 mx-2">→</span>
-                          <span className="font-semibold text-blue-800">{checkOut}</span>
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-blue-600 border-t border-blue-700 rounded-b-xl mt-0">
+                        <div className="text-xs text-white">
+                          <span className="font-semibold">{new Date(checkIn + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span className="mx-1.5 opacity-70">→</span>
+                          <span className="font-semibold">{new Date(checkOut + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          <span className="ml-2 opacity-75">
+                            · {Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))} nights
+                          </span>
                         </div>
                         <button
                           onClick={() => scrollToSection('book')}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors"
+                          className="px-3 py-1 bg-white text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors"
                         >
-                          Book
+                          Book Now
                         </button>
                       </div>
                     )}
