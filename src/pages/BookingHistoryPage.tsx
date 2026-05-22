@@ -997,29 +997,29 @@ function resolvePropertyImages(property: PropertyDTO, idx: number): string[] {
   return result;
 }
 
+type BookingFor = 'self' | 'employee' | 'tp';
+
 const AvailablePropertyCard: React.FC<{
   property: PropertyDTO;
   index: number;
   onView: () => void;
   onBook: () => void;
-  onBookForEmployee?: () => void;
+  onBookForEmployee?: (isTP: boolean) => void;
   isManager?: boolean;
 }> = ({ property, index, onView, onBook, onBookForEmployee, isManager }) => {
   const [primaryImgError, setPrimaryImgError] = useState(false);
   const [thumbErrors, setThumbErrors] = useState<Record<number, boolean>>({});
-  const [bookDropdownOpen, setBookDropdownOpen] = useState(false);
-  const bookDropdownRef = useRef<HTMLDivElement>(null);
+  const [bookingFor, setBookingFor] = useState<BookingFor>('self');
 
-  useEffect(() => {
-    if (!bookDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (bookDropdownRef.current && !bookDropdownRef.current.contains(e.target as Node)) {
-        setBookDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [bookDropdownOpen]);
+  const handleBookNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isManager && onBookForEmployee) {
+      if (bookingFor === 'self') onBook();
+      else onBookForEmployee(bookingFor === 'tp');
+    } else {
+      onBook();
+    }
+  };
 
   const allImages = resolvePropertyImages(property, index);
   const primaryImage = allImages[0];
@@ -1179,57 +1179,49 @@ const AvailablePropertyCard: React.FC<{
 
       {/* Right: CTA */}
       <div
-        className="flex flex-col justify-end p-4 sm:border-l border-gray-100 sm:w-48 flex-shrink-0 bg-gray-50/40"
+        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-52 flex-shrink-0 bg-gray-50/40"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex flex-col gap-2 mt-4">
-          {isManager && onBookForEmployee ? (
-            <div className="relative" ref={bookDropdownRef}>
-              <button
-                onClick={e => { e.stopPropagation(); setBookDropdownOpen(o => !o); }}
-                className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
-              >
-                <Plus size={14} />
-                Book Now
-                <ChevronDown size={13} className={`ml-auto transition-transform duration-200 ${bookDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {bookDropdownOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-20">
-                  <button
-                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBook(); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                  >
-                    <Users size={14} className="text-blue-500 flex-shrink-0" />
-                    <span className="font-medium">Book for Self</span>
-                  </button>
-                  <div className="border-t border-gray-100" />
-                  <button
-                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBookForEmployee(); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
-                  >
-                    <UserPlus size={14} className="text-teal-500 flex-shrink-0" />
-                    <span className="font-medium">Book for Employee</span>
-                  </button>
-                  <div className="border-t border-gray-100" />
-                  <button
-                    onClick={e => { e.stopPropagation(); setBookDropdownOpen(false); onBookForEmployee(); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                  >
-                    <UserCheck size={14} className="text-orange-500 flex-shrink-0" />
-                    <span className="font-medium">Book for Third Party</span>
-                  </button>
-                </div>
-              )}
+        {isManager && onBookForEmployee && (
+          <div className="mb-3">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Book as</p>
+            <div className="flex flex-col gap-1.5">
+              {([
+                { value: 'self' as BookingFor,     label: 'Self',           icon: <Users size={12} /> },
+                { value: 'employee' as BookingFor, label: 'Other Employee', icon: <UserPlus size={12} /> },
+                { value: 'tp' as BookingFor,       label: 'Third Party',    icon: <UserCheck size={12} /> },
+              ] as { value: BookingFor; label: string; icon: React.ReactNode }[]).map(opt => (
+                <label
+                  key={opt.value}
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-all select-none text-xs font-medium ${
+                    bookingFor === opt.value
+                      ? 'bg-blue-50 border-blue-300 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                  }`}
+                  onClick={e => { e.stopPropagation(); setBookingFor(opt.value); }}
+                >
+                  <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    bookingFor === opt.value ? 'border-blue-500' : 'border-gray-300'
+                  }`}>
+                    {bookingFor === opt.value && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 block" />
+                    )}
+                  </span>
+                  {opt.icon}
+                  {opt.label}
+                </label>
+              ))}
             </div>
-          ) : (
-            <button
-              onClick={e => { e.stopPropagation(); onBook(); }}
-              className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
-            >
-              <Plus size={14} />
-              Book Now
-            </button>
-          )}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleBookNow}
+            className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-blue-200"
+          >
+            <Plus size={14} />
+            Book Now
+          </button>
         </div>
       </div>
     </div>
@@ -1795,14 +1787,14 @@ export const BookingHistoryPage: React.FC = () => {
     }
   };
 
-  const openBookForEmpModal = (property: PropertyDTO) => {
+  const openBookForEmpModal = (property: PropertyDTO, initialIsTP = false) => {
     setBookForEmpProperty(property);
     setEmpGuestName('');
     setEmpGuestEmail('');
     setEmpGuestPhone('');
     setEmpDesignation('');
     setEmpDepartment('');
-    setEmpIsTP(false);
+    setEmpIsTP(initialIsTP);
     setEmpCheckIn('');
     setEmpCheckOut('');
     setEmpRoomTypeId('');
@@ -3476,7 +3468,7 @@ export const BookingHistoryPage: React.FC = () => {
                     index={i}
                     onView={() => setSelectedPropertyId(property.id)}
                     onBook={() => navigate(`/properties/${property.id}`)}
-                    onBookForEmployee={() => openBookForEmpModal(property)}
+                    onBookForEmployee={(isTP) => openBookForEmpModal(property, isTP)}
                     isManager={isManager}
                   />
                 ))}
