@@ -84,12 +84,6 @@ export function useQuarterRequestsState() {
   const [cycleDetailRequests, setCycleDetailRequests] = useState<QuarterRequest[]>([]);
   const [cycleDetailLoading, setCycleDetailLoading] = useState(false);
 
-  // ── EO: Allot Requests popup ───────────────────────────────────────────────
-  const [showAllotRequestsPopup, setShowAllotRequestsPopup] = useState(false);
-  const [allotRequestsWorkflows, setAllotRequestsWorkflows] = useState<QuarterApprovalWorkflow[]>([]);
-  const [allotRequestsWflId, setAllotRequestsWflId] = useState<string>('none');
-  const [allotRequestsSubmitting, setAllotRequestsSubmitting] = useState(false);
-
   // ── EO: Approval workflow panel (allotment-level) ─────────────────────────
   const [approvalRecord, setApprovalRecord] = useState<QuarterAllotmentApproval | null>(null);
   const [approvalChats, setApprovalChats] = useState<QuarterApprovalChat[]>([]);
@@ -397,10 +391,6 @@ export function useQuarterRequestsState() {
     selectedCycleDetail, setSelectedCycleDetail,
     cycleDetailRequests, setCycleDetailRequests,
     cycleDetailLoading, setCycleDetailLoading,
-    showAllotRequestsPopup, setShowAllotRequestsPopup,
-    allotRequestsWorkflows, setAllotRequestsWorkflows,
-    allotRequestsWflId, setAllotRequestsWflId,
-    allotRequestsSubmitting, setAllotRequestsSubmitting,
     approvalRecord, setApprovalRecord,
     approvalChats, setApprovalChats,
     approvalChatMsg, setApprovalChatMsg,

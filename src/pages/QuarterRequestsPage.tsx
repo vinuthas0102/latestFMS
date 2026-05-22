@@ -178,9 +178,6 @@ export const QuarterRequestsPage: React.FC = () => {
     cycleHistoryList, setCycleHistoryList, cycleHistoryLoading, setCycleHistoryLoading,
     selectedCycleDetail, setSelectedCycleDetail, cycleDetailRequests, setCycleDetailRequests,
     cycleDetailLoading, setCycleDetailLoading,
-    showAllotRequestsPopup, setShowAllotRequestsPopup,
-    allotRequestsWorkflows, setAllotRequestsWorkflows,
-    allotRequestsWflId, setAllotRequestsWflId, allotRequestsSubmitting, setAllotRequestsSubmitting,
     approvalRecord, setApprovalRecord, approvalChats, setApprovalChats,
     approvalChatMsg, setApprovalChatMsg, approvalAction, setApprovalAction,
     approvalRemarks, setApprovalRemarks, approvalTargetLevel, setApprovalTargetLevel,
@@ -336,7 +333,6 @@ export const QuarterRequestsPage: React.FC = () => {
       { setGuestInfoLoading, setGuestInfoList, allotmentId: selectedRequest?.allotment?.id, showGuestInfoPopup },
       { dpScrollRef, setDpCanScrollLeft, setDpCanScrollRight, eoMode },
       { setAvailableQuarters, setAvailableQuartersLoading },
-      { showAllotRequestsPopup, setAllotRequestsWorkflows },
       {
         selectedAllotmentId: selectedRequest?.allotment?.id,
         selectedRequestId: selectedRequest?.id,
@@ -1090,21 +1086,6 @@ export const QuarterRequestsPage: React.FC = () => {
       const reqs = await quartersService.getRequestsForCycle(cycle.id);
       setCycleDetailRequests(reqs);
     } catch { addToast('Failed to load cycle requests', 'error'); } finally { setCycleDetailLoading(false); }
-  };
-
-  // ─── EO: Allot Requests (bulk, with/without WFL) ───────────────────────────
-  const handleAllotRequests = async () => {
-    if (!user) return;
-    setAllotRequestsSubmitting(true);
-    try {
-      const allotted = requests.filter(r => isAllottedStatus(r.request_status) && r.allotment?.id);
-      const ids = allotted.map(r => r.allotment!.id).filter(Boolean);
-      const wflId = allotRequestsWflId === 'none' ? null : allotRequestsWflId;
-      await quartersService.submitAllotments(ids, wflId, user.id);
-      addToast(`${ids.length} allotments processed`, 'success');
-      setShowAllotRequestsPopup(false);
-      loadData();
-    } catch { addToast('Failed to process allotments', 'error'); } finally { setAllotRequestsSubmitting(false); }
   };
 
   // ─── EO: Reject request (DRAFT + sub_status=REJECTED) ─────────────────────
@@ -2279,15 +2260,6 @@ export const QuarterRequestsPage: React.FC = () => {
                 </>
               )}
 
-              {isEO && eoMode === 'employee' && dpFilter === 'allotted' && (
-                <button
-                  onClick={() => setShowAllotRequestsPopup(true)}
-                  title="Allot Requests"
-                  className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
-                >
-                  <CheckSquare size={14} />
-                </button>
-              )}
             </div>
           </div>
 
@@ -4522,7 +4494,7 @@ export const QuarterRequestsPage: React.FC = () => {
             setAllotApprovalUsers={setAllotApprovalUsers}
             allotApprovalSubmitting={allotApprovalSubmitting}
             allotApprovalRequestId={allotApprovalRequestId}
-            allotApprovalWorkflows={allotRequestsWorkflows}
+            allotApprovalWorkflows={requestApprovalWorkflows}
             onAllotWithApproval={handleAllotWithApproval}
             addToast={addToast}
           />
@@ -4994,52 +4966,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── EO: Allot Requests Popup (bulk with/without WFL) ───────────── */}
-      {showAllotRequestsPopup && createPortal(
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0"><CheckSquare size={20} className="text-emerald-600" /></div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-gray-900">Allot Requests</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Finalize allotments with or without approval chain</p>
-              </div>
-              <button onClick={() => setShowAllotRequestsPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700">
-                Finalizing <strong>{requests.filter(r => ['ALLOTTED', 'UPGRADE_REQUESTED'].includes(r.request_status) && r.allotment?.id).length} allotments</strong>. Select an approval workflow to route through approvers, or finalize immediately.
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Approval Workflow (optional)</label>
-                <select
-                  value={allotRequestsWflId}
-                  onChange={e => setAllotRequestsWflId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none"
-                >
-                  <option value="none">No Workflow — Finalize Immediately</option>
-                  {allotRequestsWorkflows.map(wfl => (
-                    <option key={wfl.id} value={wfl.id}>{wfl.workflow_name}</option>
-                  ))}
-                </select>
-              </div>
-              {allotRequestsWflId !== 'none' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-700">
-                  Allotments will be sent through the selected approval chain before being finalized.
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => setShowAllotRequestsPopup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleAllotRequests} disabled={allotRequestsSubmitting} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                  {allotRequestsSubmitting ? 'Processing…' : allotRequestsWflId === 'none' ? 'Finalize All' : 'Send for Approval'}
-                </button>
-              </div>
             </div>
           </div>
         </div>,

@@ -98,11 +98,6 @@ interface AvailableQuartersCtx {
   setAvailableQuartersLoading: (v: boolean) => void;
 }
 
-interface AllotRequestsCtx {
-  showAllotRequestsPopup: boolean;
-  setAllotRequestsWorkflows: (v: QuarterApprovalWorkflow[]) => void;
-}
-
 interface ApprovalCtx {
   selectedAllotmentId: string | undefined;
   selectedRequestId: string | undefined;
@@ -157,7 +152,6 @@ export function useQuarterRequestsData(
   loadGuest_: LoadGuestCtx,
   dpScroll_: DpScrollCtx,
   avq_: AvailableQuartersCtx,
-  allotReq_: AllotRequestsCtx,
   approval_: ApprovalCtx,
   inspection_: InspectionCtx,
   handover_: HandoverCtx,
@@ -362,12 +356,6 @@ export function useQuarterRequestsData(
     const t = setTimeout(loadManualAllotQuarters, 300);
     return () => clearTimeout(t);
   }, [loadManualAllot_.manualAllotPickerOpen, loadManualAllot_.manualAllotSearch, loadManualAllotQuarters]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load workflows when Allot Requests popup opens
-  useEffect(() => {
-    if (!allotReq_.showAllotRequestsPopup) return;
-    quartersService.getApprovalWorkflows().then(allotReq_.setAllotRequestsWorkflows).catch(() => {});
-  }, [allotReq_.showAllotRequestsPopup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load allotment-level approval + chats when selected allotment / EO mode changes
   useEffect(() => {
