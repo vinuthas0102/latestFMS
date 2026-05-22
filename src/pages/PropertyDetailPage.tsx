@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   MapPin, Wifi, Calendar, ArrowLeft, Info, Layers,
-  DollarSign, Map, BarChart3, Star,
+  DollarSign, Map, Star,
   CheckCircle, Bed, Users, ChevronDown,
   CreditCard as EditIcon, Building2,
 } from 'lucide-react';
@@ -18,7 +18,6 @@ import { BlocksFloorsDisplay } from '../components/property/BlocksFloorsDisplay'
 import { RoomsDisplay } from '../components/property/RoomsDisplay';
 import { PricingDisplay } from '../components/property/PricingDisplay';
 import { PropertyAvailabilityCalendar } from '../components/availability/PropertyAvailabilityCalendar';
-import { RoomAvailabilityInsights } from '../components/availability/RoomAvailabilityInsights';
 import { GoogleMapComponent } from '../components/maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../components/maps/NearbyPlacesPanel';
 import { usePropertyStore } from '../stores/propertyStore';
@@ -524,15 +523,7 @@ export const PropertyDetailPage: React.FC = () => {
                   <PricingDisplay rooms={rooms} />
                 </div>
 
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <BarChart3 size={16} className="text-amber-500" />
-                    Room Availability Insights
-                  </h3>
-                  <RoomAvailabilityInsights propertyId={id!} />
-                </div>
-
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+<div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="text-base font-bold text-gray-900 mb-4">All Room Details</h3>
                   <RoomsDisplay rooms={rooms} blocks={blocks} floors={floors} />
                 </div>

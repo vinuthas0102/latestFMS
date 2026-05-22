@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X, ArrowLeft, MapPin, Wifi, Calendar, Info, Layers, DollarSign, Map,
-  BarChart3, Building2, Star, CheckCircle, Bed, Users, ExternalLink,
+  Building2, Star, CheckCircle, Bed, Users, ExternalLink,
   CreditCard as EditIcon, ChevronDown, Hash, FileText, Shield,
 } from 'lucide-react';
 import { SpecTile } from '../ui/SpecTile';
@@ -18,7 +18,6 @@ import { RoomsDisplay } from './RoomsDisplay';
 import { PricingDisplay } from './PricingDisplay';
 import { HallDetailsDisplay } from './HallDetailsDisplay';
 import { PropertyAvailabilityCalendar } from '../availability/PropertyAvailabilityCalendar';
-import { RoomAvailabilityInsights } from '../availability/RoomAvailabilityInsights';
 import { GoogleMapComponent } from '../maps/GoogleMapComponent';
 import { NearbyPlacesPanel } from '../maps/NearbyPlacesPanel';
 import { PropertyDTO, RoomDTO, BlockDTO, FloorDTO } from '../../types';
@@ -600,12 +599,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                             <DollarSign size={13} className="text-emerald-500" /> Pricing Summary
                           </h4>
                           <PricingDisplay rooms={rooms} />
-                        </div>
-                        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                            <BarChart3 size={13} className="text-amber-500" /> Availability Insights
-                          </h4>
-                          <RoomAvailabilityInsights propertyId={propertyId} />
                         </div>
                       </>
                     )}
