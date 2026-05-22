@@ -1198,7 +1198,7 @@ const AvailablePropertyCard: React.FC<{
 
       {/* Right: Check Availability + CTA */}
       <div
-        className="flex flex-col p-4 sm:border-l border-gray-100 sm:w-60 flex-shrink-0 bg-gray-50/40 gap-3"
+        className="flex flex-col p-4 sm:border-l border-gray-100 sm:w-72 flex-shrink-0 bg-gray-50/40 gap-3"
         onClick={e => e.stopPropagation()}
       >
         {/* Check Availability */}
@@ -1229,70 +1229,42 @@ const AvailablePropertyCard: React.FC<{
               />
             </div>
           </div>
-          <div className="mb-1.5">
-            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Room Type</p>
-            <select
-              value={avRoomTypeId}
-              onChange={e => setAvRoomTypeId(e.target.value)}
-              className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
-            >
-              <option value="">Select type…</option>
-              {roomTypes.map(rt => (
-                <option key={rt.id} value={rt.id}>{rt.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 space-y-2.5">
-            {/* Rooms counter */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <DoorOpen size={12} className="text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-700 leading-tight">Rooms</p>
-                  <p className="text-[9px] text-gray-400 leading-tight">Required</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setAvNumRooms(v => String(Math.max(1, Number(v) - 1))); }}
-                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors font-bold text-sm leading-none"
-                >−</button>
-                <span className="w-6 text-center text-xs font-bold text-gray-800">{avNumRooms}</span>
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setAvNumRooms(v => String(Number(v) + 1)); }}
-                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm leading-none"
-                >+</button>
-              </div>
+          <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+            <div className="col-span-1">
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Room Type</p>
+              <select
+                value={avRoomTypeId}
+                onChange={e => setAvRoomTypeId(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white col-span-1"
+                style={{ gridColumn: 'span 1' }}
+              >
+                <option value="">Type…</option>
+                {roomTypes.map(rt => (
+                  <option key={rt.id} value={rt.id}>{rt.name}</option>
+                ))}
+              </select>
             </div>
-            <div className="border-t border-gray-200" />
-            {/* Occupants counter */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <Users size={12} className="text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-700 leading-tight">Occupants</p>
-                  <p className="text-[9px] text-gray-400 leading-tight">No. of guests</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setAvNumOccupants(v => String(Math.max(1, Number(v) - 1))); }}
-                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors font-bold text-sm leading-none"
-                >−</button>
-                <span className="w-6 text-center text-xs font-bold text-gray-800">{avNumOccupants}</span>
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setAvNumOccupants(v => String(Number(v) + 1)); }}
-                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm leading-none"
-                >+</button>
-              </div>
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Rooms</p>
+              <input
+                type="number"
+                min={1}
+                value={avNumRooms}
+                onClick={e => e.stopPropagation()}
+                onChange={e => setAvNumRooms(String(Math.max(1, Number(e.target.value) || 1)))}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Guests</p>
+              <input
+                type="number"
+                min={1}
+                value={avNumOccupants}
+                onClick={e => e.stopPropagation()}
+                onChange={e => setAvNumOccupants(String(Math.max(1, Number(e.target.value) || 1)))}
+                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
+              />
             </div>
           </div>
           {/* Availability status indicator */}
@@ -3082,7 +3054,7 @@ export const BookingHistoryPage: React.FC = () => {
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="px-5 py-4 border-b border-gray-100 shrink-0">
-                <div className="flex items-start justify-between mb-3">
+                <div className={`flex items-start justify-between ${isGovtOfficial ? 'mb-0' : 'mb-3'}`}>
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center">
@@ -3094,22 +3066,24 @@ export const BookingHistoryPage: React.FC = () => {
                   </div>
                   <button onClick={() => setBookForEmpProperty(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X size={16} /></button>
                 </div>
-                {/* Booking for chip selector */}
-                <div className="flex gap-2">
-                  {chipOptions.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => { setEmpBookingFor(opt.value); setEmpIsTP(opt.value === 'tp'); if (opt.value !== 'self' && empPaymentMode === 'PAID') setEmpPaymentMode('COMPLIMENTARY'); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
-                        empBookingFor === opt.value
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
-                      }`}
-                    >
-                      {opt.icon}{opt.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Booking for chip selector — hidden for govt officials (always books for self) */}
+                {!isGovtOfficial && (
+                  <div className="flex gap-2">
+                    {chipOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setEmpBookingFor(opt.value); setEmpIsTP(opt.value === 'tp'); if (opt.value !== 'self' && empPaymentMode === 'PAID') setEmpPaymentMode('COMPLIMENTARY'); }}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                          empBookingFor === opt.value
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                        }`}
+                      >
+                        {opt.icon}{opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div ref={empModalBodyRef} className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
