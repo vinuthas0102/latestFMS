@@ -1242,26 +1242,57 @@ const AvailablePropertyCard: React.FC<{
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-            <div>
-              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">No. of Rooms</p>
-              <input
-                type="number"
-                min={1}
-                value={avNumRooms}
-                onChange={e => setAvNumRooms(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
-              />
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 space-y-2.5">
+            {/* Rooms counter */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <DoorOpen size={12} className="text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-700 leading-tight">Rooms</p>
+                  <p className="text-[9px] text-gray-400 leading-tight">Required</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setAvNumRooms(v => String(Math.max(1, Number(v) - 1))); }}
+                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors font-bold text-sm leading-none"
+                >−</button>
+                <span className="w-6 text-center text-xs font-bold text-gray-800">{avNumRooms}</span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setAvNumRooms(v => String(Number(v) + 1)); }}
+                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm leading-none"
+                >+</button>
+              </div>
             </div>
-            <div>
-              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">No. of Occupants</p>
-              <input
-                type="number"
-                min={1}
-                value={avNumOccupants}
-                onChange={e => setAvNumOccupants(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300/40 focus:border-blue-300 bg-white"
-              />
+            <div className="border-t border-gray-200" />
+            {/* Occupants counter */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <Users size={12} className="text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-700 leading-tight">Occupants</p>
+                  <p className="text-[9px] text-gray-400 leading-tight">No. of guests</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setAvNumOccupants(v => String(Math.max(1, Number(v) - 1))); }}
+                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors font-bold text-sm leading-none"
+                >−</button>
+                <span className="w-6 text-center text-xs font-bold text-gray-800">{avNumOccupants}</span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setAvNumOccupants(v => String(Number(v) + 1)); }}
+                  className="w-6 h-6 rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-gray-500 hover:text-blue-600 transition-colors font-bold text-sm leading-none"
+                >+</button>
+              </div>
             </div>
           </div>
           {/* Availability status indicator */}
