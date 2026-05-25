@@ -591,16 +591,23 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                     </div>
                   )}
 
-                  <button
-                    onClick={() => { if (effectiveWflId) handleInitiateAllotmentApproval(effectiveWflId); }}
-                    disabled={initiatingAllotmentApproval}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {initiatingAllotmentApproval
-                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      : <Zap size={14} />}
-                    Initiate Approval
-                  </button>
+                  {approvalRecord ? (
+                    <button
+                      onClick={() => {}}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-colors"
+                    >
+                      <GitMerge size={14} />
+                      View Approval
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {}}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-sm shadow-emerald-200 transition-colors"
+                    >
+                      <Zap size={14} />
+                      Initiate WFL
+                    </button>
+                  )}
                 </div>
               )}
             </div>
