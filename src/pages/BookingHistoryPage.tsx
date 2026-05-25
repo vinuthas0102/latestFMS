@@ -1311,7 +1311,11 @@ export const BookingHistoryPage: React.FC = () => {
 
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dpFilter, setDpFilter] = useState<DpKey>('all');
+  const [dpFilter, setDpFilter] = useState<DpKey>(() => {
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'manager' || role === 'govt_official') return 'availableProperties';
+    return 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
