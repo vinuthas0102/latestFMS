@@ -147,6 +147,9 @@ export const QuarterRequestsPage: React.FC = () => {
     runAllocGrade, setRunAllocGrade,
     runAllocQuarterType, setRunAllocQuarterType,
     runAllocWorkflowId, setRunAllocWorkflowId,
+    runAllocApproverUsers, setRunAllocApproverUsers,
+    runAllocPickingLevel, setRunAllocPickingLevel,
+    runAllocUserSearch, setRunAllocUserSearch,
     showCycleHistory, setShowCycleHistory,
     cycleHistoryList, setCycleHistoryList, cycleHistoryLoading, setCycleHistoryLoading,
     selectedCycleDetail, setSelectedCycleDetail, cycleDetailRequests, setCycleDetailRequests,
@@ -287,6 +290,11 @@ export const QuarterRequestsPage: React.FC = () => {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logLoading, setLogLoading] = useState(false);
 
+  // ── Run Allocation: available users pool ─────────────────────────────────────
+  type AllocUser = { id: string; full_name: string; govt_employee_id: string; email: string; govt_department: string };
+  const [runAllocAvailableUsers, setRunAllocAvailableUsers] = useState<AllocUser[]>([]);
+  const [runAllocUsersLoading, setRunAllocUsersLoading] = useState(false);
+
   const isEO = user?.role === 'manager';
 
   // ─── Data-loading callbacks + data effects ────────────────────────────────
@@ -364,6 +372,23 @@ export const QuarterRequestsPage: React.FC = () => {
     { setPrefs, setShowNewModal },
   );
 
+
+  // Fetch employee users when the run allocation popup opens
+  useEffect(() => {
+    if (!showRunAllocationPopup) return;
+    setRunAllocUsersLoading(true);
+    quartersService.getEmployeeUsers()
+      .then(users => setRunAllocAvailableUsers(users as AllocUser[]))
+      .catch(() => {})
+      .finally(() => setRunAllocUsersLoading(false));
+  }, [showRunAllocationPopup]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset approver map when workflow selection changes
+  useEffect(() => {
+    setRunAllocApproverUsers({});
+    setRunAllocPickingLevel(null);
+    setRunAllocUserSearch('');
+  }, [runAllocWorkflowId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openMenu(e: React.MouseEvent, reqId: string) {
     e.stopPropagation();
@@ -1050,6 +1075,7 @@ export const QuarterRequestsPage: React.FC = () => {
       setRunAllocCycleTime(''); setRunAllocLastDate('');
       setRunAllocCurrentDate(new Date().toISOString().split('T')[0]);
       setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocWorkflowId('');
+      setRunAllocApproverUsers({}); setRunAllocPickingLevel(null); setRunAllocUserSearch('');
       loadData();
     } catch { addToast('Allocation failed', 'error'); } finally { setRunAllocSubmitting(false); }
   };
@@ -4810,6 +4836,119 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* ── Per-level approver assignment ── */}
+              {runAllocWorkflowId && (() => {
+                const wf = requestApprovalWorkflows.find(w => w.id === runAllocWorkflowId);
+                if (!wf || !wf.levels?.length) return null;
+                const filteredUsers = runAllocAvailableUsers.filter(u => {
+                  const q = runAllocUserSearch.toLowerCase();
+                  return !q || u.full_name.toLowerCase().includes(q) || u.govt_employee_id.toLowerCase().includes(q) || (u.govt_department || '').toLowerCase().includes(q);
+                });
+                return (
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      Assign Approvers per Level
+                    </div>
+                    <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+                      {wf.levels.map(lvl => {
+                        const assigned = runAllocApproverUsers[lvl.level] ?? null;
+                        const isPickingThis = runAllocPickingLevel === lvl.level;
+                        return (
+                          <div key={lvl.level} className="bg-white">
+                            {/* Level row */}
+                            <div className="flex items-center gap-3 px-3.5 py-2.5">
+                              {/* Level badge */}
+                              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+                                <span className="text-[10px] font-bold text-white">L{lvl.level}</span>
+                              </div>
+                              {/* Role label */}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-gray-800 truncate">{lvl.approver_title || lvl.approver_role}</div>
+                                <div className="text-[10px] text-gray-400 truncate">{lvl.approver_role}</div>
+                              </div>
+                              {/* Assigned user chip OR assign button */}
+                              {assigned ? (
+                                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 shrink-0 max-w-[160px]">
+                                  <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                                    <span className="text-[9px] font-bold text-white">{assigned.full_name.charAt(0).toUpperCase()}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] font-semibold text-blue-800 truncate">{assigned.full_name}</div>
+                                    <div className="text-[9px] text-blue-500 truncate">{assigned.govt_employee_id}</div>
+                                  </div>
+                                  <button
+                                    onClick={() => setRunAllocApproverUsers(prev => { const n = { ...prev }; delete n[lvl.level]; return n; })}
+                                    className="ml-0.5 text-blue-400 hover:text-red-500 transition-colors shrink-0"
+                                  >
+                                    <X size={11} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setRunAllocUserSearch('');
+                                    setRunAllocPickingLevel(isPickingThis ? null : lvl.level);
+                                  }}
+                                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors shrink-0 ${isPickingThis ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'}`}
+                                >
+                                  <UserPlus size={11} />
+                                  Assign
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Inline search + user list for this level */}
+                            {isPickingThis && (
+                              <div className="border-t border-blue-100 bg-blue-50/40 px-3.5 py-2.5 space-y-2">
+                                {/* Search input */}
+                                <div className="relative">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={runAllocUserSearch}
+                                    onChange={e => setRunAllocUserSearch(e.target.value)}
+                                    placeholder="Search by name, ID or department…"
+                                    className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                                  />
+                                  <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                </div>
+                                {/* User list */}
+                                <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white divide-y divide-gray-50">
+                                  {runAllocUsersLoading ? (
+                                    <div className="px-3 py-4 text-center text-xs text-gray-400">Loading users…</div>
+                                  ) : filteredUsers.length === 0 ? (
+                                    <div className="px-3 py-4 text-center text-xs text-gray-400">No users found</div>
+                                  ) : filteredUsers.map(u => (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => {
+                                        setRunAllocApproverUsers(prev => ({ ...prev, [lvl.level]: u }));
+                                        setRunAllocPickingLevel(null);
+                                        setRunAllocUserSearch('');
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50 transition-colors text-left"
+                                    >
+                                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                                        <span className="text-[10px] font-bold text-gray-600">{u.full_name.charAt(0).toUpperCase()}</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-semibold text-gray-800 truncate">{u.full_name}</div>
+                                        <div className="text-[10px] text-gray-400 truncate">{u.govt_employee_id}{u.govt_department ? ` · ${u.govt_department}` : ''}</div>
+                                      </div>
+                                      <UserCheck size={12} className="text-gray-300 shrink-0" />
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Cycle Name */}
               <div>
                 <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
@@ -4854,6 +4993,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   setRunAllocCycleTime(''); setRunAllocLastDate('');
                   setRunAllocCurrentDate(new Date().toISOString().split('T')[0]);
                   setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocWorkflowId('');
+                  setRunAllocApproverUsers({}); setRunAllocPickingLevel(null); setRunAllocUserSearch('');
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
               >

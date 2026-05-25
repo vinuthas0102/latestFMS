@@ -81,6 +81,9 @@ export function useQuarterRequestsState() {
   const [runAllocGrade, setRunAllocGrade] = useState('');
   const [runAllocQuarterType, setRunAllocQuarterType] = useState('');
   const [runAllocWorkflowId, setRunAllocWorkflowId] = useState('');
+  const [runAllocApproverUsers, setRunAllocApproverUsers] = useState<Record<number, { id: string; full_name: string; govt_employee_id: string; email: string } | null>>({});
+  const [runAllocPickingLevel, setRunAllocPickingLevel] = useState<number | null>(null);
+  const [runAllocUserSearch, setRunAllocUserSearch] = useState('');
 
   // ── EO: Cycle history popup ────────────────────────────────────────────────
   const [showCycleHistory, setShowCycleHistory] = useState(false);
@@ -397,6 +400,9 @@ export function useQuarterRequestsState() {
     runAllocGrade, setRunAllocGrade,
     runAllocQuarterType, setRunAllocQuarterType,
     runAllocWorkflowId, setRunAllocWorkflowId,
+    runAllocApproverUsers, setRunAllocApproverUsers,
+    runAllocPickingLevel, setRunAllocPickingLevel,
+    runAllocUserSearch, setRunAllocUserSearch,
     showCycleHistory, setShowCycleHistory,
     cycleHistoryList, setCycleHistoryList,
     cycleHistoryLoading, setCycleHistoryLoading,
