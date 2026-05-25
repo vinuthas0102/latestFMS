@@ -385,11 +385,11 @@ export function useQuarterRequestsData(
     }).catch(() => {});
   }, [approval_.selectedRequestId, approval_.selectedRequestStatus, approval_.isEO, approval_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load approval workflows once when EO employee mode is active
+  // Load approval workflows for all EO modes (needed by Run Allocation modal)
   useEffect(() => {
-    if (!(approval_.isEO && approval_.eoMode === 'employee')) return;
+    if (!approval_.isEO) return;
     quartersService.getApprovalWorkflows().then(approval_.setRequestApprovalWorkflows).catch(() => {});
-  }, [approval_.isEO, approval_.eoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [approval_.isEO]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load inspections for selected allotment
   useEffect(() => {

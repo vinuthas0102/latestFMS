@@ -75,6 +75,12 @@ export function useQuarterRequestsState() {
   const [runAllocCycleName, setRunAllocCycleName] = useState('');
   const [runAllocStart, setRunAllocStart] = useState('');
   const [runAllocEnd, setRunAllocEnd] = useState('');
+  const [runAllocCycleTime, setRunAllocCycleTime] = useState('');
+  const [runAllocLastDate, setRunAllocLastDate] = useState('');
+  const [runAllocCurrentDate, setRunAllocCurrentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [runAllocGrade, setRunAllocGrade] = useState('');
+  const [runAllocQuarterType, setRunAllocQuarterType] = useState('');
+  const [runAllocWorkflowId, setRunAllocWorkflowId] = useState('');
 
   // ── EO: Cycle history popup ────────────────────────────────────────────────
   const [showCycleHistory, setShowCycleHistory] = useState(false);
@@ -385,6 +391,12 @@ export function useQuarterRequestsState() {
     runAllocCycleName, setRunAllocCycleName,
     runAllocStart, setRunAllocStart,
     runAllocEnd, setRunAllocEnd,
+    runAllocCycleTime, setRunAllocCycleTime,
+    runAllocLastDate, setRunAllocLastDate,
+    runAllocCurrentDate, setRunAllocCurrentDate,
+    runAllocGrade, setRunAllocGrade,
+    runAllocQuarterType, setRunAllocQuarterType,
+    runAllocWorkflowId, setRunAllocWorkflowId,
     showCycleHistory, setShowCycleHistory,
     cycleHistoryList, setCycleHistoryList,
     cycleHistoryLoading, setCycleHistoryLoading,

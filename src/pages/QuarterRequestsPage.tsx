@@ -140,7 +140,14 @@ export const QuarterRequestsPage: React.FC = () => {
     eoTrSubmitting, setEoTrSubmitting, svcMenuOpenId, setSvcMenuOpenId,
     showRunAllocationPopup, setShowRunAllocationPopup, runAllocSubmitting, setRunAllocSubmitting,
     runAllocCycleName, setRunAllocCycleName, runAllocStart, setRunAllocStart,
-    runAllocEnd, setRunAllocEnd, showCycleHistory, setShowCycleHistory,
+    runAllocEnd, setRunAllocEnd,
+    runAllocCycleTime, setRunAllocCycleTime,
+    runAllocLastDate, setRunAllocLastDate,
+    runAllocCurrentDate, setRunAllocCurrentDate,
+    runAllocGrade, setRunAllocGrade,
+    runAllocQuarterType, setRunAllocQuarterType,
+    runAllocWorkflowId, setRunAllocWorkflowId,
+    showCycleHistory, setShowCycleHistory,
     cycleHistoryList, setCycleHistoryList, cycleHistoryLoading, setCycleHistoryLoading,
     selectedCycleDetail, setSelectedCycleDetail, cycleDetailRequests, setCycleDetailRequests,
     cycleDetailLoading, setCycleDetailLoading,
@@ -1020,10 +1027,18 @@ export const QuarterRequestsPage: React.FC = () => {
     if (!user) return;
     setRunAllocSubmitting(true);
     try {
-      const submitted = requests.filter(r => r.request_status === 'SUBMITTED');
+      let submitted = requests.filter(r => r.request_status === 'SUBMITTED');
+      if (runAllocGrade.trim()) {
+        submitted = submitted.filter(r => r.required_bhk_config === runAllocGrade);
+      }
+      if (runAllocQuarterType.trim()) {
+        submitted = submitted.filter(r =>
+          r.preferences?.some(p => (p as any).quarter_type === runAllocQuarterType) ?? true
+        );
+      }
       let cycleId: string | undefined;
       if (runAllocCycleName.trim()) {
-        const startDate = runAllocStart || new Date().toISOString().split('T')[0];
+        const startDate = runAllocCurrentDate || runAllocStart || new Date().toISOString().split('T')[0];
         const endDate = runAllocEnd || startDate;
         const cycle = await quartersService.createAllotmentCycle(runAllocCycleName.trim(), startDate, endDate, user.id);
         cycleId = cycle.id;
@@ -1032,6 +1047,9 @@ export const QuarterRequestsPage: React.FC = () => {
       addToast(`Allocation complete: ${result.allotted} allotted, ${result.skipped} skipped`, 'success');
       setShowRunAllocationPopup(false);
       setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd('');
+      setRunAllocCycleTime(''); setRunAllocLastDate('');
+      setRunAllocCurrentDate(new Date().toISOString().split('T')[0]);
+      setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocWorkflowId('');
       loadData();
     } catch { addToast('Allocation failed', 'error'); } finally { setRunAllocSubmitting(false); }
   };
@@ -4660,100 +4678,209 @@ export const QuarterRequestsPage: React.FC = () => {
       {/* ── EO: Run Allocation Popup ────────────────────────────────────── */}
       {showRunAllocationPopup && createPortal(
         <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <PlayCircle size={20} className="text-blue-600" />
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '92vh' }}>
+
+            {/* ── Header ── */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+                <PlayCircle size={18} className="text-white" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-gray-900">Run Allocation Cycle</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Auto-allot submitted requests by top-ranked preference</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 leading-tight">Run Allocation Cycle</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Auto-allot submitted requests by employee preference ranking</p>
               </div>
-              <button onClick={() => setShowRunAllocationPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+              <button onClick={() => setShowRunAllocationPopup(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors shrink-0">
+                <X size={15} />
+              </button>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-blue-50 rounded-xl border border-blue-100 px-3 py-3 text-center">
-                  <div className="text-2xl font-bold text-blue-700">{requests.filter(r => r.request_status === 'SUBMITTED').length}</div>
-                  <div className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mt-0.5">Outstanding</div>
+            {/* ── Scrollable body ── */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+              {/* Officer identity strip */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 flex-wrap">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">User Id:</span>
+                  <span className="text-xs font-bold text-gray-700 truncate">{user?.govtEmployeeId || user?.id?.slice(0, 8).toUpperCase()}</span>
                 </div>
-                <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-3 text-center">
-                  <div className="text-xs font-bold text-gray-700 leading-tight">Demo Admin User</div>
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">Estate Officer</div>
+                <div className="w-px h-3 bg-gray-300 shrink-0" />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Name:</span>
+                  <span className="text-xs font-bold text-gray-700 truncate">{user?.fullName || '—'}</span>
                 </div>
-                <div className="bg-gray-50 rounded-xl border border-gray-100 px-3 py-3 text-center">
-                  <div className="text-xs font-bold text-gray-700 leading-tight">{new Date().toLocaleDateString('en-IN')}</div>
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">Run Date</div>
+                <div className="w-px h-3 bg-gray-300 shrink-0" />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Designation:</span>
+                  <span className="text-xs font-bold text-gray-700 truncate">{vacateDesignationName || 'Estate Officer'}</span>
+                </div>
+              </div>
+
+              {/* Select Cycle Time */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Select Cycle Time</div>
+                <input
+                  type="date"
+                  value={runAllocCycleTime}
+                  onChange={e => setRunAllocCycleTime(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                />
+              </div>
+
+              {/* Last / Current run cycle date */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Cycle Run Dates</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1 font-medium">Last run cycle Date</label>
+                    <input
+                      type="date"
+                      value={runAllocLastDate}
+                      onChange={e => setRunAllocLastDate(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1 font-medium">Current run cycle Date</label>
+                    <input
+                      type="date"
+                      value={runAllocCurrentDate}
+                      onChange={e => setRunAllocCurrentDate(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Grade + Quarter Type */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
+                  Select the Grade / Quarter Type for the Run Allocation
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1 font-medium">Grade</label>
+                    <div className="relative">
+                      <select
+                        value={runAllocGrade}
+                        onChange={e => setRunAllocGrade(e.target.value)}
+                        className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white pr-8"
+                      >
+                        <option value="">All Grades</option>
+                        {QUARTER_TYPE_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-1 font-medium">Quarter Type</label>
+                    <div className="relative">
+                      <select
+                        value={runAllocQuarterType}
+                        onChange={e => setRunAllocQuarterType(e.target.value)}
+                        className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white pr-8"
+                      >
+                        <option value="">All Types</option>
+                        {QUARTER_TYPE_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Level of Approval */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Select level of Approval</div>
+                <div className="relative">
+                  <select
+                    value={runAllocWorkflowId}
+                    onChange={e => setRunAllocWorkflowId(e.target.value)}
+                    className="w-full appearance-none px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white pr-8"
+                  >
+                    <option value="">— Select Approval Workflow —</option>
+                    {requestApprovalWorkflows.map(wf => (
+                      <option key={wf.id} value={wf.id}>{wf.workflow_name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 
               {/* Cycle Name */}
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
                   Cycle Name / Number <span className="text-gray-400 font-normal normal-case">(optional)</span>
-                </label>
+                </div>
                 <input
                   type="text"
                   value={runAllocCycleName}
                   onChange={e => setRunAllocCycleName(e.target.value)}
                   placeholder="e.g. 2025-Q2, Jun Cycle"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
                 />
               </div>
 
-              {/* Date range */}
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                  Cycle Period <span className="text-gray-400 font-normal normal-case">(optional)</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[10px] text-gray-400 mb-1">Start Date</div>
-                    <input
-                      type="date"
-                      value={runAllocStart}
-                      onChange={e => setRunAllocStart(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-gray-400 mb-1">End Date</div>
-                    <input
-                      type="date"
-                      value={runAllocEnd}
-                      onChange={e => setRunAllocEnd(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* Info banner */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
-                <strong>{requests.filter(r => r.request_status === 'SUBMITTED').length} requests</strong> will be auto-allotted using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
-                {runAllocCycleName.trim() && (
-                  <div className="mt-1.5 text-blue-600">A formal cycle record "<strong>{runAllocCycleName}</strong>" will be created and linked to all allotted requests.</div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowRunAllocationPopup(false); setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd(''); }}
-                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >Cancel</button>
-                <button
-                  onClick={handleRunAllocation}
-                  disabled={runAllocSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {runAllocSubmitting ? 'Running…' : 'Run Now'}
-                </button>
-              </div>
+              {(() => {
+                let filtered = requests.filter(r => r.request_status === 'SUBMITTED');
+                if (runAllocGrade) filtered = filtered.filter(r => r.required_bhk_config === runAllocGrade);
+                const count = filtered.length;
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                    <strong>{count} request{count !== 1 ? 's' : ''}</strong> will be auto-allotted using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
+                    {(runAllocGrade || runAllocQuarterType) && (
+                      <div className="mt-1.5 text-blue-600">
+                        Filtered to: {[runAllocGrade && `Grade "${runAllocGrade}"`, runAllocQuarterType && `Type "${runAllocQuarterType}"`].filter(Boolean).join(' + ')}.
+                      </div>
+                    )}
+                    {runAllocCycleName.trim() && (
+                      <div className="mt-1.5 text-blue-600">Cycle record "<strong>{runAllocCycleName}</strong>" will be created and linked.</div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* ── Footer actions ── */}
+            <div className="flex gap-2.5 px-5 py-4 border-t border-gray-100 shrink-0 bg-white rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowRunAllocationPopup(false);
+                  setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd('');
+                  setRunAllocCycleTime(''); setRunAllocLastDate('');
+                  setRunAllocCurrentDate(new Date().toISOString().split('T')[0]);
+                  setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocWorkflowId('');
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRunAllocation}
+                disabled={runAllocSubmitting}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {runAllocSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Running…
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle size={14} />
+                    Run Now
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>,
         document.body
