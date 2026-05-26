@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
-  HardHat, ClipboardCheck, Download,
+  HardHat, ClipboardCheck, Download, Zap, ListFilter,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -50,7 +50,7 @@ import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
-import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES } from '../mocks/demoData';
+import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES, DEMO_WORKFLOWS, DEMO_ALLOCATED_CYCLES, DEMO_UNAPPROVED_CYCLES } from '../mocks/demoData';
 import {
   PLACEHOLDER_IMAGES, getImage, resolveAllImages,
   fmtINR, fmtDate, statusAccentColor,
@@ -283,6 +283,19 @@ export const QuarterRequestsPage: React.FC = () => {
     allotApprovalUsers, setAllotApprovalUsers,
     allotApprovalSubmitting, setAllotApprovalSubmitting,
     allotApprovalRequestId, setAllotApprovalRequestId,
+    showAllocatedWFLPopup, setShowAllocatedWFLPopup,
+    allocWFLSelectedCycleId, setAllocWFLSelectedCycleId,
+    allocWFLWorkflowId, setAllocWFLWorkflowId,
+    allocWFLApproverUsers, setAllocWFLApproverUsers,
+    allocWFLPickingLevel, setAllocWFLPickingLevel,
+    allocWFLUserSearch, setAllocWFLUserSearch,
+    allocWFLAvailableUsers, setAllocWFLAvailableUsers,
+    allocWFLSubmitting, setAllocWFLSubmitting,
+    allocWFLSuccess, setAllocWFLSuccess,
+    showUnapprovedWFLPopup, setShowUnapprovedWFLPopup,
+    unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId,
+    unapprWFLInitiating, setUnapprWFLInitiating,
+    unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles,
   } = useQuarterRequestsState();
 
   // ── Log Details modal ───────────────────────────────────────────────────────
@@ -2268,6 +2281,39 @@ export const QuarterRequestsPage: React.FC = () => {
                     <PlayCircle size={14} />
                   </button>
                 </>
+              )}
+
+              {isEO && eoMode === 'employee' && dpFilter === 'allocated_em' && (
+                <button
+                  onClick={() => {
+                    setAllocWFLSelectedCycleId(null);
+                    setAllocWFLWorkflowId('');
+                    setAllocWFLApproverUsers({});
+                    setAllocWFLPickingLevel(null);
+                    setAllocWFLUserSearch('');
+                    setAllocWFLSuccess(false);
+                    setShowAllocatedWFLPopup(true);
+                  }}
+                  title="Assign Workflow to Allocation Cycles"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  <GitMerge size={13} />
+                  <span className="hidden sm:inline">Assign WFL</span>
+                </button>
+              )}
+
+              {isEO && eoMode === 'employee' && dpFilter === 'unapproved' && (
+                <button
+                  onClick={() => {
+                    setUnapprWFLSelectedCycleId(null);
+                    setShowUnapprovedWFLPopup(true);
+                  }}
+                  title="Manage Approval Workflows"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm"
+                >
+                  <ListFilter size={13} />
+                  <span className="hidden sm:inline">Manage WFL</span>
+                </button>
               )}
 
             </div>
@@ -5058,6 +5104,553 @@ export const QuarterRequestsPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EO: Allocated DP — Assign WFL to Cycles Popup ──────────────── */}
+      {showAllocatedWFLPopup && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{ maxHeight: '92vh' }}>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                <GitMerge size={20} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 leading-tight">Assign Workflow to Allocation Cycles</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Select a cycle, assign an approval workflow, and designate approvers for each level</p>
+              </div>
+              <button
+                onClick={() => setShowAllocatedWFLPopup(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Two-column body */}
+            <div className="flex flex-1 overflow-hidden min-h-0">
+
+              {/* Left: Cycle list */}
+              <div className="w-72 shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-50 shrink-0">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Allocation Cycles</p>
+                </div>
+                <div className="overflow-y-auto flex-1 p-3 space-y-2">
+                  {DEMO_ALLOCATED_CYCLES.map(cycle => {
+                    const isSelected = allocWFLSelectedCycleId === cycle.id;
+                    return (
+                      <button
+                        key={cycle.id}
+                        onClick={() => {
+                          setAllocWFLSelectedCycleId(cycle.id);
+                          setAllocWFLWorkflowId('');
+                          setAllocWFLApproverUsers({});
+                          setAllocWFLPickingLevel(null);
+                          setAllocWFLUserSearch('');
+                          setAllocWFLSuccess(false);
+                        }}
+                        className={`w-full text-left rounded-xl border p-3 transition-all duration-150 ${
+                          isSelected
+                            ? 'border-emerald-400 bg-emerald-50 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-800' : 'text-gray-800'}`}>{cycle.cycle_name}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5 font-mono">{cycle.cycle_code}</p>
+                          </div>
+                          <span className={`shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                            cycle.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                          }`}>{cycle.status}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-[10px] text-gray-500">
+                            <span className="font-semibold text-gray-700">{cycle.allotment_count}</span> allotments
+                          </span>
+                          <span className="text-gray-200">·</span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(cycle.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right: WFL assignment panel */}
+              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                {!allocWFLSelectedCycleId ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-8 text-gray-400">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                      <GitMerge size={24} className="text-gray-300" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-500">Select a Cycle</p>
+                    <p className="text-xs text-gray-400 mt-1">Choose an allocation cycle from the list to assign an approval workflow</p>
+                  </div>
+                ) : allocWFLSuccess ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-4">
+                      <CheckSquare size={28} className="text-emerald-600" />
+                    </div>
+                    <p className="text-base font-bold text-emerald-800">Workflow Assigned!</p>
+                    <p className="text-sm text-gray-500 mt-1.5">
+                      {requestApprovalWorkflows.find(w => w.id === allocWFLWorkflowId)?.workflow_name ?? 'Selected workflow'} has been assigned to{' '}
+                      <strong>{DEMO_ALLOCATED_CYCLES.find(c => c.id === allocWFLSelectedCycleId)?.cycle_name}</strong>.
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">The allotments in this cycle will proceed to the Unapproved stage for approval initiation.</p>
+                    <button
+                      onClick={() => {
+                        setAllocWFLSelectedCycleId(null);
+                        setAllocWFLWorkflowId('');
+                        setAllocWFLApproverUsers({});
+                        setAllocWFLSuccess(false);
+                      }}
+                      className="mt-5 px-4 py-2 rounded-xl border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-50 transition-colors"
+                    >
+                      Assign Another Cycle
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+                    {/* Selected cycle info strip */}
+                    {(() => {
+                      const cycle = DEMO_ALLOCATED_CYCLES.find(c => c.id === allocWFLSelectedCycleId);
+                      if (!cycle) return null;
+                      return (
+                        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+                            <ClipboardList size={14} className="text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-emerald-800 truncate">{cycle.cycle_name}</p>
+                            <p className="text-[10px] text-emerald-600 mt-0.5">{cycle.allotment_count} allotments · {new Date(cycle.start_date).toLocaleDateString('en-IN')} – {new Date(cycle.end_date).toLocaleDateString('en-IN')}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Workflow selector */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
+                        Select Approval Workflow (WFL)
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={allocWFLWorkflowId}
+                          onChange={e => {
+                            setAllocWFLWorkflowId(e.target.value);
+                            setAllocWFLApproverUsers({});
+                            setAllocWFLPickingLevel(null);
+                          }}
+                          className="w-full appearance-none px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 bg-white text-gray-700"
+                        >
+                          <option value="">-- Select a Workflow --</option>
+                          {(DEMO_MODE ? DEMO_WORKFLOWS : requestApprovalWorkflows).map(wfl => (
+                            <option key={wfl.id} value={wfl.id}>
+                              {wfl.workflow_name} ({(wfl.levels as { level: number }[]).length} level{(wfl.levels as { level: number }[]).length !== 1 ? 's' : ''})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Approver assignment per level */}
+                    {allocWFLWorkflowId && (() => {
+                      const wfl = (DEMO_MODE ? DEMO_WORKFLOWS : requestApprovalWorkflows).find(w => w.id === allocWFLWorkflowId);
+                      if (!wfl) return null;
+                      const levels = wfl.levels as { level: number; approver_title?: string; approver_role?: string }[];
+                      const demoUsers = [
+                        { id: 'u-001', full_name: 'Rajesh Kumar', govt_employee_id: 'GOV-101', email: 'rajesh.kumar@gov.in', govt_department: 'MoF' },
+                        { id: 'u-002', full_name: 'Sunita Sharma', govt_employee_id: 'GOV-102', email: 'sunita.sharma@gov.in', govt_department: 'DoT' },
+                        { id: 'u-003', full_name: 'Anil Verma', govt_employee_id: 'GOV-103', email: 'anil.verma@gov.in', govt_department: 'MoD' },
+                        { id: 'u-004', full_name: 'Priya Nair', govt_employee_id: 'GOV-104', email: 'priya.nair@gov.in', govt_department: 'MHA' },
+                        { id: 'u-005', full_name: 'Vikram Singh', govt_employee_id: 'GOV-105', email: 'vikram.singh@gov.in', govt_department: 'MoRD' },
+                      ];
+                      const availUsers = DEMO_MODE ? demoUsers : allocWFLAvailableUsers;
+                      return (
+                        <div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-3">Assign Approvers Per Level</div>
+                          <div className="space-y-3">
+                            {levels.map(lvl => {
+                              const assigned = allocWFLApproverUsers[lvl.level];
+                              const isPicking = allocWFLPickingLevel === lvl.level;
+                              const filteredUsers = availUsers.filter(u =>
+                                allocWFLUserSearch === '' ||
+                                u.full_name.toLowerCase().includes(allocWFLUserSearch.toLowerCase()) ||
+                                u.govt_employee_id.toLowerCase().includes(allocWFLUserSearch.toLowerCase())
+                              );
+                              return (
+                                <div key={lvl.level} className="rounded-xl border border-gray-200 overflow-hidden">
+                                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50">
+                                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center shrink-0">{lvl.level}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800">{lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}</p>
+                                      {assigned ? (
+                                        <p className="text-[10px] text-emerald-600 font-medium mt-0.5">{assigned.full_name} · {assigned.govt_employee_id}</p>
+                                      ) : (
+                                        <p className="text-[10px] text-gray-400 mt-0.5">No approver assigned</p>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        setAllocWFLPickingLevel(isPicking ? null : lvl.level);
+                                        setAllocWFLUserSearch('');
+                                      }}
+                                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors shrink-0 ${
+                                        isPicking
+                                          ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                          : assigned
+                                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                      }`}
+                                    >
+                                      {isPicking ? 'Close' : assigned ? 'Change' : 'Assign'}
+                                    </button>
+                                    {assigned && (
+                                      <button
+                                        onClick={() => setAllocWFLApproverUsers(prev => { const n = {...prev}; delete n[lvl.level]; return n; })}
+                                        className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {isPicking && (
+                                    <div className="border-t border-gray-100 p-3 space-y-2">
+                                      <div className="relative">
+                                        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          value={allocWFLUserSearch}
+                                          onChange={e => setAllocWFLUserSearch(e.target.value)}
+                                          placeholder="Search by name or ID…"
+                                          className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-white"
+                                        />
+                                      </div>
+                                      <div className="space-y-1 max-h-36 overflow-y-auto">
+                                        {filteredUsers.map(u => (
+                                          <button
+                                            key={u.id}
+                                            onClick={() => {
+                                              setAllocWFLApproverUsers(prev => ({ ...prev, [lvl.level]: { id: u.id, full_name: u.full_name, govt_employee_id: u.govt_employee_id, email: u.email } }));
+                                              setAllocWFLPickingLevel(null);
+                                              setAllocWFLUserSearch('');
+                                            }}
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-emerald-50 transition-colors text-left"
+                                          >
+                                            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 shrink-0">
+                                              {u.full_name[0]}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="text-xs font-semibold text-gray-800 truncate">{u.full_name}</p>
+                                              <p className="text-[10px] text-gray-400">{u.govt_employee_id}</p>
+                                            </div>
+                                          </button>
+                                        ))}
+                                        {filteredUsers.length === 0 && (
+                                          <p className="text-center text-xs text-gray-400 py-3">No users found</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Info banner */}
+                    {allocWFLWorkflowId && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                        The selected workflow will be assigned to all allotments in this cycle. Approvers will be notified once approval is initiated from the <strong>Unapproved Allotment</strong> screen.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Footer */}
+                {allocWFLSelectedCycleId && !allocWFLSuccess && (
+                  <div className="flex gap-2.5 px-6 py-4 border-t border-gray-100 shrink-0 bg-white rounded-br-2xl">
+                    <button
+                      onClick={() => setShowAllocatedWFLPopup(false)}
+                      className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!allocWFLWorkflowId) return;
+                        setAllocWFLSubmitting(true);
+                        await new Promise(r => setTimeout(r, 900));
+                        setAllocWFLSubmitting(false);
+                        setAllocWFLSuccess(true);
+                      }}
+                      disabled={!allocWFLWorkflowId || allocWFLSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      {allocWFLSubmitting ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                          </svg>
+                          Submitting…
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare size={14} />
+                          Submit WFL Assignment
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EO: Unapproved DP — Manage WFL / Initiate Approval Popup ────── */}
+      {showUnapprovedWFLPopup && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{ maxHeight: '92vh' }}>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+                <ListFilter size={20} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 leading-tight">Manage Approval Workflows</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">View cycles with assigned workflows and initiate or track the approval process</p>
+              </div>
+              <button
+                onClick={() => setShowUnapprovedWFLPopup(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Two-column body */}
+            <div className="flex flex-1 overflow-hidden min-h-0">
+
+              {/* Left: Cycle list */}
+              <div className="w-72 shrink-0 border-r border-gray-100 flex flex-col overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-50 shrink-0">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cycles with Assigned WFL</p>
+                </div>
+                <div className="overflow-y-auto flex-1 p-3 space-y-2">
+                  {DEMO_UNAPPROVED_CYCLES.map(cycle => {
+                    const isSelected = unapprWFLSelectedCycleId === cycle.id;
+                    const isInitiated = unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated;
+                    return (
+                      <button
+                        key={cycle.id}
+                        onClick={() => setUnapprWFLSelectedCycleId(cycle.id)}
+                        className={`w-full text-left rounded-xl border p-3 transition-all duration-150 ${
+                          isSelected
+                            ? 'border-amber-400 bg-amber-50 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-800' : 'text-gray-800'}`}>{cycle.cycle_name}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5 font-mono">{cycle.cycle_code}</p>
+                          </div>
+                          {/* WFL status chip */}
+                          {isInitiated ? (
+                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">
+                              <CheckSquare size={8} /> Initiated
+                            </span>
+                          ) : (
+                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">
+                              <GitMerge size={8} /> WFL Set
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-[10px] text-gray-500 font-medium">{cycle.wfl_name}</span>
+                          <span className="text-gray-200">·</span>
+                          <span className="text-[10px] text-gray-400">
+                            <span className="font-semibold text-gray-600">{cycle.allotment_count}</span> allotments
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right: Approval action panel */}
+              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                {!unapprWFLSelectedCycleId ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-8 text-gray-400">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                      <ListFilter size={24} className="text-gray-300" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-500">Select a Cycle</p>
+                    <p className="text-xs text-gray-400 mt-1">Choose a cycle from the list to view workflow details and take action</p>
+                  </div>
+                ) : (() => {
+                  const cycle = DEMO_UNAPPROVED_CYCLES.find(c => c.id === unapprWFLSelectedCycleId);
+                  if (!cycle) return null;
+                  const wfl = (DEMO_MODE ? DEMO_WORKFLOWS : requestApprovalWorkflows).find(w => w.workflow_name === cycle.wfl_name) ?? (DEMO_MODE ? DEMO_WORKFLOWS[0] : requestApprovalWorkflows[0]);
+                  const isInitiated = unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated;
+                  const levels = wfl ? (wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]) : [];
+
+                  return (
+                    <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+                      <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+                        {/* Cycle info strip */}
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                            <ClipboardList size={14} className="text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-amber-800 truncate">{cycle.cycle_name}</p>
+                            <p className="text-[10px] text-amber-600 mt-0.5">{cycle.allotment_count} allotments · {new Date(cycle.start_date).toLocaleDateString('en-IN')} – {new Date(cycle.end_date).toLocaleDateString('en-IN')}</p>
+                          </div>
+                          {isInitiated ? (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+                              <CheckSquare size={10} /> Approval Initiated
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                              <GitMerge size={10} /> WFL Assigned
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Workflow info */}
+                        {wfl && (
+                          <div>
+                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Assigned Workflow</div>
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <GitMerge size={13} className="text-gray-500 shrink-0" />
+                                <span className="text-sm font-bold text-gray-800">{wfl.workflow_name}</span>
+                              </div>
+                              {wfl.description && (
+                                <p className="text-[11px] text-gray-500 leading-relaxed ml-5">{wfl.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Approval levels */}
+                        {levels.length > 0 && (
+                          <div>
+                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Approval Levels</div>
+                            <div className="space-y-2">
+                              {levels.map((lvl, idx) => {
+                                const isCurrentLevel = isInitiated && idx === 0;
+                                return (
+                                  <div key={lvl.level} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${
+                                    isCurrentLevel ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'
+                                  }`}>
+                                    <span className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
+                                      isCurrentLevel ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                                    }`}>{lvl.level}</span>
+                                    <span className={`text-xs font-semibold flex-1 ${isCurrentLevel ? 'text-blue-800' : 'text-gray-700'}`}>
+                                      {lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}
+                                    </span>
+                                    {isCurrentLevel && (
+                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <Clock size={8} /> Pending
+                                      </span>
+                                    )}
+                                    {isInitiated && idx > 0 && (
+                                      <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Awaiting</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Summary stats when initiated */}
+                        {isInitiated && (
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { label: 'Total Allotments', value: cycle.allotment_count, cls: 'bg-gray-50 border-gray-100 text-gray-700' },
+                              { label: 'Approval Pending', value: cycle.allotment_count, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
+                              { label: 'Approved', value: 0, cls: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                            ].map(stat => (
+                              <div key={stat.label} className={`rounded-xl border px-3 py-2.5 text-center ${stat.cls}`}>
+                                <div className="text-xl font-bold">{stat.value}</div>
+                                <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5 opacity-80">{stat.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer action */}
+                      <div className="flex gap-2.5 px-6 py-4 border-t border-gray-100 shrink-0 bg-white rounded-br-2xl">
+                        <button
+                          onClick={() => setShowUnapprovedWFLPopup(false)}
+                          className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                        >
+                          Close
+                        </button>
+                        {isInitiated ? (
+                          <button
+                            onClick={() => {}}
+                            className="flex-1 py-2.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-sm font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Eye size={14} />
+                            View Approval
+                          </button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              setUnapprWFLInitiating(true);
+                              await new Promise(r => setTimeout(r, 900));
+                              setUnapprWFLInitiating(false);
+                              setUnapprWFLInitiatedCycles(prev => [...prev, cycle.id]);
+                            }}
+                            disabled={unapprWFLInitiating}
+                            className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                          >
+                            {unapprWFLInitiating ? (
+                              <>
+                                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                </svg>
+                                Initiating…
+                              </>
+                            ) : (
+                              <>
+                                <Zap size={14} />
+                                Initiate Approval
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
           </div>
         </div>,
         document.body

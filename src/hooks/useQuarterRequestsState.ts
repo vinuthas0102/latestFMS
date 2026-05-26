@@ -362,6 +362,23 @@ export function useQuarterRequestsState() {
   const [upgradeModalQuarters, setUpgradeModalQuarters] = useState<Quarter[]>([]);
   const [upgradeModalLoading, setUpgradeModalLoading] = useState(false);
 
+  // ── Allocated DP: Assign WFL popup ────────────────────────────────────────
+  const [showAllocatedWFLPopup, setShowAllocatedWFLPopup] = useState(false);
+  const [allocWFLSelectedCycleId, setAllocWFLSelectedCycleId] = useState<string | null>(null);
+  const [allocWFLWorkflowId, setAllocWFLWorkflowId] = useState('');
+  const [allocWFLApproverUsers, setAllocWFLApproverUsers] = useState<Record<number, { id: string; full_name: string; govt_employee_id: string; email: string } | null>>({});
+  const [allocWFLPickingLevel, setAllocWFLPickingLevel] = useState<number | null>(null);
+  const [allocWFLUserSearch, setAllocWFLUserSearch] = useState('');
+  const [allocWFLAvailableUsers, setAllocWFLAvailableUsers] = useState<{ id: string; full_name: string; govt_department: string; govt_employee_id: string; email: string }[]>([]);
+  const [allocWFLSubmitting, setAllocWFLSubmitting] = useState(false);
+  const [allocWFLSuccess, setAllocWFLSuccess] = useState(false);
+
+  // ── Unapproved DP: Manage WFL popup ───────────────────────────────────────
+  const [showUnapprovedWFLPopup, setShowUnapprovedWFLPopup] = useState(false);
+  const [unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId] = useState<string | null>(null);
+  const [unapprWFLInitiating, setUnapprWFLInitiating] = useState(false);
+  const [unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles] = useState<string[]>([]);
+
   return {
     requests, setRequests,
     tenantRequests, setTenantRequests,
@@ -618,5 +635,18 @@ export function useQuarterRequestsState() {
     showUpgradeModal, setShowUpgradeModal,
     upgradeModalQuarters, setUpgradeModalQuarters,
     upgradeModalLoading, setUpgradeModalLoading,
+    showAllocatedWFLPopup, setShowAllocatedWFLPopup,
+    allocWFLSelectedCycleId, setAllocWFLSelectedCycleId,
+    allocWFLWorkflowId, setAllocWFLWorkflowId,
+    allocWFLApproverUsers, setAllocWFLApproverUsers,
+    allocWFLPickingLevel, setAllocWFLPickingLevel,
+    allocWFLUserSearch, setAllocWFLUserSearch,
+    allocWFLAvailableUsers, setAllocWFLAvailableUsers,
+    allocWFLSubmitting, setAllocWFLSubmitting,
+    allocWFLSuccess, setAllocWFLSuccess,
+    showUnapprovedWFLPopup, setShowUnapprovedWFLPopup,
+    unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId,
+    unapprWFLInitiating, setUnapprWFLInitiating,
+    unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles,
   };
 }
