@@ -4723,20 +4723,6 @@ export const QuarterRequestsPage: React.FC = () => {
             {/* ── Scrollable body ── */}
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
 
-              {/* Cycle Name */}
-              <div>
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
-                  Cycle Name / Number <span className="text-gray-400 font-normal normal-case">(optional)</span>
-                </div>
-                <input
-                  type="text"
-                  value={runAllocCycleName}
-                  onChange={e => setRunAllocCycleName(e.target.value)}
-                  placeholder="e.g. 2025-Q2, Jun Cycle"
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
-                />
-              </div>
-
               {/* Officer identity strip */}
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 flex-wrap">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -4753,6 +4739,20 @@ export const QuarterRequestsPage: React.FC = () => {
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Designation:</span>
                   <span className="text-xs font-bold text-gray-700 truncate">{vacateDesignationName || 'Estate Officer'}</span>
                 </div>
+              </div>
+
+              {/* Cycle Name */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">
+                  Cycle Name / Number <span className="text-gray-400 font-normal normal-case">(optional)</span>
+                </div>
+                <input
+                  type="text"
+                  value={runAllocCycleName}
+                  onChange={e => setRunAllocCycleName(e.target.value)}
+                  placeholder="e.g. 2025-Q2, Jun Cycle"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                />
               </div>
 
               {/* Last / Current run cycle date */}
