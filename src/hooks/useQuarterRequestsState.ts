@@ -378,6 +378,8 @@ export function useQuarterRequestsState() {
   const [unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId] = useState<string | null>(null);
   const [unapprWFLInitiating, setUnapprWFLInitiating] = useState(false);
   const [unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles] = useState<string[]>([]);
+  const [unapprWFLLockedCycles, setUnapprWFLLockedCycles] = useState<string[]>([]);
+  const [unapprWFLLocking, setUnapprWFLLocking] = useState(false);
 
   return {
     requests, setRequests,
@@ -648,5 +650,7 @@ export function useQuarterRequestsState() {
     unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId,
     unapprWFLInitiating, setUnapprWFLInitiating,
     unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles,
+    unapprWFLLockedCycles, setUnapprWFLLockedCycles,
+    unapprWFLLocking, setUnapprWFLLocking,
   };
 }

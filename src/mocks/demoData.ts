@@ -1354,7 +1354,7 @@ export const DEMO_ALLOCATED_CYCLES: (QuarterAllotmentCycle & { allotment_count: 
 ];
 
 // ─── Demo cycles for Unapproved DP WFL popup (WFL submitted, initiate / view approval) ──
-export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count: number; wfl_name: string; approval_initiated: boolean })[] = [
+export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count: number; wfl_name: string; approval_initiated: boolean; approval_approved?: boolean })[] = [
   {
     id: 'cycle-2025-01',
     cycle_name: 'Allotment Cycle Q1 2025',
@@ -1408,6 +1408,25 @@ export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count:
     allotment_count: 2,
     wfl_name: 'Standard 2-Level Approval',
     approval_initiated: true,
+  },
+  {
+    id: 'cycle-2024-q4',
+    cycle_name: 'Allotment Cycle Q4 2024',
+    cycle_code: 'ALLOT-CYCLE-Q4-2024',
+    start_date: '2024-10-01',
+    end_date: '2024-12-31',
+    status: 'CLOSED',
+    notes: 'Q4 allotment cycle — all approvals completed. Ready for lock.',
+    created_at: '2024-09-15T09:00:00Z',
+    updated_at: '2024-12-20T09:00:00Z',
+    request_count: 14,
+    allotted_count: 11,
+    pending_count: 0,
+    overridden_count: 3,
+    allotment_count: 11,
+    wfl_name: 'Standard 2-Level Approval',
+    approval_initiated: true,
+    approval_approved: true,
   },
 ];
 

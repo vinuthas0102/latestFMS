@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
-  HardHat, ClipboardCheck, Download, Zap, ListFilter,
+  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -296,6 +296,8 @@ export const QuarterRequestsPage: React.FC = () => {
     unapprWFLSelectedCycleId, setUnapprWFLSelectedCycleId,
     unapprWFLInitiating, setUnapprWFLInitiating,
     unapprWFLInitiatedCycles, setUnapprWFLInitiatedCycles,
+    unapprWFLLockedCycles, setUnapprWFLLockedCycles,
+    unapprWFLLocking, setUnapprWFLLocking,
   } = useQuarterRequestsState();
 
   // ── Log Details modal ───────────────────────────────────────────────────────
@@ -5455,24 +5457,36 @@ export const QuarterRequestsPage: React.FC = () => {
                 <div className="overflow-y-auto flex-1 p-3 space-y-2">
                   {DEMO_UNAPPROVED_CYCLES.map(cycle => {
                     const isSelected = unapprWFLSelectedCycleId === cycle.id;
-                    const isInitiated = unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated;
+                    const isApproved = cycle.approval_approved === true;
+                    const isInitiated = !isApproved && (unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated);
+                    const isLocked = unapprWFLLockedCycles.includes(cycle.id);
                     return (
                       <button
                         key={cycle.id}
                         onClick={() => setUnapprWFLSelectedCycleId(cycle.id)}
                         className={`w-full text-left rounded-xl border p-3 transition-all duration-150 ${
                           isSelected
-                            ? 'border-amber-400 bg-amber-50 shadow-sm'
+                            ? isApproved
+                              ? 'border-teal-400 bg-teal-50 shadow-sm'
+                              : 'border-amber-400 bg-amber-50 shadow-sm'
                             : 'border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/40'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-800' : 'text-gray-800'}`}>{cycle.cycle_name}</p>
+                            <p className={`text-xs font-bold truncate ${isSelected ? (isApproved ? 'text-teal-800' : 'text-amber-800') : 'text-gray-800'}`}>{cycle.cycle_name}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5 font-mono">{cycle.cycle_code}</p>
                           </div>
                           {/* WFL status chip */}
-                          {isInitiated ? (
+                          {isLocked ? (
+                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 whitespace-nowrap">
+                              <Lock size={8} /> Locked
+                            </span>
+                          ) : isApproved ? (
+                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 whitespace-nowrap">
+                              <CheckCircle2 size={8} /> Approved
+                            </span>
+                          ) : isInitiated ? (
                             <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 whitespace-nowrap">
                               <CheckSquare size={8} /> Initiated
                             </span>
@@ -5509,7 +5523,9 @@ export const QuarterRequestsPage: React.FC = () => {
                   const cycle = DEMO_UNAPPROVED_CYCLES.find(c => c.id === unapprWFLSelectedCycleId);
                   if (!cycle) return null;
                   const wfl = (DEMO_MODE ? DEMO_WORKFLOWS : requestApprovalWorkflows).find(w => w.workflow_name === cycle.wfl_name) ?? (DEMO_MODE ? DEMO_WORKFLOWS[0] : requestApprovalWorkflows[0]);
-                  const isInitiated = unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated;
+                  const isApproved = cycle.approval_approved === true;
+                  const isInitiated = !isApproved && (unapprWFLInitiatedCycles.includes(cycle.id) || cycle.approval_initiated);
+                  const isLocked = unapprWFLLockedCycles.includes(cycle.id);
                   const levels = wfl ? (wfl.levels as { level: number; approver_title?: string; approver_role?: string }[]) : [];
 
                   return (
@@ -5517,15 +5533,27 @@ export const QuarterRequestsPage: React.FC = () => {
                       <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
                         {/* Cycle info strip */}
-                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                        <div className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${
+                          isApproved ? 'bg-teal-50 border-teal-200' : 'bg-amber-50 border-amber-200'
+                        }`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            isApproved ? 'bg-teal-600' : 'bg-amber-500'
+                          }`}>
                             <ClipboardList size={14} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-amber-800 truncate">{cycle.cycle_name}</p>
-                            <p className="text-[10px] text-amber-600 mt-0.5">{cycle.allotment_count} allotments · {new Date(cycle.start_date).toLocaleDateString('en-IN')} – {new Date(cycle.end_date).toLocaleDateString('en-IN')}</p>
+                            <p className={`text-xs font-bold truncate ${isApproved ? 'text-teal-800' : 'text-amber-800'}`}>{cycle.cycle_name}</p>
+                            <p className={`text-[10px] mt-0.5 ${isApproved ? 'text-teal-600' : 'text-amber-600'}`}>{cycle.allotment_count} allotments · {new Date(cycle.start_date).toLocaleDateString('en-IN')} – {new Date(cycle.end_date).toLocaleDateString('en-IN')}</p>
                           </div>
-                          {isInitiated ? (
+                          {isLocked ? (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 text-[10px] font-bold">
+                              <Lock size={10} /> Locked
+                            </span>
+                          ) : isApproved ? (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">
+                              <CheckCircle2 size={10} /> Fully Approved
+                            </span>
+                          ) : isInitiated ? (
                             <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
                               <CheckSquare size={10} /> Approval Initiated
                             </span>
@@ -5535,6 +5563,28 @@ export const QuarterRequestsPage: React.FC = () => {
                             </span>
                           )}
                         </div>
+
+                        {/* Locked confirmation banner */}
+                        {isLocked && (
+                          <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                            <Lock size={15} className="text-gray-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-bold text-gray-800">Allocation Run Locked</p>
+                              <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">This allocation run has been locked. No further changes can be made to allotments in this cycle. Records are now archived for audit.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Approved success banner */}
+                        {isApproved && !isLocked && (
+                          <div className="flex items-start gap-3 bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+                            <CheckCircle2 size={15} className="text-teal-600 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-bold text-teal-800">All Approvals Completed</p>
+                              <p className="text-[11px] text-teal-600 mt-0.5 leading-relaxed">All {cycle.allotment_count} allotments in this cycle have been approved through the workflow. You may now lock this allocation run to finalise it.</p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Workflow info */}
                         {wfl && (
@@ -5561,22 +5611,27 @@ export const QuarterRequestsPage: React.FC = () => {
                                 const isCurrentLevel = isInitiated && idx === 0;
                                 return (
                                   <div key={lvl.level} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${
-                                    isCurrentLevel ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'
+                                    isApproved ? 'border-teal-100 bg-teal-50/50' : isCurrentLevel ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'
                                   }`}>
                                     <span className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
-                                      isCurrentLevel ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-                                    }`}>{lvl.level}</span>
-                                    <span className={`text-xs font-semibold flex-1 ${isCurrentLevel ? 'text-blue-800' : 'text-gray-700'}`}>
+                                      isApproved ? 'bg-teal-600 text-white' : isCurrentLevel ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {isApproved ? <CheckCircle2 size={12} /> : lvl.level}
+                                    </span>
+                                    <span className={`text-xs font-semibold flex-1 ${isApproved ? 'text-teal-800' : isCurrentLevel ? 'text-blue-800' : 'text-gray-700'}`}>
                                       {lvl.approver_title || lvl.approver_role || `Level ${lvl.level}`}
                                     </span>
-                                    {isCurrentLevel && (
+                                    {isApproved ? (
+                                      <span className="text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <CheckCircle2 size={8} /> Approved
+                                      </span>
+                                    ) : isCurrentLevel ? (
                                       <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                                         <Clock size={8} /> Pending
                                       </span>
-                                    )}
-                                    {isInitiated && idx > 0 && (
+                                    ) : isInitiated && idx > 0 ? (
                                       <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Awaiting</span>
-                                    )}
+                                    ) : null}
                                   </div>
                                 );
                               })}
@@ -5584,13 +5639,13 @@ export const QuarterRequestsPage: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Summary stats when initiated */}
-                        {isInitiated && (
+                        {/* Summary stats */}
+                        {(isInitiated || isApproved) && (
                           <div className="grid grid-cols-3 gap-3">
                             {[
                               { label: 'Total Allotments', value: cycle.allotment_count, cls: 'bg-gray-50 border-gray-100 text-gray-700' },
-                              { label: 'Approval Pending', value: cycle.allotment_count, cls: 'bg-blue-50 border-blue-100 text-blue-700' },
-                              { label: 'Approved', value: 0, cls: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                              { label: isApproved ? 'Pending' : 'Approval Pending', value: isApproved ? 0 : cycle.allotment_count, cls: isApproved ? 'bg-gray-50 border-gray-100 text-gray-400' : 'bg-blue-50 border-blue-100 text-blue-700' },
+                              { label: 'Approved', value: isApproved ? cycle.allotment_count : 0, cls: isApproved ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700' },
                             ].map(stat => (
                               <div key={stat.label} className={`rounded-xl border px-3 py-2.5 text-center ${stat.cls}`}>
                                 <div className="text-xl font-bold">{stat.value}</div>
@@ -5609,7 +5664,49 @@ export const QuarterRequestsPage: React.FC = () => {
                         >
                           Close
                         </button>
-                        {isInitiated ? (
+                        {isApproved ? (
+                          isLocked ? (
+                            <div className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none">
+                              <Lock size={14} />
+                              Allocation Run Locked
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {}}
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-sm font-bold hover:bg-blue-100 transition-colors"
+                              >
+                                <Eye size={14} />
+                                View Approval
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  setUnapprWFLLocking(true);
+                                  await new Promise(r => setTimeout(r, 900));
+                                  setUnapprWFLLocking(false);
+                                  setUnapprWFLLockedCycles(prev => [...prev, cycle.id]);
+                                }}
+                                disabled={unapprWFLLocking}
+                                className="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shadow-sm shadow-teal-200"
+                              >
+                                {unapprWFLLocking ? (
+                                  <>
+                                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                    </svg>
+                                    Locking…
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock size={14} />
+                                    Lock Allocation Run
+                                  </>
+                                )}
+                              </button>
+                            </>
+                          )
+                        ) : isInitiated ? (
                           <button
                             onClick={() => {}}
                             className="flex-1 py-2.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-sm font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
