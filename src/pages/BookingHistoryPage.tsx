@@ -1322,7 +1322,6 @@ export const BookingHistoryPage: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<BookingDTO | null>(null);
-  const [activeServiceCounts, setActiveServiceCounts] = useState<Record<string, number>>({});
   const [bookingServices, setBookingServices] = useState<Record<string, BookingServiceRequestDTO[]>>({});
 
   // Service chat right panel
@@ -3732,9 +3731,6 @@ export const BookingHistoryPage: React.FC = () => {
                     isGovtOfficial={isGovtOfficial}
                     onClose={() => setSelectedBooking(null)}
                     onNavigate={(id) => navigate(`/bookings/${id}`)}
-                    onServiceCountChange={(count) =>
-                      setActiveServiceCounts(prev => ({ ...prev, [selectedBooking.id]: count }))
-                    }
                     panelControls={controls}
                   />
                 ) : undefined
@@ -3774,7 +3770,6 @@ export const BookingHistoryPage: React.FC = () => {
                           index={index}
                           isSelected={selectedBooking?.id === booking.id}
                           onClick={() => setSelectedBooking(booking)}
-                          activeServiceCount={activeServiceCounts[booking.id] ?? 0}
                           services={bookingServices[booking.id] ?? []}
                           onRaiseService={openServiceForm}
                           onPayNow={handlePayNow}
