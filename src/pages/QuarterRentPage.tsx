@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Home, ChevronRight, IndianRupee, ArrowLeft, Building2,
+  Home, ChevronRight, IndianRupee, Building2,
   Phone, User, MapPin, Calendar, CheckCircle2, AlertTriangle,
-  Clock, Receipt, TrendingUp, Send, ChevronDown, ChevronUp,
+  Clock, Receipt, TrendingUp, Send, ChevronDown,
   BarChart2, LayoutGrid, CreditCard, TableProperties,
-  RefreshCcw, MessageSquare, Eye, Wallet, Undo2, Search, X,
-  Filter, Download,
+  MessageSquare, Eye, Wallet, Undo2, Search, X,
+  Download,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { quartersService } from '../services/quartersService';
@@ -14,6 +14,7 @@ import type {
   RentTile, RentDueDetail, RentPayment, RentClarification, RentTrackerSummary,
 } from '../services/quartersService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
+import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import { useAuthStore } from '../stores/authStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -787,167 +788,202 @@ export const QuarterRentPage: React.FC = () => {
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const activeFilterCount = [locFilter, modeFilter !== 'ALL' ? modeFilter : ''].filter(Boolean).length;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-teal-50/20">
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-5">
-          <Home size={11} />
-          <ChevronRight size={10} />
-          <span>Workspace</span>
-          <ChevronRight size={10} />
-          <span className="text-gray-600 font-medium">Rent Tracker</span>
-        </div>
-        <button onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 px-3 py-2 rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition-all">
-          <ArrowLeft size={15} /> Back
-        </button>
+      {/* ── Frozen header ── */}
+      <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
 
-        {/* Page header */}
-        <div className="bg-gradient-to-r from-teal-700 to-emerald-600 rounded-2xl px-8 py-6 mb-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-              <IndianRupee size={24} className="text-white" />
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
+            <button onClick={() => navigate(ROUTES.DASHBOARD)} className="hover:text-teal-600 transition-colors"><Home size={11} /></button>
+            <ChevronRight size={10} />
+            <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-teal-600 transition-colors">My Workspace</button>
+            <ChevronRight size={10} />
+            <span className="text-gray-700 font-medium">Rent Tracker</span>
+          </div>
+
+          {/* Title row */}
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 mb-0.5 flex items-center gap-2.5">
+                <div className="p-1.5 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl shadow-lg">
+                  <IndianRupee className="w-4 h-4 text-white" />
+                </div>
+                Rent Tracker
+              </h1>
+              <p className="text-sm text-gray-500 mt-0.5 ml-9">Quarters rent collection — demand, payments &amp; arrears</p>
             </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-white">Rent Tracker</h1>
-              <p className="text-teal-100 text-sm mt-0.5">Quarters rent collection — demand, payments &amp; arrears</p>
+            <div className="flex items-center gap-3">
+              {/* View switcher */}
+              <div className="inline-flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+                {views.map(({ id, icon: Icon, label }) => (
+                  <button key={id} onClick={() => setViewMode(id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === id ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Icon size={13} /> <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <Download size={14} /> Export
+              </button>
             </div>
-            <button onClick={() => {}} className="hidden sm:flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors border border-white/20">
-              <Download size={14} /> Export
-            </button>
           </div>
-        </div>
 
-        {/* Success toast */}
-        {paySuccess && (
-          <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl border border-emerald-500 animate-in fade-in">
-            <CheckCircle2 size={18} /> Payment recorded successfully
-          </div>
-        )}
+          {/* MandatorySearchBar */}
+          <MandatorySearchBar
+            fields={[
+              {
+                key: 'tenant',
+                label: 'Search',
+                type: 'text',
+                placeholder: 'Tenant name or quarter…',
+                value: tenantFilter,
+                onChange: setTenantFilter,
+                icon: <Search size={14} />,
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                type: 'chips',
+                value: dpFilter,
+                onChange: (v) => setDpFilter(v as DpFilter),
+                options: [
+                  { value: 'all',      label: 'All'      },
+                  { value: 'DUE',      label: 'Due'      },
+                  { value: 'OVERDUE',  label: 'Overdue'  },
+                  { value: 'PAID',     label: 'Paid'     },
+                  { value: 'PARTIAL',  label: 'Partial'  },
+                  { value: 'EXEMPTED', label: 'Exempted' },
+                ],
+              },
+              {
+                key: 'monthFrom',
+                label: 'From Month',
+                type: 'date',
+                value: monthFrom + '-01',
+                onChange: (v) => setMonthFrom(v.slice(0, 7)),
+              },
+              {
+                key: 'monthTo',
+                label: 'To Month',
+                type: 'date',
+                value: monthTo + '-01',
+                onChange: (v) => setMonthTo(v.slice(0, 7)),
+              },
+              {
+                key: 'mode',
+                label: 'Payment Mode',
+                type: 'select',
+                value: modeFilter,
+                onChange: setModeFilter,
+                options: PAYMENT_MODES.map(m => ({ value: m, label: m.replace('_', ' ') })),
+              },
+            ]}
+            onSearch={loadTiles}
+            searchLabel="Apply"
+            filterCount={activeFilterCount}
+            onFilterOpen={() => setShowFilters(f => !f)}
+            className="mb-3"
+          />
 
-        {/* DP Summary Cards */}
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-200 animate-pulse" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {dpCards.map((c, i) => (
-              <SummaryStatsCard
-                key={c.label} label={c.label} value={c.value} icon={c.icon}
-                gradient={c.gradient} subtitle={c.subtitle} delay={i * 50}
-                isActive={dpFilter === c.dp}
-                onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Filter bar */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 mb-5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-              <Calendar size={13} className="text-gray-400 shrink-0" />
-              <input type="month" value={monthFrom} onChange={e => setMonthFrom(e.target.value)}
-                className="text-xs bg-transparent border-none outline-none text-gray-700 font-medium w-28" />
-              <span className="text-gray-300 text-xs">–</span>
-              <input type="month" value={monthTo} onChange={e => setMonthTo(e.target.value)}
-                className="text-xs bg-transparent border-none outline-none text-gray-700 font-medium w-28" />
-            </div>
-            <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 min-w-[160px]">
-              <Search size={13} className="text-gray-400 shrink-0" />
-              <input value={tenantFilter} onChange={e => setTenantFilter(e.target.value)}
-                placeholder="Search tenant…"
-                className="flex-1 text-xs bg-transparent border-none outline-none text-gray-700" />
-              {tenantFilter && <button onClick={() => setTenantFilter('')}><X size={11} className="text-gray-400" /></button>}
-            </div>
-            <button onClick={() => setShowFilters(f => !f)}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${showFilters ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              <Filter size={13} /> Filters {showFilters ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            </button>
-            <button onClick={loadTiles}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors">
-              <RefreshCcw size={12} /> Apply
-            </button>
-          </div>
+          {/* Secondary filter (location) */}
           {showFilters && (
-            <div className="flex gap-3 mt-3 flex-wrap pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Location</label>
-                <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
-                  placeholder="Estate / Block…"
-                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 w-36" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Payment Mode</label>
-                <select value={modeFilter} onChange={e => setModeFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white">
-                  {PAYMENT_MODES.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
-                </select>
-              </div>
+            <div className="flex items-center gap-3 flex-wrap pt-2 pb-1">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Location</span>
+              <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
+                placeholder="Estate / Block…"
+                className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 w-44" />
+              {locFilter && (
+                <button onClick={() => setLocFilter('')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
+                  <X size={10} /> Clear
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* DP Summary Cards */}
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-200 animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {dpCards.map((c, i) => (
+                <SummaryStatsCard
+                  key={c.label} label={c.label} value={c.value} icon={c.icon}
+                  gradient={c.gradient} subtitle={c.subtitle} delay={i * 50}
+                  isActive={dpFilter === c.dp}
+                  onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                />
+              ))}
             </div>
           )}
         </div>
+      </div>
 
-        {/* View toggle + results */}
-        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+      {/* ── Scrollable body ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+          {/* Record count + active filter indicator */}
+          <div className="flex items-center gap-2 mb-4">
             <span className="text-xs font-semibold text-gray-500">
               {loading ? '…' : `${displayTiles.length} record${displayTiles.length !== 1 ? 's' : ''}`}
-              {dpFilter !== 'all' && <span className="ml-1 text-teal-600">· Filtered: {STATUS[dpFilter as StatusKey]?.label}</span>}
+              {dpFilter !== 'all' && <span className="ml-1 text-teal-600">· {STATUS[dpFilter as StatusKey]?.label}</span>}
             </span>
             {dpFilter !== 'all' && (
               <button onClick={() => setDpFilter('all')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
-                <X size={10} /> Clear filter
+                <X size={10} /> Clear
               </button>
             )}
           </div>
-          <div className="inline-flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
-            {views.map(({ id, icon: Icon, label }) => (
-              <button key={id} onClick={() => setViewMode(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === id ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                <Icon size={13} /> <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 rounded-2xl bg-gray-200 animate-pulse" />)}
-          </div>
-        ) : displayTiles.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-8 py-16 text-center">
-            <Receipt size={28} className="text-gray-200 mx-auto mb-3" />
-            <div className="text-sm font-semibold text-gray-500">No rent records match the current filters</div>
-            <button onClick={() => { setDpFilter('all'); setTenantFilter(''); setLocFilter(''); setModeFilter('ALL'); }}
-              className="mt-4 text-xs text-teal-600 hover:underline font-medium">Clear all filters</button>
-          </div>
-        ) : viewMode === 'graph' ? renderGraph()
-          : viewMode === 'table' ? (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Quarter','Tenant','Month','Rent','Total Due','Penalty','Status','Actions'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>{displayTiles.map(renderTableRow)}</tbody>
-                </table>
-              </div>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 rounded-2xl bg-gray-200 animate-pulse" />)}
             </div>
-          ) : viewMode === 'tile' ? (
-            <div className="space-y-3">{displayTiles.map(t => renderTileCard(t))}</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{displayTiles.map(t => renderCardItem(t))}</div>
-          )}
+          ) : displayTiles.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-8 py-16 text-center">
+              <Receipt size={28} className="text-gray-200 mx-auto mb-3" />
+              <div className="text-sm font-semibold text-gray-500">No rent records match the current filters</div>
+              <button onClick={() => { setDpFilter('all'); setTenantFilter(''); setLocFilter(''); setModeFilter('ALL'); }}
+                className="mt-4 text-xs text-teal-600 hover:underline font-medium">Clear all filters</button>
+            </div>
+          ) : viewMode === 'graph' ? renderGraph()
+            : viewMode === 'table' ? (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        {['Quarter','Tenant','Month','Rent','Total Due','Penalty','Status','Actions'].map(h => (
+                          <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>{displayTiles.map(renderTableRow)}</tbody>
+                  </table>
+                </div>
+              </div>
+            ) : viewMode === 'tile' ? (
+              <div className="space-y-3">{displayTiles.map(t => renderTileCard(t))}</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{displayTiles.map(t => renderCardItem(t))}</div>
+            )}
 
-      </main>
+        </div>
+      </div>
+
+      {/* Success toast */}
+      {paySuccess && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl border border-emerald-500 animate-in fade-in">
+          <CheckCircle2 size={18} /> Payment recorded successfully
+        </div>
+      )}
 
       {/* Modals */}
       {dueModal && (
