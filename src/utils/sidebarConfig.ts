@@ -9,6 +9,13 @@ export interface ModuleTab {
   activePrefix: string;
 }
 
+const RENT_TAB: ModuleTab = {
+  title: 'Rent',
+  iconName: 'IndianRupee',
+  route: ROUTES.QUARTERS_RENT,
+  activePrefix: '/quarters/rent',
+};
+
 export function getModuleTabs(role: UserRole): ModuleTab[] {
   switch (role) {
     case 'admin':
@@ -25,6 +32,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           route: ROUTES.QUARTERS_MANAGER,
           activePrefix: '/quarters',
         },
+        RENT_TAB,
       ];
 
     case 'manager':
@@ -41,6 +49,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           route: ROUTES.QUARTERS_REQUESTS,
           activePrefix: '/quarters',
         },
+        RENT_TAB,
       ];
 
     case 'govt_official':
@@ -57,6 +66,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           route: ROUTES.QUARTERS_REQUESTS,
           activePrefix: '/quarters',
         },
+        RENT_TAB,
       ];
 
     case 'dept_user':

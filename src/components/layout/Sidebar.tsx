@@ -53,6 +53,18 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
   </button>
 );
 
+function isTabActive(tab: ModuleTab, pathname: string): boolean {
+  // Rent uses a sub-path of /quarters — match it exactly first
+  if (tab.activePrefix === '/quarters/rent') {
+    return pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/');
+  }
+  // Quarters tab must NOT activate when on the Rent sub-path
+  if (tab.activePrefix === '/quarters') {
+    if (pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/')) return false;
+  }
+  return pathname === tab.activePrefix || pathname.startsWith(tab.activePrefix + '/');
+}
+
 const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { user, logout } = useAuthStore();
   const location = useLocation();
@@ -64,14 +76,6 @@ const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const handleLogout = async () => {
     await logout();
     navigate(ROUTES.LOGIN);
-  };
-
-  const isTabActive = (tab: ModuleTab): boolean => {
-    const path = location.pathname;
-    if (tab.activePrefix === '/quarters/rent') {
-      return path === '/quarters/rent' || path.startsWith('/quarters/rent/');
-    }
-    return path === tab.activePrefix || path.startsWith(tab.activePrefix + '/');
   };
 
   return (
@@ -105,7 +109,7 @@ const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
           <ModuleButton
             key={tab.activePrefix}
             tab={tab}
-            isActive={isTabActive(tab)}
+            isActive={isTabActive(tab, location.pathname)}
             onClick={() => { navigate(tab.route); onNavigate?.(); }}
           />
         ))}
@@ -166,18 +170,10 @@ const MobileTabBar: React.FC = () => {
   const navigate = useNavigate();
   const tabs = user ? getModuleTabs(user.role) : [];
 
-  const isTabActive = (tab: ModuleTab): boolean => {
-    const path = location.pathname;
-    if (tab.activePrefix === '/quarters/rent') {
-      return path === '/quarters/rent' || path.startsWith('/quarters/rent/');
-    }
-    return path === tab.activePrefix || path.startsWith(tab.activePrefix + '/');
-  };
-
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-stretch h-16" style={{ boxShadow: '0 -1px 0 rgba(0,0,0,0.06)' }}>
       {tabs.map((tab) => {
-        const active = isTabActive(tab);
+        const active = isTabActive(tab, location.pathname);
         return (
           <button
             key={tab.activePrefix}
