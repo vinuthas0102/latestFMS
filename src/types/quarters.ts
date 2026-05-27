@@ -442,6 +442,87 @@ export interface RentSummary {
   months_overdue: number;
 }
 
+export type RentTileStatus = 'DUE' | 'PAID' | 'EXEMPTED' | 'PARTIAL' | 'OVERDUE';
+export type RentPaymentMode = 'ONLINE' | 'CHEQUE' | 'DD' | 'CASH' | 'AUTO_DEDUCTION' | 'EXEMPTED';
+
+export interface RentTile {
+  id: string;
+  allotment_id: string;
+  month: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_phone: string;
+  tenant_designation: string;
+  tenant_dept: string;
+  quarter_number: string;
+  block_name: string;
+  location_area: string;
+  bhk_config: string;
+  base_rent: number;
+  water_charges: number;
+  utility_charges: number;
+  penalty_amount: number;
+  penalty_override: number | null;
+  total_due: number;
+  amount_paid: number;
+  payment_mode: RentPaymentMode | null;
+  status: RentTileStatus;
+  due_date: string;
+  last_paid_date: string | null;
+  receipt_ref: string | null;
+  exemption_reason: string | null;
+}
+
+export interface RentDueDetail {
+  tile_id: string;
+  base_rent: number;
+  water_charges: number;
+  utility_charges: number;
+  months_overdue: number;
+  penalty_rate: number;
+  penalty_amount: number;
+  penalty_override: number | null;
+  waiver_amount: number;
+  net_payable: number;
+  eo_remarks: string;
+}
+
+export interface RentPayment {
+  id: string;
+  allotment_id: string;
+  month: string;
+  amount: number;
+  payment_mode: RentPaymentMode;
+  payment_date: string;
+  receipt_ref: string;
+  remarks: string;
+  recorded_by: string;
+}
+
+export interface RentClarification {
+  id: string;
+  allotment_id: string;
+  month: string;
+  author_role: 'TENANT' | 'EO';
+  author_name: string;
+  message: string;
+  created_at: string;
+}
+
+export interface RentTrackerSummary {
+  total_due_count: number;
+  total_due_amount: number;
+  exempted_count: number;
+  exempted_amount: number;
+  paid_count: number;
+  paid_amount: number;
+  partial_count: number;
+  partial_amount: number;
+  arrears_count: number;
+  arrears_amount: number;
+  collection_rate: number;
+}
+
 export interface QuarterGuestInfo {
   id: string;
   allotment_id: string;

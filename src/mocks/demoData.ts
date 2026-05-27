@@ -1451,7 +1451,10 @@ export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count:
 
 // ─── Rent records ─────────────────────────────────────────────────────────────
 
-import type { RentRecord, RentSummary } from '../types/quarters';
+import type {
+  RentRecord, RentSummary,
+  RentTile, RentPayment, RentClarification, RentTrackerSummary,
+} from '../types/quarters';
 
 export const DEMO_RENT_RECORDS: RentRecord[] = [
   { id: 'rr-001', allotment_id: 'allot-002', month: '2026-05', amount_due: 6800, amount_paid: 0,    status: 'PENDING', due_date: '2026-05-05', payment_date: null,         receipt_ref: null,            remarks: '' },
@@ -1477,6 +1480,90 @@ export const DEMO_RENT_SUMMARY: RentSummary = {
   penalty_rate: '2% per month',
   months_paid: 10,
   months_overdue: 2,
+};
+
+// ─── Rent Tracker Tiles ───────────────────────────────────────────────────────
+
+function rentTile(
+  id: string, allotment_id: string, month: string,
+  tenant_id: string, tenant_name: string, tenant_phone: string,
+  tenant_designation: string, tenant_dept: string,
+  quarter_number: string, block_name: string, location_area: string,
+  bhk_config: string, base_rent: number, water_charges: number,
+  utility_charges: number, penalty_amount: number, penalty_override: number | null,
+  amount_paid: number, payment_mode: RentTile['payment_mode'],
+  status: RentTile['status'], due_date: string,
+  last_paid_date: string | null, receipt_ref: string | null,
+  exemption_reason: string | null,
+): RentTile {
+  const total_due = base_rent + water_charges + utility_charges + (penalty_override ?? penalty_amount);
+  return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, receipt_ref, exemption_reason };
+}
+
+export const DEMO_RENT_TILES: RentTile[] = [
+  // ── May 2026 (current month) ──────────────────────────────────────────────
+  rentTile('rt-01','allot-001','2026-05','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,0,null,'DUE','2026-05-05',null,null,null),
+  rentTile('rt-02','allot-002','2026-05','EMP-1002','Sunita Sharma','9822002002','Section Officer','Dept. of Telecom','B-103','Block B','Sarojini Nagar','1 BHK',4500,200,150,0,null,4850,'ONLINE','PAID','2026-05-04','2026-05-04','RCP-2605-0102',null),
+  rentTile('rt-03','allot-003','2026-05','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,850,null,0,null,'OVERDUE','2026-05-05',null,null,null),
+  rentTile('rt-04','allot-004','2026-05','EMP-1004','Priya Nair','9844004004','Assistant Director','Ministry of Home Affairs','C-201','Block C','RK Puram','2 BHK',6800,0,0,0,null,0,'EXEMPTED','EXEMPTED','2026-05-05',null,null,'Medical grounds'),
+  rentTile('rt-05','allot-005','2026-05','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,3800,'CASH','PARTIAL','2026-05-05','2026-05-02',null,null),
+  rentTile('rt-06','allot-006','2026-05','EMP-1006','Meera Pillai','9866006006','Joint Secretary','Ministry of Commerce','A-102','Block A','Lodhi Estate','2 BHK',6500,300,200,0,null,7000,'ONLINE','PAID','2026-05-03','2026-05-03','RCP-2605-0098',null),
+  rentTile('rt-07','allot-007','2026-05','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,0,null,'DUE','2026-05-05',null,null,null),
+  rentTile('rt-08','allot-008','2026-05','EMP-1008','Anita Desai','9888008008','Under Secretary','Ministry of Health','B-302','Block B','Sarojini Nagar','2 BHK',6000,300,200,600,null,0,null,'OVERDUE','2026-05-05',null,null,null),
+  rentTile('rt-09','allot-009','2026-05','EMP-1009','Ramesh Gupta','9899009009','Sr. Technical Director','NIC','A-403','Block A','Lodhi Estate','3 BHK',8200,400,300,0,null,8900,'CHEQUE','PAID','2026-05-01','2026-05-01','RCP-2605-0087',null),
+  rentTile('rt-10','allot-010','2026-05','EMP-1010','Kavitha Reddy','9810010010','Deputy Director','Ministry of Education','C-303','Block C','RK Puram','2 BHK',6800,0,0,0,null,0,'EXEMPTED','EXEMPTED','2026-05-05',null,null,'Disability exemption'),
+  // ── April 2026 ────────────────────────────────────────────────────────────
+  rentTile('rt-11','allot-001','2026-04','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,6700,'ONLINE','PAID','2026-04-05','2026-04-04','RCP-2604-0082',null),
+  rentTile('rt-12','allot-002','2026-04','EMP-1002','Sunita Sharma','9822002002','Section Officer','Dept. of Telecom','B-103','Block B','Sarojini Nagar','1 BHK',4500,200,150,0,null,4850,'ONLINE','PAID','2026-04-05','2026-04-03','RCP-2604-0071',null),
+  rentTile('rt-13','allot-003','2026-04','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,425,null,0,null,'OVERDUE','2026-04-05',null,null,null),
+  rentTile('rt-14','allot-005','2026-04','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,7800,'DD','PAID','2026-04-05','2026-04-02','RCP-2604-0064',null),
+  rentTile('rt-15','allot-007','2026-04','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,5150,'AUTO_DEDUCTION','PAID','2026-04-05','2026-04-01','RCP-2604-0051',null),
+  rentTile('rt-16','allot-008','2026-04','EMP-1008','Anita Desai','9888008008','Under Secretary','Ministry of Health','B-302','Block B','Sarojini Nagar','2 BHK',6000,300,200,300,null,0,null,'OVERDUE','2026-04-05',null,null,null),
+  // ── March 2026 ────────────────────────────────────────────────────────────
+  rentTile('rt-17','allot-001','2026-03','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,6700,'ONLINE','PAID','2026-03-05','2026-03-04','RCP-2603-0059',null),
+  rentTile('rt-18','allot-003','2026-03','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,0,null,9200,'CHEQUE','PAID','2026-03-05','2026-03-03','RCP-2603-0047',null),
+  rentTile('rt-19','allot-005','2026-03','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,7800,'DD','PAID','2026-03-05','2026-03-05','RCP-2603-0038',null),
+  rentTile('rt-20','allot-007','2026-03','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,5150,'AUTO_DEDUCTION','PAID','2026-03-05','2026-03-04','RCP-2603-0029',null),
+];
+
+export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
+  total_due_count: 2,
+  total_due_amount: 6700 + 5150,
+  exempted_count: 2,
+  exempted_amount: 6800 + 6800,
+  paid_count: 4,
+  paid_amount: 4850 + 7000 + 8900 + (7200 + 350 + 250),
+  partial_count: 1,
+  partial_amount: 3400,
+  arrears_count: 2,
+  arrears_amount: (8500 + 400 + 300 + 850) + (6000 + 300 + 200 + 600),
+  collection_rate: 62,
+};
+
+export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
+  'allot-005_2026-05': [
+    { id: 'pay-01', allotment_id: 'allot-005', month: '2026-05', amount: 3800, payment_mode: 'CASH', payment_date: '2026-05-02', receipt_ref: 'TMP-2605-001', remarks: 'Partial — balance due', recorded_by: 'EO-Admin' },
+  ],
+  'allot-002_2026-05': [
+    { id: 'pay-02', allotment_id: 'allot-002', month: '2026-05', amount: 4850, payment_mode: 'ONLINE', payment_date: '2026-05-04', receipt_ref: 'RCP-2605-0102', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-006_2026-05': [
+    { id: 'pay-03', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-01', receipt_ref: 'TMP-2605-006a', remarks: 'First instalment', recorded_by: 'System' },
+    { id: 'pay-04', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-0098', remarks: 'Final payment', recorded_by: 'System' },
+  ],
+  'allot-009_2026-05': [
+    { id: 'pay-05', allotment_id: 'allot-009', month: '2026-05', amount: 8900, payment_mode: 'CHEQUE', payment_date: '2026-05-01', receipt_ref: 'RCP-2605-0087', remarks: 'Cheque #449012', recorded_by: 'EO-Admin' },
+  ],
+};
+
+export const DEMO_RENT_CLARIFICATIONS: Record<string, RentClarification[]> = {
+  'allot-003_2026-05': [
+    { id: 'rc-01', allotment_id: 'allot-003', month: '2026-05', author_role: 'TENANT', author_name: 'Anil Verma', message: 'My salary was delayed this month. I will make the payment by 20th May. Please waive the penalty.', created_at: '2026-05-06T09:30:00Z' },
+    { id: 'rc-02', allotment_id: 'allot-003', month: '2026-05', author_role: 'EO', author_name: 'Estate Officer', message: 'Request noted. Please ensure payment is made before 20th May. Penalty waiver will be considered upon timely payment.', created_at: '2026-05-06T11:15:00Z' },
+  ],
+  'allot-005_2026-05': [
+    { id: 'rc-03', allotment_id: 'allot-005', month: '2026-05', author_role: 'TENANT', author_name: 'Vikram Singh', message: 'I have paid ₹3,800 in cash. Will pay the balance by end of month.', created_at: '2026-05-03T10:00:00Z' },
+  ],
 };
 
 // ─── Demo Bookings ────────────────────────────────────────────────────────────

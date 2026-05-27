@@ -17,12 +17,23 @@ import {
   DEMO_APPROVAL_CHATS,
   DEMO_RENT_RECORDS,
   DEMO_RENT_SUMMARY,
+  DEMO_RENT_TILES,
+  DEMO_RENT_TRACKER_SUMMARY,
+  DEMO_RENT_PAYMENTS,
+  DEMO_RENT_CLARIFICATIONS,
 } from '../mocks/demoData';
 
 // Re-export all types for backwards compatibility
 export type {
   RentRecord,
   RentSummary,
+  RentTile,
+  RentTileStatus,
+  RentPaymentMode,
+  RentDueDetail,
+  RentPayment,
+  RentClarification,
+  RentTrackerSummary,
   Quarter,
   QuarterRequest,
   QuarterServiceChat,
@@ -52,6 +63,11 @@ export type {
 import type {
   RentRecord,
   RentSummary,
+  RentTile,
+  RentDueDetail,
+  RentPayment,
+  RentClarification,
+  RentTrackerSummary,
   Quarter,
   QuarterRequest,
   QuarterServiceChat,
@@ -1540,6 +1556,137 @@ export const quartersService = {
       .maybeSingle();
     if (error || !data) return '';
     return (data as any).designation_name ?? '';
+  },
+
+  // ─── Rent Tracker ───────────────────────────────────────────────────────────
+
+  async getRentTrackerTiles(filters?: {
+    monthFrom?: string; monthTo?: string;
+    location?: string; paymentMode?: string; tenant?: string;
+    status?: string;
+  }): Promise<RentTile[]> {
+    if (DEMO_MODE) {
+      let tiles = [...DEMO_RENT_TILES];
+      if (filters?.monthFrom) tiles = tiles.filter(t => t.month >= filters.monthFrom!);
+      if (filters?.monthTo)   tiles = tiles.filter(t => t.month <= filters.monthTo!);
+      if (filters?.location)  tiles = tiles.filter(t =>
+        t.location_area.toLowerCase().includes(filters.location!.toLowerCase()) ||
+        t.block_name.toLowerCase().includes(filters.location!.toLowerCase()));
+      if (filters?.paymentMode && filters.paymentMode !== 'ALL')
+        tiles = tiles.filter(t => t.payment_mode === filters.paymentMode || t.status === filters.paymentMode);
+      if (filters?.tenant) {
+        const q = filters.tenant.toLowerCase();
+        tiles = tiles.filter(t =>
+          t.tenant_name.toLowerCase().includes(q) || t.tenant_id.toLowerCase().includes(q));
+      }
+      if (filters?.status && filters.status !== 'ALL')
+        tiles = tiles.filter(t => t.status === filters.status);
+      return Promise.resolve(tiles);
+    }
+    return Promise.resolve([]);
+  },
+
+  async getRentTrackerSummary(_filters?: object): Promise<RentTrackerSummary> {
+    if (DEMO_MODE) return Promise.resolve(DEMO_RENT_TRACKER_SUMMARY);
+    return Promise.resolve(DEMO_RENT_TRACKER_SUMMARY);
+  },
+
+  async getRentDueDetail(tileId: string): Promise<RentDueDetail> {
+    if (DEMO_MODE) {
+      const tile = DEMO_RENT_TILES.find(t => t.id === tileId);
+      const base = tile?.base_rent ?? 0;
+      const water = tile?.water_charges ?? 0;
+      const util = tile?.utility_charges ?? 0;
+      const pen = tile?.penalty_amount ?? 0;
+      const penOvr = tile?.penalty_override ?? null;
+      const net = base + water + util + (penOvr ?? pen);
+      return Promise.resolve({
+        tile_id: tileId, base_rent: base, water_charges: water,
+        utility_charges: util, months_overdue: tile?.status === 'OVERDUE' ? 1 : 0,
+        penalty_rate: 2, penalty_amount: pen, penalty_override: penOvr,
+        waiver_amount: 0, net_payable: net, eo_remarks: '',
+      });
+    }
+    return Promise.resolve({ tile_id: tileId, base_rent: 0, water_charges: 0, utility_charges: 0, months_overdue: 0, penalty_rate: 2, penalty_amount: 0, penalty_override: null, waiver_amount: 0, net_payable: 0, eo_remarks: '' });
+  },
+
+  async getRentPaymentHistory(allotmentId: string, month: string): Promise<RentPayment[]> {
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      return Promise.resolve(DEMO_RENT_PAYMENTS[key] ?? []);
+    }
+    return Promise.resolve([]);
+  },
+
+  async getRentClarifications(allotmentId: string, month: string): Promise<RentClarification[]> {
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      return Promise.resolve(DEMO_RENT_CLARIFICATIONS[key] ?? []);
+    }
+    return Promise.resolve([]);
+  },
+
+  async postRentClarification(allotmentId: string, month: string, message: string, authorRole: 'TENANT' | 'EO', authorName: string): Promise<RentClarification> {
+    const newMsg: RentClarification = {
+      id: `rc-${Date.now()}`, allotment_id: allotmentId, month,
+      author_role: authorRole, author_name: authorName,
+      message, created_at: new Date().toISOString(),
+    };
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      if (!DEMO_RENT_CLARIFICATIONS[key]) DEMO_RENT_CLARIFICATIONS[key] = [];
+      DEMO_RENT_CLARIFICATIONS[key].push(newMsg);
+      return Promise.resolve(newMsg);
+    }
+    return Promise.resolve(newMsg);
+  },
+
+  async applyPenaltyOverride(tileId: string, override: number, remarks: string): Promise<void> {
+    if (DEMO_MODE) {
+      const tile = DEMO_RENT_TILES.find(t => t.id === tileId);
+      if (tile) {
+        tile.penalty_override = override;
+        tile.total_due = tile.base_rent + tile.water_charges + tile.utility_charges + override;
+      }
+      void remarks;
+      return Promise.resolve();
+    }
+  },
+
+  async undoRentPayment(allotmentId: string, month: string, paymentId: string): Promise<void> {
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      if (DEMO_RENT_PAYMENTS[key]) {
+        DEMO_RENT_PAYMENTS[key] = DEMO_RENT_PAYMENTS[key].filter(p => p.id !== paymentId);
+      }
+      const tile = DEMO_RENT_TILES.find(t => t.allotment_id === allotmentId && t.month === month);
+      if (tile) { tile.status = 'DUE'; tile.amount_paid = 0; tile.receipt_ref = null; tile.last_paid_date = null; tile.payment_mode = null; }
+      return Promise.resolve();
+    }
+  },
+
+  async submitEPayment(allotmentId: string, month: string, amount: number, mode: string): Promise<RentPayment> {
+    const payment: RentPayment = {
+      id: `pay-${Date.now()}`, allotment_id: allotmentId, month,
+      amount, payment_mode: mode as RentPayment['payment_mode'],
+      payment_date: new Date().toISOString().slice(0, 10),
+      receipt_ref: `RCP-${Date.now()}`, remarks: 'Online payment', recorded_by: 'System',
+    };
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      if (!DEMO_RENT_PAYMENTS[key]) DEMO_RENT_PAYMENTS[key] = [];
+      DEMO_RENT_PAYMENTS[key].push(payment);
+      const tile = DEMO_RENT_TILES.find(t => t.allotment_id === allotmentId && t.month === month);
+      if (tile) {
+        tile.amount_paid = amount;
+        tile.status = amount >= tile.total_due ? 'PAID' : 'PARTIAL';
+        tile.last_paid_date = payment.payment_date;
+        tile.receipt_ref = payment.receipt_ref;
+        tile.payment_mode = payment.payment_mode;
+      }
+      return Promise.resolve(payment);
+    }
+    return Promise.resolve(payment);
   },
 
   async getRentData(_allotmentId: string): Promise<{ summary: RentSummary; records: RentRecord[] }> {
