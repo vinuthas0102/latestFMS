@@ -1449,6 +1449,36 @@ export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count:
   },
 ];
 
+// ─── Rent records ─────────────────────────────────────────────────────────────
+
+import type { RentRecord, RentSummary } from '../types/quarters';
+
+export const DEMO_RENT_RECORDS: RentRecord[] = [
+  { id: 'rr-001', allotment_id: 'allot-002', month: '2026-05', amount_due: 6800, amount_paid: 0,    status: 'PENDING', due_date: '2026-05-05', payment_date: null,         receipt_ref: null,            remarks: '' },
+  { id: 'rr-002', allotment_id: 'allot-002', month: '2026-04', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2026-04-05', payment_date: '2026-04-04', receipt_ref: 'RCP-2604-0042', remarks: '' },
+  { id: 'rr-003', allotment_id: 'allot-002', month: '2026-03', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2026-03-05', payment_date: '2026-03-03', receipt_ref: 'RCP-2603-0031', remarks: '' },
+  { id: 'rr-004', allotment_id: 'allot-002', month: '2026-02', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2026-02-05', payment_date: '2026-02-05', receipt_ref: 'RCP-2602-0018', remarks: '' },
+  { id: 'rr-005', allotment_id: 'allot-002', month: '2026-01', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2026-01-05', payment_date: '2026-01-04', receipt_ref: 'RCP-2601-0007', remarks: '' },
+  { id: 'rr-006', allotment_id: 'allot-002', month: '2025-12', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-12-05', payment_date: '2025-12-05', receipt_ref: 'RCP-2512-0098', remarks: '' },
+  { id: 'rr-007', allotment_id: 'allot-002', month: '2025-11', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-11-05', payment_date: '2025-11-03', receipt_ref: 'RCP-2511-0079', remarks: '' },
+  { id: 'rr-008', allotment_id: 'allot-002', month: '2025-10', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-10-05', payment_date: '2025-10-02', receipt_ref: 'RCP-2510-0063', remarks: '' },
+  { id: 'rr-009', allotment_id: 'allot-002', month: '2025-09', amount_due: 6800, amount_paid: 0,    status: 'OVERDUE', due_date: '2025-09-05', payment_date: null,         receipt_ref: null,            remarks: 'Payment overdue. Penalty applied.' },
+  { id: 'rr-010', allotment_id: 'allot-002', month: '2025-08', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-08-05', payment_date: '2025-08-06', receipt_ref: 'RCP-2508-0051', remarks: '' },
+  { id: 'rr-011', allotment_id: 'allot-002', month: '2025-07', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-07-05', payment_date: '2025-07-04', receipt_ref: 'RCP-2507-0039', remarks: '' },
+  { id: 'rr-012', allotment_id: 'allot-002', month: '2025-06', amount_due: 6800, amount_paid: 6800, status: 'PAID',    due_date: '2025-06-05', payment_date: '2025-06-04', receipt_ref: 'RCP-2506-0022', remarks: '' },
+];
+
+export const DEMO_RENT_SUMMARY: RentSummary = {
+  current_month_due: 6800,
+  total_paid_ytd: 27200,
+  outstanding_arrears: 6800,
+  last_payment_date: '2026-04-04',
+  next_due_date: '2026-05-05',
+  penalty_rate: '2% per month',
+  months_paid: 10,
+  months_overdue: 2,
+};
+
 // ─── Demo Bookings ────────────────────────────────────────────────────────────
 
 const DEMO_USER_ID = '5f865f74-aeab-4885-a898-80ba3da33ae0';

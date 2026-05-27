@@ -15,10 +15,14 @@ import {
   DEMO_APPROVALS,
   DEMO_APPROVAL_RECORD,
   DEMO_APPROVAL_CHATS,
+  DEMO_RENT_RECORDS,
+  DEMO_RENT_SUMMARY,
 } from '../mocks/demoData';
 
 // Re-export all types for backwards compatibility
 export type {
+  RentRecord,
+  RentSummary,
   Quarter,
   QuarterRequest,
   QuarterServiceChat,
@@ -46,6 +50,8 @@ export type {
 } from '../types/quarters';
 
 import type {
+  RentRecord,
+  RentSummary,
   Quarter,
   QuarterRequest,
   QuarterServiceChat,
@@ -1534,5 +1540,45 @@ export const quartersService = {
       .maybeSingle();
     if (error || !data) return '';
     return (data as any).designation_name ?? '';
+  },
+
+  async getRentData(_allotmentId: string): Promise<{ summary: RentSummary; records: RentRecord[] }> {
+    if (DEMO_MODE) {
+      return Promise.resolve({ summary: DEMO_RENT_SUMMARY, records: DEMO_RENT_RECORDS });
+    }
+    const allotmentId = _allotmentId;
+    const { data, error } = await supabase
+      .from('rent_ledger')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .order('month', { ascending: false });
+    if (error) throw error;
+    const records: RentRecord[] = (data ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      allotment_id: r.allotment_id as string,
+      month: r.month as string,
+      amount_due: (r.amount_due as number) ?? 0,
+      amount_paid: (r.amount_paid as number) ?? 0,
+      status: (r.status as RentRecord['status']) ?? 'PENDING',
+      due_date: r.due_date as string,
+      payment_date: (r.payment_date as string) ?? null,
+      receipt_ref: (r.receipt_ref as string) ?? null,
+      remarks: (r.remarks as string) ?? '',
+    }));
+    const totalPaid = records.filter(r => r.status === 'PAID').reduce((s, r) => s + r.amount_paid, 0);
+    const arrears = records.filter(r => r.status !== 'PAID').reduce((s, r) => s + (r.amount_due - r.amount_paid), 0);
+    const lastPaid = records.find(r => r.payment_date);
+    const current = records[0];
+    const summary: RentSummary = {
+      current_month_due: current?.amount_due ?? 0,
+      total_paid_ytd: totalPaid,
+      outstanding_arrears: arrears,
+      last_payment_date: lastPaid?.payment_date ?? null,
+      next_due_date: current?.due_date ?? '',
+      penalty_rate: '2% per month',
+      months_paid: records.filter(r => r.status === 'PAID').length,
+      months_overdue: records.filter(r => r.status === 'OVERDUE').length,
+    };
+    return { summary, records };
   },
 };

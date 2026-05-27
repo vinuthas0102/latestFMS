@@ -416,6 +416,32 @@ export interface QuarterHandover {
   updated_at: string;
 }
 
+export type RentRecordStatus = 'PAID' | 'PENDING' | 'OVERDUE';
+
+export interface RentRecord {
+  id: string;
+  allotment_id: string;
+  month: string;
+  amount_due: number;
+  amount_paid: number;
+  status: RentRecordStatus;
+  due_date: string;
+  payment_date: string | null;
+  receipt_ref: string | null;
+  remarks: string;
+}
+
+export interface RentSummary {
+  current_month_due: number;
+  total_paid_ytd: number;
+  outstanding_arrears: number;
+  last_payment_date: string | null;
+  next_due_date: string;
+  penalty_rate: string;
+  months_paid: number;
+  months_overdue: number;
+}
+
 export interface QuarterGuestInfo {
   id: string;
   allotment_id: string;
