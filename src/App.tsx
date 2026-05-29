@@ -45,176 +45,197 @@ function App() {
 
   useEffect(() => {
     initialize();
+
+    // Catch chunk-load promise rejections that escape the React tree.
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const msg: string = event.reason?.message ?? '';
+      if (
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('Importing a module script failed') ||
+        /Loading chunk \d+ failed/.test(msg)
+      ) {
+        const key = 'chunk_reload_attempted';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          window.location.reload();
+        }
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
   }, []);
 
   return (
     <BrowserRouter>
       <SidebarProvider>
         <ToastContainer />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* ── Public routes (no sidebar) ── */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/map-search" element={<MapSearchPage />} />
-            <Route path="/track-booking" element={<BookingTrackingPage />} />
-            <Route path="/payment" element={<PaymentGatewayPage />} />
-            <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
-            <Route path="/book/:token" element={<AdHocBookingPage />} />
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* ── Public routes (no sidebar) ── */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/map-search" element={<MapSearchPage />} />
+              <Route path="/track-booking" element={<BookingTrackingPage />} />
+              <Route path="/payment" element={<PaymentGatewayPage />} />
+              <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+              <Route path="/book/:token" element={<AdHocBookingPage />} />
 
-            {/* ── Protected routes (with sidebar layout) ── */}
-            <Route
-              path="/properties"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout><PropertiesPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/manager"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout><ManagerPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            {/* Static /properties/* routes MUST come before the :id wildcard */}
-            <Route
-              path="/properties/create"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+              {/* ── Protected routes (with sidebar layout) ── */}
+              <Route
+                path="/properties"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><PropertiesPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manager"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><ManagerPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Static /properties/* routes MUST come before the :id wildcard */}
+              <Route
+                path="/properties/create"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout>
+                      <ErrorBoundary><CreatePropertyPage /></ErrorBoundary>
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/:id/edit"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout>
+                      <ErrorBoundary><CreatePropertyPage /></ErrorBoundary>
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Wildcard property detail — must come after all static /properties/* routes */}
+              <Route
+                path="/properties/:id"
+                element={
                   <AppLayout>
-                    <ErrorBoundary><CreatePropertyPage /></ErrorBoundary>
+                    <ErrorBoundary><PropertyDetailPage /></ErrorBoundary>
                   </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/properties/:id/edit"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout>
-                    <ErrorBoundary><CreatePropertyPage /></ErrorBoundary>
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            {/* Wildcard property detail — must come after all static /properties/* routes */}
-            <Route
-              path="/properties/:id"
-              element={
-                <AppLayout>
-                  <ErrorBoundary><PropertyDetailPage /></ErrorBoundary>
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/check-in"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout><CheckInPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['public', 'dept_user', 'govt_official', 'admin', 'manager']}>
-                  <AppLayout><UserDashboardPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/maintenance"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout><MaintenancePage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ad-hoc-links"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                  <AppLayout><AdHocLinksPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bookings/history"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><BookingHistoryPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AppLayout><AdminPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/bookings" element={<Navigate to="/bookings/history" replace />} />
-            <Route
-              path="/bookings/:id"
-              element={
-                <ProtectedRoute>
-                  <AppLayout><BookingDetailPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/quarters"
-              element={
-                <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
-                  <AppLayout><QuarterFreeviewPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            {/* Static /quarters/* routes MUST come before the :id wildcard */}
-            <Route
-              path="/quarters/requests"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official']}>
-                  <AppLayout><QuarterRequestsPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/quarters/manager"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AppLayout><QuarterManagerPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/quarters/rent"
-              element={
-                <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
-                  <AppLayout><QuarterRentPage /></AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            {/* Wildcard quarter detail — must come after all static /quarters/* routes */}
-            <Route
-              path="/quarters/:id"
-              element={
-                <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
-                  <AppLayout>
-                    <ErrorBoundary><QuarterDetailPage /></ErrorBoundary>
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
+                }
+              />
+              <Route
+                path="/check-in"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><CheckInPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['public', 'dept_user', 'govt_official', 'admin', 'manager']}>
+                    <AppLayout><UserDashboardPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/maintenance"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><MaintenancePage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ad-hoc-links"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><AdHocLinksPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bookings/history"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><BookingHistoryPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AppLayout><AdminPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/bookings" element={<Navigate to="/bookings/history" replace />} />
+              <Route
+                path="/bookings/:id"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><BookingDetailPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quarters"
+                element={
+                  <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
+                    <AppLayout><QuarterFreeviewPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Static /quarters/* routes MUST come before the :id wildcard */}
+              <Route
+                path="/quarters/requests"
+                element={
+                  <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official']}>
+                    <AppLayout><QuarterRequestsPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quarters/manager"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AppLayout><QuarterManagerPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quarters/rent"
+                element={
+                  <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
+                    <AppLayout><QuarterRentPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Wildcard quarter detail — must come after all static /quarters/* routes */}
+              <Route
+                path="/quarters/:id"
+                element={
+                  <ProtectedRoute allowedRoles={['govt_official', 'admin', 'manager']}>
+                    <AppLayout>
+                      <ErrorBoundary><QuarterDetailPage /></ErrorBoundary>
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </SidebarProvider>
     </BrowserRouter>
   );

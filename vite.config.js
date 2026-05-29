@@ -27,6 +27,11 @@ export default defineConfig({
     hmr: {
       overlay: false,
     },
+    headers: {
+      // Prevent index.html from being cached so browsers always fetch
+      // fresh chunk URLs after a new deploy.
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
   },
   build: {
     chunkSizeWarningLimit: 1000,
