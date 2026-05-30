@@ -335,6 +335,24 @@ const TenantChip: React.FC<{ tile: RentTile }> = ({ tile }) => (
 type ViewMode = 'table' | 'tile' | 'card' | 'graph';
 type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID' | 'PARTIAL';
 
+function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
+  let total_due_count = 0, total_due_amount = 0;
+  let arrears_count = 0, arrears_amount = 0;
+  let exempted_count = 0, exempted_amount = 0;
+  let paid_count = 0, paid_amount = 0;
+  let partial_count = 0, partial_amount = 0;
+  for (const t of tiles) {
+    if      (t.status === 'DUE')      { total_due_count++; total_due_amount += t.total_due; }
+    else if (t.status === 'OVERDUE')  { arrears_count++;   arrears_amount   += t.total_due; }
+    else if (t.status === 'EXEMPTED') { exempted_count++;  exempted_amount  += t.base_rent; }
+    else if (t.status === 'PAID')     { paid_count++;      paid_amount      += t.amount_paid; }
+    else if (t.status === 'PARTIAL')  { partial_count++;   partial_amount   += t.amount_paid; }
+  }
+  const demand = total_due_amount + arrears_amount + paid_amount + partial_amount;
+  const collection_rate = demand > 0 ? Math.round((paid_amount + partial_amount) / demand * 100) : 0;
+  return { total_due_count, total_due_amount, arrears_count, arrears_amount, exempted_count, exempted_amount, paid_count, paid_amount, partial_count, partial_amount, collection_rate };
+}
+
 export const QuarterRentPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -346,7 +364,6 @@ export const QuarterRentPage: React.FC = () => {
   // ── Data state ──────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [tiles, setTiles] = useState<RentTile[]>([]);
-  const [summary, setSummary] = useState<RentTrackerSummary | null>(null);
 
   // ── Filter / view state ─────────────────────────────────────────────────────
   const [dpFilter, setDpFilter] = useState<DpFilter>('all');
@@ -379,18 +396,17 @@ export const QuarterRentPage: React.FC = () => {
   const loadTiles = useCallback(async () => {
     setLoading(true);
     try {
-      const [t, s] = await Promise.all([
-        quartersService.getRentTrackerTiles({ monthFrom, monthTo, location: locFilter, paymentMode: modeFilter, tenant: tenantFilter }),
-        quartersService.getRentTrackerSummary(),
-      ]);
+      const t = await quartersService.getRentTrackerTiles({ monthFrom, monthTo, location: locFilter, paymentMode: modeFilter, tenant: tenantFilter });
       setTiles(t);
-      setSummary(s);
     } finally {
       setLoading(false);
     }
   }, [monthFrom, monthTo, locFilter, modeFilter, tenantFilter]);
 
   useEffect(() => { loadTiles(); }, [loadTiles]);
+
+  // ── Summary derived from loaded tiles (always in sync with what is displayed) ─
+  const summary = useMemo(() => tiles.length ? computeSummaryFromTiles(tiles) : null, [tiles]);
 
   // ── Filtered tiles ──────────────────────────────────────────────────────────
   const displayTiles = useMemo(() => {

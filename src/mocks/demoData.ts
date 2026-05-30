@@ -1500,69 +1500,207 @@ function rentTile(
   return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, receipt_ref, exemption_reason };
 }
 
+// Tenant shorthand helpers
+const T = {
+  t001: ['EMP-1001','Rajesh Kumar',  '9811001001','Under Secretary',     'Ministry of Finance',    'A-204','Block A','Lodhi Estate',    '2 BHK',6200,300,200] as const,
+  t002: ['EMP-1002','Sunita Sharma', '9822002002','Section Officer',      'Dept. of Telecom',       'B-103','Block B','Sarojini Nagar',  '1 BHK',4500,200,150] as const,
+  t003: ['EMP-1003','Anil Verma',    '9833003003','Deputy Secretary',     'Ministry of Defence',    'A-301','Block A','Lodhi Estate',    '3 BHK',8500,400,300] as const,
+  t004: ['EMP-1004','Priya Nair',    '9844004004','Assistant Director',   'Ministry of Home Affairs','C-201','Block C','RK Puram',       '2 BHK',6800,0,  0  ] as const,
+  t005: ['EMP-1005','Vikram Singh',  '9855005005','Director',             'Ministry of Rural Dev.', 'B-205','Block B','Sarojini Nagar',  '3 BHK',7200,350,250] as const,
+  t006: ['EMP-1006','Meera Pillai',  '9866006006','Joint Secretary',      'Ministry of Commerce',   'A-102','Block A','Lodhi Estate',    '2 BHK',6500,300,200] as const,
+  t007: ['EMP-1007','Suresh Babu',   '9877007007','Section Officer',      'DOPT',                   'C-104','Block C','RK Puram',        '1 BHK',4800,200,150] as const,
+  t008: ['EMP-1008','Anita Desai',   '9888008008','Under Secretary',      'Ministry of Health',     'B-302','Block B','Sarojini Nagar',  '2 BHK',6000,300,200] as const,
+  t009: ['EMP-1009','Ramesh Gupta',  '9899009009','Sr. Technical Director','NIC',                   'A-403','Block A','Lodhi Estate',    '3 BHK',8200,400,300] as const,
+  t010: ['EMP-1010','Kavitha Reddy', '9810010010','Deputy Director',      'Ministry of Education',  'C-303','Block C','RK Puram',        '2 BHK',6800,0,  0  ] as const,
+  t011: ['EMP-1011','Deepak Joshi',  '9811011011','Director (Finance)',   'Ministry of Power',      'D-101','Block D','Vasant Vihar',    '2 BHK',7400,350,250] as const,
+  t012: ['EMP-1012','Nalini Iyer',   '9812012012','Joint Director',       'CSIR',                   'D-204','Block D','Vasant Vihar',    '3 BHK',9200,450,350] as const,
+};
+
+function rt(id: string, allot: string, month: string, tk: readonly [string,string,string,string,string,string,string,string,string,number,number,number],
+  pen: number, penOvr: number|null, paid: number, mode: RentTile['payment_mode'],
+  status: RentTile['status'], dueDate: string, paidDate: string|null, rcpt: string|null, exempt: string|null): RentTile {
+  return rentTile(id, allot, month, tk[0], tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7], tk[8], tk[9], tk[10], tk[11], pen, penOvr, paid, mode, status, dueDate, paidDate, rcpt, exempt);
+}
+
 export const DEMO_RENT_TILES: RentTile[] = [
-  // ── May 2026 (current month) ──────────────────────────────────────────────
-  rentTile('rt-01','allot-001','2026-05','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,0,null,'DUE','2026-05-05',null,null,null),
-  rentTile('rt-02','allot-002','2026-05','EMP-1002','Sunita Sharma','9822002002','Section Officer','Dept. of Telecom','B-103','Block B','Sarojini Nagar','1 BHK',4500,200,150,0,null,4850,'ONLINE','PAID','2026-05-04','2026-05-04','RCP-2605-0102',null),
-  rentTile('rt-03','allot-003','2026-05','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,850,null,0,null,'OVERDUE','2026-05-05',null,null,null),
-  rentTile('rt-04','allot-004','2026-05','EMP-1004','Priya Nair','9844004004','Assistant Director','Ministry of Home Affairs','C-201','Block C','RK Puram','2 BHK',6800,0,0,0,null,0,'EXEMPTED','EXEMPTED','2026-05-05',null,null,'Medical grounds'),
-  rentTile('rt-05','allot-005','2026-05','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,3800,'CASH','PARTIAL','2026-05-05','2026-05-02',null,null),
-  rentTile('rt-06','allot-006','2026-05','EMP-1006','Meera Pillai','9866006006','Joint Secretary','Ministry of Commerce','A-102','Block A','Lodhi Estate','2 BHK',6500,300,200,0,null,7000,'ONLINE','PAID','2026-05-03','2026-05-03','RCP-2605-0098',null),
-  rentTile('rt-07','allot-007','2026-05','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,0,null,'DUE','2026-05-05',null,null,null),
-  rentTile('rt-08','allot-008','2026-05','EMP-1008','Anita Desai','9888008008','Under Secretary','Ministry of Health','B-302','Block B','Sarojini Nagar','2 BHK',6000,300,200,600,null,0,null,'OVERDUE','2026-05-05',null,null,null),
-  rentTile('rt-09','allot-009','2026-05','EMP-1009','Ramesh Gupta','9899009009','Sr. Technical Director','NIC','A-403','Block A','Lodhi Estate','3 BHK',8200,400,300,0,null,8900,'CHEQUE','PAID','2026-05-01','2026-05-01','RCP-2605-0087',null),
-  rentTile('rt-10','allot-010','2026-05','EMP-1010','Kavitha Reddy','9810010010','Deputy Director','Ministry of Education','C-303','Block C','RK Puram','2 BHK',6800,0,0,0,null,0,'EXEMPTED','EXEMPTED','2026-05-05',null,null,'Disability exemption'),
+  // ── May 2026 ──────────────────────────────────────────────────────────────
+  rt('rt-0501','allot-001','2026-05',T.t001, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
+  rt('rt-0502','allot-002','2026-05',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-05-04','2026-05-04',  'RCP-2605-0102',null),
+  rt('rt-0503','allot-003','2026-05',T.t003,850,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null),
+  rt('rt-0504','allot-004','2026-05',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Medical grounds'),
+  rt('rt-0505','allot-005','2026-05',T.t005, 0,null,3800,     'CASH',         'PARTIAL', '2026-05-05','2026-05-02',  null,           null),
+  rt('rt-0506','allot-006','2026-05',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-05-03','2026-05-03',  'RCP-2605-0098',null),
+  rt('rt-0507','allot-007','2026-05',T.t007, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
+  rt('rt-0508','allot-008','2026-05',T.t008,600,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null),
+  rt('rt-0509','allot-009','2026-05',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-05-01','2026-05-01',  'RCP-2605-0087',null),
+  rt('rt-0510','allot-010','2026-05',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Disability exemption'),
+  rt('rt-0511','allot-011','2026-05',T.t011, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
+  rt('rt-0512','allot-012','2026-05',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-05-02','2026-05-02',  'RCP-2605-0071',null),
   // ── April 2026 ────────────────────────────────────────────────────────────
-  rentTile('rt-11','allot-001','2026-04','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,6700,'ONLINE','PAID','2026-04-05','2026-04-04','RCP-2604-0082',null),
-  rentTile('rt-12','allot-002','2026-04','EMP-1002','Sunita Sharma','9822002002','Section Officer','Dept. of Telecom','B-103','Block B','Sarojini Nagar','1 BHK',4500,200,150,0,null,4850,'ONLINE','PAID','2026-04-05','2026-04-03','RCP-2604-0071',null),
-  rentTile('rt-13','allot-003','2026-04','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,425,null,0,null,'OVERDUE','2026-04-05',null,null,null),
-  rentTile('rt-14','allot-005','2026-04','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,7800,'DD','PAID','2026-04-05','2026-04-02','RCP-2604-0064',null),
-  rentTile('rt-15','allot-007','2026-04','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,5150,'AUTO_DEDUCTION','PAID','2026-04-05','2026-04-01','RCP-2604-0051',null),
-  rentTile('rt-16','allot-008','2026-04','EMP-1008','Anita Desai','9888008008','Under Secretary','Ministry of Health','B-302','Block B','Sarojini Nagar','2 BHK',6000,300,200,300,null,0,null,'OVERDUE','2026-04-05',null,null,null),
+  rt('rt-0401','allot-001','2026-04',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-04-05','2026-04-04',  'RCP-2604-0082',null),
+  rt('rt-0402','allot-002','2026-04',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-04-05','2026-04-03',  'RCP-2604-0071',null),
+  rt('rt-0403','allot-003','2026-04',T.t003,425,null,  0,       null,         'OVERDUE', '2026-04-05',null,           null,           null),
+  rt('rt-0404','allot-004','2026-04',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-04-05',null,           null,           'Medical grounds'),
+  rt('rt-0405','allot-005','2026-04',T.t005, 0,null,7800,     'DD',           'PAID',    '2026-04-05','2026-04-02',  'RCP-2604-0064',null),
+  rt('rt-0406','allot-006','2026-04',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-04-04','2026-04-04',  'RCP-2604-0058',null),
+  rt('rt-0407','allot-007','2026-04',T.t007, 0,null,   0,       null,         'DUE',     '2026-04-05',null,           null,           null),
+  rt('rt-0408','allot-008','2026-04',T.t008,300,null,  0,       null,         'OVERDUE', '2026-04-05',null,           null,           null),
+  rt('rt-0409','allot-009','2026-04',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-04-01','2026-04-01',  'RCP-2604-0043',null),
+  rt('rt-0410','allot-010','2026-04',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-04-05',null,           null,           'Disability exemption'),
+  rt('rt-0411','allot-011','2026-04',T.t011, 0,null,4000,     'CASH',         'PARTIAL', '2026-04-05','2026-04-03',  null,           null),
+  rt('rt-0412','allot-012','2026-04',T.t012,1000,null, 0,       null,         'OVERDUE', '2026-04-05',null,           null,           null),
   // ── March 2026 ────────────────────────────────────────────────────────────
-  rentTile('rt-17','allot-001','2026-03','EMP-1001','Rajesh Kumar','9811001001','Under Secretary','Ministry of Finance','A-204','Block A','Lodhi Estate','2 BHK',6200,300,200,0,null,6700,'ONLINE','PAID','2026-03-05','2026-03-04','RCP-2603-0059',null),
-  rentTile('rt-18','allot-003','2026-03','EMP-1003','Anil Verma','9833003003','Deputy Secretary','Ministry of Defence','A-301','Block A','Lodhi Estate','3 BHK',8500,400,300,0,null,9200,'CHEQUE','PAID','2026-03-05','2026-03-03','RCP-2603-0047',null),
-  rentTile('rt-19','allot-005','2026-03','EMP-1005','Vikram Singh','9855005005','Director','Ministry of Rural Dev.','B-205','Block B','Sarojini Nagar','3 BHK',7200,350,250,0,null,7800,'DD','PAID','2026-03-05','2026-03-05','RCP-2603-0038',null),
-  rentTile('rt-20','allot-007','2026-03','EMP-1007','Suresh Babu','9877007007','Section Officer','DOPT','C-104','Block C','RK Puram','1 BHK',4800,200,150,0,null,5150,'AUTO_DEDUCTION','PAID','2026-03-05','2026-03-04','RCP-2603-0029',null),
+  rt('rt-0301','allot-001','2026-03',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-03-05','2026-03-04',  'RCP-2603-0059',null),
+  rt('rt-0302','allot-002','2026-03',T.t002, 0,null,4850,     'AUTO_DEDUCTION','PAID',   '2026-03-05','2026-03-01',  'RCP-2603-0051',null),
+  rt('rt-0303','allot-003','2026-03',T.t003, 0,null,9200,     'CHEQUE',       'PAID',    '2026-03-05','2026-03-03',  'RCP-2603-0047',null),
+  rt('rt-0304','allot-004','2026-03',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-03-05',null,           null,           'Medical grounds'),
+  rt('rt-0305','allot-005','2026-03',T.t005, 0,null,7800,     'DD',           'PAID',    '2026-03-05','2026-03-05',  'RCP-2603-0038',null),
+  rt('rt-0306','allot-006','2026-03',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-03-03','2026-03-03',  'RCP-2603-0033',null),
+  rt('rt-0307','allot-007','2026-03',T.t007, 0,null,5150,     'AUTO_DEDUCTION','PAID',   '2026-03-05','2026-03-04',  'RCP-2603-0029',null),
+  rt('rt-0308','allot-008','2026-03',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2026-03-04','2026-03-04',  'RCP-2603-0025',null),
+  rt('rt-0309','allot-009','2026-03',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-03-01','2026-03-01',  'RCP-2603-0020',null),
+  rt('rt-0310','allot-010','2026-03',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-03-05',null,           null,           'Disability exemption'),
+  rt('rt-0311','allot-011','2026-03',T.t011, 0,null,   0,       null,         'DUE',     '2026-03-05',null,           null,           null),
+  rt('rt-0312','allot-012','2026-03',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-03-02','2026-03-02',  'RCP-2603-0015',null),
+  // ── February 2026 ─────────────────────────────────────────────────────────
+  rt('rt-0201','allot-001','2026-02',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-02-05','2026-02-04',  'RCP-2602-0061',null),
+  rt('rt-0202','allot-002','2026-02',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-02-05','2026-02-04',  'RCP-2602-0054',null),
+  rt('rt-0203','allot-003','2026-02',T.t003, 0,null,9200,     'CHEQUE',       'PAID',    '2026-02-05','2026-02-03',  'RCP-2602-0049',null),
+  rt('rt-0204','allot-004','2026-02',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-02-05',null,           null,           'Medical grounds'),
+  rt('rt-0205','allot-005','2026-02',T.t005, 0,null,3900,     'CASH',         'PARTIAL', '2026-02-05','2026-02-02',  null,           null),
+  rt('rt-0206','allot-006','2026-02',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-02-04','2026-02-04',  'RCP-2602-0041',null),
+  rt('rt-0207','allot-007','2026-02',T.t007, 0,null,   0,       null,         'DUE',     '2026-02-05',null,           null,           null),
+  rt('rt-0208','allot-008','2026-02',T.t008,150,null,  0,       null,         'OVERDUE', '2026-02-05',null,           null,           null),
+  rt('rt-0209','allot-009','2026-02',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-02-01','2026-02-01',  'RCP-2602-0037',null),
+  rt('rt-0210','allot-010','2026-02',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-02-05',null,           null,           'Disability exemption'),
+  rt('rt-0211','allot-011','2026-02',T.t011, 0,null,8000,     'ONLINE',       'PAID',    '2026-02-03','2026-02-03',  'RCP-2602-0028',null),
+  rt('rt-0212','allot-012','2026-02',T.t012, 0,null,10000,    'DD',           'PAID',    '2026-02-02','2026-02-02',  'RCP-2602-0020',null),
+  // ── January 2026 ──────────────────────────────────────────────────────────
+  rt('rt-0101','allot-001','2026-01',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-01-05','2026-01-04',  'RCP-2601-0072',null),
+  rt('rt-0102','allot-002','2026-01',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-01-05','2026-01-04',  'RCP-2601-0068',null),
+  rt('rt-0103','allot-003','2026-01',T.t003,925,null,  0,       null,         'OVERDUE', '2026-01-05',null,           null,           null),
+  rt('rt-0104','allot-004','2026-01',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-01-05',null,           null,           'Medical grounds'),
+  rt('rt-0105','allot-005','2026-01',T.t005, 0,null,7800,     'DD',           'PAID',    '2026-01-05','2026-01-03',  'RCP-2601-0058',null),
+  rt('rt-0106','allot-006','2026-01',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-01-04','2026-01-04',  'RCP-2601-0053',null),
+  rt('rt-0107','allot-007','2026-01',T.t007, 0,null,   0,       null,         'DUE',     '2026-01-05',null,           null,           null),
+  rt('rt-0108','allot-008','2026-01',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2026-01-04','2026-01-04',  'RCP-2601-0044',null),
+  rt('rt-0109','allot-009','2026-01',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-01-01','2026-01-01',  'RCP-2601-0039',null),
+  rt('rt-0110','allot-010','2026-01',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-01-05',null,           null,           'Disability exemption'),
+  rt('rt-0111','allot-011','2026-01',T.t011, 0,null,8000,     'ONLINE',       'PAID',    '2026-01-03','2026-01-03',  'RCP-2601-0031',null),
+  rt('rt-0112','allot-012','2026-01',T.t012, 0,null,5000,     'CASH',         'PARTIAL', '2026-01-05','2026-01-04',  null,           null),
+  // ── December 2025 ─────────────────────────────────────────────────────────
+  rt('rt-1201','allot-001','2025-12',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2025-12-05','2025-12-04',  'RCP-2512-0081',null),
+  rt('rt-1202','allot-002','2025-12',T.t002, 0,null,4850,     'AUTO_DEDUCTION','PAID',   '2025-12-05','2025-12-01',  'RCP-2512-0073',null),
+  rt('rt-1203','allot-003','2025-12',T.t003, 0,null,9200,     'CHEQUE',       'PAID',    '2025-12-05','2025-12-03',  'RCP-2512-0069',null),
+  rt('rt-1204','allot-004','2025-12',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-12-05',null,           null,           'Medical grounds'),
+  rt('rt-1205','allot-005','2025-12',T.t005, 0,null,4000,     'CASH',         'PARTIAL', '2025-12-05','2025-12-02',  null,           null),
+  rt('rt-1206','allot-006','2025-12',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2025-12-04','2025-12-04',  'RCP-2512-0061',null),
+  rt('rt-1207','allot-007','2025-12',T.t007, 0,null,5150,     'AUTO_DEDUCTION','PAID',   '2025-12-05','2025-12-04',  'RCP-2512-0058',null),
+  rt('rt-1208','allot-008','2025-12',T.t008,130,null,  0,       null,         'OVERDUE', '2025-12-05',null,           null,           null),
+  rt('rt-1209','allot-009','2025-12',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2025-12-01','2025-12-01',  'RCP-2512-0052',null),
+  rt('rt-1210','allot-010','2025-12',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-12-05',null,           null,           'Disability exemption'),
+  rt('rt-1211','allot-011','2025-12',T.t011, 0,null,   0,       null,         'DUE',     '2025-12-05',null,           null,           null),
+  rt('rt-1212','allot-012','2025-12',T.t012, 0,null,10000,    'DD',           'PAID',    '2025-12-02','2025-12-02',  'RCP-2512-0044',null),
+  // ── November 2025 ─────────────────────────────────────────────────────────
+  rt('rt-1101','allot-001','2025-11',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2025-11-05','2025-11-04',  'RCP-2511-0089',null),
+  rt('rt-1102','allot-002','2025-11',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2025-11-05','2025-11-04',  'RCP-2511-0083',null),
+  rt('rt-1103','allot-003','2025-11',T.t003,185,null,  0,       null,         'OVERDUE', '2025-11-05',null,           null,           null),
+  rt('rt-1104','allot-004','2025-11',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-11-05',null,           null,           'Medical grounds'),
+  rt('rt-1105','allot-005','2025-11',T.t005, 0,null,7800,     'DD',           'PAID',    '2025-11-05','2025-11-03',  'RCP-2511-0075',null),
+  rt('rt-1106','allot-006','2025-11',T.t006, 0,null,   0,       null,         'DUE',     '2025-11-05',null,           null,           null),
+  rt('rt-1107','allot-007','2025-11',T.t007, 0,null,5150,     'AUTO_DEDUCTION','PAID',   '2025-11-05','2025-11-04',  'RCP-2511-0068',null),
+  rt('rt-1108','allot-008','2025-11',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2025-11-04','2025-11-04',  'RCP-2511-0062',null),
+  rt('rt-1109','allot-009','2025-11',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2025-11-01','2025-11-01',  'RCP-2511-0055',null),
+  rt('rt-1110','allot-010','2025-11',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-11-05',null,           null,           'Disability exemption'),
+  rt('rt-1111','allot-011','2025-11',T.t011, 0,null,4000,     'CASH',         'PARTIAL', '2025-11-05','2025-11-03',  null,           null),
+  rt('rt-1112','allot-012','2025-11',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2025-11-02','2025-11-02',  'RCP-2511-0047',null),
 ];
 
 export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
-  total_due_count: 2,
-  total_due_amount: 6700 + 5150,
+  total_due_count: 3,
+  total_due_amount: 6700 + 5150 + 8000,
   exempted_count: 2,
   exempted_amount: 6800 + 6800,
   paid_count: 4,
-  paid_amount: 4850 + 7000 + 8900 + (7200 + 350 + 250),
+  paid_amount: 4850 + 7000 + 8900 + 10000,
   partial_count: 1,
-  partial_amount: 3400,
+  partial_amount: 3800,
   arrears_count: 2,
   arrears_amount: (8500 + 400 + 300 + 850) + (6000 + 300 + 200 + 600),
-  collection_rate: 62,
+  collection_rate: 48,
 };
 
 export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
-  'allot-005_2026-05': [
-    { id: 'pay-01', allotment_id: 'allot-005', month: '2026-05', amount: 3800, payment_mode: 'CASH', payment_date: '2026-05-02', receipt_ref: 'TMP-2605-001', remarks: 'Partial — balance due', recorded_by: 'EO-Admin' },
-  ],
+  // May 2026
   'allot-002_2026-05': [
-    { id: 'pay-02', allotment_id: 'allot-002', month: '2026-05', amount: 4850, payment_mode: 'ONLINE', payment_date: '2026-05-04', receipt_ref: 'RCP-2605-0102', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0502', allotment_id: 'allot-002', month: '2026-05', amount: 4850, payment_mode: 'ONLINE', payment_date: '2026-05-04', receipt_ref: 'RCP-2605-0102', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-005_2026-05': [
+    { id: 'pay-0505', allotment_id: 'allot-005', month: '2026-05', amount: 3800, payment_mode: 'CASH', payment_date: '2026-05-02', receipt_ref: 'TMP-2605-001', remarks: 'Partial — balance due', recorded_by: 'EO-Admin' },
   ],
   'allot-006_2026-05': [
-    { id: 'pay-03', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-01', receipt_ref: 'TMP-2605-006a', remarks: 'First instalment', recorded_by: 'System' },
-    { id: 'pay-04', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-0098', remarks: 'Final payment', recorded_by: 'System' },
+    { id: 'pay-0506a', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-01', receipt_ref: 'TMP-2605-006a', remarks: 'First instalment', recorded_by: 'System' },
+    { id: 'pay-0506b', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-0098', remarks: 'Final payment', recorded_by: 'System' },
   ],
   'allot-009_2026-05': [
-    { id: 'pay-05', allotment_id: 'allot-009', month: '2026-05', amount: 8900, payment_mode: 'CHEQUE', payment_date: '2026-05-01', receipt_ref: 'RCP-2605-0087', remarks: 'Cheque #449012', recorded_by: 'EO-Admin' },
+    { id: 'pay-0509', allotment_id: 'allot-009', month: '2026-05', amount: 8900, payment_mode: 'CHEQUE', payment_date: '2026-05-01', receipt_ref: 'RCP-2605-0087', remarks: 'Cheque #449012', recorded_by: 'EO-Admin' },
+  ],
+  'allot-012_2026-05': [
+    { id: 'pay-0512', allotment_id: 'allot-012', month: '2026-05', amount: 10000, payment_mode: 'ONLINE', payment_date: '2026-05-02', receipt_ref: 'RCP-2605-0071', remarks: '', recorded_by: 'System' },
+  ],
+  // April 2026
+  'allot-001_2026-04': [
+    { id: 'pay-0401', allotment_id: 'allot-001', month: '2026-04', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-04-04', receipt_ref: 'RCP-2604-0082', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-005_2026-04': [
+    { id: 'pay-0405', allotment_id: 'allot-005', month: '2026-04', amount: 7800, payment_mode: 'DD', payment_date: '2026-04-02', receipt_ref: 'RCP-2604-0064', remarks: 'DD#330291', recorded_by: 'EO-Admin' },
+  ],
+  'allot-011_2026-04': [
+    { id: 'pay-0411', allotment_id: 'allot-011', month: '2026-04', amount: 4000, payment_mode: 'CASH', payment_date: '2026-04-03', receipt_ref: 'TMP-2604-011', remarks: 'Partial — balance pending', recorded_by: 'EO-Admin' },
+  ],
+  // February 2026
+  'allot-005_2026-02': [
+    { id: 'pay-0205', allotment_id: 'allot-005', month: '2026-02', amount: 3900, payment_mode: 'CASH', payment_date: '2026-02-02', receipt_ref: 'TMP-2602-005', remarks: 'Partial payment; balance ₹3,900 due', recorded_by: 'EO-Admin' },
+  ],
+  // January 2026
+  'allot-012_2026-01': [
+    { id: 'pay-0112a', allotment_id: 'allot-012', month: '2026-01', amount: 3000, payment_mode: 'ONLINE', payment_date: '2026-01-03', receipt_ref: 'TMP-2601-012a', remarks: 'First instalment', recorded_by: 'System' },
+    { id: 'pay-0112b', allotment_id: 'allot-012', month: '2026-01', amount: 2000, payment_mode: 'CASH', payment_date: '2026-01-04', receipt_ref: 'TMP-2601-012b', remarks: 'Second instalment — balance pending', recorded_by: 'EO-Admin' },
+  ],
+  // December 2025
+  'allot-005_2025-12': [
+    { id: 'pay-1205', allotment_id: 'allot-005', month: '2025-12', amount: 4000, payment_mode: 'CASH', payment_date: '2025-12-02', receipt_ref: 'TMP-2512-005', remarks: 'Partial — rest paid in January', recorded_by: 'EO-Admin' },
+  ],
+  // November 2025
+  'allot-011_2025-11': [
+    { id: 'pay-1111', allotment_id: 'allot-011', month: '2025-11', amount: 4000, payment_mode: 'CASH', payment_date: '2025-11-03', receipt_ref: 'TMP-2511-011', remarks: 'Partial payment', recorded_by: 'EO-Admin' },
   ],
 };
 
 export const DEMO_RENT_CLARIFICATIONS: Record<string, RentClarification[]> = {
   'allot-003_2026-05': [
-    { id: 'rc-01', allotment_id: 'allot-003', month: '2026-05', author_role: 'TENANT', author_name: 'Anil Verma', message: 'My salary was delayed this month. I will make the payment by 20th May. Please waive the penalty.', created_at: '2026-05-06T09:30:00Z' },
-    { id: 'rc-02', allotment_id: 'allot-003', month: '2026-05', author_role: 'EO', author_name: 'Estate Officer', message: 'Request noted. Please ensure payment is made before 20th May. Penalty waiver will be considered upon timely payment.', created_at: '2026-05-06T11:15:00Z' },
+    { id: 'rc-0503-1', allotment_id: 'allot-003', month: '2026-05', author_role: 'TENANT', author_name: 'Anil Verma', message: 'My salary was delayed this month. Will pay by 20th May. Request waiver of penalty.', created_at: '2026-05-06T09:30:00Z' },
+    { id: 'rc-0503-2', allotment_id: 'allot-003', month: '2026-05', author_role: 'EO', author_name: 'Estate Officer', message: 'Noted. Ensure payment before 20th May. Penalty waiver will be considered on timely payment.', created_at: '2026-05-06T11:15:00Z' },
   ],
   'allot-005_2026-05': [
-    { id: 'rc-03', allotment_id: 'allot-005', month: '2026-05', author_role: 'TENANT', author_name: 'Vikram Singh', message: 'I have paid ₹3,800 in cash. Will pay the balance by end of month.', created_at: '2026-05-03T10:00:00Z' },
+    { id: 'rc-0505-1', allotment_id: 'allot-005', month: '2026-05', author_role: 'TENANT', author_name: 'Vikram Singh', message: 'I have paid ₹3,800 in cash. Will clear the balance of ₹4,000 by 28th May.', created_at: '2026-05-03T10:00:00Z' },
+    { id: 'rc-0505-2', allotment_id: 'allot-005', month: '2026-05', author_role: 'EO', author_name: 'Estate Officer', message: 'Partial payment acknowledged. Please clear outstanding ₹4,000 by 28th May to avoid penalty.', created_at: '2026-05-03T14:30:00Z' },
+  ],
+  'allot-008_2026-05': [
+    { id: 'rc-0508-1', allotment_id: 'allot-008', month: '2026-05', author_role: 'TENANT', author_name: 'Anita Desai', message: 'Requesting extension for rent payment due to medical emergency. Hospital bills enclosed.', created_at: '2026-05-07T08:45:00Z' },
+    { id: 'rc-0508-2', allotment_id: 'allot-008', month: '2026-05', author_role: 'EO', author_name: 'Estate Officer', message: 'We have received your request. Medical grounds noted. Please provide documents within 3 days for penalty review.', created_at: '2026-05-07T15:00:00Z' },
+    { id: 'rc-0508-3', allotment_id: 'allot-008', month: '2026-05', author_role: 'TENANT', author_name: 'Anita Desai', message: 'Documents submitted at estate office today. Thank you for your understanding.', created_at: '2026-05-08T09:20:00Z' },
+  ],
+  'allot-003_2026-04': [
+    { id: 'rc-0403-1', allotment_id: 'allot-003', month: '2026-04', author_role: 'TENANT', author_name: 'Anil Verma', message: 'Payment delayed due to banking issues. Will pay by 15th April.', created_at: '2026-04-07T10:00:00Z' },
+    { id: 'rc-0403-2', allotment_id: 'allot-003', month: '2026-04', author_role: 'EO', author_name: 'Estate Officer', message: 'Acknowledged. Penalty accruing from due date. Please clear at the earliest.', created_at: '2026-04-07T12:00:00Z' },
+  ],
+  'allot-012_2026-04': [
+    { id: 'rc-0412-1', allotment_id: 'allot-012', month: '2026-04', author_role: 'TENANT', author_name: 'Nalini Iyer', message: 'Salary disbursement delayed at CSIR. Will settle full amount with penalty by 18th April.', created_at: '2026-04-08T09:00:00Z' },
+  ],
+  'allot-011_2026-04': [
+    { id: 'rc-0411-1', allotment_id: 'allot-011', month: '2026-04', author_role: 'TENANT', author_name: 'Deepak Joshi', message: 'Paid ₹4,000 in cash. Will clear remaining ₹4,000 by 30th April.', created_at: '2026-04-04T11:00:00Z' },
+    { id: 'rc-0411-2', allotment_id: 'allot-011', month: '2026-04', author_role: 'EO', author_name: 'Estate Officer', message: 'Partial receipt acknowledged. Clear balance by 30th April to avoid late fee.', created_at: '2026-04-04T14:00:00Z' },
   ],
 };
 
