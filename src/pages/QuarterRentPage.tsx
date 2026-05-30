@@ -489,9 +489,10 @@ export const QuarterRentPage: React.FC = () => {
         {!isEO && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
           <button
             onClick={() => setPayNowTile(tile)}
-            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
+            title="Pay Now"
+            className="flex items-center justify-center p-1.5 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
           >
-            <Wallet size={10} /> Pay Now
+            <Wallet size={12} />
           </button>
         )}
 
@@ -499,11 +500,12 @@ export const QuarterRentPage: React.FC = () => {
         <div className="relative">
           <button
             onClick={e => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : tile.id); }}
-            className={`flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+            title="Actions"
+            className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
               isMenuOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
             }`}
           >
-            <MoreHorizontal size={11} /> Actions
+            <MoreHorizontal size={13} />
           </button>
 
           {isMenuOpen && (
