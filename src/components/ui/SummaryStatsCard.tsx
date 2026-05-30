@@ -56,6 +56,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({
           onClick={onClick}
           role={onClick ? 'button' : undefined}
           tabIndex={onClick ? 0 : undefined}
+          title={label}
         >
           {/* Decorative overlays */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-black/10 pointer-events-none" />
