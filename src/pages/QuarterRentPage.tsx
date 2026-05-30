@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Home, ChevronRight, IndianRupee, Building2,
@@ -6,7 +6,7 @@ import {
   Clock, Receipt, TrendingUp, Send, ChevronDown,
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
-  Download,
+  Download, MoreHorizontal,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { quartersService } from '../services/quartersService';
@@ -216,6 +216,95 @@ const UndoModal: React.FC<UndoModalProps> = ({ payment, onClose, onConfirm }) =>
   </div>
 );
 
+// ── Clarifications Chat Modal ─────────────────────────────────────────────────
+interface ClarificationsModalProps {
+  tile: RentTile;
+  clarifications: RentClarification[];
+  clarMsg: string;
+  isEO: boolean;
+  onClose: () => void;
+  onChange: (v: string) => void;
+  onSend: () => void;
+}
+const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
+  tile, clarifications, clarMsg, isEO, onClose, onChange, onSend,
+}) => {
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [clarifications]);
+  const selfRole = isEO ? 'EO' : 'TENANT';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+            <MessageSquare size={16} className="text-slate-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-gray-900">Clarifications</div>
+            <div className="text-xs text-gray-400 truncate">
+              {tile.quarter_number} · {tile.tenant_name} · {fmtMonthFull(tile.month)}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Chat thread */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50/40 min-h-0">
+          {clarifications.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-xs text-gray-400">
+              No messages yet. Start the conversation.
+            </div>
+          ) : clarifications.map(c => {
+            const isSelf = c.author_role === selfRole;
+            return (
+              <div key={c.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                  isSelf
+                    ? 'bg-teal-600 text-white rounded-tr-sm'
+                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+                }`}>
+                  {!isSelf && (
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      {c.author_name}
+                    </div>
+                  )}
+                  <p className="text-[13px] leading-relaxed">{c.message}</p>
+                  <div className={`text-[10px] mt-1.5 ${isSelf ? 'text-teal-200' : 'text-gray-400'}`}>
+                    {fmtDate(c.created_at.slice(0, 10))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={endRef} />
+        </div>
+
+        {/* Input footer */}
+        <div className="flex gap-2 px-4 py-3 border-t border-gray-100 shrink-0">
+          <input
+            value={clarMsg}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && clarMsg.trim()) onSend(); }}
+            placeholder="Type a message…"
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-300/40 bg-white outline-none"
+            autoFocus
+          />
+          <button
+            onClick={onSend}
+            disabled={!clarMsg.trim()}
+            className="px-4 py-2 bg-teal-600 text-white rounded-xl disabled:opacity-40 hover:bg-teal-700 transition-colors shrink-0"
+          >
+            <Send size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Status Badge ──────────────────────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: StatusKey }> = ({ status }) => {
   const s = STATUS[status];
@@ -269,11 +358,13 @@ export const QuarterRentPage: React.FC = () => {
   const [tenantFilter, setTenantFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // ── Panel state ─────────────────────────────────────────────────────────────
+  // ── Panel / modal state ─────────────────────────────────────────────────────
   const [expandedId, setExpandedId]   = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<'history' | 'clarifications' | null>(null);
+  const [activePanel, setActivePanel] = useState<'history' | null>(null);
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
+  const [openMenuId, setOpenMenuId]   = useState<string | null>(null);
   const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail } | null>(null);
+  const [clarModal, setClarModal] = useState<{ tile: RentTile } | null>(null);
   const [payNowTile, setPayNowTile] = useState<RentTile | null>(null);
   const [undoPayment, setUndoPayment] = useState<{ tile: RentTile; payment: RentPayment } | null>(null);
   const [payments, setPayments]   = useState<RentPayment[]>([]);
@@ -327,19 +418,20 @@ export const QuarterRentPage: React.FC = () => {
   const maxGraphVal = useMemo(() => Math.max(...graphData.map(g => g.total), 1), [graphData]);
 
   // ── Panel handlers ──────────────────────────────────────────────────────────
-  const openPanel = useCallback(async (tile: RentTile, panel: 'history' | 'clarifications') => {
-    if (expandedId === tile.id && activePanel === panel) {
+  const openHistoryPanel = useCallback(async (tile: RentTile) => {
+    if (expandedId === tile.id && activePanel === 'history') {
       setExpandedId(null); setActivePanel(null); return;
     }
-    setExpandedId(tile.id); setActivePanel(panel);
-    if (panel === 'history') {
-      const p = await quartersService.getRentPaymentHistory(tile.allotment_id, tile.month);
-      setPayments(p);
-    } else {
-      const c = await quartersService.getRentClarifications(tile.allotment_id, tile.month);
-      setClarifications(c);
-    }
+    setExpandedId(tile.id); setActivePanel('history');
+    const p = await quartersService.getRentPaymentHistory(tile.allotment_id, tile.month);
+    setPayments(p);
   }, [expandedId, activePanel]);
+
+  const openClarModal = useCallback(async (tile: RentTile) => {
+    const c = await quartersService.getRentClarifications(tile.allotment_id, tile.month);
+    setClarifications(c);
+    setClarModal({ tile });
+  }, []);
 
   const openDueDetails = useCallback(async (tile: RentTile) => {
     const detail = await quartersService.getRentDueDetail(tile.id);
@@ -387,49 +479,82 @@ export const QuarterRentPage: React.FC = () => {
     });
   }, []);
 
-  // ── Tile actions row ────────────────────────────────────────────────────────
+  // ── Actions dropdown menu ───────────────────────────────────────────────────
   const renderActions = (tile: RentTile) => {
-    const isPanelOpen = expandedId === tile.id;
-    if (isEO) return (
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        <button onClick={() => openDueDetails(tile)}
-          className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors">
-          <IndianRupee size={10} /> Due Details
-        </button>
-        <button onClick={() => openPanel(tile, 'history')}
-          className={`flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${isPanelOpen && activePanel === 'history' ? 'bg-teal-600 text-white border-teal-600' : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'}`}>
-          <Receipt size={10} /> Paid History
-        </button>
-        <button onClick={() => openPanel(tile, 'clarifications')}
-          className={`flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${isPanelOpen && activePanel === 'clarifications' ? 'bg-slate-700 text-white border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
-          <MessageSquare size={10} /> Clarifications
-        </button>
-      </div>
-    );
+    const isMenuOpen = openMenuId === tile.id;
+    const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
     return (
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        <button onClick={() => openDueDetails(tile)}
-          className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100">
-          <Eye size={10} /> Details
-        </button>
-        <button onClick={() => openPanel(tile, 'clarifications')}
-          className={`flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${isPanelOpen && activePanel === 'clarifications' ? 'bg-slate-700 text-white border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
-          <MessageSquare size={10} /> Clarifications
-        </button>
-        {(tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
-          <button onClick={() => setPayNowTile(tile)}
-            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700">
+      <div className="flex items-center gap-2 mt-2">
+        {/* Pay Now — primary CTA, visible directly (tenant only) */}
+        {!isEO && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
+          <button
+            onClick={() => setPayNowTile(tile)}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
+          >
             <Wallet size={10} /> Pay Now
           </button>
         )}
+
+        {/* Actions menu */}
+        <div className="relative">
+          <button
+            onClick={e => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : tile.id); }}
+            className={`flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+              isMenuOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <MoreHorizontal size={11} /> Actions
+          </button>
+
+          {isMenuOpen && (
+            <>
+              {/* Backdrop to close on outside click */}
+              <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
+              <div className="absolute left-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]">
+                {/* Due Details */}
+                <button
+                  onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
+                >
+                  <IndianRupee size={12} className="text-amber-500 shrink-0" />
+                  Due Details
+                </button>
+
+                {/* Paid History — EO only */}
+                {isEO && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openHistoryPanel(tile); }}
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
+                      isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                    }`}
+                  >
+                    <Receipt size={12} className="text-teal-500 shrink-0" />
+                    Paid History
+                  </button>
+                )}
+
+                <div className="mx-3 my-1 border-t border-gray-100" />
+
+                {/* Clarifications */}
+                <button
+                  onClick={e => { e.stopPropagation(); setOpenMenuId(null); openClarModal(tile); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
+                >
+                  <MessageSquare size={12} className="text-slate-500 shrink-0" />
+                  Clarifications
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   };
 
-  // ── Expanded panel ──────────────────────────────────────────────────────────
+  // ── Paid history inline panel ──────────────────────────────────────────────
   const renderPanel = (tile: RentTile) => {
-    if (expandedId !== tile.id || !activePanel) return null;
-    if (activePanel === 'history') return (
+    if (expandedId !== tile.id || activePanel !== 'history') return null;
+    return (
       <div className="relative ml-6 mt-2 mr-2 mb-2">
         <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-200 rounded-full" />
         <div className="space-y-2 pl-5">
@@ -461,37 +586,6 @@ export const QuarterRentPage: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-    );
-    // Clarifications panel
-    return (
-      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
-          <MessageSquare size={12} className="text-slate-600" />
-          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Clarifications</span>
-        </div>
-        <div className="px-3 py-2 space-y-2 max-h-48 overflow-y-auto">
-          {clarifications.length === 0 && <div className="text-xs text-gray-400 py-2">No messages yet.</div>}
-          {clarifications.map(c => (
-            <div key={c.id} className={`flex ${c.author_role === 'EO' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-xl px-3 py-2 text-xs ${c.author_role === 'EO' ? 'bg-teal-600 text-white' : 'bg-white border border-slate-200 text-gray-800'}`}>
-                <div className={`text-[9px] font-bold mb-0.5 ${c.author_role === 'EO' ? 'text-teal-200' : 'text-teal-600'}`}>{c.author_name}</div>
-                <p>{c.message}</p>
-                <div className={`text-[9px] mt-0.5 ${c.author_role === 'EO' ? 'text-teal-200' : 'text-gray-400'}`}>{fmtDate(c.created_at.slice(0, 10))}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2 px-3 py-2 border-t border-slate-100">
-          <input value={clarMsg} onChange={e => setClarMsg(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && clarMsg.trim()) sendClarification(tile); }}
-            placeholder="Type a message…"
-            className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-300/40 bg-white" />
-          <button onClick={() => sendClarification(tile)} disabled={!clarMsg.trim()}
-            className="px-3 py-1.5 bg-teal-600 text-white rounded-lg disabled:opacity-40 hover:bg-teal-700">
-            <Send size={12} />
-          </button>
         </div>
       </div>
     );
@@ -587,7 +681,7 @@ export const QuarterRentPage: React.FC = () => {
             {tile.exemption_reason && (
               <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
             )}
-            {/* Actions + panels */}
+            {/* Actions + history panel */}
             {renderActions(tile)}
             {renderPanel(tile)}
           </div>
@@ -793,7 +887,7 @@ export const QuarterRentPage: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-teal-50/20">
 
-      {/* ── Frozen header ── */}
+      {/* ── Frozen header — breadcrumb, title, DP cards only ── */}
       <div className="flex-none bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
 
@@ -807,7 +901,7 @@ export const QuarterRentPage: React.FC = () => {
           </div>
 
           {/* Title row */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-gray-900 mb-0.5 flex items-center gap-2.5">
                 <div className="p-1.5 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl shadow-lg">
@@ -833,78 +927,6 @@ export const QuarterRentPage: React.FC = () => {
             </div>
           </div>
 
-          {/* MandatorySearchBar */}
-          <MandatorySearchBar
-            fields={[
-              {
-                key: 'tenant',
-                label: 'Search',
-                type: 'text',
-                placeholder: 'Tenant name or quarter…',
-                value: tenantFilter,
-                onChange: setTenantFilter,
-                icon: <Search size={14} />,
-              },
-              {
-                key: 'status',
-                label: 'Status',
-                type: 'chips',
-                value: dpFilter,
-                onChange: (v) => setDpFilter(v as DpFilter),
-                options: [
-                  { value: 'all',      label: 'All'      },
-                  { value: 'DUE',      label: 'Due'      },
-                  { value: 'OVERDUE',  label: 'Overdue'  },
-                  { value: 'PAID',     label: 'Paid'     },
-                  { value: 'PARTIAL',  label: 'Partial'  },
-                  { value: 'EXEMPTED', label: 'Exempted' },
-                ],
-              },
-              {
-                key: 'monthFrom',
-                label: 'From Month',
-                type: 'date',
-                value: monthFrom + '-01',
-                onChange: (v) => setMonthFrom(v.slice(0, 7)),
-              },
-              {
-                key: 'monthTo',
-                label: 'To Month',
-                type: 'date',
-                value: monthTo + '-01',
-                onChange: (v) => setMonthTo(v.slice(0, 7)),
-              },
-              {
-                key: 'mode',
-                label: 'Payment Mode',
-                type: 'select',
-                value: modeFilter,
-                onChange: setModeFilter,
-                options: PAYMENT_MODES.map(m => ({ value: m, label: m.replace('_', ' ') })),
-              },
-            ]}
-            onSearch={loadTiles}
-            searchLabel="Apply"
-            filterCount={activeFilterCount}
-            onFilterOpen={() => setShowFilters(f => !f)}
-            className="mb-3"
-          />
-
-          {/* Secondary filter (location) */}
-          {showFilters && (
-            <div className="flex items-center gap-3 flex-wrap pt-2 pb-1">
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Location</span>
-              <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
-                placeholder="Estate / Block…"
-                className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 w-44" />
-              {locFilter && (
-                <button onClick={() => setLocFilter('')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
-                  <X size={10} /> Clear
-                </button>
-              )}
-            </div>
-          )}
-
           {/* DP Summary Cards */}
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -927,7 +949,80 @@ export const QuarterRentPage: React.FC = () => {
 
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+
+          {/* ── Filter bar — below DP cards ── */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-5">
+            <MandatorySearchBar
+              fields={[
+                {
+                  key: 'tenant',
+                  label: 'Search',
+                  type: 'text',
+                  placeholder: 'Tenant name or quarter…',
+                  value: tenantFilter,
+                  onChange: setTenantFilter,
+                  icon: <Search size={14} />,
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  type: 'chips',
+                  value: dpFilter,
+                  onChange: (v) => setDpFilter(v as DpFilter),
+                  options: [
+                    { value: 'all',      label: 'All'      },
+                    { value: 'DUE',      label: 'Due'      },
+                    { value: 'OVERDUE',  label: 'Overdue'  },
+                    { value: 'PAID',     label: 'Paid'     },
+                    { value: 'PARTIAL',  label: 'Partial'  },
+                    { value: 'EXEMPTED', label: 'Exempted' },
+                  ],
+                },
+                {
+                  key: 'monthFrom',
+                  label: 'From Month',
+                  type: 'date',
+                  value: monthFrom + '-01',
+                  onChange: (v) => setMonthFrom(v.slice(0, 7)),
+                },
+                {
+                  key: 'monthTo',
+                  label: 'To Month',
+                  type: 'date',
+                  value: monthTo + '-01',
+                  onChange: (v) => setMonthTo(v.slice(0, 7)),
+                },
+                {
+                  key: 'mode',
+                  label: 'Payment Mode',
+                  type: 'select',
+                  value: modeFilter,
+                  onChange: setModeFilter,
+                  options: PAYMENT_MODES.map(m => ({ value: m, label: m.replace('_', ' ') })),
+                },
+              ]}
+              onSearch={loadTiles}
+              searchLabel="Apply"
+              filterCount={activeFilterCount}
+              onFilterOpen={() => setShowFilters(f => !f)}
+            />
+
+            {/* Secondary filter — location */}
+            {showFilters && (
+              <div className="flex items-center gap-3 flex-wrap pt-3 mt-1 border-t border-gray-100">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Location</span>
+                <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
+                  placeholder="Estate / Block…"
+                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 w-44" />
+                {locFilter && (
+                  <button onClick={() => setLocFilter('')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
+                    <X size={10} /> Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Record count + active filter indicator */}
           <div className="flex items-center gap-2 mb-4">
@@ -995,6 +1090,17 @@ export const QuarterRentPage: React.FC = () => {
       )}
       {undoPayment && (
         <UndoModal payment={undoPayment.payment} onClose={() => setUndoPayment(null)} onConfirm={handleUndoPayment} />
+      )}
+      {clarModal && (
+        <ClarificationsModal
+          tile={clarModal.tile}
+          clarifications={clarifications}
+          clarMsg={clarMsg}
+          isEO={isEO}
+          onClose={() => { setClarModal(null); setClarMsg(''); }}
+          onChange={setClarMsg}
+          onSend={() => sendClarification(clarModal.tile)}
+        />
       )}
     </div>
   );
