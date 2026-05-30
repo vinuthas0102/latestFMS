@@ -484,7 +484,7 @@ export const QuarterRentPage: React.FC = () => {
     const isMenuOpen = openMenuId === tile.id;
     const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
     return (
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2">
         {/* Pay Now — primary CTA, visible directly (tenant only) */}
         {!isEO && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
           <button
@@ -629,7 +629,11 @@ export const QuarterRentPage: React.FC = () => {
             </div>
             {/* Status badge */}
             <div className="shrink-0"><StatusBadge status={tile.status} /></div>
-            {/* More toggle */}
+            {/* Actions — always visible on the row */}
+            <div className="shrink-0" onClick={e => e.stopPropagation()}>
+              {renderActions(tile)}
+            </div>
+            {/* Expand toggle */}
             <button
               className="shrink-0 w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
               onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
@@ -681,8 +685,7 @@ export const QuarterRentPage: React.FC = () => {
             {tile.exemption_reason && (
               <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
             )}
-            {/* Actions + history panel */}
-            {renderActions(tile)}
+            {/* Paid history panel only */}
             {renderPanel(tile)}
           </div>
         )}
@@ -746,7 +749,7 @@ export const QuarterRentPage: React.FC = () => {
             <span className="flex items-center gap-1"><Building2 size={9} /> {tile.quarter_number} · {tile.block_name}</span>
             <span className="flex items-center gap-1 truncate"><MapPin size={9} /> {tile.location_area}</span>
           </div>
-          {/* Row 3: due amount + month + chevron */}
+          {/* Row 3: due amount + month + actions + chevron */}
           <div className="flex items-center justify-between mt-2">
             <div>
               <span className={`text-base font-extrabold ${tile.status === 'PAID' ? 'text-emerald-700' : tile.status === 'EXEMPTED' ? 'text-slate-500' : 'text-amber-700'}`}>
@@ -754,13 +757,16 @@ export const QuarterRentPage: React.FC = () => {
               </span>
               <span className="text-[10px] text-gray-400 ml-1.5">due · {fmtMonth(tile.month)}</span>
             </div>
-            <button
-              className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-              onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
-              aria-label={isOpen ? 'Collapse' : 'Expand'}
-            >
-              <ChevronDown size={13} className={`text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
+            <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+              {renderActions(tile)}
+              <button
+                className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
+                aria-label={isOpen ? 'Collapse' : 'Expand'}
+              >
+                <ChevronDown size={13} className={`text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -791,7 +797,6 @@ export const QuarterRentPage: React.FC = () => {
             {tile.exemption_reason && (
               <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
             )}
-            {renderActions(tile)}
             {renderPanel(tile)}
           </div>
         )}
