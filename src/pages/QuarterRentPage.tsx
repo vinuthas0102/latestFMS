@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Home, ChevronRight, IndianRupee, Building2,
@@ -6,7 +7,7 @@ import {
   Clock, Receipt, TrendingUp, Send, ChevronDown,
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
-  Download, MoreHorizontal,
+  Download, MoreVertical,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -422,6 +423,128 @@ const RentChatPanel: React.FC<RentChatPanelProps> = ({
   );
 };
 
+// ── Tile Actions Menu — portal-based dropdown, immune to overflow-hidden ──────
+interface TileActionsMenuProps {
+  tile: RentTile;
+  isEO: boolean;
+  chatTileId: string | null;
+  expandedId: string | null;
+  activePanel: 'history' | null;
+  onPayNow: (tile: RentTile) => void;
+  onDueDetails: (tile: RentTile) => void;
+  onHistoryPanel: (tile: RentTile) => void;
+  onChatPanel: (tile: RentTile) => void;
+}
+const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
+  tile, isEO, chatTileId, expandedId, activePanel,
+  onPayNow, onDueDetails, onHistoryPanel, onChatPanel,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+  const hasPayments = tile.status === 'PAID' || tile.status === 'PARTIAL';
+  const showClar = tile.status !== 'EXEMPTED';
+  const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
+  const isChatOpen = chatTileId === tile.id;
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const menuHeight = 80;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
+      setMenuPos({ top, right: window.innerWidth - rect.right });
+    }
+    setOpen(true);
+  };
+
+  const close = () => setOpen(false);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {/* Pay Now — primary CTA (tenant only) */}
+      {!isEO && hasDue && (
+        <button
+          onClick={e => { e.stopPropagation(); onPayNow(tile); }}
+          title="Pay Now"
+          className="flex items-center justify-center p-1.5 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
+        >
+          <Wallet size={12} />
+        </button>
+      )}
+
+      {/* Inline chat icon */}
+      {showClar && (
+        <button
+          onClick={e => { e.stopPropagation(); onChatPanel(tile); }}
+          title="Clarifications"
+          className={`p-1.5 rounded-lg border transition-colors ${
+            isChatOpen
+              ? 'bg-teal-600 text-white border-teal-600'
+              : 'border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200'
+          }`}
+        >
+          <MessageSquare size={12} />
+        </button>
+      )}
+
+      {/* Actions dropdown — only shown when there are items */}
+      {(hasDue || hasPayments) && (
+        <>
+          <button
+            ref={btnRef}
+            onClick={openMenu}
+            title="Actions"
+            className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
+              open ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <MoreVertical size={13} />
+          </button>
+
+          {open && menuPos && createPortal(
+            <>
+              {/* Backdrop */}
+              <div className="fixed inset-0 z-[9998]" onClick={close} />
+              {/* Menu */}
+              <div
+                className="fixed z-[9999] bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]"
+                style={{ top: menuPos.top, right: menuPos.right }}
+              >
+                {hasDue && (
+                  <button
+                    onClick={e => { e.stopPropagation(); close(); onDueDetails(tile); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
+                  >
+                    <IndianRupee size={12} className="text-amber-500 shrink-0" />
+                    Due Details
+                  </button>
+                )}
+                {hasPayments && (
+                  <button
+                    onClick={e => { e.stopPropagation(); close(); onHistoryPanel(tile); }}
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
+                      isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                    }`}
+                  >
+                    <Receipt size={12} className="text-teal-500 shrink-0" />
+                    Paid History
+                  </button>
+                )}
+              </div>
+            </>,
+            document.body
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ── Tenant Info Chip ──────────────────────────────────────────────────────────
 const TenantChip: React.FC<{ tile: RentTile }> = ({ tile }) => (
   <div className="flex items-center gap-1.5">
@@ -485,7 +608,6 @@ export const QuarterRentPage: React.FC = () => {
   const [expandedId, setExpandedId]   = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'history' | null>(null);
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
-  const [openMenuId, setOpenMenuId]   = useState<string | null>(null);
   const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail } | null>(null);
   const [chatTileId, setChatTileId] = useState<string | null>(null);
   const [payNowTile, setPayNowTile] = useState<RentTile | null>(null);
@@ -612,91 +734,6 @@ export const QuarterRentPage: React.FC = () => {
     });
   }, []);
 
-  // ── Actions dropdown menu ───────────────────────────────────────────────────
-  const renderActions = (tile: RentTile) => {
-    const isMenuOpen = openMenuId === tile.id;
-    const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
-    const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
-    const hasPayments = tile.status === 'PAID' || tile.status === 'PARTIAL';
-    const showClar = tile.status !== 'EXEMPTED';
-    const isChatOpen = chatTileId === tile.id;
-    return (
-      <div className="flex items-center gap-1.5">
-        {/* Pay Now — primary CTA (tenant only) */}
-        {!isEO && hasDue && (
-          <button
-            onClick={() => setPayNowTile(tile)}
-            title="Pay Now"
-            className="flex items-center justify-center p-1.5 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
-          >
-            <Wallet size={12} />
-          </button>
-        )}
-
-        {/* Inline chat icon — always visible, not in dropdown */}
-        {showClar && (
-          <button
-            onClick={e => { e.stopPropagation(); openChatPanel(tile); }}
-            title="Clarifications"
-            className={`p-1.5 rounded-lg border transition-colors ${
-              isChatOpen
-                ? 'bg-teal-600 text-white border-teal-600'
-                : 'border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200'
-            }`}
-          >
-            <MessageSquare size={12} />
-          </button>
-        )}
-
-        {/* Actions dropdown — Due Details + Paid History */}
-        {(hasDue || hasPayments) && (
-          <div className="relative">
-            <button
-              onClick={e => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : tile.id); }}
-              title="Actions"
-              className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
-                isMenuOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              <MoreHorizontal size={13} />
-            </button>
-
-            {isMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
-                <div className="absolute right-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]">
-                  {/* Due Details */}
-                  {hasDue && (
-                    <button
-                      onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
-                    >
-                      <IndianRupee size={12} className="text-amber-500 shrink-0" />
-                      Due Details
-                    </button>
-                  )}
-
-                  {/* Paid History */}
-                  {hasPayments && (
-                    <button
-                      onClick={e => { e.stopPropagation(); setOpenMenuId(null); openHistoryPanel(tile); }}
-                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
-                        isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
-                      }`}
-                    >
-                      <Receipt size={12} className="text-teal-500 shrink-0" />
-                      Paid History
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ── Paid history inline panel ──────────────────────────────────────────────
   const renderPanel = (tile: RentTile) => {
     if (expandedId !== tile.id || activePanel !== 'history') return null;
@@ -796,7 +833,12 @@ export const QuarterRentPage: React.FC = () => {
             <div className="shrink-0"><StatusBadge status={tile.status} /></div>
             {/* Actions — always visible on the row */}
             <div className="shrink-0" onClick={e => e.stopPropagation()}>
-              {renderActions(tile)}
+              <TileActionsMenu
+                tile={tile} isEO={isEO} chatTileId={chatTileId}
+                expandedId={expandedId} activePanel={activePanel}
+                onPayNow={setPayNowTile} onDueDetails={openDueDetails}
+                onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+              />
             </div>
             {/* Expand toggle */}
             <button
@@ -873,7 +915,12 @@ export const QuarterRentPage: React.FC = () => {
         <td className="px-4 py-3 text-xs font-semibold text-red-600 text-right">{tile.penalty_amount > 0 ? fmtINR(tile.penalty_override ?? tile.penalty_amount) : '—'}</td>
         <td className="px-4 py-3"><StatusBadge status={tile.status} /></td>
         <td className="px-4 py-3">
-          <div className="flex items-center gap-1 flex-wrap">{renderActions(tile)}</div>
+          <TileActionsMenu
+            tile={tile} isEO={isEO} chatTileId={chatTileId}
+            expandedId={expandedId} activePanel={activePanel}
+            onPayNow={setPayNowTile} onDueDetails={openDueDetails}
+            onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+          />
         </td>
       </tr>
       {expandedId === tile.id && activePanel && (
@@ -923,7 +970,12 @@ export const QuarterRentPage: React.FC = () => {
               <span className="text-[10px] text-gray-400 ml-1.5">due · {fmtMonth(tile.month)}</span>
             </div>
             <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-              {renderActions(tile)}
+              <TileActionsMenu
+                tile={tile} isEO={isEO} chatTileId={chatTileId}
+                expandedId={expandedId} activePanel={activePanel}
+                onPayNow={setPayNowTile} onDueDetails={openDueDetails}
+                onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+              />
               <button
                 className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                 onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
