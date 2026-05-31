@@ -2367,24 +2367,35 @@ export const BookingHistoryPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* Available Properties search */
-            <div className="relative">
-              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                <Search size={13} />
+            /* Available Properties search + create button */
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <Search size={13} />
+                </div>
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
+                  Search
+                </div>
+                <input
+                  type="text"
+                  value={avPropSearch}
+                  onChange={e => setAvPropSearch(e.target.value)}
+                  placeholder="Property name, estate, location..."
+                  className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition-all"
+                />
+                {avPropSearch && (
+                  <button onClick={() => setAvPropSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={12} />
+                  </button>
+                )}
               </div>
-              <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
-                Search
-              </div>
-              <input
-                type="text"
-                value={avPropSearch}
-                onChange={e => setAvPropSearch(e.target.value)}
-                placeholder="Property name, estate, location..."
-                className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition-all"
-              />
-              {avPropSearch && (
-                <button onClick={() => setAvPropSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  <X size={12} />
+              {isManager && (
+                <button
+                  onClick={() => navigate(ROUTES.PROPERTY_CREATE)}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold transition-colors shadow-sm whitespace-nowrap"
+                >
+                  <Plus size={12} />
+                  New Property
                 </button>
               )}
             </div>

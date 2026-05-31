@@ -72,6 +72,9 @@ export interface HallCapacity {
   mainHallSeating: number;
   diningCapacity: number;
   guestRooms: number;
+  acRooms: number;
+  nonAcRooms: number;
+  auxiliaryAreaSqft: number;
   twoWheelerParking: number;
   fourWheelerParking: number;
   kitchenSizeSqft: number;
@@ -104,6 +107,7 @@ export interface HallTerms {
 
 export interface HallDetails {
   contactDetails: string;
+  inchargeName: string;
   capacity: HallCapacity;
   billing: HallBillingItem[];
   facilities: HallFacilities;
@@ -111,24 +115,33 @@ export interface HallDetails {
 }
 
 export const DEFAULT_HALL_BILLING_ITEMS: HallBillingItem[] = [
-  { label: 'Base Hall Rent', amount: '', unit: 'per day' },
-  { label: 'Music System Charge', amount: '', unit: 'per day' },
-  { label: 'Room (Per Unit)', amount: '', unit: 'per unit' },
-  { label: 'Water Utility Fee', amount: '', unit: 'flat per day' },
-  { label: 'Electricity Charge', amount: '', unit: 'per day' },
-  { label: 'Security Deposit', amount: '', unit: 'flat' },
-  { label: 'Lighting Charges', amount: '', unit: 'per day' },
-  { label: 'Gas Charges', amount: '', unit: 'per day' },
-  { label: 'Damage Recovery Policy', amount: '', unit: 'as applicable' },
-  { label: 'Operating Time & Noise', amount: '', unit: 'as per policy' },
+  { label: 'Base Hall Rent (NMDC Employee)',       amount: '', unit: 'per day' },
+  { label: 'Base Hall Rent (Non-NMDC Employee)',   amount: '', unit: 'per day' },
+  { label: 'Hall Rent (NMDC Employee)',            amount: '', unit: 'per day' },
+  { label: 'Hall Rent (Non-NMDC Employee)',        amount: '', unit: 'per day' },
+  { label: 'Additional Rooms Rent',                amount: '', unit: 'per room/day' },
+  { label: 'Security Deposit (NMDC Employee)',     amount: '', unit: 'flat' },
+  { label: 'Security Deposit (Non-NMDC Employee)', amount: '', unit: 'flat' },
+  { label: 'Water Utility Fee',                    amount: '', unit: 'flat per day' },
+  { label: 'Electricity Charges',                  amount: '', unit: 'per day' },
+  { label: 'Lighting Charges',                     amount: '', unit: 'per day' },
+  { label: 'Gas Charges',                          amount: '', unit: 'per day' },
+  { label: 'Music System Charge',                  amount: '', unit: 'per day' },
+  { label: 'Cleaning Charges',                     amount: '', unit: 'per event' },
+  { label: 'Damage Recovery Policy',               amount: '', unit: 'as applicable' },
+  { label: 'Operating Time & Noise',               amount: '', unit: 'as per policy' },
 ];
 
 export const DEFAULT_HALL_DETAILS: HallDetails = {
   contactDetails: '',
+  inchargeName: '',
   capacity: {
     mainHallSeating: 0,
     diningCapacity: 0,
     guestRooms: 0,
+    acRooms: 0,
+    nonAcRooms: 0,
+    auxiliaryAreaSqft: 0,
     twoWheelerParking: 0,
     fourWheelerParking: 0,
     kitchenSizeSqft: 0,
@@ -153,6 +166,97 @@ export const DEFAULT_HALL_DETAILS: HallDetails = {
   },
 };
 
+// ── Commercial Shop specific types ─────────────────────────────────
+
+export interface ShopDetails {
+  // Basic / Layout
+  shopType: string;
+  totalAreaSqft: number;
+  frontageWidth: number;
+  mainDoorFacing: string;
+  floorDetails: string;
+  twoWheelerParking: number;
+  fourWheelerParking: number;
+  // Technical amenities
+  roofing: boolean;
+  slidingDoors: boolean;
+  washroomFacility: boolean;
+  displayElectricMeter: boolean;
+  dedicatedConnection: boolean;
+  photoConnection: boolean;
+  backupGenerator: boolean;
+  waterConnection: boolean;
+  cctvConnection: boolean;
+  commonMonitoring: boolean;
+  fireSafetySystem: boolean;
+  // Lease financials
+  leaseType: 'MONTHLY' | 'ANNUAL';
+  monthlyRent: number;
+  leaseAmount: number;
+  maintenanceCharges: number;
+  securityDeposit: number;
+  electricityRatePerUnit: number;
+  latePaymentPercent: number;
+  gstApplicable: boolean;
+  rentLeasePeriodYears: number;
+  escalationPercent: number;
+  vacancyNoticePeriodDays: number;
+  standardLeaseTerms: string;
+  vendorName: string;
+  vendorContact: string;
+  vendorAddress: string;
+}
+
+export const SHOP_TYPE_OPTIONS = [
+  'General Stores',
+  'Pharmacy / Medical Store',
+  'Canteen / Food Stall',
+  'Bakery',
+  'Stationery / Books',
+  'Electronics / Mobile',
+  'Tailoring / Garments',
+  'Barber / Salon',
+  'Hardware / Tools',
+  'Vegetable / Grocery',
+  'Other',
+];
+
+export const DEFAULT_SHOP_DETAILS: ShopDetails = {
+  shopType: '',
+  totalAreaSqft: 0,
+  frontageWidth: 0,
+  mainDoorFacing: '',
+  floorDetails: '',
+  twoWheelerParking: 0,
+  fourWheelerParking: 0,
+  roofing: false,
+  slidingDoors: false,
+  washroomFacility: false,
+  displayElectricMeter: false,
+  dedicatedConnection: false,
+  photoConnection: false,
+  backupGenerator: false,
+  waterConnection: false,
+  cctvConnection: false,
+  commonMonitoring: false,
+  fireSafetySystem: false,
+  leaseType: 'MONTHLY',
+  monthlyRent: 0,
+  leaseAmount: 0,
+  maintenanceCharges: 0,
+  securityDeposit: 0,
+  electricityRatePerUnit: 0,
+  latePaymentPercent: 0,
+  gstApplicable: true,
+  rentLeasePeriodYears: 0,
+  escalationPercent: 0,
+  vacancyNoticePeriodDays: 30,
+  standardLeaseTerms: '',
+  vendorName: '',
+  vendorContact: '',
+  vendorAddress: '',
+};
+
 // ── Property DTO ──────────────────────────────────────────────────
 
 export interface PropertyDTO {
@@ -173,6 +277,7 @@ export interface PropertyDTO {
   amenities: string[];
   metadata: Record<string, any>;
   hallDetails?: HallDetails | null;
+  shopDetails?: ShopDetails | null;
   createdBy?: string;
   updatedBy?: string;
   createdAt: string;
@@ -286,6 +391,7 @@ export interface CreatePropertyDTO {
   amenities: string[];
   metadata?: Record<string, any>;
   hallDetails?: HallDetails | null;
+  shopDetails?: ShopDetails | null;
 }
 
 export interface UpdatePropertyDTO extends Partial<CreatePropertyDTO> {

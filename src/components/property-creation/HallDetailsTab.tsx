@@ -8,6 +8,7 @@ import {
   Users, UtensilsCrossed, BedDouble, Car, ChefHat,
   Phone, Receipt, Zap, Music, Droplets, Shield,
   Camera, Flame, Fan, Thermometer, FileText, Wrench,
+  Snowflake, AreaChart, User,
 } from 'lucide-react';
 
 interface HallDetailsTabProps {
@@ -21,16 +22,16 @@ interface HallDetailsTabProps {
 }
 
 const FACILITY_ROWS: { key: keyof HallFacilities; label: string; remark?: string; Icon: React.FC<{ size?: number; className?: string }> }[] = [
-  { key: 'musicSystem',      label: 'Music System',      remark: '8am – 10pm',          Icon: Music },
-  { key: 'waterSupply',      label: 'Water Supply',       remark: 'Full day',             Icon: Droplets },
-  { key: 'electricityDG',    label: 'Electricity / DG',  remark: 'Full day',             Icon: Zap },
-  { key: 'bathroomFacility', label: 'Bathroom Facility',  remark: 'Full day',             Icon: Wrench },
-  { key: 'kitchenAccess',    label: 'Kitchen Access',     remark: 'Full day',             Icon: ChefHat },
-  { key: 'centralAC',        label: 'Central AC',         remark: 'On request',           Icon: Thermometer },
-  { key: 'cctvMonitoring',   label: 'CCTV Monitoring',    remark: 'Full day',             Icon: Camera },
-  { key: 'fireSafetySystem', label: 'Fire Safety System', remark: 'Full day',             Icon: Flame },
-  { key: 'physicalSecurity', label: 'Physical Security',  remark: 'Full day',             Icon: Shield },
-  { key: 'fans',             label: 'Fans',               remark: 'Sufficient numbers',   Icon: Fan },
+  { key: 'musicSystem',      label: 'Music System',       remark: '8am – 10pm',         Icon: Music },
+  { key: 'waterSupply',      label: 'Water Supply',        remark: 'Full day',            Icon: Droplets },
+  { key: 'electricityDG',   label: 'Electricity / DG',   remark: 'Full day',            Icon: Zap },
+  { key: 'bathroomFacility', label: 'Bathroom Facility',  remark: 'Full day',            Icon: Wrench },
+  { key: 'kitchenAccess',    label: 'Kitchen Access',      remark: 'Full day',            Icon: ChefHat },
+  { key: 'centralAC',        label: 'Central AC',          remark: 'On request',          Icon: Thermometer },
+  { key: 'cctvMonitoring',   label: 'CCTV Monitoring',    remark: 'Full day',            Icon: Camera },
+  { key: 'fireSafetySystem', label: 'Fire Safety System',  remark: 'Full day',            Icon: Flame },
+  { key: 'physicalSecurity', label: 'Physical Security',   remark: 'Full day',            Icon: Shield },
+  { key: 'fans',             label: 'Fans',                remark: 'Sufficient numbers',  Icon: Fan },
 ];
 
 export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, updateFormData }) => {
@@ -74,7 +75,7 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Hall Details</h3>
         <p className="text-sm text-gray-500">
-          Enter capacity, itemised charges, available facilities, and standard terms for this Community / Marriage Hall.
+          Enter capacity, itemised charges, available facilities, and standard terms for this hall.
         </p>
       </div>
 
@@ -82,17 +83,27 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
       {card(
         <>
           {sectionHeading('Contact Details')}
-          <div>
-            <label className={labelCls}>
-              <span className="flex items-center gap-1.5"><Phone size={12} /> Contact Number / Email</span>
-            </label>
-            <input
-              type="text"
-              className={inputCls}
-              placeholder="e.g., 02321-2784939"
-              value={hall.contactDetails}
-              onChange={e => update({ contactDetails: e.target.value })}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1.5"><User size={12} /> Incharge Name</span>
+              </label>
+              <input
+                type="text" className={inputCls} placeholder="e.g., Shri R.K. Sharma"
+                value={hall.inchargeName ?? ''}
+                onChange={e => update({ inchargeName: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1.5"><Phone size={12} /> Contact Number / Email</span>
+              </label>
+              <input
+                type="text" className={inputCls} placeholder="e.g., 02321-2784939"
+                value={hall.contactDetails}
+                onChange={e => update({ contactDetails: e.target.value })}
+              />
+            </div>
           </div>
         </>
       )}
@@ -100,7 +111,7 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
       {/* ── Capacity ─────────────────────────────────────────── */}
       {card(
         <>
-          {sectionHeading('Capacity & Other Details', 'Physical capacity figures for the hall')}
+          {sectionHeading('Capacity & Infrastructure', 'Physical capacity and room figures for the hall')}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><Users size={11} /> Main Hall Seating</span></label>
@@ -122,6 +133,27 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
                 value={hall.capacity.guestRooms || ''}
                 onChange={e => updateCapacity('guestRooms', parseInt(e.target.value) || 0)} />
               <p className="text-[10px] text-gray-400 mt-1">Numbers</p>
+            </div>
+            <div>
+              <label className={labelCls}><span className="flex items-center gap-1.5"><Snowflake size={11} /> AC Rooms</span></label>
+              <input type="number" min={0} className={inputCls} placeholder="e.g., 2"
+                value={hall.capacity.acRooms ?? ''}
+                onChange={e => updateCapacity('acRooms', parseInt(e.target.value) || 0)} />
+              <p className="text-[10px] text-gray-400 mt-1">Numbers</p>
+            </div>
+            <div>
+              <label className={labelCls}><span className="flex items-center gap-1.5"><Fan size={11} /> Non-AC Rooms</span></label>
+              <input type="number" min={0} className={inputCls} placeholder="e.g., 3"
+                value={hall.capacity.nonAcRooms ?? ''}
+                onChange={e => updateCapacity('nonAcRooms', parseInt(e.target.value) || 0)} />
+              <p className="text-[10px] text-gray-400 mt-1">Numbers</p>
+            </div>
+            <div>
+              <label className={labelCls}><span className="flex items-center gap-1.5"><AreaChart size={11} /> Auxiliary Area</span></label>
+              <input type="number" min={0} className={inputCls} placeholder="e.g., 5000"
+                value={hall.capacity.auxiliaryAreaSqft ?? ''}
+                onChange={e => updateCapacity('auxiliaryAreaSqft', parseInt(e.target.value) || 0)} />
+              <p className="text-[10px] text-gray-400 mt-1">Sq. Ft</p>
             </div>
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><Car size={11} /> Two Wheeler Parking</span></label>
@@ -231,8 +263,7 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><FileText size={11} /> Cancellation Rules</span></label>
               <textarea
-                rows={3}
-                className={inputCls + ' resize-none'}
+                rows={3} className={inputCls + ' resize-none'}
                 placeholder="Describe the cancellation policy…"
                 value={hall.terms.cancellationRules}
                 onChange={e => updateTerms('cancellationRules', e.target.value)}
@@ -241,8 +272,7 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><FileText size={11} /> Booking Rules</span></label>
               <textarea
-                rows={3}
-                className={inputCls + ' resize-none'}
+                rows={3} className={inputCls + ' resize-none'}
                 placeholder="Describe booking rules and restrictions…"
                 value={hall.terms.bookingRules}
                 onChange={e => updateTerms('bookingRules', e.target.value)}
@@ -251,8 +281,7 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><FileText size={11} /> Terms and Conditions</span></label>
               <textarea
-                rows={4}
-                className={inputCls + ' resize-none'}
+                rows={4} className={inputCls + ' resize-none'}
                 placeholder="General terms and conditions of use…"
                 value={hall.terms.termsAndConditions}
                 onChange={e => updateTerms('termsAndConditions', e.target.value)}

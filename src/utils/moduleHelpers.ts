@@ -1,9 +1,22 @@
-// Hall/Community Hall property type codes
-export const HALL_PROPERTY_TYPE_CODES = ['COMMUNITY_HALL', 'MARRIAGE_HALL'];
+// Hall property type codes — all types that use hall_details JSONB
+export const HALL_PROPERTY_TYPE_CODES = [
+  'COMMUNITY_HALL',
+  'MARRIAGE_HALL',
+  'PARTY_HALL',
+  'CONVENTION_HALL',
+];
 
 export const isHallPropertyType = (propertyTypeCode?: string | null): boolean => {
   if (!propertyTypeCode) return false;
   return HALL_PROPERTY_TYPE_CODES.includes(propertyTypeCode.toUpperCase());
+};
+
+// Commercial shop property type codes — uses shop_details JSONB
+export const SHOP_PROPERTY_TYPE_CODES = ['COMMERCIAL_SHOP'];
+
+export const isShopPropertyType = (propertyTypeCode?: string | null): boolean => {
+  if (!propertyTypeCode) return false;
+  return SHOP_PROPERTY_TYPE_CODES.includes(propertyTypeCode.toUpperCase());
 };
 
 export const requiresLoginForBooking = (moduleCode?: string): boolean => {
