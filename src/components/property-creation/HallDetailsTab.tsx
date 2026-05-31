@@ -6,9 +6,9 @@ import {
 } from '../../types';
 import {
   Users, UtensilsCrossed, BedDouble, Car, ChefHat,
-  Phone, Receipt, Zap, Music, Droplets, Shield,
+  Receipt, Zap, Music, Droplets, Shield,
   Camera, Flame, Fan, Thermometer, FileText, Wrench,
-  Snowflake, AreaChart, User,
+  Snowflake, AreaChart,
 } from 'lucide-react';
 
 interface HallDetailsTabProps {
@@ -78,35 +78,6 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
           Enter capacity, itemised charges, available facilities, and standard terms for this hall.
         </p>
       </div>
-
-      {/* ── Contact Details ─────────────────────────────────── */}
-      {card(
-        <>
-          {sectionHeading('Contact Details')}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>
-                <span className="flex items-center gap-1.5"><User size={12} /> Incharge Name</span>
-              </label>
-              <input
-                type="text" className={inputCls} placeholder="e.g., Shri R.K. Sharma"
-                value={hall.inchargeName ?? ''}
-                onChange={e => update({ inchargeName: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>
-                <span className="flex items-center gap-1.5"><Phone size={12} /> Contact Number / Email</span>
-              </label>
-              <input
-                type="text" className={inputCls} placeholder="e.g., 02321-2784939"
-                value={hall.contactDetails}
-                onChange={e => update({ contactDetails: e.target.value })}
-              />
-            </div>
-          </div>
-        </>
-      )}
 
       {/* ── Capacity ─────────────────────────────────────────── */}
       {card(

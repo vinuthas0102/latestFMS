@@ -60,6 +60,17 @@ interface PropertyFormData {
   shopDetails: ShopDetails;
   // resolved property type code for conditional logic
   propertyTypeCode?: string | null;
+  // administrative / master-data fields (persisted in metadata)
+  sector: string;
+  state: string;
+  district: string;
+  landmark: string;
+  // hall contact (persisted in hallDetails + metadata)
+  inchargeName: string;
+  contactDetails: string;
+  // shop basic specs (persisted in shopDetails + metadata)
+  shopType: string;
+  totalAreaSqft: number;
 }
 
 export const CreatePropertyPage: React.FC = () => {
@@ -94,6 +105,14 @@ export const CreatePropertyPage: React.FC = () => {
     status: 'DRAFT',
     hallDetails: { ...DEFAULT_HALL_DETAILS },
     shopDetails: { ...DEFAULT_SHOP_DETAILS },
+    sector: '',
+    state: '',
+    district: '',
+    landmark: '',
+    inchargeName: '',
+    contactDetails: '',
+    shopType: '',
+    totalAreaSqft: 0,
   });
 
   const updateFormData = (updates: Partial<PropertyFormData>) => {
@@ -156,6 +175,14 @@ export const CreatePropertyPage: React.FC = () => {
         status: property.status,
         hallDetails: property.hallDetails ?? { ...DEFAULT_HALL_DETAILS },
         shopDetails: property.shopDetails ?? { ...DEFAULT_SHOP_DETAILS },
+        sector: property.metadata?.sector || '',
+        state: property.metadata?.state || '',
+        district: property.metadata?.district || '',
+        landmark: property.metadata?.landmark || '',
+        inchargeName: property.hallDetails?.inchargeName || property.metadata?.inchargeName || '',
+        contactDetails: property.hallDetails?.contactDetails || property.metadata?.contactDetails || '',
+        shopType: property.shopDetails?.shopType || property.metadata?.shopType || '',
+        totalAreaSqft: property.shopDetails?.totalAreaSqft || property.metadata?.totalAreaSqft || 0,
       });
 
       setSavedPropertyId(propertyId);
@@ -242,6 +269,33 @@ export const CreatePropertyPage: React.FC = () => {
     }
   };
 
+  const buildMetadata = () => ({
+    sector: formData.sector,
+    state: formData.state,
+    district: formData.district,
+    landmark: formData.landmark,
+    ...(isHall ? { inchargeName: formData.inchargeName, contactDetails: formData.contactDetails } : {}),
+    ...(isShop ? { shopType: formData.shopType, totalAreaSqft: formData.totalAreaSqft } : {}),
+  });
+
+  const buildHallDetails = (): HallDetails | null => {
+    if (!isHall) return null;
+    return {
+      ...formData.hallDetails,
+      inchargeName: formData.inchargeName,
+      contactDetails: formData.contactDetails,
+    };
+  };
+
+  const buildShopDetails = (): ShopDetails | null => {
+    if (!isShop) return null;
+    return {
+      ...formData.shopDetails,
+      shopType: formData.shopType,
+      totalAreaSqft: formData.totalAreaSqft,
+    };
+  };
+
   const saveProperty = async (status: PropertyStatus) => {
     try {
       let property;
@@ -263,8 +317,9 @@ export const CreatePropertyPage: React.FC = () => {
           status,
           images: formData.images,
           amenities: formData.amenities,
-          hallDetails: isHall ? formData.hallDetails : null,
-          shopDetails: isShop ? formData.shopDetails : null,
+          metadata: buildMetadata(),
+          hallDetails: buildHallDetails(),
+          shopDetails: buildShopDetails(),
         });
       } else {
         property = await propertyService.createProperty({
@@ -282,8 +337,9 @@ export const CreatePropertyPage: React.FC = () => {
           status,
           images: formData.images,
           amenities: formData.amenities,
-          hallDetails: isHall ? formData.hallDetails : null,
-          shopDetails: isShop ? formData.shopDetails : null,
+          metadata: buildMetadata(),
+          hallDetails: buildHallDetails(),
+          shopDetails: buildShopDetails(),
         });
 
         setSavedPropertyId(property.id);
@@ -393,7 +449,7 @@ export const CreatePropertyPage: React.FC = () => {
   const baseTabs = [
     {
       id: 'basic',
-      label: '1. Basic Info',
+      label: '1. General Info',
       content: <BasicInfoTab formData={formData} updateFormData={updateFormData} />,
       isComplete: isTabComplete('basic'),
     },

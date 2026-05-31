@@ -1,10 +1,10 @@
 import React from 'react';
 import { Toggle } from '../ui/Toggle';
 import {
-  ShopDetails, DEFAULT_SHOP_DETAILS, SHOP_TYPE_OPTIONS,
+  ShopDetails, DEFAULT_SHOP_DETAILS,
 } from '../../types';
 import {
-  Store, Ruler, Car, Compass, Layers, Droplets, Zap,
+  Ruler, Car, Compass, Layers, Droplets, Zap,
   Camera, Flame, Shield, Wifi, Settings, FileText,
   IndianRupee, Percent, CalendarDays, User, Phone, MapPin,
 } from 'lucide-react';
@@ -81,7 +81,7 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Commercial Shop Details</h3>
         <p className="text-sm text-gray-500">
-          Enter layout specifications, available amenities, and lease / tariff details for this commercial shop unit.
+          Enter layout specifications, amenities, and lease / tariff details for this shop unit.
         </p>
       </div>
 
@@ -90,15 +90,6 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
         <>
           {sectionHeading('Shop Layout & Specifications', 'Physical dimensions and layout details')}
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className={labelCls}><span className="flex items-center gap-1.5"><Store size={11} /> Type of Shop</span></label>
-              <select className={selectCls} value={shop.shopType} onChange={e => update({ shopType: e.target.value })}>
-                <option value="">Select shop type…</option>
-                {SHOP_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-
-            {numField('totalAreaSqft',  'Total Area',          'e.g., 600',  'Sq. Ft',  Ruler)}
             {numField('frontageWidth',  'Frontage Width',      'e.g., 10',   'Feet',    Ruler)}
 
             <div>

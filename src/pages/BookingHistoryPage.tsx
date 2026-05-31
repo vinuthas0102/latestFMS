@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
-  Building2, Eye, MessageSquare, ChevronLeft, Search, SlidersHorizontal,
+  Building2, MessageSquare, ChevronLeft, Search, SlidersHorizontal,
   CreditCard, MapPin, X, Download,
   ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
@@ -2240,13 +2240,15 @@ export const BookingHistoryPage: React.FC = () => {
                 >
                   <Download size={14} />
                 </button>
-                <button
-                  onClick={() => navigate(ROUTES.PROPERTIES)}
-                  title="Browse Properties"
-                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-colors"
-                >
-                  <Eye size={14} />
-                </button>
+                {isManager && (
+                  <button
+                    onClick={() => navigate(ROUTES.PROPERTY_CREATE)}
+                    title="Add New Property"
+                    className="p-1.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-600 hover:bg-teal-100 hover:text-teal-700 transition-colors"
+                  >
+                    <Plus size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2367,35 +2369,24 @@ export const BookingHistoryPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* Available Properties search + create button */
-            <div className="flex items-center gap-2">
-              <div className="flex-1 relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <Search size={13} />
-                </div>
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
-                  Search
-                </div>
-                <input
-                  type="text"
-                  value={avPropSearch}
-                  onChange={e => setAvPropSearch(e.target.value)}
-                  placeholder="Property name, estate, location..."
-                  className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition-all"
-                />
-                {avPropSearch && (
-                  <button onClick={() => setAvPropSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    <X size={12} />
-                  </button>
-                )}
+            /* Available Properties search */
+            <div className="relative">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <Search size={13} />
               </div>
-              {isManager && (
-                <button
-                  onClick={() => navigate(ROUTES.PROPERTY_CREATE)}
-                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold transition-colors shadow-sm whitespace-nowrap"
-                >
-                  <Plus size={12} />
-                  New Property
+              <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-semibold text-gray-400 uppercase tracking-widest pointer-events-none leading-none">
+                Search
+              </div>
+              <input
+                type="text"
+                value={avPropSearch}
+                onChange={e => setAvPropSearch(e.target.value)}
+                placeholder="Property name, estate, location..."
+                className="w-full pl-16 pr-8 py-2.5 text-[11px] bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 transition-all"
+              />
+              {avPropSearch && (
+                <button onClick={() => setAvPropSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X size={12} />
                 </button>
               )}
             </div>
