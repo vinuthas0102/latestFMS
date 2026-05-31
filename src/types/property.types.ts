@@ -74,7 +74,6 @@ export interface HallCapacity {
   guestRooms: number;
   acRooms: number;
   nonAcRooms: number;
-  auxiliaryAreaSqft: number;
   twoWheelerParking: number;
   fourWheelerParking: number;
   kitchenSizeSqft: number;
@@ -115,21 +114,22 @@ export interface HallDetails {
 }
 
 export const DEFAULT_HALL_BILLING_ITEMS: HallBillingItem[] = [
-  { label: 'Base Hall Rent (NMDC Employee)',       amount: '', unit: 'per day' },
-  { label: 'Base Hall Rent (Non-NMDC Employee)',   amount: '', unit: 'per day' },
-  { label: 'Hall Rent (NMDC Employee)',            amount: '', unit: 'per day' },
-  { label: 'Hall Rent (Non-NMDC Employee)',        amount: '', unit: 'per day' },
-  { label: 'Additional Rooms Rent',                amount: '', unit: 'per room/day' },
-  { label: 'Security Deposit (NMDC Employee)',     amount: '', unit: 'flat' },
-  { label: 'Security Deposit (Non-NMDC Employee)', amount: '', unit: 'flat' },
-  { label: 'Water Utility Fee',                    amount: '', unit: 'flat per day' },
-  { label: 'Electricity Charges',                  amount: '', unit: 'per day' },
-  { label: 'Lighting Charges',                     amount: '', unit: 'per day' },
-  { label: 'Gas Charges',                          amount: '', unit: 'per day' },
-  { label: 'Music System Charge',                  amount: '', unit: 'per day' },
-  { label: 'Cleaning Charges',                     amount: '', unit: 'per event' },
-  { label: 'Damage Recovery Policy',               amount: '', unit: 'as applicable' },
-  { label: 'Operating Time & Noise',               amount: '', unit: 'as per policy' },
+  { label: 'Base Hall Rent (NMDC Employee)',        amount: '', unit: 'per day' },
+  { label: 'Base Hall Rent (Non-NMDC Employee)',    amount: '', unit: 'per day' },
+  { label: 'Music Charges (NMDC Employee)',         amount: '', unit: 'per day' },
+  { label: 'Music Charges (Non-NMDC Employee)',     amount: '', unit: 'per day' },
+  { label: 'Hall Rent (NMDC Employee)',             amount: '', unit: 'per day' },
+  { label: 'Hall Rent (Non-NMDC Employee)',         amount: '', unit: 'per day' },
+  { label: 'Water Utility Fee',                     amount: '', unit: 'per day' },
+  { label: 'Electricity Charges',                   amount: '', unit: 'per day' },
+  { label: 'Security Deposit (NMDC Employee)',      amount: '', unit: 'flat' },
+  { label: 'Security Deposit (Non-NMDC Employee)',  amount: '', unit: 'flat' },
+  { label: 'Lighting Charges',                      amount: '', unit: 'per day' },
+  { label: 'Gas Charges',                           amount: '', unit: 'flat' },
+  { label: 'Damage Recovery Policy',                amount: '', unit: 'as applicable' },
+  { label: 'Operating Time & Noise Policy',         amount: '', unit: 'as per policy' },
+  { label: 'Cleaning Charges',                      amount: '', unit: 'per event' },
+  { label: 'GST Applicable %',                      amount: '', unit: 'percentage' },
 ];
 
 export const DEFAULT_HALL_DETAILS: HallDetails = {
@@ -141,7 +141,6 @@ export const DEFAULT_HALL_DETAILS: HallDetails = {
     guestRooms: 0,
     acRooms: 0,
     nonAcRooms: 0,
-    auxiliaryAreaSqft: 0,
     twoWheelerParking: 0,
     fourWheelerParking: 0,
     kitchenSizeSqft: 0,
@@ -191,19 +190,29 @@ export interface ShopDetails {
   fireSafetySystem: boolean;
   // Lease financials
   leaseType: 'MONTHLY' | 'ANNUAL';
+  leaseCommencementDate: string;
+  leaseAgreementDate: string;
   monthlyRent: number;
   leaseAmount: number;
   maintenanceCharges: number;
   securityDeposit: number;
   electricityRatePerUnit: number;
+  electricityPaymentPercent: number;
   latePaymentPercent: number;
   gstApplicable: boolean;
+  gstPercentage: number;
   rentLeasePeriodYears: number;
   escalationPercent: number;
   vacancyNoticePeriodDays: number;
   standardLeaseTerms: string;
+  // Vendor / Company details
   vendorName: string;
+  vendorPanNo: string;
   vendorContact: string;
+  vendorAadhaar: string;
+  vendorGstNo: string;
+  vendorEmail: string;
+  vendorTempAddress: string;
   vendorAddress: string;
 }
 
@@ -241,19 +250,28 @@ export const DEFAULT_SHOP_DETAILS: ShopDetails = {
   commonMonitoring: false,
   fireSafetySystem: false,
   leaseType: 'MONTHLY',
+  leaseCommencementDate: '',
+  leaseAgreementDate: '',
   monthlyRent: 0,
   leaseAmount: 0,
   maintenanceCharges: 0,
   securityDeposit: 0,
   electricityRatePerUnit: 0,
+  electricityPaymentPercent: 0,
   latePaymentPercent: 0,
   gstApplicable: true,
+  gstPercentage: 18,
   rentLeasePeriodYears: 0,
   escalationPercent: 0,
   vacancyNoticePeriodDays: 30,
   standardLeaseTerms: '',
   vendorName: '',
+  vendorPanNo: '',
   vendorContact: '',
+  vendorAadhaar: '',
+  vendorGstNo: '',
+  vendorEmail: '',
+  vendorTempAddress: '',
   vendorAddress: '',
 };
 

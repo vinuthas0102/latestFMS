@@ -7,6 +7,7 @@ import {
   Ruler, Car, Compass, Layers, Droplets, Zap,
   Camera, Flame, Shield, Wifi, Settings, FileText,
   IndianRupee, Percent, CalendarDays, User, Phone, MapPin,
+  CreditCard, AtSign, Building2, Hash,
 } from 'lucide-react';
 
 interface ShopDetailsTabProps {
@@ -58,6 +59,7 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
     placeholder: string,
     unit?: string,
     Icon?: React.FC<any>,
+    step?: number,
   ) => (
     <div>
       <label className={labelCls}>
@@ -66,13 +68,57 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
         </span>
       </label>
       <input
-        type="number" min={0} step={key === 'electricityRatePerUnit' ? 0.01 : 1}
+        type="number" min={0} step={step ?? 1}
         className={inputCls}
         placeholder={placeholder}
         value={(shop[key] as number) || ''}
         onChange={e => update({ [key]: parseFloat(e.target.value) || 0 } as Partial<ShopDetails>)}
       />
       {unit && <p className="text-[10px] text-gray-400 mt-1">{unit}</p>}
+    </div>
+  );
+
+  const textField = (
+    key: keyof ShopDetails,
+    label: string,
+    placeholder: string,
+    Icon?: React.FC<any>,
+    hint?: string,
+  ) => (
+    <div>
+      <label className={labelCls}>
+        <span className="flex items-center gap-1.5">
+          {Icon && <Icon size={11} />} {label}
+        </span>
+      </label>
+      <input
+        type="text"
+        className={inputCls}
+        placeholder={placeholder}
+        value={(shop[key] as string) || ''}
+        onChange={e => update({ [key]: e.target.value } as Partial<ShopDetails>)}
+      />
+      {hint && <p className="text-[10px] text-gray-400 mt-1">{hint}</p>}
+    </div>
+  );
+
+  const dateField = (
+    key: keyof ShopDetails,
+    label: string,
+    Icon?: React.FC<any>,
+  ) => (
+    <div>
+      <label className={labelCls}>
+        <span className="flex items-center gap-1.5">
+          {Icon && <Icon size={11} />} {label}
+        </span>
+      </label>
+      <input
+        type="date"
+        className={inputCls}
+        value={(shop[key] as string) || ''}
+        onChange={e => update({ [key]: e.target.value } as Partial<ShopDetails>)}
+      />
     </div>
   );
 
@@ -162,23 +208,33 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
               </div>
             </div>
 
-            {numField('monthlyRent',           'Monthly Rent',            'e.g., 5000',  '₹ per month',   IndianRupee)}
-            {numField('leaseAmount',           'Total Lease Amount',      'e.g., 60000', '₹ total',       IndianRupee)}
-            {numField('maintenanceCharges',    'Maintenance Charges',     'e.g., 1000',  '₹ per month',   IndianRupee)}
-            {numField('securityDeposit',       'Security Deposit',        'e.g., 10000', '₹ flat',        IndianRupee)}
-            {numField('electricityRatePerUnit','Electricity Rate / Unit', 'e.g., 0.18',  '₹ per unit',    Zap)}
-            {numField('latePaymentPercent',    'Late Payment Penalty',    'e.g., 2',     '% per month',   Percent)}
-            {numField('rentLeasePeriodYears',  'Lease Period',            'e.g., 11',    'Years',         CalendarDays)}
-            {numField('escalationPercent',     'Rent Escalation',         'e.g., 6',     '% per year',    Percent)}
-            {numField('vacancyNoticePeriodDays','Vacancy Notice Period',  'e.g., 30',    'Days',          CalendarDays)}
+            {dateField('leaseCommencementDate', 'Lease / Rent Commencement Date', CalendarDays)}
+            {dateField('leaseAgreementDate',    'Lease Agreement Date',           CalendarDays)}
+
+            {numField('monthlyRent',               'Monthly Rent',               'e.g., 5000',  '₹ per month',   IndianRupee)}
+            {numField('leaseAmount',               'Total Lease Amount',          'e.g., 60000', '₹ total',       IndianRupee)}
+            {numField('maintenanceCharges',        'Maintenance Charges',         'e.g., 1000',  '₹ per month',   IndianRupee)}
+            {numField('securityDeposit',           'Security Deposit',            'e.g., 10000', '₹ flat',        IndianRupee)}
+            {numField('electricityRatePerUnit',    'Electricity Rate / Unit',     'e.g., 0.18',  '₹ per unit',    Zap, 0.01)}
+            {numField('electricityPaymentPercent', 'Electricity Payment %',       'e.g., 2',     '% of bill',     Percent)}
+            {numField('latePaymentPercent',        'Late Payment Penalty',        'e.g., 2',     '% per month',   Percent)}
+            {numField('rentLeasePeriodYears',      'Lease Period',                'e.g., 11',    'Years',         CalendarDays)}
+            {numField('escalationPercent',         'Rent Escalation',             'e.g., 6',     '% per year',    Percent)}
+            {numField('vacancyNoticePeriodDays',   'Vacancy Notice Period',       'e.g., 30',    'Days',          CalendarDays)}
 
             <div className="col-span-2 flex items-center justify-between py-3 border-t border-gray-100">
               <div>
                 <p className="text-sm font-medium text-gray-900">GST Applicable</p>
-                <p className="text-[10px] text-gray-400">18% GST on rent amounts</p>
+                <p className="text-[10px] text-gray-400">Toggle and enter the applicable GST percentage</p>
               </div>
               <Toggle checked={shop.gstApplicable} onChange={val => update({ gstApplicable: val })} />
             </div>
+
+            {shop.gstApplicable && (
+              <div className="col-span-2">
+                {numField('gstPercentage', 'GST Percentage', 'e.g., 18', '%', Percent)}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -186,37 +242,36 @@ export const ShopDetailsTab: React.FC<ShopDetailsTabProps> = ({ formData, update
       {/* ── Lease Terms & Vendor ─────────────────────────────────── */}
       {card(
         <>
-          {sectionHeading('Standard Lease Terms & Vendor Details')}
-          <div className="space-y-4">
-            <div>
-              <label className={labelCls}><span className="flex items-center gap-1.5"><FileText size={11} /> Standard Lease Terms</span></label>
-              <textarea
-                rows={3}
-                className={inputCls + ' resize-none'}
-                placeholder="Describe the standard lease terms and conditions…"
-                value={shop.standardLeaseTerms}
-                onChange={e => update({ standardLeaseTerms: e.target.value })}
-              />
+          {sectionHeading('Standard Lease Terms & Conditions')}
+          <div>
+            <label className={labelCls}><span className="flex items-center gap-1.5"><FileText size={11} /> Standard Lease Terms</span></label>
+            <textarea
+              rows={3}
+              className={inputCls + ' resize-none'}
+              placeholder="Describe the standard lease terms and conditions…"
+              value={shop.standardLeaseTerms}
+              onChange={e => update({ standardLeaseTerms: e.target.value })}
+            />
+          </div>
+        </>
+      )}
+
+      {/* ── Vendor / Company Details ─────────────────────────────── */}
+      {card(
+        <>
+          {sectionHeading('Vendor / Company Details', 'Details of the current tenant or lessee')}
+          <div className="grid grid-cols-2 gap-4">
+            {textField('vendorName',    'Vendor / Company Name',      'Full name or firm name',     User)}
+            {textField('vendorContact', 'Contact Number',             'e.g., 9876543210',           Phone)}
+            {textField('vendorPanNo',   'PAN Number',                 'e.g., ABCDE1234F',           CreditCard, '10-character PAN')}
+            {textField('vendorAadhaar', 'Aadhaar (Authorized Person)','12-digit Aadhaar number',    Hash)}
+            {textField('vendorGstNo',   'GST Number',                 'e.g., 27ABCDE1234F1Z5',      Building2)}
+            {textField('vendorEmail',   'Company Email ID',           'e.g., company@example.com',  AtSign)}
+            <div className="col-span-2">
+              {textField('vendorTempAddress', 'Temporary Address', 'Current / temporary address of vendor', MapPin)}
             </div>
-            <div className="grid grid-cols-1 gap-4 pt-2 border-t border-gray-100">
-              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Vendor / Tenant Details</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}><span className="flex items-center gap-1.5"><User size={11} /> Vendor / Tenant Name</span></label>
-                  <input type="text" className={inputCls} placeholder="Full name or firm name"
-                    value={shop.vendorName} onChange={e => update({ vendorName: e.target.value })} />
-                </div>
-                <div>
-                  <label className={labelCls}><span className="flex items-center gap-1.5"><Phone size={11} /> Contact Number</span></label>
-                  <input type="text" className={inputCls} placeholder="e.g., 9876543210"
-                    value={shop.vendorContact} onChange={e => update({ vendorContact: e.target.value })} />
-                </div>
-                <div className="col-span-2">
-                  <label className={labelCls}><span className="flex items-center gap-1.5"><MapPin size={11} /> Vendor Address</span></label>
-                  <input type="text" className={inputCls} placeholder="Permanent address of vendor"
-                    value={shop.vendorAddress} onChange={e => update({ vendorAddress: e.target.value })} />
-                </div>
-              </div>
+            <div className="col-span-2">
+              {textField('vendorAddress', 'Permanent Address', 'Permanent address of vendor / company', MapPin)}
             </div>
           </div>
         </>

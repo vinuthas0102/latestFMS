@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Select } from '../ui/Select';
 import { propertyService } from '../../services/propertyService';
-import { AssetTypeDTO, ModuleDTO, PropertyTypeDTO } from '../../types';
+import { ModuleDTO, PropertyTypeDTO, RegionDTO } from '../../types';
 import { Toggle } from '../ui/Toggle';
 import { FormLoadingSkeleton } from '../ui/LoadingSkeleton';
 import {
   AlertCircle, CheckCircle, Building2, MapPin, Phone, User,
-  Store, Ruler, Tag,
+  Store, Ruler, Tag, AreaChart,
 } from 'lucide-react';
 import { isHallPropertyType, isShopPropertyType } from '../../utils/moduleHelpers';
 import { SHOP_TYPE_OPTIONS } from '../../types';
@@ -21,6 +21,7 @@ interface BasicInfoTabProps {
     assetTypeId: string | null;
     isExempt: boolean;
     description: string;
+    region: string;
     sector: string;
     state: string;
     district: string;
@@ -29,6 +30,7 @@ interface BasicInfoTabProps {
     contactDetails: string;
     shopType: string;
     totalAreaSqft: number;
+    auxiliaryAreaSqft: number;
   };
   updateFormData: (updates: any) => void;
 }
@@ -51,7 +53,7 @@ const SectionCard: React.FC<{ title: string; subtitle?: string; children: React.
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateFormData }) => {
   const [modules, setModules] = useState<ModuleDTO[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<PropertyTypeDTO[]>([]);
-  const [assetTypes, setAssetTypes] = useState<AssetTypeDTO[]>([]);
+  const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(false);
   const [error, setError] = useState<string>('');
@@ -73,31 +75,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
     }
   }, [formData.moduleId]);
 
-  // Auto-assign asset type when property type changes
-  useEffect(() => {
-    if (!assetTypes.length) return;
-    if (isHall) {
-      const match = assetTypes.find(a => a.name === 'Community Hall' && a.subtype === 'Standard');
-      if (match && formData.assetTypeId !== match.id) {
-        updateFormData({ assetTypeId: match.id });
-      }
-    } else if (isShop) {
-      const match = assetTypes.find(a => a.name === 'Commercial Shop');
-      if (match && formData.assetTypeId !== match.id) {
-        updateFormData({ assetTypeId: match.id });
-      }
-    }
-  }, [formData.propertyTypeCode, assetTypes.length]);
-
   const loadInitialData = async () => {
     try {
       setError('');
-      const [modulesData, assetTypesData] = await Promise.all([
+      const [modulesData, regionsData] = await Promise.all([
         propertyService.getModules(),
-        propertyService.getAssetTypes(),
+        propertyService.getRegions(),
       ]);
-      setModules(modulesData);
-      setAssetTypes(assetTypesData);
+      // Filter out Quarters module — not applicable to property creation
+      setModules(modulesData.filter(m => !m.name.toLowerCase().includes('quarter')));
+      setRegions(regionsData);
     } catch (err: any) {
       setError(err.message || 'Failed to load data. Please refresh.');
     } finally {
@@ -128,7 +115,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
       setCodeValidation({ checking: false, exists: false, error: '' });
       return;
     }
-    const id = setTimeout(async () => {
+    const timerId = setTimeout(async () => {
       setCodeValidation({ checking: true, exists: false, error: '' });
       try {
         const exists = await propertyService.checkPropertyCodeExists(formData.code);
@@ -137,12 +124,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
         setCodeValidation({ checking: false, exists: false, error: 'Validation failed' });
       }
     }, 500);
-    return () => clearTimeout(id);
+    return () => clearTimeout(timerId);
   }, [formData.code]);
 
   if (loading) return <FormLoadingSkeleton />;
-
-  const propertyTypeName = propertyTypes.find(t => t.id === formData.propertyTypeId)?.name ?? '';
 
   return (
     <div className="space-y-5">
@@ -203,37 +188,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
               : <p className={hintCls}>{loadingPropertyTypes ? 'Loading types…' : 'Select module first'}</p>}
           </div>
         </div>
-
-        {/* Asset Type — shown only for standard types; auto-assigned for hall/shop */}
-        {!isHall && !isShop && (
-          <div>
-            <label className={labelCls}>Asset Type <span className="text-red-500">*</span></label>
-            <Select
-              value={formData.assetTypeId || ''}
-              onChange={e => updateFormData({ assetTypeId: e.target.value || null })}
-              onBlur={() => handleBlur('assetTypeId')}
-              disabled={loading}
-              className={showErr('assetTypeId', formData.assetTypeId) ? 'border-red-300' : ''}
-            >
-              <option value="">Select asset type…</option>
-              {assetTypes.map(a => (
-                <option key={a.id} value={a.id}>{a.name} — {a.subtype} ({a.category})</option>
-              ))}
-            </Select>
-            {showErr('assetTypeId', formData.assetTypeId)
-              ? <p className={errorCls}>Asset type is required</p>
-              : <p className={hintCls}>Classification of the asset</p>}
-          </div>
-        )}
-
-        {(isHall || isShop) && formData.assetTypeId && (
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-            <Tag size={13} className="text-blue-500 shrink-0" />
-            <p className="text-xs text-blue-700">
-              Asset type auto-assigned for <span className="font-semibold">{propertyTypeName}</span>
-            </p>
-          </div>
-        )}
       </SectionCard>
 
       {/* ── Property Identity ─────────────────────────────────── */}
@@ -262,9 +216,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
                 placeholder={isShop ? 'e.g., CS-BCL-001' : isHall ? 'e.g., MH-BCL-001' : 'e.g., GH-001'}
               />
               {codeValidation.checking && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
-                </div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
               )}
               {!codeValidation.checking && formData.code && !codeValidation.exists && (
                 <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
@@ -306,12 +258,33 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
       {/* ── Administrative Location ───────────────────────────── */}
       <SectionCard
         title="Administrative Location"
-        subtitle="Sector, state and district as per master data records"
+        subtitle="Region, sector, state and district as per master data records"
       >
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>
-              <span className="flex items-center gap-1.5"><MapPin size={11} />Sector</span>
+              <span className="flex items-center gap-1.5"><MapPin size={11} />Region</span>
+            </label>
+            {regions.length > 0 ? (
+              <Select
+                value={formData.region}
+                onChange={e => updateFormData({ region: e.target.value })}
+              >
+                <option value="">Select region…</option>
+                {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+              </Select>
+            ) : (
+              <input
+                type="text" className={inputCls} placeholder="e.g., Bacheli"
+                value={formData.region}
+                onChange={e => updateFormData({ region: e.target.value })}
+              />
+            )}
+            <p className={hintCls}>NMDC mining region / project area</p>
+          </div>
+          <div>
+            <label className={labelCls}>
+              <span className="flex items-center gap-1.5"><Tag size={11} />Sector</span>
             </label>
             <input
               type="text" className={inputCls} placeholder="e.g., Sector 2"
@@ -335,7 +308,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
               onChange={e => updateFormData({ district: e.target.value })}
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <label className={labelCls}>
               <span className="flex items-center gap-1.5"><Building2 size={11} />Location / Landmark</span>
             </label>
@@ -345,14 +318,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
               value={formData.landmark}
               onChange={e => updateFormData({ landmark: e.target.value })}
             />
-            <p className={hintCls}>Short landmark — separate from full address</p>
+            <p className={hintCls}>Short landmark reference — separate from the full address</p>
           </div>
         </div>
       </SectionCard>
 
-      {/* ── Hall contact details ──────────────────────────────── */}
+      {/* ── Hall contact + Auxiliary Area ─────────────────────── */}
       {isHall && (
-        <SectionCard title="Contact Details" subtitle="Incharge name and contact for this hall">
+        <SectionCard title="Contact Details & Area" subtitle="Incharge contact and auxiliary area for this hall">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>
@@ -373,6 +346,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ formData, updateForm
                 value={formData.contactDetails}
                 onChange={e => updateFormData({ contactDetails: e.target.value })}
               />
+            </div>
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1.5"><AreaChart size={11} />Auxiliary Area (Sq. Ft)</span>
+              </label>
+              <input
+                type="number" min={0} className={inputCls} placeholder="e.g., 5000"
+                value={formData.auxiliaryAreaSqft || ''}
+                onChange={e => updateFormData({ auxiliaryAreaSqft: parseInt(e.target.value) || 0 })}
+              />
+              <p className={hintCls}>Total auxiliary / surrounding area in square feet</p>
             </div>
           </div>
         </SectionCard>

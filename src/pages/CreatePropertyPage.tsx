@@ -61,6 +61,7 @@ interface PropertyFormData {
   // resolved property type code for conditional logic
   propertyTypeCode?: string | null;
   // administrative / master-data fields (persisted in metadata)
+  region: string;
   sector: string;
   state: string;
   district: string;
@@ -68,6 +69,7 @@ interface PropertyFormData {
   // hall contact (persisted in hallDetails + metadata)
   inchargeName: string;
   contactDetails: string;
+  auxiliaryAreaSqft: number;
   // shop basic specs (persisted in shopDetails + metadata)
   shopType: string;
   totalAreaSqft: number;
@@ -105,12 +107,14 @@ export const CreatePropertyPage: React.FC = () => {
     status: 'DRAFT',
     hallDetails: { ...DEFAULT_HALL_DETAILS },
     shopDetails: { ...DEFAULT_SHOP_DETAILS },
+    region: '',
     sector: '',
     state: '',
     district: '',
     landmark: '',
     inchargeName: '',
     contactDetails: '',
+    auxiliaryAreaSqft: 0,
     shopType: '',
     totalAreaSqft: 0,
   });
@@ -175,12 +179,14 @@ export const CreatePropertyPage: React.FC = () => {
         status: property.status,
         hallDetails: property.hallDetails ?? { ...DEFAULT_HALL_DETAILS },
         shopDetails: property.shopDetails ?? { ...DEFAULT_SHOP_DETAILS },
+        region: property.metadata?.region || '',
         sector: property.metadata?.sector || '',
         state: property.metadata?.state || '',
         district: property.metadata?.district || '',
         landmark: property.metadata?.landmark || '',
         inchargeName: property.hallDetails?.inchargeName || property.metadata?.inchargeName || '',
         contactDetails: property.hallDetails?.contactDetails || property.metadata?.contactDetails || '',
+        auxiliaryAreaSqft: property.metadata?.auxiliaryAreaSqft || 0,
         shopType: property.shopDetails?.shopType || property.metadata?.shopType || '',
         totalAreaSqft: property.shopDetails?.totalAreaSqft || property.metadata?.totalAreaSqft || 0,
       });
@@ -201,7 +207,7 @@ export const CreatePropertyPage: React.FC = () => {
   const isTabComplete = (tabId: string): boolean => {
     switch (tabId) {
       case 'basic':
-        return !!(formData.name && formData.code && formData.moduleId && formData.propertyTypeId && formData.assetTypeId);
+        return !!(formData.name && formData.code && formData.moduleId && formData.propertyTypeId);
       case 'location':
         return !!formData.address;
       case 'blocks':
@@ -270,11 +276,16 @@ export const CreatePropertyPage: React.FC = () => {
   };
 
   const buildMetadata = () => ({
+    region: formData.region,
     sector: formData.sector,
     state: formData.state,
     district: formData.district,
     landmark: formData.landmark,
-    ...(isHall ? { inchargeName: formData.inchargeName, contactDetails: formData.contactDetails } : {}),
+    ...(isHall ? {
+      inchargeName: formData.inchargeName,
+      contactDetails: formData.contactDetails,
+      auxiliaryAreaSqft: formData.auxiliaryAreaSqft,
+    } : {}),
     ...(isShop ? { shopType: formData.shopType, totalAreaSqft: formData.totalAreaSqft } : {}),
   });
 

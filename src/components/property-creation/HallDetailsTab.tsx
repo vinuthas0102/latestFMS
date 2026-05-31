@@ -8,7 +8,7 @@ import {
   Users, UtensilsCrossed, BedDouble, Car, ChefHat,
   Receipt, Zap, Music, Droplets, Shield,
   Camera, Flame, Fan, Thermometer, FileText, Wrench,
-  Snowflake, AreaChart,
+  Snowflake,
 } from 'lucide-react';
 
 interface HallDetailsTabProps {
@@ -118,13 +118,6 @@ export const HallDetailsTab: React.FC<HallDetailsTabProps> = ({ formData, update
                 value={hall.capacity.nonAcRooms ?? ''}
                 onChange={e => updateCapacity('nonAcRooms', parseInt(e.target.value) || 0)} />
               <p className="text-[10px] text-gray-400 mt-1">Numbers</p>
-            </div>
-            <div>
-              <label className={labelCls}><span className="flex items-center gap-1.5"><AreaChart size={11} /> Auxiliary Area</span></label>
-              <input type="number" min={0} className={inputCls} placeholder="e.g., 5000"
-                value={hall.capacity.auxiliaryAreaSqft ?? ''}
-                onChange={e => updateCapacity('auxiliaryAreaSqft', parseInt(e.target.value) || 0)} />
-              <p className="text-[10px] text-gray-400 mt-1">Sq. Ft</p>
             </div>
             <div>
               <label className={labelCls}><span className="flex items-center gap-1.5"><Car size={11} /> Two Wheeler Parking</span></label>
