@@ -16,6 +16,7 @@ import type {
 } from '../services/quartersService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
+import SplitLayout from '../components/ui/SplitLayout';
 import { useAuthStore } from '../stores/authStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -333,101 +334,88 @@ const StatusBadge: React.FC<{ status: StatusKey }> = ({ status }) => {
   );
 };
 
-// ── Clarifications Chat Modal ─────────────────────────────────────────────────
-const CLАР_MAX = 500;
-interface ClarificationsModalProps {
+// ── Rent Chat Right Panel (replaces popup; lives inside SplitLayout) ──────────
+const CLAR_MAX = 500;
+interface RentChatPanelProps {
   tile: RentTile;
   clarifications: RentClarification[];
   clarMsg: string;
   isEO: boolean;
-  onClose: () => void;
+  controls: React.ReactNode;
   onChange: (v: string) => void;
   onSend: () => void;
 }
-const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
-  tile, clarifications, clarMsg, isEO, onClose, onChange, onSend,
+const RentChatPanel: React.FC<RentChatPanelProps> = ({
+  tile, clarifications, clarMsg, isEO, controls, onChange, onSend,
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [clarifications]);
   const selfRole = isEO ? 'EO' : 'TENANT';
   const charCount = clarMsg.length;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-            <MessageSquare size={16} className="text-slate-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-gray-900">Clarifications</span>
-              <StatusBadge status={tile.status} />
-            </div>
-            <div className="text-xs text-gray-400 truncate">
-              {tile.quarter_number} · {tile.tenant_name} · {fmtMonthFull(tile.month)}
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0">
-            <X size={16} />
-          </button>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-teal-700 text-white shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+          <MessageSquare size={14} className="text-white" />
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold truncate">{tile.quarter_number} · {fmtMonthFull(tile.month)}</div>
+          <div className="text-[10px] text-teal-200 truncate">{tile.tenant_name} · Clarifications</div>
+        </div>
+        {controls}
+      </div>
 
-        {/* Chat thread */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50/40 min-h-0">
-          {clarifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-24 gap-1">
-              <MessageSquare size={20} className="text-gray-200" />
-              <span className="text-xs text-gray-400">No messages yet. Start the conversation.</span>
-            </div>
-          ) : clarifications.map(c => {
-            const isSelf = c.author_role === selfRole;
-            return (
-              <div key={c.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
-                  isSelf
-                    ? 'bg-teal-600 text-white rounded-tr-sm'
-                    : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
-                }`}>
-                  {!isSelf && (
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      {c.author_name}
-                    </div>
-                  )}
-                  <p className="text-[13px] leading-relaxed">{c.message}</p>
-                  <div className={`text-[10px] mt-1.5 ${isSelf ? 'text-teal-200' : 'text-gray-400'}`}>
-                    {fmtDate(c.created_at.slice(0, 10))}
-                  </div>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50/30 min-h-0">
+        {clarifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-2">
+            <MessageSquare size={24} className="text-gray-200" />
+            <span className="text-xs text-gray-400">No messages yet. Start the conversation.</span>
+          </div>
+        ) : clarifications.map(c => {
+          const isSelf = c.author_role === selfRole;
+          return (
+            <div key={c.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                isSelf ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+              }`}>
+                {!isSelf && (
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{c.author_name}</div>
+                )}
+                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{c.message}</p>
+                <div className={`text-[10px] mt-1.5 ${isSelf ? 'text-teal-200' : 'text-gray-400'}`}>
+                  {fmtDate(c.created_at.slice(0, 10))}
                 </div>
               </div>
-            );
-          })}
-          <div ref={endRef} />
-        </div>
+            </div>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
 
-        {/* Input footer */}
-        <div className="px-4 pt-3 pb-4 border-t border-gray-100 shrink-0 space-y-1.5">
-          <div className="flex gap-2">
-            <textarea
-              value={clarMsg}
-              onChange={e => onChange(e.target.value.slice(0, CLАР_MAX))}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && clarMsg.trim()) { e.preventDefault(); onSend(); } }}
-              placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
-              rows={2}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-300/40 bg-white outline-none resize-none"
-              autoFocus
-            />
-            <button
-              onClick={onSend}
-              disabled={!clarMsg.trim()}
-              className="px-4 py-2 bg-teal-600 text-white rounded-xl disabled:opacity-40 hover:bg-teal-700 transition-colors shrink-0 self-end"
-            >
-              <Send size={14} />
-            </button>
-          </div>
-          <div className={`text-[10px] text-right ${charCount > CLАР_MAX * 0.9 ? 'text-amber-500' : 'text-gray-400'}`}>
-            {charCount} / {CLАР_MAX}
-          </div>
+      {/* Input footer */}
+      <div className="px-4 pt-3 pb-4 border-t border-gray-100 shrink-0 space-y-1.5 bg-white">
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={clarMsg}
+            onChange={e => onChange(e.target.value.slice(0, CLAR_MAX))}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && clarMsg.trim()) { e.preventDefault(); onSend(); } }}
+            placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+            rows={2}
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-300/40 bg-white outline-none resize-none"
+            autoFocus
+          />
+          <button
+            onClick={onSend}
+            disabled={!clarMsg.trim()}
+            className="px-4 py-2 bg-teal-600 text-white rounded-xl disabled:opacity-40 hover:bg-teal-700 transition-colors shrink-0 self-end"
+          >
+            <Send size={14} />
+          </button>
+        </div>
+        <div className={`text-[10px] text-right ${charCount > CLAR_MAX * 0.9 ? 'text-amber-500' : 'text-gray-400'}`}>
+          {charCount} / {CLAR_MAX}
         </div>
       </div>
     </div>
@@ -499,7 +487,7 @@ export const QuarterRentPage: React.FC = () => {
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
   const [openMenuId, setOpenMenuId]   = useState<string | null>(null);
   const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail } | null>(null);
-  const [clarModal, setClarModal] = useState<{ tile: RentTile } | null>(null);
+  const [chatTileId, setChatTileId] = useState<string | null>(null);
   const [payNowTile, setPayNowTile] = useState<RentTile | null>(null);
   const [undoPayment, setUndoPayment] = useState<{ tile: RentTile; payment: RentPayment } | null>(null);
   const [payments, setPayments]   = useState<RentPayment[]>([]);
@@ -540,6 +528,9 @@ export const QuarterRentPage: React.FC = () => {
     return t;
   }, [tiles, dpFilter, filterAllotmentId, isTenant]);
 
+  // ── Derived chat tile ───────────────────────────────────────────────────────
+  const chatTile = useMemo(() => tiles.find(t => t.id === chatTileId) ?? null, [tiles, chatTileId]);
+
   // ── Graph data ──────────────────────────────────────────────────────────────
   const graphData = useMemo(() => {
     const byMonth: Record<string, { due: number; paid: number; exempted: number; overdue: number; partial: number; count: number }> = {};
@@ -567,11 +558,13 @@ export const QuarterRentPage: React.FC = () => {
     setPayments(p);
   }, [expandedId, activePanel]);
 
-  const openClarModal = useCallback(async (tile: RentTile) => {
+  const openChatPanel = useCallback(async (tile: RentTile) => {
+    if (chatTileId === tile.id) { setChatTileId(null); setClarMsg(''); return; }
     const c = await quartersService.getRentClarifications(tile.allotment_id, tile.month);
     setClarifications(c);
-    setClarModal({ tile });
-  }, []);
+    setChatTileId(tile.id);
+    setClarMsg('');
+  }, [chatTileId]);
 
   const openDueDetails = useCallback(async (tile: RentTile) => {
     const detail = await quartersService.getRentDueDetail(tile.id);
@@ -626,9 +619,10 @@ export const QuarterRentPage: React.FC = () => {
     const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
     const hasPayments = tile.status === 'PAID' || tile.status === 'PARTIAL';
     const showClar = tile.status !== 'EXEMPTED';
+    const isChatOpen = chatTileId === tile.id;
     return (
-      <div className="flex items-center gap-2">
-        {/* Pay Now — primary CTA, visible directly (tenant only) */}
+      <div className="flex items-center gap-1.5">
+        {/* Pay Now — primary CTA (tenant only) */}
         {!isEO && hasDue && (
           <button
             onClick={() => setPayNowTile(tile)}
@@ -639,62 +633,66 @@ export const QuarterRentPage: React.FC = () => {
           </button>
         )}
 
-        {/* Actions menu */}
-        <div className="relative">
+        {/* Inline chat icon — always visible, not in dropdown */}
+        {showClar && (
           <button
-            onClick={e => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : tile.id); }}
-            title="Actions"
-            className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
-              isMenuOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            onClick={e => { e.stopPropagation(); openChatPanel(tile); }}
+            title="Clarifications"
+            className={`p-1.5 rounded-lg border transition-colors ${
+              isChatOpen
+                ? 'bg-teal-600 text-white border-teal-600'
+                : 'border-gray-200 text-gray-400 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200'
             }`}
           >
-            <MoreHorizontal size={13} />
+            <MessageSquare size={12} />
           </button>
+        )}
 
-          {isMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
-              <div className="absolute right-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[168px]">
-                {/* Due Details — DUE, OVERDUE, PARTIAL */}
-                {hasDue && (
-                  <button
-                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
-                  >
-                    <IndianRupee size={12} className="text-amber-500 shrink-0" />
-                    Due Details
-                  </button>
-                )}
+        {/* Actions dropdown — Due Details + Paid History */}
+        {(hasDue || hasPayments) && (
+          <div className="relative">
+            <button
+              onClick={e => { e.stopPropagation(); setOpenMenuId(isMenuOpen ? null : tile.id); }}
+              title="Actions"
+              className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
+                isMenuOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <MoreHorizontal size={13} />
+            </button>
 
-                {/* Paid History — PAID or PARTIAL (all roles can see their own) */}
-                {hasPayments && (
-                  <button
-                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openHistoryPanel(tile); }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
-                      isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
-                    }`}
-                  >
-                    <Receipt size={12} className="text-teal-500 shrink-0" />
-                    Paid History
-                  </button>
-                )}
+            {isMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
+                <div className="absolute right-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]">
+                  {/* Due Details */}
+                  {hasDue && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
+                    >
+                      <IndianRupee size={12} className="text-amber-500 shrink-0" />
+                      Due Details
+                    </button>
+                  )}
 
-                {(hasDue || hasPayments) && showClar && <div className="mx-3 my-1 border-t border-gray-100" />}
-
-                {/* Clarifications — all non-EXEMPTED */}
-                {showClar && (
-                  <button
-                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openClarModal(tile); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
-                  >
-                    <MessageSquare size={12} className="text-slate-500 shrink-0" />
-                    Clarifications
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                  {/* Paid History */}
+                  {hasPayments && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setOpenMenuId(null); openHistoryPanel(tile); }}
+                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
+                        isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                      }`}
+                    >
+                      <Receipt size={12} className="text-teal-500 shrink-0" />
+                      Paid History
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -852,10 +850,10 @@ export const QuarterRentPage: React.FC = () => {
             {tile.exemption_reason && (
               <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
             )}
-            {/* Paid history panel only */}
-            {renderPanel(tile)}
           </div>
         )}
+        {/* Paid history panel — visible without requiring expand */}
+        {renderPanel(tile)}
       </div>
     );
   };
@@ -964,9 +962,10 @@ export const QuarterRentPage: React.FC = () => {
             {tile.exemption_reason && (
               <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
             )}
-            {renderPanel(tile)}
           </div>
         )}
+        {/* Paid history panel — visible without requiring expand */}
+        {renderPanel(tile)}
       </div>
     );
   };
@@ -1119,9 +1118,28 @@ export const QuarterRentPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Scrollable body ── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      {/* ── Scrollable body wrapped in SplitLayout for chat right panel ── */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <SplitLayout
+          storageKey="rentTrackerSplit"
+          defaultSplit={65}
+          minLeft={40}
+          maxLeft={85}
+          onClose={() => { setChatTileId(null); setClarMsg(''); }}
+          renderRight={chatTileId && chatTile ? (controls) => (
+            <RentChatPanel
+              tile={chatTile}
+              clarifications={clarifications}
+              clarMsg={clarMsg}
+              isEO={isEO}
+              controls={controls}
+              onChange={setClarMsg}
+              onSend={() => sendClarification(chatTile)}
+            />
+          ) : undefined}
+          left={
+            <div className="h-full overflow-y-auto">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
 
           {/* ── Filter bar — below DP cards ── */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-5">
@@ -1243,6 +1261,9 @@ export const QuarterRentPage: React.FC = () => {
             )}
 
         </div>
+            </div>
+          }
+        />
       </div>
 
       {/* Toast notifications */}
@@ -1269,17 +1290,6 @@ export const QuarterRentPage: React.FC = () => {
       )}
       {undoPayment && (
         <UndoModal payment={undoPayment.payment} onClose={() => setUndoPayment(null)} onConfirm={handleUndoPayment} />
-      )}
-      {clarModal && (
-        <ClarificationsModal
-          tile={clarModal.tile}
-          clarifications={clarifications}
-          clarMsg={clarMsg}
-          isEO={isEO}
-          onClose={() => { setClarModal(null); setClarMsg(''); }}
-          onChange={setClarMsg}
-          onSend={() => sendClarification(clarModal.tile)}
-        />
       )}
     </div>
   );
