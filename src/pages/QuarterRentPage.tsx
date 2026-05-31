@@ -7,6 +7,7 @@ import {
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreHorizontal,
+  type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { quartersService } from '../services/quartersService';
@@ -48,85 +49,161 @@ const PAYMENT_MODES = ['ALL','ONLINE','CHEQUE','DD','CASH','AUTO_DEDUCTION','EXE
 // ── Due Details Modal ─────────────────────────────────────────────────────────
 interface DueDetailsModalProps {
   tile: RentTile; detail: RentDueDetail; isEO: boolean;
-  onClose: () => void; onSave: (override: number, remarks: string) => void;
+  onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
 }
 const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, onClose, onSave }) => {
   const [override, setOverride] = useState(String(detail.penalty_override ?? detail.penalty_amount));
-  const [remarks, setRemarks] = useState(detail.eo_remarks);
-  const net = detail.base_rent + detail.water_charges + detail.utility_charges + (Number(override) || 0) - detail.waiver_amount;
+  const [remarks, setRemarks] = useState(detail.eo_remarks ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const overrideNum  = Math.min(Math.max(Number(override) || 0, 0), detail.penalty_amount);
+  const overrideChanged = overrideNum !== detail.penalty_amount;
+  const hasOverrideActive = detail.penalty_override !== null && detail.penalty_override < detail.penalty_amount;
+  const canSave = !overrideChanged || remarks.trim().length > 0;
+  const subtotal = detail.base_rent + detail.water_charges + detail.utility_charges;
+  const net = subtotal + overrideNum - detail.waiver_amount;
+
+  const handleSave = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    await onSave(overrideNum, remarks.trim());
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => { setSaved(false); onClose(); }, 1400);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+        {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
           <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
             <IndianRupee size={16} className="text-amber-700" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-gray-900">Due Details — {tile.quarter_number}</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-gray-900">Due Details — {tile.quarter_number}</span>
+              <StatusBadge status={tile.status} />
+            </div>
             <div className="text-xs text-gray-400">{fmtMonthFull(tile.month)} · {tile.tenant_name}</div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0">
             <X size={16} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1.5">
+          {/* Rent breakdown */}
           {[
-            { label: 'Base Rent',        value: fmtINR(detail.base_rent) },
-            { label: 'Water Charges',    value: fmtINR(detail.water_charges) },
-            { label: 'Utility Charges',  value: fmtINR(detail.utility_charges) },
+            { label: 'Base Rent',       value: detail.base_rent },
+            { label: 'Water Charges',   value: detail.water_charges },
+            { label: 'Utility Charges', value: detail.utility_charges },
           ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50">
-              <span className="text-sm text-gray-600">{label}</span>
-              <span className="text-sm font-semibold text-gray-900">{value}</span>
+            <div key={label} className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-gray-500">{label}</span>
+              <span className="text-sm font-medium text-gray-800">{fmtINR(value)}</span>
             </div>
           ))}
-          <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-            <div>
-              <div className="text-sm text-gray-600">Penalty</div>
-              <div className="text-[10px] text-gray-400">{detail.months_overdue} month(s) overdue · {detail.penalty_rate}%/month</div>
-            </div>
-            <span className="text-sm font-semibold text-red-600">{fmtINR(detail.penalty_amount)}</span>
+          {/* Sub-total */}
+          <div className="flex items-center justify-between py-1.5 border-t border-dashed border-gray-200 mt-1">
+            <span className="text-sm font-semibold text-gray-700">Sub-total</span>
+            <span className="text-sm font-bold text-gray-900">{fmtINR(subtotal)}</span>
           </div>
-          {detail.waiver_amount > 0 && (
-            <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-              <span className="text-sm text-gray-600">Waiver Applied</span>
-              <span className="text-sm font-semibold text-emerald-600">-{fmtINR(detail.waiver_amount)}</span>
+          {/* Penalty row */}
+          {detail.penalty_amount > 0 && (
+            <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-sm text-gray-500 flex items-center gap-1.5">
+                    Penalty
+                    {hasOverrideActive && (
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 border border-amber-200">OVERRIDE ACTIVE</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400">{detail.months_overdue} month(s) overdue · {detail.penalty_rate}%/month</div>
+                </div>
+              </div>
+              <span className={`text-sm font-semibold ${hasOverrideActive ? 'line-through text-gray-400' : 'text-red-600'}`}>{fmtINR(detail.penalty_amount)}</span>
             </div>
           )}
+          {hasOverrideActive && (
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-amber-700">Override Applied</span>
+              <span className="text-sm font-semibold text-amber-600">{fmtINR(detail.penalty_override!)}</span>
+            </div>
+          )}
+          {detail.waiver_amount > 0 && (
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-gray-500">Waiver Applied</span>
+              <span className="text-sm font-semibold text-emerald-600">−{fmtINR(detail.waiver_amount)}</span>
+            </div>
+          )}
+          {/* Net payable */}
+          <div className="flex items-center justify-between pt-3 mt-1 border-t-2 border-gray-200">
+            <span className="text-sm font-bold text-gray-900">Net Payable</span>
+            <span className="text-xl font-extrabold text-teal-700">{fmtINR(net)}</span>
+          </div>
+
+          {/* EO Override section */}
           {isEO && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-2">
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
               <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">EO Penalty Override</div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Override Amount (₹)</span>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-gray-600 whitespace-nowrap">Override (₹)</label>
                 <input
-                  type="number" value={override} onChange={e => setOverride(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-200 bg-white"
+                  type="number"
+                  value={override}
+                  onChange={e => { setOverride(e.target.value); setSaved(false); }}
                   min={0} max={detail.penalty_amount}
+                  className="flex-1 px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white"
                 />
               </div>
-              <textarea
-                value={remarks} onChange={e => setRemarks(e.target.value)} rows={2}
-                placeholder="Remarks for override (required)"
-                className="w-full px-2.5 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-200 bg-white resize-none"
-              />
-              <div className="text-[10px] text-amber-600">Max override limit: {fmtINR(detail.penalty_amount)} (100%)</div>
+              <div>
+                <textarea
+                  value={remarks}
+                  onChange={e => { setRemarks(e.target.value); setSaved(false); }}
+                  rows={2}
+                  placeholder={overrideChanged ? 'Remarks required when overriding penalty…' : 'Optional remarks…'}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white resize-none transition-colors ${
+                    overrideChanged && !remarks.trim() ? 'border-red-300' : 'border-amber-200'
+                  }`}
+                />
+                {overrideChanged && !remarks.trim() && (
+                  <p className="text-[10px] text-red-500 mt-0.5">Remarks are required when overriding a penalty.</p>
+                )}
+              </div>
+              <div className="text-[10px] text-amber-600 flex items-center gap-1">
+                <AlertTriangle size={10} />
+                Max override: {fmtINR(detail.penalty_amount)} (full waiver)
+              </div>
             </div>
           )}
-          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-            <span className="text-sm font-bold text-gray-900">Net Payable</span>
-            <span className="text-lg font-extrabold text-teal-700">{fmtINR(net)}</span>
-          </div>
+
+          {/* Success banner */}
+          {saved && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mt-2">
+              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+              <span className="text-xs font-semibold text-emerald-700">Override saved successfully.</span>
+            </div>
+          )}
         </div>
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-100">
+
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
             Close
           </button>
           {isEO && (
             <button
-              onClick={() => onSave(Number(override) || 0, remarks)}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold shadow-sm"
+              onClick={handleSave}
+              disabled={saving || saved || !canSave}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
             >
-              Update
+              {saving ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
+              ) : saved ? (
+                <><CheckCircle2 size={14} /> Saved</>
+              ) : 'Update'}
             </button>
           )}
         </div>
@@ -193,30 +270,71 @@ const PayNowModal: React.FC<PayNowModalProps> = ({ tile, onClose, onPay }) => {
 };
 
 // ── Undo Confirm Modal ────────────────────────────────────────────────────────
-interface UndoModalProps { payment: RentPayment; onClose: () => void; onConfirm: () => void; }
-const UndoModal: React.FC<UndoModalProps> = ({ payment, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-          <Undo2 size={16} className="text-rose-700" />
+interface UndoModalProps { payment: RentPayment; onClose: () => void; onConfirm: (reason: string) => void; }
+const UndoModal: React.FC<UndoModalProps> = ({ payment, onClose, onConfirm }) => {
+  const [reason, setReason] = useState('');
+  const canConfirm = reason.trim().length > 0;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+            <Undo2 size={16} className="text-rose-700" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-gray-900">Undo Payment</div>
+            <div className="text-xs text-gray-400">Receipt: {payment.receipt_ref || '—'}</div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0">
+            <X size={16} />
+          </button>
         </div>
-        <div>
-          <div className="text-sm font-bold text-gray-900">Undo Payment</div>
-          <div className="text-xs text-gray-400">Receipt: {payment.receipt_ref || '—'}</div>
+        <div className="px-6 py-4 space-y-4">
+          <div className="bg-rose-50 border border-rose-100 rounded-xl p-3">
+            <p className="text-sm text-gray-700">Remove payment of <strong className="text-gray-900">{fmtINR(payment.amount)}</strong> made on <strong className="text-gray-900">{fmtDate(payment.payment_date)}</strong>?</p>
+            <p className="text-xs text-rose-600 mt-1">Tile status will revert to <strong>Due</strong> or <strong>Partial</strong> depending on remaining payments.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Reason for reversal <span className="text-red-500">*</span></label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. Wrong tenant, duplicate entry, incorrect amount…"
+              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-200/60 bg-white resize-none outline-none"
+              autoFocus
+            />
+            {!canConfirm && <p className="text-[10px] text-gray-400 mt-0.5">Required before confirming reversal.</p>}
+          </div>
         </div>
-      </div>
-      <p className="text-sm text-gray-600 mb-1">Remove this payment of <strong>{fmtINR(payment.amount)}</strong> made on <strong>{fmtDate(payment.payment_date)}</strong>?</p>
-      <p className="text-xs text-rose-600 mb-5">Status will revert to <strong>Due</strong>. This action cannot be undone.</p>
-      <div className="flex gap-3">
-        <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
-        <button onClick={onConfirm} className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">Undo Payment</button>
+        <div className="flex gap-3 px-6 pb-5 pt-1">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+          <button
+            onClick={() => canConfirm && onConfirm(reason.trim())}
+            disabled={!canConfirm}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-sm font-bold transition-colors"
+          >
+            Undo Payment
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+// ── Status Badge ──────────────────────────────────────────────────────────────
+const StatusBadge: React.FC<{ status: StatusKey }> = ({ status }) => {
+  const s = STATUS[status];
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      {s.label}
+    </span>
+  );
+};
 
 // ── Clarifications Chat Modal ─────────────────────────────────────────────────
+const CLАР_MAX = 500;
 interface ClarificationsModalProps {
   tile: RentTile;
   clarifications: RentClarification[];
@@ -232,6 +350,7 @@ const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [clarifications]);
   const selfRole = isEO ? 'EO' : 'TENANT';
+  const charCount = clarMsg.length;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
@@ -241,7 +360,10 @@ const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
             <MessageSquare size={16} className="text-slate-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-gray-900">Clarifications</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-gray-900">Clarifications</span>
+              <StatusBadge status={tile.status} />
+            </div>
             <div className="text-xs text-gray-400 truncate">
               {tile.quarter_number} · {tile.tenant_name} · {fmtMonthFull(tile.month)}
             </div>
@@ -254,8 +376,9 @@ const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
         {/* Chat thread */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50/40 min-h-0">
           {clarifications.length === 0 ? (
-            <div className="flex items-center justify-center h-24 text-xs text-gray-400">
-              No messages yet. Start the conversation.
+            <div className="flex flex-col items-center justify-center h-24 gap-1">
+              <MessageSquare size={20} className="text-gray-200" />
+              <span className="text-xs text-gray-400">No messages yet. Start the conversation.</span>
             </div>
           ) : clarifications.map(c => {
             const isSelf = c.author_role === selfRole;
@@ -283,36 +406,31 @@ const ClarificationsModal: React.FC<ClarificationsModalProps> = ({
         </div>
 
         {/* Input footer */}
-        <div className="flex gap-2 px-4 py-3 border-t border-gray-100 shrink-0">
-          <input
-            value={clarMsg}
-            onChange={e => onChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && clarMsg.trim()) onSend(); }}
-            placeholder="Type a message…"
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-300/40 bg-white outline-none"
-            autoFocus
-          />
-          <button
-            onClick={onSend}
-            disabled={!clarMsg.trim()}
-            className="px-4 py-2 bg-teal-600 text-white rounded-xl disabled:opacity-40 hover:bg-teal-700 transition-colors shrink-0"
-          >
-            <Send size={14} />
-          </button>
+        <div className="px-4 pt-3 pb-4 border-t border-gray-100 shrink-0 space-y-1.5">
+          <div className="flex gap-2">
+            <textarea
+              value={clarMsg}
+              onChange={e => onChange(e.target.value.slice(0, CLАР_MAX))}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && clarMsg.trim()) { e.preventDefault(); onSend(); } }}
+              placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+              rows={2}
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-300/40 bg-white outline-none resize-none"
+              autoFocus
+            />
+            <button
+              onClick={onSend}
+              disabled={!clarMsg.trim()}
+              className="px-4 py-2 bg-teal-600 text-white rounded-xl disabled:opacity-40 hover:bg-teal-700 transition-colors shrink-0 self-end"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+          <div className={`text-[10px] text-right ${charCount > CLАР_MAX * 0.9 ? 'text-amber-500' : 'text-gray-400'}`}>
+            {charCount} / {CLАР_MAX}
+          </div>
         </div>
       </div>
     </div>
-  );
-};
-
-// ── Status Badge ──────────────────────────────────────────────────────────────
-const StatusBadge: React.FC<{ status: StatusKey }> = ({ status }) => {
-  const s = STATUS[status];
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
   );
 };
 
@@ -388,6 +506,12 @@ export const QuarterRentPage: React.FC = () => {
   const [clarifications, setClarifications] = useState<RentClarification[]>([]);
   const [clarMsg, setClarMsg] = useState('');
   const [paySuccess, setPaySuccess] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3200);
+  }, []);
 
   // ── Pre-filter from query param ─────────────────────────────────────────────
   const filterAllotmentId = searchParams.get('allotment_id');
@@ -457,26 +581,26 @@ export const QuarterRentPage: React.FC = () => {
   const handleSaveOverride = useCallback(async (override: number, remarks: string) => {
     if (!dueModal) return;
     await quartersService.applyPenaltyOverride(dueModal.tile.id, override, remarks);
-    setDueModal(null);
     loadTiles();
   }, [dueModal, loadTiles]);
 
   const sendClarification = useCallback(async (tile: RentTile) => {
     if (!clarMsg.trim()) return;
     const role = isEO ? 'EO' : 'TENANT';
-    const name = isEO ? 'Estate Officer' : (user?.name ?? 'Tenant');
+    const name = isEO ? 'Estate Officer' : (user?.fullName ?? 'Tenant');
     const msg = await quartersService.postRentClarification(tile.allotment_id, tile.month, clarMsg.trim(), role, name);
     setClarifications(prev => [...prev, msg]);
     setClarMsg('');
-  }, [clarMsg, isEO, user?.name]);
+  }, [clarMsg, isEO, user?.fullName]);
 
-  const handleUndoPayment = useCallback(async () => {
+  const handleUndoPayment = useCallback(async (reason: string) => {
     if (!undoPayment) return;
-    await quartersService.undoRentPayment(undoPayment.tile.allotment_id, undoPayment.tile.month, undoPayment.payment.id);
+    await quartersService.undoRentPayment(undoPayment.tile.allotment_id, undoPayment.tile.month, undoPayment.payment.id, reason);
     setUndoPayment(null);
     setExpandedId(null); setActivePanel(null);
     loadTiles();
-  }, [undoPayment, loadTiles]);
+    showToast('Payment reversed — tile status updated.');
+  }, [undoPayment, loadTiles, showToast]);
 
   const handlePay = useCallback(async (amount: number, mode: string) => {
     if (!payNowTile) return;
@@ -499,10 +623,13 @@ export const QuarterRentPage: React.FC = () => {
   const renderActions = (tile: RentTile) => {
     const isMenuOpen = openMenuId === tile.id;
     const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
+    const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+    const hasPayments = tile.status === 'PAID' || tile.status === 'PARTIAL';
+    const showClar = tile.status !== 'EXEMPTED';
     return (
       <div className="flex items-center gap-2">
         {/* Pay Now — primary CTA, visible directly (tenant only) */}
-        {!isEO && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
+        {!isEO && hasDue && (
           <button
             onClick={() => setPayNowTile(tile)}
             title="Pay Now"
@@ -526,20 +653,21 @@ export const QuarterRentPage: React.FC = () => {
 
           {isMenuOpen && (
             <>
-              {/* Backdrop to close on outside click */}
               <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
-              <div className="absolute left-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]">
-                {/* Due Details */}
-                <button
-                  onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
-                >
-                  <IndianRupee size={12} className="text-amber-500 shrink-0" />
-                  Due Details
-                </button>
+              <div className="absolute right-0 top-full mt-1.5 z-30 bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[168px]">
+                {/* Due Details — DUE, OVERDUE, PARTIAL */}
+                {hasDue && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openDueDetails(tile); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
+                  >
+                    <IndianRupee size={12} className="text-amber-500 shrink-0" />
+                    Due Details
+                  </button>
+                )}
 
-                {/* Paid History — EO only */}
-                {isEO && (
+                {/* Paid History — PAID or PARTIAL (all roles can see their own) */}
+                {hasPayments && (
                   <button
                     onClick={e => { e.stopPropagation(); setOpenMenuId(null); openHistoryPanel(tile); }}
                     className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
@@ -551,16 +679,18 @@ export const QuarterRentPage: React.FC = () => {
                   </button>
                 )}
 
-                <div className="mx-3 my-1 border-t border-gray-100" />
+                {(hasDue || hasPayments) && showClar && <div className="mx-3 my-1 border-t border-gray-100" />}
 
-                {/* Clarifications */}
-                <button
-                  onClick={e => { e.stopPropagation(); setOpenMenuId(null); openClarModal(tile); }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
-                >
-                  <MessageSquare size={12} className="text-slate-500 shrink-0" />
-                  Clarifications
-                </button>
+                {/* Clarifications — all non-EXEMPTED */}
+                {showClar && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setOpenMenuId(null); openClarModal(tile); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
+                  >
+                    <MessageSquare size={12} className="text-slate-500 shrink-0" />
+                    Clarifications
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -572,38 +702,54 @@ export const QuarterRentPage: React.FC = () => {
   // ── Paid history inline panel ──────────────────────────────────────────────
   const renderPanel = (tile: RentTile) => {
     if (expandedId !== tile.id || activePanel !== 'history') return null;
+    const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
     return (
       <div className="relative ml-6 mt-2 mr-2 mb-2">
         <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-200 rounded-full" />
         <div className="space-y-2 pl-5">
-          {payments.length === 0 && (
-            <div className="text-xs text-gray-400 py-2">No payments recorded yet.</div>
-          )}
-          {payments.map(p => (
-            <div key={p.id} className="relative">
-              <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-teal-200 rounded-full" />
-              <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-teal-300 bg-white" />
-              <div className="flex items-center gap-3 bg-white rounded-xl border border-teal-100 p-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-                  <Receipt size={13} className="text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-900">{fmtINR(p.amount)}</span>
-                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-semibold">{p.payment_mode.replace('_', ' ')}</span>
-                  </div>
-                  <div className="text-[10px] text-gray-400">{fmtDate(p.payment_date)} · {p.receipt_ref || '—'}</div>
-                  {p.remarks && <div className="text-[10px] text-gray-500 mt-0.5">{p.remarks}</div>}
-                </div>
-                {isEO && (
-                  <button onClick={() => setUndoPayment({ tile, payment: p })}
-                    className="flex items-center gap-1 text-[10px] text-rose-600 border border-rose-200 bg-rose-50 rounded-lg px-2 py-1 hover:bg-rose-100 font-semibold shrink-0">
-                    <Undo2 size={10} /> Undo
-                  </button>
-                )}
-              </div>
+          {payments.length === 0 ? (
+            <div className="flex items-center gap-2 py-3 text-xs text-gray-400">
+              <Receipt size={13} className="text-gray-300" />
+              No payments recorded for this period.
             </div>
-          ))}
+          ) : (
+            <>
+              {payments.map(p => (
+                <div key={p.id} className="relative">
+                  <div className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-teal-200 rounded-full" />
+                  <div className="absolute -left-[22px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-teal-300 bg-white" />
+                  <div className="flex items-center gap-3 bg-white rounded-xl border border-teal-100 p-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                      <Receipt size={13} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-gray-900">{fmtINR(p.amount)}</span>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-semibold">{p.payment_mode.replace(/_/g, ' ')}</span>
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{fmtDate(p.payment_date)} · {p.receipt_ref || '—'}</div>
+                      {p.remarks && <div className="text-[10px] text-gray-500 mt-0.5 italic">{p.remarks}</div>}
+                      {p.recorded_by && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">Recorded by: {p.recorded_by}</div>
+                      )}
+                    </div>
+                    {isEO && (
+                      <button onClick={() => setUndoPayment({ tile, payment: p })}
+                        className="flex items-center gap-1 text-[10px] text-rose-600 border border-rose-200 bg-rose-50 rounded-lg px-2 py-1 hover:bg-rose-100 font-semibold shrink-0">
+                        <Undo2 size={10} /> Undo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {payments.length > 1 && (
+                <div className="flex items-center justify-between px-3 py-2 bg-teal-50 rounded-xl border border-teal-100">
+                  <span className="text-xs font-semibold text-teal-700">Total Paid ({payments.length} payments)</span>
+                  <span className="text-sm font-extrabold text-teal-700">{fmtINR(totalPaid)}</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     );
@@ -624,9 +770,12 @@ export const QuarterRentPage: React.FC = () => {
           >
             {/* Quarter + BHK */}
             <div className="min-w-0 w-28 shrink-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-sm font-bold text-gray-900 truncate">{tile.quarter_number}</span>
                 <span className="text-[9px] bg-gray-100 text-gray-500 rounded px-1 py-0.5 font-semibold shrink-0">{tile.bhk_config}</span>
+                {tile.penalty_override !== null && tile.penalty_override < tile.penalty_amount && (
+                  <span className="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 rounded px-1 py-0.5 font-bold shrink-0">OVR</span>
+                )}
               </div>
               <div className="text-[10px] text-gray-400 truncate">{tile.block_name}</div>
             </div>
@@ -897,7 +1046,7 @@ export const QuarterRentPage: React.FC = () => {
     { label: 'Collection Rate',  value: summary.collection_rate,   subtitle: 'of total demand met',              gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',    dp: 'all'      as DpFilter, icon: BarChart2 },
   ] : [];
 
-  const views: { id: ViewMode; icon: React.FC<{ size?: number; className?: string }>; label: string }[] = [
+  const views: { id: ViewMode; icon: LucideIcon; label: string }[] = [
     { id: 'table', icon: TableProperties, label: 'Table' },
     { id: 'tile',  icon: LayoutGrid,      label: 'Tile'  },
     { id: 'card',  icon: CreditCard,      label: 'Card'  },
@@ -1096,10 +1245,17 @@ export const QuarterRentPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Success toast */}
+      {/* Toast notifications */}
       {paySuccess && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl border border-emerald-500 animate-in fade-in">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl border border-emerald-500">
           <CheckCircle2 size={18} /> Payment recorded successfully
+        </div>
+      )}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border text-white ${
+          toast.type === 'success' ? 'bg-emerald-600 border-emerald-500' : 'bg-red-600 border-red-500'
+        }`}>
+          <CheckCircle2 size={18} /> {toast.msg}
         </div>
       )}
 

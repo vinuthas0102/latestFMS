@@ -506,6 +506,7 @@ const DEMO_ALLOTMENT_OCCUPIED: QuarterAllotment = {
   rejected_at: null,
   created_at: '2024-10-01T09:00:00Z',
   updated_at: '2024-10-05T11:00:00Z',
+  selected_workflow_id: null,
   quarter: DEMO_QUARTERS[1],
 };
 
@@ -529,6 +530,7 @@ const DEMO_ALLOTMENT_OCCUPIED_2: QuarterAllotment = {
   rejected_at: null,
   created_at: '2024-06-15T09:00:00Z',
   updated_at: '2024-06-20T10:00:00Z',
+  selected_workflow_id: null,
   quarter: DEMO_QUARTERS[4],
 };
 
@@ -553,6 +555,7 @@ const DEMO_ALLOTMENT_OCCUPIED_3: QuarterAllotment = {
   rejected_at: null,
   created_at: '2024-08-01T09:00:00Z',
   updated_at: '2025-05-10T11:00:00Z',
+  selected_workflow_id: null,
   quarter: DEMO_QUARTERS[5],
 };
 
@@ -577,6 +580,7 @@ const DEMO_ALLOTMENT_OCCUPIED_4: QuarterAllotment = {
   rejected_at: null,
   created_at: '2025-01-10T09:00:00Z',
   updated_at: '2025-01-14T10:00:00Z',
+  selected_workflow_id: null,
   quarter: DEMO_QUARTERS[6],
 };
 
@@ -601,6 +605,7 @@ const DEMO_ALLOTMENT_APPROVED: QuarterAllotment = {
   rejected_at: null,
   created_at: '2025-04-10T09:00:00Z',
   updated_at: '2025-04-12T10:00:00Z',
+  selected_workflow_id: null,
   quarter: DEMO_QUARTERS[3],
 };
 
@@ -1127,6 +1132,7 @@ export const DEMO_SERVICE_CHATS: QuarterServiceChat[] = [
     author_role: 'EMPLOYEE',
     message: 'The tap in the main bathroom has been leaking since 18 April. Please arrange repair at the earliest.',
     document_urls: [],
+    delivery_mode: 'PORTAL' as const,
     created_at: '2025-04-20T09:05:00Z',
   },
   {
@@ -1136,6 +1142,7 @@ export const DEMO_SERVICE_CHATS: QuarterServiceChat[] = [
     author_role: 'EO',
     message: 'Complaint received. Plumber has been assigned and will visit on 22 April between 10 AM – 1 PM.',
     document_urls: [],
+    delivery_mode: 'PORTAL' as const,
     created_at: '2025-04-20T16:30:00Z',
   },
 ];
@@ -1148,6 +1155,7 @@ export const DEMO_ALLOTMENT_CHATS: QuarterAllotmentChat[] = [
     author_role: 'eo',
     message: 'Quarter A-204 allotted as per entitlement. Please acknowledge and confirm move-in date.',
     document_urls: [],
+    delivery_mode: 'PORTAL' as const,
     created_at: '2025-03-20T10:35:00Z',
   },
   {
@@ -1157,6 +1165,7 @@ export const DEMO_ALLOTMENT_CHATS: QuarterAllotmentChat[] = [
     author_role: 'employee',
     message: 'Thank you. I will move in by 15 April. Kindly share the key handover schedule.',
     document_urls: [],
+    delivery_mode: 'PORTAL' as const,
     created_at: '2025-03-21T09:00:00Z',
   },
 ];
@@ -1168,6 +1177,7 @@ export const DEMO_INSPECTIONS: QuarterInspection[] = [
     id: 'insp-001',
     allotment_id: 'allot-002',
     created_by: 'eo-user-001',
+    inspector_name: 'Rajiv Sharma',
     status: 'CLOSED',
     opening_remarks: 'Pre-occupancy inspection initiated.',
     closing_remarks: 'Quarter found in good condition. Minor paint touch-up done.',

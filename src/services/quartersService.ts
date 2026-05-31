@@ -1,4 +1,8 @@
 import { supabase } from '../lib/supabase';
+
+// Per-tile EO remarks storage (demo mode only — not persisted across page reloads)
+const DEMO_EO_REMARKS: Record<string, string> = {};
+
 import {
   DEMO_MODE,
   DEMO_QUARTERS,
@@ -91,6 +95,7 @@ import type {
   QuarterGuestInfo,
   QuarterRequestPreference,
   ChatDeliveryMode,
+  CreateQuarterInput,
 } from '../types/quarters';
 
 import type { ChecklistItemDraft } from '../constants/inspectionChecklist';
@@ -916,7 +921,7 @@ export const quartersService = {
     _quarterId: string,
   ): Promise<QuarterRequest> {
     if (DEMO_MODE) {
-      const stub: QuarterRequest = { id: `req-demo-${Date.now()}`, request_number: `REQ-${new Date().getFullYear()}-DEMO`, employee_id: _eoId, cycle_id: input.cycle_id, initiation_type: 'ADHOC', request_reason: input.request_reason, required_bhk_config: input.required_bhk_config, preferred_location: input.preferred_location, move_in_date: input.move_in_date, family_member_count: input.family_member_count, request_status: 'ALLOTTED', sub_status: null, employee_notes: input.employee_notes, eo_notes: '', request_for: input.request_for ?? 'SELF', on_behalf_employee_id: null, on_behalf_employee_name: null, on_behalf_employee_dept: null, tp_name: null, tp_organization: null, tp_mobile: null, tp_email: null, tp_pan: null, tp_notes: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), preferences: [], allotment: null };
+      const stub: QuarterRequest = { id: `req-demo-${Date.now()}`, request_number: `REQ-${new Date().getFullYear()}-DEMO`, employee_id: _eoId, cycle_id: input.cycle_id, initiation_type: 'ADHOC', request_type: 'GENERAL', request_reason: input.request_reason, required_bhk_config: input.required_bhk_config, preferred_location: input.preferred_location, move_in_date: input.move_in_date, family_member_count: input.family_member_count, request_status: 'ALLOTTED', sub_status: null, employee_notes: input.employee_notes, eo_notes: '', request_for: input.request_for ?? 'SELF', on_behalf_employee_id: null, on_behalf_employee_name: null, on_behalf_employee_dept: null, tp_name: null, tp_organization: null, tp_mobile: null, tp_email: null, tp_pan: null, tp_notes: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), preferences: [], allotment: null };
       return Promise.resolve(stub);
     }
     const eoId = _eoId;
@@ -1604,7 +1609,7 @@ export const quartersService = {
         tile_id: tileId, base_rent: base, water_charges: water,
         utility_charges: util, months_overdue: tile?.status === 'OVERDUE' ? 1 : 0,
         penalty_rate: 2, penalty_amount: pen, penalty_override: penOvr,
-        waiver_amount: 0, net_payable: net, eo_remarks: '',
+        waiver_amount: 0, net_payable: net, eo_remarks: DEMO_EO_REMARKS[tileId] ?? '',
       });
     }
     return Promise.resolve({ tile_id: tileId, base_rent: 0, water_charges: 0, utility_charges: 0, months_overdue: 0, penalty_rate: 2, penalty_amount: 0, penalty_override: null, waiver_amount: 0, net_payable: 0, eo_remarks: '' });
@@ -1648,19 +1653,36 @@ export const quartersService = {
         tile.penalty_override = override;
         tile.total_due = tile.base_rent + tile.water_charges + tile.utility_charges + override;
       }
-      void remarks;
+      DEMO_EO_REMARKS[tileId] = remarks;
       return Promise.resolve();
     }
   },
 
-  async undoRentPayment(allotmentId: string, month: string, paymentId: string): Promise<void> {
+  async undoRentPayment(allotmentId: string, month: string, paymentId: string, _reason?: string): Promise<void> {
     if (DEMO_MODE) {
       const key = `${allotmentId}_${month}`;
       if (DEMO_RENT_PAYMENTS[key]) {
         DEMO_RENT_PAYMENTS[key] = DEMO_RENT_PAYMENTS[key].filter(p => p.id !== paymentId);
       }
       const tile = DEMO_RENT_TILES.find(t => t.allotment_id === allotmentId && t.month === month);
-      if (tile) { tile.status = 'DUE'; tile.amount_paid = 0; tile.receipt_ref = null; tile.last_paid_date = null; tile.payment_mode = null; }
+      if (tile) {
+        const remaining = DEMO_RENT_PAYMENTS[key] ?? [];
+        const totalRemaining = remaining.reduce((s, p) => s + p.amount, 0);
+        if (totalRemaining <= 0) {
+          tile.status = 'DUE';
+          tile.amount_paid = 0;
+          tile.receipt_ref = null;
+          tile.last_paid_date = null;
+          tile.payment_mode = null;
+        } else {
+          tile.status = 'PARTIAL';
+          tile.amount_paid = totalRemaining;
+          const last = remaining[remaining.length - 1];
+          tile.receipt_ref = last?.receipt_ref ?? null;
+          tile.last_paid_date = last?.payment_date ?? null;
+          tile.payment_mode = last?.payment_mode ?? null;
+        }
+      }
       return Promise.resolve();
     }
   },
