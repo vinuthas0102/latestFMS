@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar, History, CheckCircle, XCircle, Home, ChevronRight,
-  Building2, MessageSquare, ChevronLeft, Search, SlidersHorizontal,
+  Building2, Eye, MessageSquare, ChevronLeft, Search, SlidersHorizontal,
   CreditCard, MapPin, X, Download,
   ChevronDown, ChevronUp, FileText, Send, KeyRound, LogOut,
   Ban, Ruler, Bed, Layers, Images, Plus, Compass,
