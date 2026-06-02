@@ -1194,7 +1194,7 @@ export const QuarterRentPage: React.FC = () => {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
 
           {/* ── Filter bar — below DP cards ── */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-5">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-2">
             <MandatorySearchBar
               fields={[
                 {
@@ -1263,19 +1263,6 @@ export const QuarterRentPage: React.FC = () => {
                   </button>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Record count + active filter indicator */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs font-semibold text-gray-500">
-              {loading ? '…' : `${displayTiles.length} record${displayTiles.length !== 1 ? 's' : ''}`}
-              {dpFilter !== 'all' && <span className="ml-1 text-teal-600">· {STATUS[dpFilter as StatusKey]?.label}</span>}
-            </span>
-            {dpFilter !== 'all' && (
-              <button onClick={() => setDpFilter('all')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
-                <X size={10} /> Clear
-              </button>
             )}
           </div>
 
