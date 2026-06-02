@@ -1023,69 +1023,99 @@ export const QuarterRentPage: React.FC = () => {
   };
 
   // ── Graph view ──────────────────────────────────────────────────────────────
-  const renderGraph = () => (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="w-1 h-5 rounded-full bg-teal-600" />
-        <h3 className="text-sm font-bold text-gray-800">Rent Collection — Monthly Overview</h3>
-        <div className="ml-auto flex items-center gap-3 text-[10px]">
-          {[['bg-amber-400','Due'],['bg-red-500','Overdue'],['bg-emerald-500','Paid'],['bg-sky-400','Partial'],['bg-slate-300','Exempted']].map(([c, l]) => (
-            <span key={l} className="flex items-center gap-1"><span className={`w-2 h-2 rounded-sm ${c}`} />{l}</span>
-          ))}
+  const renderGraph = () => {
+    const BAR_GROUPS = [
+      { key: 'due'      as const, label: 'Due',      color: 'bg-amber-400',   hoverColor: 'hover:bg-amber-500'   },
+      { key: 'overdue'  as const, label: 'Overdue',  color: 'bg-red-500',     hoverColor: 'hover:bg-red-600'     },
+      { key: 'paid'     as const, label: 'Paid',     color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600' },
+      { key: 'partial'  as const, label: 'Partial',  color: 'bg-sky-400',     hoverColor: 'hover:bg-sky-500'     },
+      { key: 'exempted' as const, label: 'Exempted', color: 'bg-slate-300',   hoverColor: 'hover:bg-slate-400'   },
+    ] as { key: keyof typeof graphData[0]; label: string; color: string; hoverColor: string }[];
+
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-1 h-5 rounded-full bg-teal-600" />
+          <h3 className="text-sm font-bold text-gray-800">Rent Collection — Monthly Overview</h3>
+          <div className="ml-auto flex items-center gap-3 text-[10px]">
+            {BAR_GROUPS.map(({ color, label }) => (
+              <span key={label} className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-sm ${color}`} />
+                <span className="text-gray-600 font-medium">{label}</span>
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
-      {graphData.length === 0 ? (
-        <div className="h-48 flex items-center justify-center text-gray-300 text-sm">No data for selected range</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[400px]">
-            {/* Y axis labels */}
-            <div className="flex gap-1 items-end h-52 mb-2">
-              <div className="flex flex-col justify-between h-full pr-2 text-right shrink-0">
-                {[maxGraphVal, maxGraphVal * 0.75, maxGraphVal * 0.5, maxGraphVal * 0.25, 0].map((v, i) => (
-                  <span key={i} className="text-[9px] text-gray-300 leading-none">{v > 0 ? `₹${Math.round(v / 1000)}K` : '0'}</span>
-                ))}
-              </div>
-              {/* Grid lines + bars */}
-              <div className="flex-1 relative">
-                {[0, 25, 50, 75, 100].map(p => (
-                  <div key={p} className="absolute w-full border-t border-gray-100" style={{ bottom: `${p}%` }} />
-                ))}
-                <div className="flex items-end gap-2 h-full relative z-10">
-                  {graphData.map(g => {
-                    const totalH = (g.total / maxGraphVal) * 100;
-                    const paidH  = (g.paid  / maxGraphVal) * 100;
-                    const dueH   = (g.due   / maxGraphVal) * 100;
-                    const overdueH  = (g.overdue  / maxGraphVal) * 100;
-                    const partialH  = (g.partial  / maxGraphVal) * 100;
-                    const exemptedH = (g.exempted / maxGraphVal) * 100;
-                    return (
-                      <div key={g.month} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer"
-                        onClick={() => { setMonthFrom(g.month); setMonthTo(g.month); setViewMode('tile'); }}>
-                        <div className="text-[9px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity font-semibold whitespace-nowrap">
-                          {fmtINR(g.total)} · {g.count}
+
+        {graphData.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-gray-300 text-sm">No data for selected range</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: `${Math.max(400, graphData.length * 120)}px` }}>
+              <div className="flex gap-1 items-end h-64 mb-1">
+                {/* Y-axis labels */}
+                <div className="flex flex-col justify-between h-full pr-2 text-right shrink-0 w-12">
+                  {[maxGraphVal, maxGraphVal * 0.75, maxGraphVal * 0.5, maxGraphVal * 0.25, 0].map((v, i) => (
+                    <span key={i} className="text-[9px] text-gray-400 leading-none">
+                      {v > 0 ? `₹${Math.round(v / 1000)}K` : '0'}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Chart area */}
+                <div className="flex-1 relative h-full">
+                  {/* Horizontal grid lines */}
+                  {[0, 25, 50, 75, 100].map(p => (
+                    <div key={p} className="absolute w-full border-t border-gray-100" style={{ bottom: `${p}%` }} />
+                  ))}
+
+                  {/* Month groups */}
+                  <div className="flex items-end h-full gap-3 relative z-10">
+                    {graphData.map(g => (
+                      <div
+                        key={g.month}
+                        className="flex-1 flex flex-col h-full cursor-pointer"
+                        onClick={() => { setMonthFrom(g.month); setMonthTo(g.month); setViewMode('tile'); }}
+                      >
+                        {/* Bars area */}
+                        <div className="flex-1 flex items-end gap-[3px]">
+                          {BAR_GROUPS.map(({ key, label, color, hoverColor }) => {
+                            const val = g[key] as number;
+                            const heightPct = maxGraphVal > 0 ? (val / maxGraphVal) * 100 : 0;
+                            return (
+                              <div key={key} className="flex-1 flex flex-col items-center justify-end h-full group/bar relative">
+                                {/* Tooltip */}
+                                {val > 0 && (
+                                  <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-20 bg-gray-800 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap">
+                                    {fmtINR(val)}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+                                  </div>
+                                )}
+                                <div
+                                  className={`w-full rounded-t-sm transition-all duration-200 ${color} ${hoverColor} ${val === 0 ? 'opacity-0' : ''}`}
+                                  style={{ height: `${Math.max(heightPct, val > 0 ? 2 : 0)}%` }}
+                                  title={`${label}: ${fmtINR(val)}`}
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="w-full flex flex-col justify-end rounded-t-lg overflow-hidden border border-gray-100 hover:border-teal-300 transition-colors"
-                          style={{ height: `${Math.max(totalH, 2)}%` }}>
-                          {overdueH  > 0 && <div style={{ height: `${(overdueH / totalH) * 100}%` }}  className="bg-red-400 min-h-[2px]" />}
-                          {dueH      > 0 && <div style={{ height: `${(dueH / totalH) * 100}%` }}      className="bg-amber-400 min-h-[2px]" />}
-                          {partialH  > 0 && <div style={{ height: `${(partialH / totalH) * 100}%` }}  className="bg-sky-400 min-h-[2px]" />}
-                          {exemptedH > 0 && <div style={{ height: `${(exemptedH / totalH) * 100}%` }} className="bg-slate-300 min-h-[2px]" />}
-                          {paidH     > 0 && <div style={{ height: `${(paidH / totalH) * 100}%` }}     className="bg-emerald-400 min-h-[2px]" />}
+                        {/* Month label */}
+                        <div className="pt-2 text-center">
+                          <span className="text-[10px] font-semibold text-gray-500">{fmtMonth(g.month)}</span>
                         </div>
-                        <span className="text-[10px] font-semibold text-gray-500 mt-0.5">{fmtMonth(g.month)}</span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      <p className="text-[10px] text-gray-400 mt-3 text-center">Click any bar to view that month's data in tile view</p>
-    </div>
-  );
+        )}
+        <p className="text-[10px] text-gray-400 mt-2 text-center">Click any month to view that month's data in tile view</p>
+      </div>
+    );
+  };
 
   // ── DP cards config ─────────────────────────────────────────────────────────
   const dpCards = summary ? [
