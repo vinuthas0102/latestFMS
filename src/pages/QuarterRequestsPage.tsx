@@ -4846,6 +4846,7 @@ export const QuarterRequestsPage: React.FC = () => {
                         {QUARTER_TYPE_OPTIONS.map(t => (
                           <option key={t} value={t}>{t}</option>
                         ))}
+                        <option value="Medical">Medical</option>
                       </select>
                       <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
