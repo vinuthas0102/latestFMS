@@ -52,6 +52,7 @@ export interface Quarter {
 }
 
 export type RequestType = 'GENERAL' | 'MEDICAL' | 'REFERENCE';
+export type MedicalCriticality = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface QuarterRequest {
   id: string;
@@ -65,6 +66,7 @@ export interface QuarterRequest {
   move_in_date: string | null;
   family_member_count: number;
   request_type: RequestType;
+  medical_criticality: MedicalCriticality | null;
   request_status: string;
   sub_status: string | null;
   employee_notes: string;

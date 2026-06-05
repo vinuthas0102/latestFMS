@@ -62,6 +62,7 @@ export type {
   QuarterGuestInfo,
   CreateQuarterInput,
   ChatDeliveryMode,
+  MedicalCriticality,
 } from '../types/quarters';
 
 import type {
@@ -96,6 +97,7 @@ import type {
   QuarterRequestPreference,
   ChatDeliveryMode,
   CreateQuarterInput,
+  MedicalCriticality,
 } from '../types/quarters';
 
 import type { ChecklistItemDraft } from '../constants/inspectionChecklist';
@@ -1558,6 +1560,19 @@ export const quartersService = {
       .maybeSingle();
     if (error) throw error;
     return data as import('../types/quarters').QuarterExchangePair | null;
+  },
+
+  async setMedicalCriticality(requestId: string, criticality: MedicalCriticality | null): Promise<void> {
+    if (DEMO_MODE) {
+      const req = DEMO_REQUESTS.find(r => r.id === requestId);
+      if (req) (req as QuarterRequest & { medical_criticality: MedicalCriticality | null }).medical_criticality = criticality;
+      return Promise.resolve();
+    }
+    const { error } = await supabase
+      .from('quarter_requests')
+      .update({ medical_criticality: criticality, updated_at: new Date().toISOString() })
+      .eq('id', requestId);
+    if (error) throw error;
   },
 
   async updateQuarterImages(quarterId: string, urls: string[]): Promise<void> {

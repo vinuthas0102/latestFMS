@@ -4,7 +4,7 @@ import {
   Home, FileText, XCircle, Key, MessageSquare, GitMerge, HardHat,
   X, Search, Building2, Send, Paperclip, Upload, Plus, ArrowLeft,
   PlayCircle, CheckSquare, SkipForward, ClipboardCheck, Handshake, Users,
-  ChevronDown, Zap, Image as ImageIcon,
+  ChevronDown, Zap, Image as ImageIcon, AlertTriangle,
 } from 'lucide-react';
 import {
   Quarter, QuarterRequest, QuarterAllotment, QuarterAllotmentApproval,
@@ -12,7 +12,7 @@ import {
   QuarterInspection, QuarterInspectionChat,
   QuarterHandover, QuarterGuestInfo, QuarterAllotmentChat, QuarterTenantRequest,
 } from '../../services/quartersService';
-import type { ChatDeliveryMode } from '../../types/quarters';
+import type { ChatDeliveryMode, MedicalCriticality } from '../../types/quarters';
 import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types';
 import { EORightMode } from '../../types/quarterRequests';
@@ -166,6 +166,9 @@ export interface EOActionPanelProps {
   // Deallocate handler (inline in override tab)
   handleDeallocate: (allotmentId: string, requestId: string) => void;
 
+  // Medical criticality setter (EO-only, medical requests)
+  handleSetMedicalCriticality: (criticality: MedicalCriticality | null) => Promise<void>;
+
   // Panel controls slot (close button etc.)
   panelControls?: React.ReactNode;
 }
@@ -288,6 +291,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   guestSubmitting,
   handleAddGuestInfo,
   handleDeallocate,
+  handleSetMedicalCriticality,
   panelControls,
 }) => {
   const req = selectedRequest;
@@ -309,6 +313,8 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   // Local state for WFL selector — submitted DP approval tab
   const [reqWflSelectedId, setReqWflSelectedId] = useState('');
   const [reqWflSubmitted, setReqWflSubmitted] = useState(false);
+
+  const [critSaving, setCritSaving] = useState(false);
 
   const accentCls = isAllotted || isOccupied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
   const headerColor = isSubmitted ? 'bg-blue-700' : isAllotted ? 'bg-emerald-700' : isOccupied ? 'bg-teal-700' : 'bg-slate-700';
@@ -371,6 +377,41 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
 
       {/* ── Quarter row if allotted ── */}
       {allottedQ && <CompactQuarterRow q={allottedQ} accentCls={accentCls} />}
+
+      {/* ── Medical Criticality setter (EO only, MEDICAL requests) ── */}
+      {isEO && req.request_type === 'MEDICAL' && (() => {
+        const current = (req as QuarterRequest & { medical_criticality?: MedicalCriticality | null }).medical_criticality ?? null;
+        const opts: { value: MedicalCriticality; label: string; cls: string; activeCls: string }[] = [
+          { value: 'HIGH',   label: 'High',   cls: 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100',          activeCls: 'bg-red-600 text-white border-red-600 shadow-sm shadow-red-200' },
+          { value: 'MEDIUM', label: 'Medium', cls: 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100',   activeCls: 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-200' },
+          { value: 'LOW',    label: 'Low',    cls: 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100', activeCls: 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200' },
+        ];
+        return (
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-red-100 bg-red-50/60">
+            <AlertTriangle size={11} className="text-red-500 shrink-0" />
+            <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide shrink-0">Criticality</span>
+            <div className="flex items-center gap-1 ml-auto">
+              {opts.map(o => (
+                <button
+                  key={o.value}
+                  disabled={critSaving}
+                  onClick={async () => {
+                    setCritSaving(true);
+                    try { await handleSetMedicalCriticality(current === o.value ? null : o.value); }
+                    finally { setCritSaving(false); }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all disabled:opacity-50 ${
+                    current === o.value ? o.activeCls : o.cls
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+              {critSaving && <span className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin ml-1" />}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Sub-nav tabs ── */}
       {tabs.length >= 1 && (

@@ -3,9 +3,10 @@ import {
   CheckCircle, XCircle, ChevronDown, MapPin, Paperclip,
   Phone, Mail, CreditCard, UserCheck, UserPlus,
   Clock, Send, ThumbsUp, ThumbsDown, RefreshCw, ArrowRightCircle,
-  LogOut, ArrowLeftRight,
+  LogOut, ArrowLeftRight, AlertTriangle,
 } from 'lucide-react';
 import { Quarter, QuarterRequest } from '../../services/quartersService';
+import type { MedicalCriticality } from '../../types/quarters';
 import { UserDTO } from '../../types';
 
 export const PLACEHOLDER_IMAGES = [
@@ -360,6 +361,23 @@ export const RequestSummaryBlock = ({ req, user }: { req: QuarterRequest; user: 
             <div className="font-semibold text-red-700">{req.sub_status}</div>
           </div>
         )}
+        {req.request_type === 'MEDICAL' && (() => {
+          const crit = (req as QuarterRequest & { medical_criticality?: MedicalCriticality | null }).medical_criticality ?? null;
+          const clsMap: Record<MedicalCriticality, string> = {
+            HIGH:   'bg-red-50 border-red-200 text-red-700',
+            MEDIUM: 'bg-amber-50 border-amber-200 text-amber-700',
+            LOW:    'bg-emerald-50 border-emerald-200 text-emerald-700',
+          };
+          return (
+            <div className={`rounded-lg px-3 py-2 border col-span-2 flex items-center gap-2 ${crit ? clsMap[crit] : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              <AlertTriangle size={12} className={crit === 'HIGH' ? 'text-red-500' : crit === 'MEDIUM' ? 'text-amber-500' : crit === 'LOW' ? 'text-emerald-500' : 'text-gray-400'} />
+              <div className="flex-1">
+                <div className="text-[10px] font-bold uppercase tracking-wide opacity-70 mb-0.5">Medical Criticality</div>
+                <div className="font-semibold text-sm">{crit ?? <span className="text-gray-400 font-normal text-xs italic">Not assessed</span>}</div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
       {req.employee_notes && (
         <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs">

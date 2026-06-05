@@ -1790,6 +1790,16 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to deallocate', 'error'); }
   };
 
+  const handleSetMedicalCriticality = async (criticality: import('../types/quarters').MedicalCriticality | null) => {
+    if (!selectedRequest) return;
+    try {
+      await quartersService.setMedicalCriticality(selectedRequest.id, criticality);
+      (selectedRequest as QuarterRequest & { medical_criticality: typeof criticality }).medical_criticality = criticality;
+      addToast(criticality ? `Criticality set to ${criticality}` : 'Criticality cleared', 'success');
+      loadData();
+    } catch { addToast('Failed to update criticality', 'error'); }
+  };
+
   // ─── render ──────────────────────────────────────────────────────────────────
 
   // EO mode selection screen — shown every time before the main dashboard
@@ -2731,6 +2741,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   guestSubmitting={guestSubmitting}
                   handleAddGuestInfo={handleAddGuestInfo}
                   handleDeallocate={handleDeallocate}
+                  handleSetMedicalCriticality={handleSetMedicalCriticality}
                   panelControls={controls}
                 />
                 </Suspense>

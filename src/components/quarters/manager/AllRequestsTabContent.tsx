@@ -1,7 +1,19 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 import { MandatorySearchBar } from '../../ui/MandatorySearchBar';
-import type { QuarterRequest, Quarter } from '../../../services/quartersService';
+import type { QuarterRequest, Quarter, MedicalCriticality } from '../../../services/quartersService';
+
+function criticalityBadge(c: MedicalCriticality | null | undefined) {
+  if (!c) return null;
+  const map: Record<MedicalCriticality, string> = {
+    HIGH:   'bg-red-100 text-red-700 border-red-200',
+    MEDIUM: 'bg-amber-100 text-amber-700 border-amber-200',
+    LOW:    'bg-emerald-100 text-emerald-700 border-emerald-200',
+  };
+  return (
+    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase ${map[c]}`}>{c}</span>
+  );
+}
 
 interface StatusOption {
   value: string;
@@ -107,7 +119,15 @@ export const AllRequestsTabContent: React.FC<Props> = ({
                 const q = req.allotment?.quarter;
                 return (
                   <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">{req.request_number}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-mono text-xs text-gray-700">{req.request_number}</div>
+                      {req.request_type === 'MEDICAL' && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200">Medical</span>
+                          {criticalityBadge((req as QuarterRequest & { medical_criticality?: MedicalCriticality | null }).medical_criticality)}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       {q ? (
                         <div className="flex items-center gap-2">
