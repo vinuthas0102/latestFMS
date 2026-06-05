@@ -31,6 +31,7 @@ const QuarterDetailPage = lazy(() => import('./pages/QuarterDetailPage').then(m 
 const QuarterRequestsPage = lazy(() => import('./pages/QuarterRequestsPage').then(m => ({ default: m.QuarterRequestsPage })));
 const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(m => ({ default: m.QuarterManagerPage })));
 const QuarterRentPage = lazy(() => import('./pages/QuarterRentPage').then(m => ({ default: m.QuarterRentPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 function PageLoader() {
   return (
@@ -233,6 +234,14 @@ function App() {
               />
 
               <Route path="*" element={<Navigate to="/" replace />} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><ProfilePage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Suspense>
         </ErrorBoundary>

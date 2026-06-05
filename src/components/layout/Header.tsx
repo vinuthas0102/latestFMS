@@ -1,10 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import {
-  Building2, Bell, LogOut, UserCheck, Calendar, Settings,
-  Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
-  LayoutDashboard, Home, Download,
-} from 'lucide-react';
+import { Building2, Bell, LogOut, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, LayoutDashboard, Download, CircleUser as UserCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
@@ -31,6 +27,7 @@ export const Header: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+
   const handleLogout = async () => {
     await logout();
     navigate(ROUTES.LOGIN);
@@ -67,16 +64,13 @@ export const Header: React.FC = () => {
     });
   };
 
-  const baseNavItems: NavItem[] = [
-    { route: ROUTES.BOOKINGS, label: 'Bookings', icon: <Calendar size={17} /> },
-  ];
-
   const regularUserNavItems: NavItem[] = [
     { route: ROUTES.DASHBOARD, label: 'My Dashboard', icon: <LayoutDashboard size={17} /> },
     { route: ROUTES.BOOKINGS, label: 'My Bookings', icon: <Calendar size={17} /> },
   ];
 
   const managerNavItems: NavItem[] = [
+    { route: ROUTES.BOOKINGS, label: 'Bookings', icon: <Calendar size={17} /> },
     { route: ROUTES.PROPERTIES, label: 'Properties', icon: <Building2 size={17} /> },
     { route: ROUTES.CHECK_IN, label: 'Check-In', icon: <UserCheck size={17} /> },
     { route: ROUTES.MANAGER, label: 'Manager', icon: <Settings size={17} /> },
@@ -88,17 +82,10 @@ export const Header: React.FC = () => {
     { route: ROUTES.ADMIN, label: 'Admin', icon: <Shield size={17} /> },
   ];
 
-  const quartersManagerNavItem: NavItem = {
-    route: ROUTES.QUARTERS_MANAGER,
-    label: 'Quarters',
-    icon: <Home size={17} />,
-  };
-
   const navItems = isRegularUser
     ? regularUserNavItems
     : [
-        ...baseNavItems,
-        ...(isManager ? managerNavItems : []),
+        ...managerNavItems,
         ...(isAdmin ? adminNavItems : []),
       ];
 
@@ -189,16 +176,25 @@ export const Header: React.FC = () => {
                   <Download size={17} />
                 </button>
 
-                {/* User identity */}
-                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 select-none">
-                    {initials}
+                {/* User identity — click to go to profile */}
+                <button
+                  onClick={() => navigate(ROUTES.PROFILE)}
+                  title="View My Profile"
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all duration-150 cursor-pointer"
+                >
+                  <div className="relative w-8 h-8 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold select-none">
+                      {initials}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white border border-gray-200 rounded-full flex items-center justify-center">
+                      <UserCircle size={9} className="text-blue-600" />
+                    </span>
                   </div>
                   <div className="text-left hidden sm:block leading-snug">
                     <div className="text-[13px] font-semibold text-gray-900 whitespace-nowrap leading-tight">
                       {user.fullName || user.email}
                     </div>
-                    <div className="text-[11px] text-gray-500 whitespace-nowrap leading-tight">
+                    <div className="text-[11px] text-blue-500 whitespace-nowrap leading-tight font-medium">
                       {ROLE_LABELS[user.role]}
                     </div>
                   </div>
@@ -210,7 +206,7 @@ export const Header: React.FC = () => {
                     <div className="w-px h-6 bg-gray-200 mx-2" />
                     <ChipField label="SAP ID" value={user.sapId} />
                   </div>
-                </div>
+                </button>
 
                 {/* Logout */}
                 <button onClick={handleLogout} className="header-logout-btn" aria-label="Logout">
