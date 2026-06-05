@@ -1,7 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Bell, LogOut, UserCheck, Calendar, Settings, Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight, LayoutDashboard, Download, CircleUser as UserCircle } from 'lucide-react';
+import {
+  Building2, Bell, LogOut, UserCheck, Calendar, Settings,
+  Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
+  LayoutDashboard, Download, CircleUser as UserCircle, Pencil,
+} from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
@@ -22,6 +27,7 @@ const ChipField: React.FC<{ label: string; value?: string }> = ({ label, value }
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { openProfileDrawer } = useUIStore();
   const navigate = useNavigate();
   const location = useLocation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -176,37 +182,45 @@ export const Header: React.FC = () => {
                   <Download size={17} />
                 </button>
 
-                {/* User identity — click to go to profile */}
-                <button
-                  onClick={() => navigate(ROUTES.PROFILE)}
-                  title="View My Profile"
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all duration-150 cursor-pointer"
-                >
-                  <div className="relative w-8 h-8 flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold select-none">
-                      {initials}
+                {/* User identity chip */}
+                <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-l-xl bg-white border border-gray-200 shadow-sm">
+                    <div className="relative w-8 h-8 flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold select-none">
+                        {initials}
+                      </div>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white border border-gray-200 rounded-full flex items-center justify-center">
+                        <UserCircle size={9} className="text-blue-600" />
+                      </span>
                     </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white border border-gray-200 rounded-full flex items-center justify-center">
-                      <UserCircle size={9} className="text-blue-600" />
-                    </span>
-                  </div>
-                  <div className="text-left hidden sm:block leading-snug">
-                    <div className="text-[13px] font-semibold text-gray-900 whitespace-nowrap leading-tight">
-                      {user.fullName || user.email}
+                    <div className="text-left hidden sm:block leading-snug">
+                      <div className="text-[13px] font-semibold text-gray-900 whitespace-nowrap leading-tight">
+                        {user.fullName || user.email}
+                      </div>
+                      <div className="text-[11px] text-blue-500 whitespace-nowrap leading-tight font-medium">
+                        {ROLE_LABELS[user.role]}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-blue-500 whitespace-nowrap leading-tight font-medium">
-                      {ROLE_LABELS[user.role]}
+                    {/* Identity fields */}
+                    <div className="hidden sm:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                      <ChipField label="EMP ID" value={user.govtEmployeeId} />
+                      <div className="w-px h-6 bg-gray-200 mx-2" />
+                      <ChipField label="Location" value={user.projectLocation} />
+                      <div className="w-px h-6 bg-gray-200 mx-2" />
+                      <ChipField label="SAP ID" value={user.sapId} />
                     </div>
                   </div>
-                  {/* Always-visible identity fields */}
-                  <div className="hidden sm:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
-                    <ChipField label="EMP ID" value={user.govtEmployeeId} />
-                    <div className="w-px h-6 bg-gray-200 mx-2" />
-                    <ChipField label="Location" value={user.projectLocation} />
-                    <div className="w-px h-6 bg-gray-200 mx-2" />
-                    <ChipField label="SAP ID" value={user.sapId} />
-                  </div>
-                </button>
+
+                  {/* Edit / profile icon button — opens profile drawer */}
+                  <button
+                    onClick={openProfileDrawer}
+                    title="Edit My Profile"
+                    className="h-full px-2.5 py-1.5 rounded-r-xl bg-white border border-l-0 border-gray-200 shadow-sm text-gray-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all duration-150 flex items-center"
+                    aria-label="Edit profile"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </div>
 
                 {/* Logout */}
                 <button onClick={handleLogout} className="header-logout-btn" aria-label="Logout">

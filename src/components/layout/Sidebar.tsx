@@ -1,8 +1,9 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Building2, Home, IndianRupee, LogOut } from 'lucide-react';
+import { Building2, Home, IndianRupee, LogOut, Pencil } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
+import { useUIStore } from '../../stores/uiStore';
 import { getModuleTabs, ModuleTab } from '../../utils/sidebarConfig';
 import { ROLE_LABELS } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
@@ -26,12 +27,9 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
       isActive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-700'
     }`}
   >
-    {/* Active left accent bar */}
     {isActive && (
       <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-9 bg-blue-600 rounded-r-full" />
     )}
-
-    {/* Icon container */}
     <span
       className={`flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-150 ${
         isActive
@@ -41,8 +39,6 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
     >
       {MODULE_ICONS[tab.iconName]}
     </span>
-
-    {/* Label */}
     <span
       className={`text-[9px] font-bold tracking-widest uppercase leading-none ${
         isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
@@ -54,11 +50,9 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
 );
 
 function isTabActive(tab: ModuleTab, pathname: string): boolean {
-  // Rent uses a sub-path of /quarters — match it exactly first
   if (tab.activePrefix === '/quarters/rent') {
     return pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/');
   }
-  // Quarters tab must NOT activate when on the Rent sub-path
   if (tab.activePrefix === '/quarters') {
     if (pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/')) return false;
   }
@@ -67,6 +61,7 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
 
 const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const { user, logout } = useAuthStore();
+  const { openProfileDrawer } = useUIStore();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -91,15 +86,22 @@ const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
         </button>
       </div>
 
-      {/* ── User avatar ── */}
+      {/* ── User avatar — click to open profile drawer ── */}
       {user && (
         <div className="flex items-center justify-center py-3 border-b border-gray-100 flex-shrink-0">
-          <div
-            title={`${user.fullName || user.email} · ${ROLE_LABELS[user.role]}`}
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white text-xs font-bold select-none shadow-sm ring-2 ring-white cursor-default"
+          <button
+            onClick={() => { openProfileDrawer(); onNavigate?.(); }}
+            title={`${user.fullName || user.email} · ${ROLE_LABELS[user.role]} — View Profile`}
+            className="relative group focus:outline-none"
           >
-            {initials}
-          </div>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white text-xs font-bold shadow-sm ring-2 ring-white group-hover:ring-blue-300 transition-all duration-150">
+              {initials}
+            </div>
+            {/* Pencil badge appears on hover */}
+            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white border border-gray-200 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-sm">
+              <Pencil size={8} className="text-blue-600" />
+            </span>
+          </button>
         </div>
       )}
 

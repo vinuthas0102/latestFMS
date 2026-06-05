@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
+import { ProfileDrawer } from '../profile/ProfileDrawer';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Profile drawer — rendered above all layout content */}
+      <ProfileDrawer />
     </div>
   );
 };
