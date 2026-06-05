@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
-  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Pencil,
+  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Pencil, Loader2,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -193,6 +193,7 @@ export const QuarterRequestsPage: React.FC = () => {
     editingReqTypeSubmitting, setEditingReqTypeSubmitting,
     dpFilter, setDpFilter, dpScrollRef, dpCanScrollLeft, setDpCanScrollLeft,
     dpCanScrollRight, setDpCanScrollRight, requestDocUrls, setRequestDocUrls,
+    medDocFile, setMedDocFile, medDocSubmitting, setMedDocSubmitting,
     showNewModal, setShowNewModal, form, setForm, prefs, setPrefs,
     requestDocuments, setRequestDocuments, modalQuarters, setModalQuarters,
     modalSearch, setModalSearch, modalLoading, setModalLoading, submitting, setSubmitting,
@@ -3177,7 +3178,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
                             {/* Expand / collapse icon */}
                             <button
-                              onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); }}
+                              onClick={e => { e.stopPropagation(); setExpandedCardId(expandedCardId === req.id ? null : req.id); setMedDocFile(null); }}
                               className={`p-1 rounded-lg border transition-colors shrink-0 ${expandedCardId === req.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
                               title={expandedCardId === req.id ? 'Collapse' : 'Expand'}
                             >
@@ -3286,6 +3287,67 @@ export const QuarterRequestsPage: React.FC = () => {
                             )}
                           </div>
 
+                          {/* Medical document upload — employee side only */}
+                          {!isEO && req.request_type === 'MEDICAL' && (
+                            <div className="bg-rose-50 rounded-xl border border-rose-100 overflow-hidden text-[11px]">
+                              <div className="px-3 py-1.5 bg-rose-100 border-b border-rose-200 flex items-center gap-1.5">
+                                <Paperclip size={10} className="text-rose-500" />
+                                <span className="text-[9px] font-bold text-rose-600 uppercase tracking-wide">Medical Supporting Documents</span>
+                              </div>
+                              {(requestDocUrls[req.id] ?? []).length > 0 && (
+                                <div className="px-3 pt-2 flex flex-col gap-1">
+                                  {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={doc.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 bg-white border border-rose-100 hover:border-rose-300 hover:bg-rose-50 rounded-lg px-2.5 py-1.5 transition-colors group"
+                                    >
+                                      <FileText size={11} className="shrink-0 text-rose-500" />
+                                      <span className="flex-1 text-[11px] font-medium truncate text-rose-700">{doc.name}</span>
+                                      <Download size={10} className="shrink-0 text-rose-300 group-hover:text-rose-600" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="px-3 py-2.5 flex items-center gap-2">
+                                <label className={`flex items-center gap-1.5 cursor-pointer flex-1 min-w-0 border rounded-lg px-2.5 py-1.5 transition-colors ${medDocFile ? 'bg-white border-rose-300' : 'bg-white border-rose-100 hover:border-rose-300'}`}>
+                                  <Upload size={11} className="shrink-0 text-rose-400" />
+                                  <span className="text-[11px] text-rose-600 truncate">{medDocFile ? medDocFile.name : 'Choose file to upload…'}</span>
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,image/*"
+                                    className="hidden"
+                                    onChange={e => setMedDocFile(e.target.files?.[0] ?? null)}
+                                  />
+                                </label>
+                                <button
+                                  disabled={!medDocFile || medDocSubmitting}
+                                  onClick={async () => {
+                                    if (!medDocFile) return;
+                                    setMedDocSubmitting(true);
+                                    try {
+                                      await quartersService.uploadMedicalDoc(req.id, medDocFile);
+                                      setMedDocFile(null);
+                                      setRequestDocUrls(prev => { const next = { ...prev }; delete next[req.id]; return next; });
+                                      addToast('Document uploaded successfully', 'success');
+                                    } catch {
+                                      addToast('Upload failed. Please try again.', 'error');
+                                    } finally {
+                                      setMedDocSubmitting(false);
+                                    }
+                                  }}
+                                  className="shrink-0 flex items-center gap-1 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors"
+                                >
+                                  {medDocSubmitting ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
+                                  <span>Upload</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Decline remarks — shown when allotment was declined */}
                           {req.sub_status === 'DECLINED' && req.allotment?.rejection_reason && (
                             <div className="bg-rose-50 rounded-xl border border-rose-200 overflow-hidden text-[11px]">
@@ -3378,29 +3440,51 @@ export const QuarterRequestsPage: React.FC = () => {
                           )}
 
                           {/* Uploaded documents — only for MEDICAL and REFERENCE request types */}
-                          {(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (requestDocUrls[req.id] ?? []).length > 0 && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <Paperclip size={10} className={req.request_type === 'MEDICAL' ? 'text-rose-400' : 'text-amber-400'} />
-                                <span className={`text-[9px] font-bold uppercase tracking-wide ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-600'}`}>
-                                  Supporting Document — {req.request_type === 'MEDICAL' ? 'Medical' : 'Reference/Special'}
+                          {(req.request_type === 'MEDICAL' || req.request_type === 'REFERENCE') && (
+                            <div className={`rounded-xl border overflow-hidden text-[11px] ${req.request_type === 'MEDICAL' ? 'border-rose-100' : 'border-amber-100'}`}>
+                              <div className={`px-3 py-1.5 border-b flex items-center gap-1.5 ${req.request_type === 'MEDICAL' ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
+                                <Paperclip size={10} className={req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'} />
+                                <span className={`text-[9px] font-bold uppercase tracking-wide ${req.request_type === 'MEDICAL' ? 'text-rose-600' : 'text-amber-600'}`}>
+                                  Supporting Documents — {req.request_type === 'MEDICAL' ? 'Medical' : 'Reference/Special'}
+                                </span>
+                                <span className={`ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${req.request_type === 'MEDICAL' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                                  {(requestDocUrls[req.id] ?? []).length} file{(requestDocUrls[req.id] ?? []).length !== 1 ? 's' : ''}
                                 </span>
                               </div>
-                              <div className="flex flex-col gap-1">
-                                {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={doc.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`flex items-center gap-2 bg-white border rounded-lg px-2.5 py-1.5 transition-colors group ${req.request_type === 'MEDICAL' ? 'border-rose-100 hover:border-rose-300 hover:bg-rose-50' : 'border-amber-100 hover:border-amber-300 hover:bg-amber-50'}`}
-                                  >
-                                    <FileText size={11} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
-                                    <span className={`flex-1 text-[11px] font-medium truncate ${req.request_type === 'MEDICAL' ? 'text-rose-700 group-hover:text-rose-800' : 'text-amber-700 group-hover:text-amber-800'}`}>{doc.name}</span>
-                                    <ExternalLink size={10} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-300 group-hover:text-rose-500' : 'text-amber-300 group-hover:text-amber-500'}`} />
-                                  </a>
-                                ))}
-                              </div>
+                              {(requestDocUrls[req.id] ?? []).length > 0 ? (
+                                <div className="p-2 flex flex-col gap-1 bg-white">
+                                  {(requestDocUrls[req.id] ?? []).map((doc, idx) => (
+                                    <div key={idx} className={`flex items-center gap-2 border rounded-lg px-2.5 py-1.5 ${req.request_type === 'MEDICAL' ? 'border-rose-100 bg-rose-50' : 'border-amber-100 bg-amber-50'}`}>
+                                      <FileText size={11} className={`shrink-0 ${req.request_type === 'MEDICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
+                                      <span className={`flex-1 text-[11px] font-medium truncate ${req.request_type === 'MEDICAL' ? 'text-rose-700' : 'text-amber-700'}`}>{doc.name}</span>
+                                      <a
+                                        href={doc.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="View"
+                                        className={`shrink-0 p-1 rounded transition-colors ${req.request_type === 'MEDICAL' ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-100' : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100'}`}
+                                      >
+                                        <ExternalLink size={11} />
+                                      </a>
+                                      <a
+                                        href={doc.url}
+                                        download
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="Download"
+                                        className={`shrink-0 p-1 rounded transition-colors ${req.request_type === 'MEDICAL' ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-100' : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100'}`}
+                                      >
+                                        <Download size={11} />
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="px-3 py-3 bg-white flex items-center gap-2">
+                                  <FileText size={12} className={req.request_type === 'MEDICAL' ? 'text-rose-200' : 'text-amber-200'} />
+                                  <span className={`text-[11px] italic ${req.request_type === 'MEDICAL' ? 'text-rose-300' : 'text-amber-300'}`}>No supporting documents attached yet</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

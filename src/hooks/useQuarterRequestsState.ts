@@ -175,6 +175,10 @@ export function useQuarterRequestsState() {
   // ── Per-request uploaded document URLs ────────────────────────────────────
   const [requestDocUrls, setRequestDocUrls] = useState<Record<string, { name: string; url: string }[]>>({});
 
+  // ── Medical document post-submission upload ───────────────────────────────
+  const [medDocFile, setMedDocFile] = useState<File | null>(null);
+  const [medDocSubmitting, setMedDocSubmitting] = useState(false);
+
   // ── New-request full-screen modal ─────────────────────────────────────────
   const [showNewModal, setShowNewModal] = useState(false);
   const [form, setForm] = useState<NewRequestForm>({
@@ -495,6 +499,8 @@ export function useQuarterRequestsState() {
     dpCanScrollLeft, setDpCanScrollLeft,
     dpCanScrollRight, setDpCanScrollRight,
     requestDocUrls, setRequestDocUrls,
+    medDocFile, setMedDocFile,
+    medDocSubmitting, setMedDocSubmitting,
     showNewModal, setShowNewModal,
     form, setForm,
     prefs, setPrefs,

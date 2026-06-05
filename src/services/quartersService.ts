@@ -742,6 +742,13 @@ export const quartersService = {
         'req-006': [
           { name: 'Reference Letter - Ministry.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
         ],
+        'req-002b': [
+          { name: 'Medical Certificate.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+          { name: 'Hospital Discharge Summary.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
+        'req-002c': [
+          { name: 'Disability Certificate.pdf', url: 'https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf' },
+        ],
       };
       return Promise.resolve(DEMO_DOCS[_requestId] ?? []);
     }
@@ -754,6 +761,15 @@ export const quartersService = {
       name: f.name.replace(/^\d+-/, '').replace(/_/g, ' '),
       url: supabase.storage.from('quarter-docs').getPublicUrl(`request-docs/${requestId}/${f.name}`).data.publicUrl,
     }));
+  },
+
+  async uploadMedicalDoc(requestId: string, file: File): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const ext = file.name.split('.').pop() ?? 'bin';
+    const safeName = file.name.replace(/\.[^.]+$/, '').replace(/\s+/g, '_');
+    const path = `request-docs/${requestId}/${Date.now()}-${safeName}.${ext}`;
+    const { error } = await supabase.storage.from('quarter-docs').upload(path, file);
+    if (error) throw error;
   },
 
   async updateRequestHeader(
