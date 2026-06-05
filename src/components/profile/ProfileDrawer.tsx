@@ -6,7 +6,6 @@ import { ProfileFormContent, ProfileHeaderCard } from './ProfileFormContent';
 export const ProfileDrawer: React.FC = () => {
   const { profileDrawerOpen, closeProfileDrawer } = useUIStore();
 
-  /* Close on Escape */
   useEffect(() => {
     if (!profileDrawerOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeProfileDrawer(); };
@@ -14,7 +13,6 @@ export const ProfileDrawer: React.FC = () => {
     return () => document.removeEventListener('keydown', handler);
   }, [profileDrawerOpen, closeProfileDrawer]);
 
-  /* Prevent body scroll while open */
   useEffect(() => {
     document.body.style.overflow = profileDrawerOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -23,20 +21,21 @@ export const ProfileDrawer: React.FC = () => {
   if (!profileDrawerOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 z-50 transition-opacity duration-200"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={closeProfileDrawer}
       />
 
-      {/* Drawer panel — slides in from the right */}
+      {/* Modal panel */}
       <div
-        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col bg-gray-50"
-        style={{ width: 'min(680px, 100vw)', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
+        className="relative z-10 flex flex-col bg-gray-50 rounded-2xl shadow-2xl overflow-hidden"
+        style={{ width: 'min(860px, 100%)', maxHeight: '92vh' }}
+        onClick={e => e.stopPropagation()}
       >
-        {/* Drawer top bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 bg-white border-b border-gray-100 flex-shrink-0">
+        {/* Modal header bar */}
+        <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-blue-600" />
             <span className="text-[14px] font-bold text-gray-900">My Profile</span>
@@ -60,6 +59,6 @@ export const ProfileDrawer: React.FC = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
