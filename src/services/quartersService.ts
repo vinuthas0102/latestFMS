@@ -249,6 +249,7 @@ export const quartersService = {
         updated_at: new Date().toISOString(),
         preferences: [],
         allotment: null,
+        medical_criticality: null,
       };
       return Promise.resolve(stub);
     }
@@ -939,7 +940,7 @@ export const quartersService = {
     _quarterId: string,
   ): Promise<QuarterRequest> {
     if (DEMO_MODE) {
-      const stub: QuarterRequest = { id: `req-demo-${Date.now()}`, request_number: `REQ-${new Date().getFullYear()}-DEMO`, employee_id: _eoId, cycle_id: input.cycle_id, initiation_type: 'ADHOC', request_type: 'GENERAL', request_reason: input.request_reason, required_bhk_config: input.required_bhk_config, preferred_location: input.preferred_location, move_in_date: input.move_in_date, family_member_count: input.family_member_count, request_status: 'ALLOTTED', sub_status: null, employee_notes: input.employee_notes, eo_notes: '', request_for: input.request_for ?? 'SELF', on_behalf_employee_id: null, on_behalf_employee_name: null, on_behalf_employee_dept: null, tp_name: null, tp_organization: null, tp_mobile: null, tp_email: null, tp_pan: null, tp_notes: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), preferences: [], allotment: null };
+      const stub: QuarterRequest = { id: `req-demo-${Date.now()}`, request_number: `REQ-${new Date().getFullYear()}-DEMO`, employee_id: _eoId, cycle_id: input.cycle_id, initiation_type: 'ADHOC', request_type: 'GENERAL', request_reason: input.request_reason, required_bhk_config: input.required_bhk_config, preferred_location: input.preferred_location, move_in_date: input.move_in_date, family_member_count: input.family_member_count, request_status: 'ALLOTTED', sub_status: null, employee_notes: input.employee_notes, eo_notes: '', request_for: input.request_for ?? 'SELF', on_behalf_employee_id: null, on_behalf_employee_name: null, on_behalf_employee_dept: null, tp_name: null, tp_organization: null, tp_mobile: null, tp_email: null, tp_pan: null, tp_notes: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), preferences: [], allotment: null, medical_criticality: null };
       return Promise.resolve(stub);
     }
     const eoId = _eoId;

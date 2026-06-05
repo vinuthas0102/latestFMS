@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
-  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Pencil, Loader2,
+  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Pencil, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -46,6 +46,7 @@ import {
   CreateTenantRequestInput,
 } from '../services/quartersService';
 import { supabase } from '../lib/supabase';
+import type { MedicalCriticality } from '../types/quarters';
 import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
@@ -447,6 +448,7 @@ export const QuarterRequestsPage: React.FC = () => {
   const [showExchangeModal, setShowExchangeModal] = useState(false);
   const [exchangeSubmitting, setExchangeSubmitting] = useState(false);
   const [exchangeWorkflows, setExchangeWorkflows] = useState<import('../types/quarters').QuarterApprovalWorkflow[]>([]);
+  const [critSavingId, setCritSavingId] = useState<string | null>(null);
 
   const openExchangeModal = async () => {
     setShowExchangeModal(true);
@@ -1790,14 +1792,14 @@ export const QuarterRequestsPage: React.FC = () => {
     } catch { addToast('Failed to deallocate', 'error'); }
   };
 
-  const handleSetMedicalCriticality = async (criticality: import('../types/quarters').MedicalCriticality | null) => {
-    if (!selectedRequest) return;
+  const handleSetMedicalCriticality = async (requestId: string, criticality: MedicalCriticality | null) => {
+    setCritSavingId(requestId);
     try {
-      await quartersService.setMedicalCriticality(selectedRequest.id, criticality);
-      (selectedRequest as QuarterRequest & { medical_criticality: typeof criticality }).medical_criticality = criticality;
+      await quartersService.setMedicalCriticality(requestId, criticality);
+      setRequests(prev => prev.map(r => r.id === requestId ? { ...r, medical_criticality: criticality } as unknown as QuarterRequest : r));
       addToast(criticality ? `Criticality set to ${criticality}` : 'Criticality cleared', 'success');
-      loadData();
     } catch { addToast('Failed to update criticality', 'error'); }
+    finally { setCritSavingId(null); }
   };
 
   // ─── render ──────────────────────────────────────────────────────────────────
@@ -2741,7 +2743,6 @@ export const QuarterRequestsPage: React.FC = () => {
                   guestSubmitting={guestSubmitting}
                   handleAddGuestInfo={handleAddGuestInfo}
                   handleDeallocate={handleDeallocate}
-                  handleSetMedicalCriticality={handleSetMedicalCriticality}
                   panelControls={controls}
                 />
                 </Suspense>
@@ -2962,6 +2963,13 @@ export const QuarterRequestsPage: React.FC = () => {
                               {req.sub_status === 'DECLINED' && (
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none">Declined</span>
                               )}
+                              {isEO && req.request_type === 'MEDICAL' && (() => {
+                                const mc = (req as QuarterRequest & { medical_criticality?: MedicalCriticality | null }).medical_criticality;
+                                if (mc === 'HIGH') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 leading-none flex items-center gap-0.5"><AlertTriangle size={8} />High</span>;
+                                if (mc === 'MEDIUM') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 leading-none flex items-center gap-0.5"><AlertTriangle size={8} />Medium</span>;
+                                if (mc === 'LOW') return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 leading-none">Low</span>;
+                                return <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 leading-none">Medical</span>;
+                              })()}
                               <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${sc.cls}`}>{sc.icon}{sc.label}</span>
                             </div>
                           </div>
@@ -3245,6 +3253,41 @@ export const QuarterRequestsPage: React.FC = () => {
                                 return <span className={`text-[10px] border px-1.5 py-0.5 rounded-md font-semibold ${rtb.cls}`}>{rtb.label}</span>;
                               })()}
                             </div>
+                            {isEO && req.request_type === 'MEDICAL' && (() => {
+                              const current = (req as QuarterRequest & { medical_criticality?: MedicalCriticality | null }).medical_criticality ?? null;
+                              const isSaving = critSavingId === req.id;
+                              const opts: { value: MedicalCriticality; label: string; icon: React.ReactNode; activeCls: string; inactiveCls: string }[] = [
+                                { value: 'HIGH',   label: 'High',   icon: <AlertTriangle size={10} />, activeCls: 'bg-red-600 text-white border-red-600 shadow-sm',    inactiveCls: 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' },
+                                { value: 'MEDIUM', label: 'Medium', icon: <AlertTriangle size={10} />, activeCls: 'bg-amber-500 text-white border-amber-500 shadow-sm', inactiveCls: 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100' },
+                                { value: 'LOW',    label: 'Low',    icon: <AlertTriangle size={10} />, activeCls: 'bg-emerald-600 text-white border-emerald-600 shadow-sm', inactiveCls: 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100' },
+                              ];
+                              return (
+                                <div className="px-3 py-2.5 border-b border-rose-100 bg-rose-50/40">
+                                  <div className="flex items-center gap-1.5 mb-2">
+                                    <AlertTriangle size={11} className="text-rose-500 shrink-0" />
+                                    <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">Medical Criticality</span>
+                                    {current && <span className="ml-auto text-[9px] font-medium text-gray-400 italic">click to change</span>}
+                                    {!current && <span className="ml-auto text-[9px] font-medium text-gray-400 italic">not yet assessed</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {opts.map(o => (
+                                      <button
+                                        key={o.value}
+                                        disabled={isSaving}
+                                        onClick={e => { e.stopPropagation(); handleSetMedicalCriticality(req.id, current === o.value ? null : o.value); }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all flex-1 justify-center disabled:opacity-50 ${
+                                          current === o.value ? o.activeCls : o.inactiveCls
+                                        }`}
+                                        title={current === o.value ? `Clear criticality` : `Set as ${o.label}`}
+                                      >
+                                        {o.icon}{o.label}
+                                      </button>
+                                    ))}
+                                    {isSaving && <span className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin shrink-0" />}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             {req.preferred_location && (
                               <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-50">
                                 <span className="w-28 shrink-0 text-[10px] text-gray-400 font-medium">Preferred Location</span>
