@@ -1359,7 +1359,7 @@ export const QuarterRentPage: React.FC = () => {
           </div>
 
           {/* Title row */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-gray-900 mb-0.5 flex items-center gap-2.5">
                 <div className="p-1.5 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl shadow-lg">
@@ -1482,48 +1482,21 @@ export const QuarterRentPage: React.FC = () => {
                       <button
                         key={c.dp}
                         onClick={() => setDpFilter(dpFilter === c.dp ? 'RENT_OUTSTANDING' : c.dp)}
-                        className={`text-left rounded-lg px-2.5 py-2 border-2 transition-all duration-150 ${c.accentClass} ${
+                        className={`text-left rounded-md px-2 py-1.5 border-2 transition-all duration-150 ${c.accentClass} ${
                           isActive ? 'shadow-md ring-2 ring-current/25 scale-[1.02]' : ''
                         }`}
                       >
                         <div className="flex items-center gap-1 mb-0.5">
-                          <Icon size={10} className={`${c.textClass} shrink-0`} />
-                          <span className={`text-[9px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
+                          <Icon size={9} className={`${c.textClass} shrink-0`} />
+                          <span className={`text-[8px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
                         </div>
-                        <div className={`text-base font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
-                        <div className={`text-[9px] font-medium ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
+                        <div className={`text-sm font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
+                        <div className={`text-[8px] font-medium ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Proportional breakdown bar */}
-                {summary.total_outstanding_amount > 0 && (() => {
-                  const total = summary.total_outstanding_amount;
-                  const segs = [
-                    { pct: ((summary.total_due_amount + summary.arrears_amount) / total) * 100, color: 'bg-amber-400',  label: 'Rent' },
-                    { pct: (summary.sd_pending_amount        / total) * 100, color: 'bg-blue-400',   label: 'SD' },
-                    { pct: (summary.advance_pending_amount   / total) * 100, color: 'bg-violet-400', label: 'Adv' },
-                    { pct: (summary.maintenance_arrears_amount / total) * 100, color: 'bg-orange-400', label: 'Maint' },
-                    { pct: (summary.penalty_accumulated_amount / total) * 100, color: 'bg-red-500',    label: 'Penalty' },
-                  ].filter(s => s.pct > 0);
-                  return (
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex flex-1 h-1.5 rounded-full overflow-hidden gap-px">
-                        {segs.map((s, i) => (
-                          <div key={i} className={`${s.color}`} style={{ width: `${s.pct}%` }} title={`${s.label}: ${s.pct.toFixed(1)}%`} />
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2.5 shrink-0">
-                        {segs.map((s, i) => (
-                          <span key={i} className="flex items-center gap-0.5 text-[9px] text-gray-500">
-                            <span className={`w-2 h-2 rounded-sm ${s.color}`} />{s.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
           ) : null}
