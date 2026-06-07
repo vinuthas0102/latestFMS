@@ -649,6 +649,7 @@ export const QuarterRentPage: React.FC = () => {
 
   // ── Filter / view state ─────────────────────────────────────────────────────
   const [dpFilter, setDpFilter] = useState<DpFilter>('all');
+  const [outstandingExpanded, setOutstandingExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('tile');
   const [monthFrom, setMonthFrom] = useState('2026-05');
   const [monthTo, setMonthTo]     = useState('2026-05');
@@ -1180,20 +1181,35 @@ export const QuarterRentPage: React.FC = () => {
   };
 
   // ── DP cards config ─────────────────────────────────────────────────────────
+  const SUB_FILTERS: DpFilter[] = ['RENT_OUTSTANDING','SD_PENDING','ADVANCE_PENDING','MAINTENANCE_ARREARS','PENALTY'];
+  const hasActiveSubFilter = SUB_FILTERS.includes(dpFilter);
+
+  const handleOutstandingClick = () => {
+    if (outstandingExpanded) {
+      // Collapse: clear any sub-filter
+      setOutstandingExpanded(false);
+      setDpFilter('all');
+    } else {
+      // Expand: apply RENT_OUTSTANDING filter
+      setOutstandingExpanded(true);
+      setDpFilter('RENT_OUTSTANDING');
+    }
+  };
+
   const statusCards = summary ? [
-    { label: 'Paid This Period', value: summary.paid_count,     subtitle: fmtINR(summary.paid_amount),     gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600',  dp: 'PAID'     as DpFilter, icon: TrendingUp },
-    { label: 'Partial Payments', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  gradient: 'bg-gradient-to-r from-sky-500 to-blue-600',       dp: 'PARTIAL'  as DpFilter, icon: Clock },
-    { label: 'Exempted',         value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',    dp: 'EXEMPTED' as DpFilter, icon: Receipt },
-    { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of total demand met',          gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2 },
+    { label: 'Paid This Period', value: summary.paid_count,      subtitle: fmtINR(summary.paid_amount),      gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600', dp: 'PAID'     as DpFilter, icon: TrendingUp },
+    { label: 'Partial Payments', value: summary.partial_count,   subtitle: fmtINR(summary.partial_amount),   gradient: 'bg-gradient-to-r from-sky-500 to-blue-600',      dp: 'PARTIAL'  as DpFilter, icon: Clock },
+    { label: 'Exempted',         value: summary.exempted_count,  subtitle: fmtINR(summary.exempted_amount),  gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',   dp: 'EXEMPTED' as DpFilter, icon: Receipt },
+    { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of demand collected',            gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2 },
   ] : [];
 
   // Sub-DP components under Total Outstanding
   const subDpCards = summary ? [
-    { label: 'Rent Due',          value: summary.total_due_count + summary.arrears_count, subtitle: fmtINR(summary.total_due_amount + summary.arrears_amount),  dp: 'RENT_OUTSTANDING'    as DpFilter, icon: IndianRupee,  color: 'amber',   accentClass: 'border-amber-200 bg-amber-50 hover:bg-amber-100',  textClass: 'text-amber-700',  subColor: 'bg-amber-400' },
-    { label: 'SD Pending',        value: summary.sd_pending_count,             subtitle: fmtINR(summary.sd_pending_amount),           dp: 'SD_PENDING'          as DpFilter, icon: Shield,        color: 'blue',    accentClass: 'border-blue-200 bg-blue-50 hover:bg-blue-100',      textClass: 'text-blue-700',   subColor: 'bg-blue-400' },
-    { label: 'Adv. Pending',      value: summary.advance_pending_count,        subtitle: fmtINR(summary.advance_pending_amount),      dp: 'ADVANCE_PENDING'     as DpFilter, icon: Zap,           color: 'purple',  accentClass: 'border-violet-200 bg-violet-50 hover:bg-violet-100', textClass: 'text-violet-700', subColor: 'bg-violet-400' },
-    { label: 'Maint. Arrears',    value: summary.maintenance_arrears_count,    subtitle: fmtINR(summary.maintenance_arrears_amount),  dp: 'MAINTENANCE_ARREARS' as DpFilter, icon: Wrench,        color: 'orange',  accentClass: 'border-orange-200 bg-orange-50 hover:bg-orange-100', textClass: 'text-orange-700', subColor: 'bg-orange-400' },
-    { label: 'Penalty Acc.',      value: summary.penalty_accumulated_count,    subtitle: fmtINR(summary.penalty_accumulated_amount),  dp: 'PENALTY'             as DpFilter, icon: AlertTriangle, color: 'red',     accentClass: 'border-red-200 bg-red-50 hover:bg-red-100',         textClass: 'text-red-700',    subColor: 'bg-red-500' },
+    { label: 'Rent Due',       value: summary.total_due_count + summary.arrears_count, subtitle: fmtINR(summary.total_due_amount + summary.arrears_amount), dp: 'RENT_OUTSTANDING'    as DpFilter, icon: IndianRupee,  accentClass: 'border-amber-200  bg-amber-50  hover:bg-amber-100',  textClass: 'text-amber-700',  barColor: 'bg-amber-400' },
+    { label: 'SD Pending',     value: summary.sd_pending_count,          subtitle: fmtINR(summary.sd_pending_amount),          dp: 'SD_PENDING'          as DpFilter, icon: Shield,        accentClass: 'border-blue-200   bg-blue-50   hover:bg-blue-100',   textClass: 'text-blue-700',   barColor: 'bg-blue-400' },
+    { label: 'Adv. Pending',   value: summary.advance_pending_count,     subtitle: fmtINR(summary.advance_pending_amount),     dp: 'ADVANCE_PENDING'     as DpFilter, icon: Zap,           accentClass: 'border-violet-200 bg-violet-50 hover:bg-violet-100', textClass: 'text-violet-700', barColor: 'bg-violet-400' },
+    { label: 'Maint. Arrears', value: summary.maintenance_arrears_count, subtitle: fmtINR(summary.maintenance_arrears_amount), dp: 'MAINTENANCE_ARREARS' as DpFilter, icon: Wrench,        accentClass: 'border-orange-200 bg-orange-50 hover:bg-orange-100', textClass: 'text-orange-700', barColor: 'bg-orange-400' },
+    { label: 'Penalty Acc.',   value: summary.penalty_accumulated_count, subtitle: fmtINR(summary.penalty_accumulated_amount), dp: 'PENALTY'             as DpFilter, icon: AlertTriangle, accentClass: 'border-red-200    bg-red-50    hover:bg-red-100',    textClass: 'text-red-700',    barColor: 'bg-red-500' },
   ] : [];
 
   const views: { id: ViewMode; icon: LucideIcon; label: string }[] = [
@@ -1249,110 +1265,146 @@ export const QuarterRentPage: React.FC = () => {
             </div>
           </div>
 
-          {/* DP Summary Cards — hero + sub-DPs + status row */}
+          {/* DP Summary Cards — main row + expandable sub-DP accordion */}
           {loading ? (
-            <div className="space-y-3">
-              <div className="h-20 rounded-2xl bg-gray-200 animate-pulse" />
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-xl bg-gray-200 animate-pulse" />)}
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-xl bg-gray-200 animate-pulse" />)}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-200 animate-pulse" />)}
               </div>
             </div>
           ) : summary ? (
             <div className="space-y-2">
-              {/* Hero — Total Outstanding */}
-              <button
-                onClick={() => setDpFilter(dpFilter === 'RENT_OUTSTANDING' ? 'all' : 'RENT_OUTSTANDING')}
-                className={`w-full text-left rounded-2xl p-4 transition-all border-2 ${
-                  dpFilter === 'RENT_OUTSTANDING'
-                    ? 'bg-gradient-to-r from-slate-800 to-slate-700 border-slate-600 shadow-lg ring-2 ring-slate-500/30'
-                    : 'bg-gradient-to-r from-slate-800 to-slate-700 border-transparent hover:border-slate-500 shadow-md hover:shadow-lg'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                      <Layers size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Outstanding</div>
-                      <div className="text-2xl font-extrabold text-white leading-tight">{fmtINR(summary.total_outstanding_amount)}</div>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-3xl font-black text-white/90">{summary.total_outstanding_count}</div>
-                    <div className="text-[10px] text-slate-400 font-medium">records</div>
-                  </div>
-                </div>
-              </button>
-
-              {/* Sub-DPs — 5 components */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                {subDpCards.map((c) => {
-                  const Icon = c.icon;
-                  const isActive = dpFilter === c.dp;
-                  return (
-                    <button
-                      key={c.dp}
-                      onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
-                      className={`text-left rounded-xl px-3 py-2.5 border-2 transition-all ${c.accentClass} ${isActive ? 'border-current shadow ring-2 ring-current/20' : ''}`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Icon size={11} className={`${c.textClass} shrink-0`} />
-                        <span className={`text-[10px] font-bold uppercase tracking-wide ${c.textClass}`}>{c.label}</span>
+              {/* ── Main row: 5 cards ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {/* Total Outstanding — accordion trigger */}
+                <div className="relative">
+                  <button
+                    onClick={handleOutstandingClick}
+                    className={`w-full text-left rounded-xl overflow-hidden transition-all duration-200 group ${
+                      outstandingExpanded
+                        ? 'shadow-xl ring-2 ring-white ring-offset-1 ring-offset-gray-200 scale-[1.02]'
+                        : 'shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                    } bg-gradient-to-r from-slate-800 to-gray-900 flex flex-row min-h-[80px]`}
+                  >
+                    {/* decorative overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 pointer-events-none" />
+                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full pointer-events-none" />
+                    {/* Icon column */}
+                    <div className="relative z-10 shrink-0 flex items-center justify-center px-3 border-r border-white/20">
+                      <div className="p-2 bg-white/20 rounded-xl border border-white/30">
+                        <Layers size={16} className="text-white" />
                       </div>
-                      <div className={`text-lg font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
-                      <div className={`text-[10px] font-medium mt-0.5 ${c.textClass} opacity-80`}>{c.subtitle}</div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Proportional breakdown bar */}
-              {summary.total_outstanding_amount > 0 && (() => {
-                const total = summary.total_outstanding_amount;
-                const rentAmt   = summary.total_due_amount + summary.arrears_amount;
-                const sdAmt     = summary.sd_pending_amount;
-                const advAmt    = summary.advance_pending_amount;
-                const maintAmt  = summary.maintenance_arrears_amount;
-                const penAmt    = summary.penalty_accumulated_amount;
-                const segs = [
-                  { pct: (rentAmt  / total) * 100, color: 'bg-amber-400',  label: 'Rent' },
-                  { pct: (sdAmt    / total) * 100, color: 'bg-blue-400',   label: 'SD' },
-                  { pct: (advAmt   / total) * 100, color: 'bg-violet-400', label: 'Adv' },
-                  { pct: (maintAmt / total) * 100, color: 'bg-orange-400', label: 'Maint' },
-                  { pct: (penAmt   / total) * 100, color: 'bg-red-500',    label: 'Penalty' },
-                ].filter(s => s.pct > 0);
-                return (
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-1 h-2 rounded-full overflow-hidden gap-px">
-                      {segs.map((s, i) => (
-                        <div key={i} className={`${s.color} transition-all duration-500`} style={{ width: `${s.pct}%` }} title={`${s.label}: ${s.pct.toFixed(1)}%`} />
-                      ))}
                     </div>
-                    <div className="flex items-center gap-2.5 text-[9px] text-gray-500 shrink-0">
-                      {segs.map((s, i) => (
-                        <span key={i} className="flex items-center gap-0.5">
-                          <span className={`w-2 h-2 rounded-sm ${s.color}`} />{s.label}
-                        </span>
-                      ))}
+                    {/* Content */}
+                    <div className="relative z-10 flex-1 px-3 py-3 flex flex-col justify-center min-w-0 gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xl font-extrabold text-white leading-tight">{summary.total_outstanding_count}</p>
+                        {/* Active sub-filter dot hint when collapsed */}
+                        {!outstandingExpanded && hasActiveSubFilter && (
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" title="Sub-filter active" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-white/95 uppercase tracking-widest leading-tight truncate">Total Outstanding</p>
+                        <p className="text-[10px] text-white/65 leading-tight mt-0.5 truncate">{fmtINR(summary.total_outstanding_amount)}</p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                    {/* Chevron */}
+                    <div className="relative z-10 shrink-0 flex items-center pr-3">
+                      <ChevronDown
+                        size={16}
+                        className={`text-white/70 transition-transform duration-300 ${outstandingExpanded ? 'rotate-180' : ''}`}
+                      />
+                    </div>
+                    {/* Bottom active indicator */}
+                    <div className={`absolute bottom-0 left-0 right-0 transition-all duration-200 ${outstandingExpanded ? 'h-1 bg-amber-400' : 'h-0.5 bg-white/20'}`} />
+                  </button>
+                  {/* Active outer ring when expanded */}
+                  {outstandingExpanded && (
+                    <>
+                      <div className="absolute -inset-[3px] rounded-[14px] ring-2 ring-white pointer-events-none" />
+                      <div className="absolute -inset-[5px] rounded-[16px] ring-2 ring-gray-800/30 pointer-events-none" />
+                    </>
+                  )}
+                </div>
 
-              {/* Status row — 4 cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                {/* Status cards */}
                 {statusCards.map((c, i) => (
                   <SummaryStatsCard
                     key={c.label} label={c.label} value={c.value} icon={c.icon}
-                    gradient={c.gradient} subtitle={c.subtitle} delay={i * 50}
+                    gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
                     isActive={dpFilter === c.dp}
                     onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
                   />
                 ))}
+              </div>
+
+              {/* ── Accordion sub-panel: slides open under Total Outstanding card ── */}
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  outstandingExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                {/* Connector: thin top border + left triangle pointing at the card */}
+                <div className="relative pt-1 pb-2">
+                  {/* Full-width top rule */}
+                  <div className="absolute top-0 left-0 right-0 h-px bg-slate-200" />
+                  {/* Up-pointing caret centred over the first card (~10% width) */}
+                  <div className="absolute -top-[5px] left-[10%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-slate-200" />
+                  <div className="absolute -top-[3px] left-[10%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
+                </div>
+
+                {/* 5 sub-DP cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {subDpCards.map((c) => {
+                    const Icon = c.icon;
+                    const isActive = dpFilter === c.dp;
+                    return (
+                      <button
+                        key={c.dp}
+                        onClick={() => setDpFilter(dpFilter === c.dp ? 'RENT_OUTSTANDING' : c.dp)}
+                        className={`text-left rounded-xl px-3 py-2.5 border-2 transition-all duration-150 ${c.accentClass} ${
+                          isActive ? 'shadow-md ring-2 ring-current/25 scale-[1.02]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Icon size={11} className={`${c.textClass} shrink-0`} />
+                          <span className={`text-[10px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
+                        </div>
+                        <div className={`text-xl font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
+                        <div className={`text-[10px] font-medium mt-0.5 ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Proportional breakdown bar */}
+                {summary.total_outstanding_amount > 0 && (() => {
+                  const total = summary.total_outstanding_amount;
+                  const segs = [
+                    { pct: ((summary.total_due_amount + summary.arrears_amount) / total) * 100, color: 'bg-amber-400',  label: 'Rent' },
+                    { pct: (summary.sd_pending_amount        / total) * 100, color: 'bg-blue-400',   label: 'SD' },
+                    { pct: (summary.advance_pending_amount   / total) * 100, color: 'bg-violet-400', label: 'Adv' },
+                    { pct: (summary.maintenance_arrears_amount / total) * 100, color: 'bg-orange-400', label: 'Maint' },
+                    { pct: (summary.penalty_accumulated_amount / total) * 100, color: 'bg-red-500',    label: 'Penalty' },
+                  ].filter(s => s.pct > 0);
+                  return (
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="flex flex-1 h-1.5 rounded-full overflow-hidden gap-px">
+                        {segs.map((s, i) => (
+                          <div key={i} className={`${s.color}`} style={{ width: `${s.pct}%` }} title={`${s.label}: ${s.pct.toFixed(1)}%`} />
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {segs.map((s, i) => (
+                          <span key={i} className="flex items-center gap-0.5 text-[9px] text-gray-500">
+                            <span className={`w-2 h-2 rounded-sm ${s.color}`} />{s.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : null}
@@ -1400,7 +1452,14 @@ export const QuarterRentPage: React.FC = () => {
                   label: 'Status',
                   type: 'chips',
                   value: dpFilter,
-                  onChange: (v) => setDpFilter(v as DpFilter),
+                  onChange: (v) => {
+                    const next = v as DpFilter;
+                    setDpFilter(next);
+                    // Collapse outstanding accordion when switching to a non-sub filter
+                    if (!['RENT_OUTSTANDING','SD_PENDING','ADVANCE_PENDING','MAINTENANCE_ARREARS','PENALTY'].includes(next)) {
+                      setOutstandingExpanded(false);
+                    }
+                  },
                   options: [
                     { value: 'all',      label: 'All'      },
                     { value: 'DUE',      label: 'Due'      },
