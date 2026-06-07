@@ -566,7 +566,108 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
 };
 
 // ── Tenant Info Chip ──────────────────────────────────────────────────────────
-const TenantChip: React.FC<{ tile: RentTile }> = ({ tile }) => (
+// ─────────────────────────────────────────────────────────────────────────────
+//  Tenant Payment Profile Modal
+// ─────────────────────────────────────────────────────────────────────────────
+const TenantPaymentProfileModal: React.FC<{
+  tenantId: string;
+  tiles: RentTile[];
+  onClose: () => void;
+}> = ({ tenantId, tiles, onClose }) => {
+  const tenantTiles = tiles.filter(t => t.tenant_id === tenantId).sort((a, b) => b.month.localeCompare(a.month));
+  if (tenantTiles.length === 0) return null;
+  const first = tenantTiles[0];
+  const totalPending = tenantTiles
+    .filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')
+    .reduce((s, t) => s + (t.status === 'PARTIAL' ? t.total_due - t.amount_paid : t.total_due), 0);
+  const totalPaid = tenantTiles.reduce((s, t) => s + t.amount_paid, 0);
+  const unpaidCount = tenantTiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL').length;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-5 py-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <span className="text-base font-extrabold text-white">{first.tenant_name[0]}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-white truncate">{first.tenant_name}</div>
+            <div className="text-[11px] text-slate-300 truncate">{first.tenant_designation}{first.tenant_dept ? ` · ${first.tenant_dept}` : ''}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0"
+          >
+            <X size={14} className="text-white" />
+          </button>
+        </div>
+
+        {/* Summary strip */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+          <div className="px-4 py-3 text-center">
+            <div className="text-lg font-extrabold text-gray-900">{tenantTiles.length}</div>
+            <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Total Records</div>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <div className={`text-lg font-extrabold ${unpaidCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{fmtINR(totalPending)}</div>
+            <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Total Pending</div>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <div className="text-lg font-extrabold text-emerald-600">{fmtINR(totalPaid)}</div>
+            <div className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Total Paid</div>
+          </div>
+        </div>
+
+        {/* Property list */}
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {tenantTiles.map(t => {
+            const s = STATUS[t.status];
+            const pendingAmt = t.status === 'PARTIAL' ? t.total_due - t.amount_paid : t.status === 'PAID' || t.status === 'EXEMPTED' ? 0 : t.total_due;
+            return (
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <div className={`w-1 self-stretch shrink-0 rounded-full ${STATUS_LEFT[t.status]}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-gray-900">{t.quarter_number}</span>
+                    <span className="text-[9px] bg-gray-100 text-gray-500 rounded px-1 py-0.5 font-semibold">{t.bhk_config}</span>
+                    <span className="text-[9px] text-gray-400">{t.block_name}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">{fmtMonthFull(t.month)} · {t.location_area}</div>
+                </div>
+                <div className="shrink-0 text-right min-w-[80px]">
+                  <div className={`text-sm font-extrabold ${s.text}`}>{fmtINR(t.total_due)}</div>
+                  {t.status === 'PARTIAL' && (
+                    <div className="text-[9px] text-amber-600 font-medium">Pending: {fmtINR(pendingAmt)}</div>
+                  )}
+                  <div className="text-[9px] text-gray-400">total due</div>
+                </div>
+                <div className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg ${s.bg} ${s.text} ${s.border} border`}>
+                  {s.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer total */}
+        {unpaidCount > 0 && (
+          <div className="border-t border-gray-100 px-5 py-3 bg-amber-50 flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-700">{unpaidCount} unpaid record{unpaidCount > 1 ? 's' : ''}</span>
+            <span className="text-sm font-extrabold text-amber-700">{fmtINR(totalPending)} outstanding</span>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const TenantChip: React.FC<{ tile: RentTile; onViewProfile?: (e: React.MouseEvent) => void }> = ({ tile, onViewProfile }) => (
   <div className="flex items-center gap-1.5">
     <div className="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
       <span className="text-[9px] font-bold text-teal-700">{tile.tenant_name[0]}</span>
@@ -575,6 +676,15 @@ const TenantChip: React.FC<{ tile: RentTile }> = ({ tile }) => (
       <div className="text-xs font-semibold text-gray-900 truncate leading-tight">{tile.tenant_name}</div>
       <div className="text-[10px] text-gray-400 leading-tight truncate">{tile.tenant_designation}</div>
     </div>
+    {onViewProfile && (
+      <button
+        onClick={onViewProfile}
+        className="ml-0.5 w-5 h-5 rounded-full flex items-center justify-center text-gray-300 hover:text-teal-600 hover:bg-teal-50 transition-colors shrink-0"
+        title="View all payments for this tenant"
+      >
+        <Eye size={11} />
+      </button>
+    )}
   </div>
 );
 
@@ -668,6 +778,7 @@ export const QuarterRentPage: React.FC = () => {
   const [undoPayment, setUndoPayment] = useState<{ tile: RentTile; payment: RentPayment } | null>(null);
   const [payments, setPayments]   = useState<RentPayment[]>([]);
   const [clarifications, setClarifications] = useState<RentClarification[]>([]);
+  const [tenantProfileId, setTenantProfileId] = useState<string | null>(null);
   const [clarMsg, setClarMsg] = useState('');
   const [paySuccess, setPaySuccess] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -879,7 +990,7 @@ export const QuarterRentPage: React.FC = () => {
             </div>
             {/* Tenant */}
             <div className="flex-1 min-w-0 hidden sm:block">
-              <TenantChip tile={tile} />
+              <TenantChip tile={tile} onViewProfile={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }} />
             </div>
             {/* Month */}
             <div className="text-[10px] text-gray-400 shrink-0 hidden md:block w-16 text-center">
@@ -971,7 +1082,7 @@ export const QuarterRentPage: React.FC = () => {
           <div className="text-xs font-bold text-gray-900">{tile.quarter_number}</div>
           <div className="text-[10px] text-gray-400">{tile.block_name} · {tile.location_area}</div>
         </td>
-        <td className="px-4 py-3"><TenantChip tile={tile} /></td>
+        <td className="px-4 py-3"><TenantChip tile={tile} onViewProfile={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }} /></td>
         <td className="px-4 py-3 text-xs font-medium text-gray-700">{fmtMonth(tile.month)}</td>
         <td className="px-4 py-3 text-xs font-semibold text-gray-900 text-right">{fmtINR(tile.base_rent)}</td>
         <td className="px-4 py-3 text-xs font-bold text-amber-700 text-right">{fmtINR(tile.total_due)}</td>
@@ -1007,13 +1118,22 @@ export const QuarterRentPage: React.FC = () => {
           className="p-4 cursor-pointer select-none"
           onClick={() => toggleInfo(tile.id)}
         >
-          {/* Row 1: avatar + tenant name + status badge */}
+          {/* Row 1: avatar + tenant name + eye icon + status badge */}
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${avatarBg}`}>
               <span className={`text-xs font-extrabold ${avatarText}`}>{tile.tenant_name[0]}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-gray-900 truncate leading-tight">{tile.tenant_name}</div>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-gray-900 truncate leading-tight">{tile.tenant_name}</span>
+                <button
+                  onClick={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-gray-300 hover:text-teal-600 hover:bg-teal-50 transition-colors shrink-0"
+                  title="View all payments for this tenant"
+                >
+                  <Eye size={11} />
+                </button>
+              </div>
               <div className="text-[10px] text-gray-400 truncate leading-tight">{tile.tenant_designation}</div>
             </div>
             <StatusBadge status={tile.status} />
@@ -1568,6 +1688,13 @@ export const QuarterRentPage: React.FC = () => {
       )}
 
       {/* Modals */}
+      {tenantProfileId && (
+        <TenantPaymentProfileModal
+          tenantId={tenantProfileId}
+          tiles={tiles}
+          onClose={() => setTenantProfileId(null)}
+        />
+      )}
       {dueModal && (
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
           onClose={() => setDueModal(null)} onSave={handleSaveOverride} />
