@@ -1602,6 +1602,10 @@ const T = {
   t014: ['EMP-H001','Star Events Co.','9814014014','Event Organizer',     'Private Party',          'HALL-B1','Community Block','Main Campus',  'HALL-LARGE',0,0,0] as const,
   // Guest House commercial lessee with maintenance arrears
   t015: ['EMP-G001','Govt. PSU Stay', '9815015015','PSU Official',        'BHEL Guest Account',     'GH-101', 'Guest Block',   'Central Campus','GUEST-ROOM',3500,200,100] as const,
+  // Rajesh Kumar's second quarter — multi-property demo
+  t016: ['EMP-1001','Rajesh Kumar',   '9811001001','Under Secretary',     'Ministry of Finance',    'E-101','Block E','Vasant Vihar',    '3 BHK',8800,400,300] as const,
+  // Rajesh Kumar's third quarter — multi-property demo
+  t017: ['EMP-1001','Rajesh Kumar',   '9811001001','Under Secretary',     'Ministry of Finance',    'F-204','Block F','RK Puram',        '1 BHK',4200,200,150] as const,
 };
 
 function rt(id: string, allot: string, month: string, tk: readonly [string,string,string,string,string,string,string,string,string,number,number,number],
@@ -1713,6 +1717,15 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-g501','allot-015','2026-05',T.t015,380,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 0, 0, 500),
   // ── Guest House PSU (allot-015) — April 2026 — paid ─────────────────────────
   rt('rt-g401','allot-015','2026-04',T.t015, 0,null,4200,     'ONLINE',       'PAID',    '2026-04-05','2026-04-04',  'RCP-2604-G001', null, 0, 0, 500),
+  // ── Rajesh Kumar — E-101 (allot-016) — multi-quarter demo ───────────────────
+  rt('rt-e501','allot-016','2026-05',T.t016,1200,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null),
+  rt('rt-e401','allot-016','2026-04',T.t016, 600,null,  0,       null,         'OVERDUE', '2026-04-05',null,           null,           null),
+  rt('rt-e301','allot-016','2026-03',T.t016,  0,null,9500,     'ONLINE',       'PAID',    '2026-03-05','2026-03-03',  'RCP-2603-E001',null),
+  rt('rt-e201','allot-016','2026-02',T.t016,  0,null,9500,     'CHEQUE',       'PAID',    '2026-02-05','2026-02-04',  'RCP-2602-E001',null),
+  // ── Rajesh Kumar — F-204 (allot-017) — multi-quarter demo ───────────────────
+  rt('rt-f501','allot-017','2026-05',T.t017,  0,null,2500,     'CASH',         'PARTIAL', '2026-05-05','2026-05-01',  null,           null),
+  rt('rt-f401','allot-017','2026-04',T.t017,  0,null,4550,     'ONLINE',       'PAID',    '2026-04-05','2026-04-02',  'RCP-2604-F001',null),
+  rt('rt-f301','allot-017','2026-03',T.t017,  0,null,4550,     'AUTO_DEDUCTION','PAID',   '2026-03-05','2026-03-01',  'RCP-2603-F001',null),
 ];
 
 export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
