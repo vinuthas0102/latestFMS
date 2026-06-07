@@ -1371,16 +1371,16 @@ export const QuarterRentPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               {/* View switcher */}
-              <div className="inline-flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
+              <div className="inline-flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
                 {views.map(({ id, icon: Icon, label }) => (
                   <button key={id} onClick={() => setViewMode(id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === id ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                    <Icon size={13} /> <span className="hidden sm:inline">{label}</span>
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === id ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Icon size={12} /> <span className="hidden sm:inline">{label}</span>
                   </button>
                 ))}
               </div>
-              <button className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                <Download size={14} /> Export
+              <button className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <Download size={12} /> Export
               </button>
             </div>
           </div>
@@ -1393,8 +1393,7 @@ export const QuarterRentPage: React.FC = () => {
               </div>
             </div>
           ) : summary ? (
-            <div className="space-y-2">
-              {/* ── Main row: 5 cards ── */}
+            <div className="space-y-1.5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {/* Total Outstanding — accordion trigger */}
                 <div className="relative">
@@ -1475,7 +1474,7 @@ export const QuarterRentPage: React.FC = () => {
                 </div>
 
                 {/* 5 sub-DP cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
                   {subDpCards.map((c) => {
                     const Icon = c.icon;
                     const isActive = dpFilter === c.dp;
@@ -1483,16 +1482,16 @@ export const QuarterRentPage: React.FC = () => {
                       <button
                         key={c.dp}
                         onClick={() => setDpFilter(dpFilter === c.dp ? 'RENT_OUTSTANDING' : c.dp)}
-                        className={`text-left rounded-xl px-3 py-2.5 border-2 transition-all duration-150 ${c.accentClass} ${
+                        className={`text-left rounded-lg px-2.5 py-2 border-2 transition-all duration-150 ${c.accentClass} ${
                           isActive ? 'shadow-md ring-2 ring-current/25 scale-[1.02]' : ''
                         }`}
                       >
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Icon size={11} className={`${c.textClass} shrink-0`} />
-                          <span className={`text-[10px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Icon size={10} className={`${c.textClass} shrink-0`} />
+                          <span className={`text-[9px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
                         </div>
-                        <div className={`text-xl font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
-                        <div className={`text-[10px] font-medium mt-0.5 ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
+                        <div className={`text-base font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
+                        <div className={`text-[9px] font-medium ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
                       </button>
                     );
                   })}
@@ -1552,10 +1551,10 @@ export const QuarterRentPage: React.FC = () => {
           ) : undefined}
           left={
             <div className="h-full overflow-y-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
 
           {/* ── Filter bar — below DP cards ── */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-2">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
             <MandatorySearchBar
               fields={[
                 {
