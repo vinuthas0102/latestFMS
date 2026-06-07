@@ -7,7 +7,7 @@ import {
   Clock, Receipt, TrendingUp, Send, ChevronDown,
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
-  Download, MoreVertical,
+  Download, MoreVertical, Shield, Wrench, Zap, Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -63,7 +63,8 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, o
   const overrideChanged = overrideNum !== detail.penalty_amount;
   const hasOverrideActive = detail.penalty_override !== null && detail.penalty_override < detail.penalty_amount;
   const canSave = !overrideChanged || remarks.trim().length > 0;
-  const subtotal = detail.base_rent + detail.water_charges + detail.utility_charges;
+  const subtotal = detail.base_rent + detail.water_charges + detail.utility_charges
+    + (tile.sd_amount ?? 0) + (tile.advance_amount ?? 0) + (tile.maintenance_charge ?? 0);
   const net = subtotal + overrideNum - detail.waiver_amount;
 
   const handleSave = async () => {
@@ -107,6 +108,25 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, o
               <span className="text-sm font-medium text-gray-800">{fmtINR(value)}</span>
             </div>
           ))}
+          {/* Additional charge components from tile */}
+          {(tile.sd_amount ?? 0) > 0 && (
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Shield size={11} className="text-blue-400" />Security Deposit</span>
+              <span className="text-sm font-medium text-blue-700">{fmtINR(tile.sd_amount ?? 0)}</span>
+            </div>
+          )}
+          {(tile.advance_amount ?? 0) > 0 && (
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Zap size={11} className="text-violet-400" />Advance Amount</span>
+              <span className="text-sm font-medium text-violet-700">{fmtINR(tile.advance_amount ?? 0)}</span>
+            </div>
+          )}
+          {(tile.maintenance_charge ?? 0) > 0 && (
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Wrench size={11} className="text-orange-400" />Maintenance Charge</span>
+              <span className="text-sm font-medium text-orange-700">{fmtINR(tile.maintenance_charge ?? 0)}</span>
+            </div>
+          )}
           {/* Sub-total */}
           <div className="flex items-center justify-between py-1.5 border-t border-dashed border-gray-200 mt-1">
             <span className="text-sm font-semibold text-gray-700">Sub-total</span>
@@ -562,7 +582,8 @@ const TenantChip: React.FC<{ tile: RentTile }> = ({ tile }) => (
 //  Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 type ViewMode = 'table' | 'tile' | 'card' | 'graph';
-type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID' | 'PARTIAL';
+type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID' | 'PARTIAL'
+  | 'RENT_OUTSTANDING' | 'SD_PENDING' | 'ADVANCE_PENDING' | 'MAINTENANCE_ARREARS' | 'PENALTY';
 
 function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
   let total_due_count = 0, total_due_amount = 0;
@@ -570,16 +591,48 @@ function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
   let exempted_count = 0, exempted_amount = 0;
   let paid_count = 0, paid_amount = 0;
   let partial_count = 0, partial_amount = 0;
+  let sd_pending_count = 0, sd_pending_amount = 0;
+  let advance_pending_count = 0, advance_pending_amount = 0;
+  let maintenance_arrears_count = 0, maintenance_arrears_amount = 0;
+  let penalty_accumulated_count = 0, penalty_accumulated_amount = 0;
+
   for (const t of tiles) {
     if      (t.status === 'DUE')      { total_due_count++; total_due_amount += t.total_due; }
     else if (t.status === 'OVERDUE')  { arrears_count++;   arrears_amount   += t.total_due; }
     else if (t.status === 'EXEMPTED') { exempted_count++;  exempted_amount  += t.base_rent; }
     else if (t.status === 'PAID')     { paid_count++;      paid_amount      += t.amount_paid; }
     else if (t.status === 'PARTIAL')  { partial_count++;   partial_amount   += t.amount_paid; }
+
+    if ((t.sd_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+      sd_pending_count++; sd_pending_amount += (t.sd_amount ?? 0);
+    }
+    if ((t.advance_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+      advance_pending_count++; advance_pending_amount += (t.advance_amount ?? 0);
+    }
+    if ((t.maintenance_charge ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+      maintenance_arrears_count++; maintenance_arrears_amount += (t.maintenance_charge ?? 0);
+    }
+    if ((t.penalty_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+      penalty_accumulated_count++; penalty_accumulated_amount += (t.penalty_override ?? t.penalty_amount ?? 0);
+    }
   }
+
   const demand = total_due_amount + arrears_amount + paid_amount + partial_amount;
   const collection_rate = demand > 0 ? Math.round((paid_amount + partial_amount) / demand * 100) : 0;
-  return { total_due_count, total_due_amount, arrears_count, arrears_amount, exempted_count, exempted_amount, paid_count, paid_amount, partial_count, partial_amount, collection_rate };
+
+  const total_outstanding_count = total_due_count + arrears_count + partial_count;
+  const total_outstanding_amount = total_due_amount + arrears_amount + (tiles.filter(t => t.status === 'PARTIAL').reduce((s, t) => s + (t.total_due - t.amount_paid), 0));
+
+  return {
+    total_due_count, total_due_amount, arrears_count, arrears_amount,
+    exempted_count, exempted_amount, paid_count, paid_amount,
+    partial_count, partial_amount, collection_rate,
+    total_outstanding_count, total_outstanding_amount,
+    sd_pending_count, sd_pending_amount,
+    advance_pending_count, advance_pending_amount,
+    maintenance_arrears_count, maintenance_arrears_amount,
+    penalty_accumulated_count, penalty_accumulated_amount,
+  };
 }
 
 export const QuarterRentPage: React.FC = () => {
@@ -646,7 +699,16 @@ export const QuarterRentPage: React.FC = () => {
   const displayTiles = useMemo(() => {
     let t = tiles;
     if (filterAllotmentId && isTenant) t = t.filter(x => x.allotment_id === filterAllotmentId);
-    if (dpFilter !== 'all') t = t.filter(x => x.status === dpFilter);
+    if (dpFilter === 'DUE')                  t = t.filter(x => x.status === 'DUE');
+    else if (dpFilter === 'OVERDUE')         t = t.filter(x => x.status === 'OVERDUE');
+    else if (dpFilter === 'EXEMPTED')        t = t.filter(x => x.status === 'EXEMPTED');
+    else if (dpFilter === 'PAID')            t = t.filter(x => x.status === 'PAID');
+    else if (dpFilter === 'PARTIAL')         t = t.filter(x => x.status === 'PARTIAL');
+    else if (dpFilter === 'RENT_OUTSTANDING') t = t.filter(x => x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL');
+    else if (dpFilter === 'SD_PENDING')      t = t.filter(x => (x.sd_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
+    else if (dpFilter === 'ADVANCE_PENDING') t = t.filter(x => (x.advance_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
+    else if (dpFilter === 'MAINTENANCE_ARREARS') t = t.filter(x => (x.maintenance_charge ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
+    else if (dpFilter === 'PENALTY')         t = t.filter(x => (x.penalty_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
     return t;
   }, [tiles, dpFilter, filterAllotmentId, isTenant]);
 
@@ -1036,7 +1098,7 @@ export const QuarterRentPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-6">
           <div className="w-1 h-5 rounded-full bg-teal-600" />
-          <h3 className="text-sm font-bold text-gray-800">Rent Collection — Monthly Overview</h3>
+          <h3 className="text-sm font-bold text-gray-800">Payment Collection — Monthly Overview</h3>
           <div className="ml-auto flex items-center gap-3 text-[10px]">
             {BAR_GROUPS.map(({ color, label }) => (
               <span key={label} className="flex items-center gap-1">
@@ -1118,13 +1180,20 @@ export const QuarterRentPage: React.FC = () => {
   };
 
   // ── DP cards config ─────────────────────────────────────────────────────────
-  const dpCards = summary ? [
-    { label: 'Total Rent Due',   value: summary.total_due_count,   subtitle: fmtINR(summary.total_due_amount),   gradient: 'bg-gradient-to-r from-amber-500 to-orange-500',   dp: 'DUE'      as DpFilter, icon: IndianRupee },
-    { label: 'Overdue/Arrears', value: summary.arrears_count,     subtitle: fmtINR(summary.arrears_amount),     gradient: 'bg-gradient-to-r from-red-500 to-rose-600',        dp: 'OVERDUE'  as DpFilter, icon: AlertTriangle },
-    { label: 'Exempted',         value: summary.exempted_count,    subtitle: fmtINR(summary.exempted_amount),    gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',     dp: 'EXEMPTED' as DpFilter, icon: Receipt },
-    { label: 'Paid This Period', value: summary.paid_count,        subtitle: fmtINR(summary.paid_amount),        gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600',    dp: 'PAID'     as DpFilter, icon: TrendingUp },
-    { label: 'Partial Payments', value: summary.partial_count,     subtitle: fmtINR(summary.partial_amount),     gradient: 'bg-gradient-to-r from-sky-500 to-blue-600',        dp: 'PARTIAL'  as DpFilter, icon: Clock },
-    { label: 'Collection Rate',  value: summary.collection_rate,   subtitle: 'of total demand met',              gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',    dp: 'all'      as DpFilter, icon: BarChart2 },
+  const statusCards = summary ? [
+    { label: 'Paid This Period', value: summary.paid_count,     subtitle: fmtINR(summary.paid_amount),     gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600',  dp: 'PAID'     as DpFilter, icon: TrendingUp },
+    { label: 'Partial Payments', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  gradient: 'bg-gradient-to-r from-sky-500 to-blue-600',       dp: 'PARTIAL'  as DpFilter, icon: Clock },
+    { label: 'Exempted',         value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',    dp: 'EXEMPTED' as DpFilter, icon: Receipt },
+    { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of total demand met',          gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2 },
+  ] : [];
+
+  // Sub-DP components under Total Outstanding
+  const subDpCards = summary ? [
+    { label: 'Rent Due',          value: summary.total_due_count + summary.arrears_count, subtitle: fmtINR(summary.total_due_amount + summary.arrears_amount),  dp: 'RENT_OUTSTANDING'    as DpFilter, icon: IndianRupee,  color: 'amber',   accentClass: 'border-amber-200 bg-amber-50 hover:bg-amber-100',  textClass: 'text-amber-700',  subColor: 'bg-amber-400' },
+    { label: 'SD Pending',        value: summary.sd_pending_count,             subtitle: fmtINR(summary.sd_pending_amount),           dp: 'SD_PENDING'          as DpFilter, icon: Shield,        color: 'blue',    accentClass: 'border-blue-200 bg-blue-50 hover:bg-blue-100',      textClass: 'text-blue-700',   subColor: 'bg-blue-400' },
+    { label: 'Adv. Pending',      value: summary.advance_pending_count,        subtitle: fmtINR(summary.advance_pending_amount),      dp: 'ADVANCE_PENDING'     as DpFilter, icon: Zap,           color: 'purple',  accentClass: 'border-violet-200 bg-violet-50 hover:bg-violet-100', textClass: 'text-violet-700', subColor: 'bg-violet-400' },
+    { label: 'Maint. Arrears',    value: summary.maintenance_arrears_count,    subtitle: fmtINR(summary.maintenance_arrears_amount),  dp: 'MAINTENANCE_ARREARS' as DpFilter, icon: Wrench,        color: 'orange',  accentClass: 'border-orange-200 bg-orange-50 hover:bg-orange-100', textClass: 'text-orange-700', subColor: 'bg-orange-400' },
+    { label: 'Penalty Acc.',      value: summary.penalty_accumulated_count,    subtitle: fmtINR(summary.penalty_accumulated_amount),  dp: 'PENALTY'             as DpFilter, icon: AlertTriangle, color: 'red',     accentClass: 'border-red-200 bg-red-50 hover:bg-red-100',         textClass: 'text-red-700',    subColor: 'bg-red-500' },
   ] : [];
 
   const views: { id: ViewMode; icon: LucideIcon; label: string }[] = [
@@ -1150,7 +1219,7 @@ export const QuarterRentPage: React.FC = () => {
             <ChevronRight size={10} />
             <button onClick={() => navigate(ROUTES.DASHBOARD)} className="text-gray-500 hover:text-teal-600 transition-colors">My Workspace</button>
             <ChevronRight size={10} />
-            <span className="text-gray-700 font-medium">Rent Tracker</span>
+            <span className="text-gray-700 font-medium">Payment Tracker</span>
           </div>
 
           {/* Title row */}
@@ -1160,9 +1229,9 @@ export const QuarterRentPage: React.FC = () => {
                 <div className="p-1.5 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl shadow-lg">
                   <IndianRupee className="w-4 h-4 text-white" />
                 </div>
-                Rent Tracker
+                Payment Tracker
               </h1>
-              <p className="text-sm text-gray-500 mt-0.5 ml-9">Quarters rent collection — demand, payments &amp; arrears</p>
+              <p className="text-sm text-gray-500 mt-0.5 ml-9">Rent, SD, advances, maintenance &amp; penalties across all property types</p>
             </div>
             <div className="flex items-center gap-3">
               {/* View switcher */}
@@ -1180,23 +1249,113 @@ export const QuarterRentPage: React.FC = () => {
             </div>
           </div>
 
-          {/* DP Summary Cards */}
+          {/* DP Summary Cards — hero + sub-DPs + status row */}
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-200 animate-pulse" />)}
+            <div className="space-y-3">
+              <div className="h-20 rounded-2xl bg-gray-200 animate-pulse" />
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-xl bg-gray-200 animate-pulse" />)}
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 rounded-xl bg-gray-200 animate-pulse" />)}
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {dpCards.map((c, i) => (
-                <SummaryStatsCard
-                  key={c.label} label={c.label} value={c.value} icon={c.icon}
-                  gradient={c.gradient} subtitle={c.subtitle} delay={i * 50}
-                  isActive={dpFilter === c.dp}
-                  onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
-                />
-              ))}
+          ) : summary ? (
+            <div className="space-y-2">
+              {/* Hero — Total Outstanding */}
+              <button
+                onClick={() => setDpFilter(dpFilter === 'RENT_OUTSTANDING' ? 'all' : 'RENT_OUTSTANDING')}
+                className={`w-full text-left rounded-2xl p-4 transition-all border-2 ${
+                  dpFilter === 'RENT_OUTSTANDING'
+                    ? 'bg-gradient-to-r from-slate-800 to-slate-700 border-slate-600 shadow-lg ring-2 ring-slate-500/30'
+                    : 'bg-gradient-to-r from-slate-800 to-slate-700 border-transparent hover:border-slate-500 shadow-md hover:shadow-lg'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      <Layers size={18} className="text-white" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Outstanding</div>
+                      <div className="text-2xl font-extrabold text-white leading-tight">{fmtINR(summary.total_outstanding_amount)}</div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-3xl font-black text-white/90">{summary.total_outstanding_count}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">records</div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Sub-DPs — 5 components */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {subDpCards.map((c) => {
+                  const Icon = c.icon;
+                  const isActive = dpFilter === c.dp;
+                  return (
+                    <button
+                      key={c.dp}
+                      onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                      className={`text-left rounded-xl px-3 py-2.5 border-2 transition-all ${c.accentClass} ${isActive ? 'border-current shadow ring-2 ring-current/20' : ''}`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Icon size={11} className={`${c.textClass} shrink-0`} />
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${c.textClass}`}>{c.label}</span>
+                      </div>
+                      <div className={`text-lg font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
+                      <div className={`text-[10px] font-medium mt-0.5 ${c.textClass} opacity-80`}>{c.subtitle}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Proportional breakdown bar */}
+              {summary.total_outstanding_amount > 0 && (() => {
+                const total = summary.total_outstanding_amount;
+                const rentAmt   = summary.total_due_amount + summary.arrears_amount;
+                const sdAmt     = summary.sd_pending_amount;
+                const advAmt    = summary.advance_pending_amount;
+                const maintAmt  = summary.maintenance_arrears_amount;
+                const penAmt    = summary.penalty_accumulated_amount;
+                const segs = [
+                  { pct: (rentAmt  / total) * 100, color: 'bg-amber-400',  label: 'Rent' },
+                  { pct: (sdAmt    / total) * 100, color: 'bg-blue-400',   label: 'SD' },
+                  { pct: (advAmt   / total) * 100, color: 'bg-violet-400', label: 'Adv' },
+                  { pct: (maintAmt / total) * 100, color: 'bg-orange-400', label: 'Maint' },
+                  { pct: (penAmt   / total) * 100, color: 'bg-red-500',    label: 'Penalty' },
+                ].filter(s => s.pct > 0);
+                return (
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 h-2 rounded-full overflow-hidden gap-px">
+                      {segs.map((s, i) => (
+                        <div key={i} className={`${s.color} transition-all duration-500`} style={{ width: `${s.pct}%` }} title={`${s.label}: ${s.pct.toFixed(1)}%`} />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2.5 text-[9px] text-gray-500 shrink-0">
+                      {segs.map((s, i) => (
+                        <span key={i} className="flex items-center gap-0.5">
+                          <span className={`w-2 h-2 rounded-sm ${s.color}`} />{s.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Status row — 4 cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                {statusCards.map((c, i) => (
+                  <SummaryStatsCard
+                    key={c.label} label={c.label} value={c.value} icon={c.icon}
+                    gradient={c.gradient} subtitle={c.subtitle} delay={i * 50}
+                    isActive={dpFilter === c.dp}
+                    onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                  />
+                ))}
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

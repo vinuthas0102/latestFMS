@@ -1576,9 +1576,10 @@ function rentTile(
   status: RentTile['status'], due_date: string,
   last_paid_date: string | null, receipt_ref: string | null,
   exemption_reason: string | null,
+  sd_amount = 0, advance_amount = 0, maintenance_charge = 0,
 ): RentTile {
-  const total_due = base_rent + water_charges + utility_charges + (penalty_override ?? penalty_amount);
-  return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, receipt_ref, exemption_reason };
+  const total_due = base_rent + water_charges + utility_charges + sd_amount + advance_amount + maintenance_charge + (penalty_override ?? penalty_amount);
+  return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, sd_amount, advance_amount, maintenance_charge, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, receipt_ref, exemption_reason };
 }
 
 // Tenant shorthand helpers
@@ -1595,12 +1596,19 @@ const T = {
   t010: ['EMP-1010','Kavitha Reddy', '9810010010','Deputy Director',      'Ministry of Education',  'C-303','Block C','RK Puram',        '2 BHK',6800,0,  0  ] as const,
   t011: ['EMP-1011','Deepak Joshi',  '9811011011','Director (Finance)',   'Ministry of Power',      'D-101','Block D','Vasant Vihar',    '2 BHK',7400,350,250] as const,
   t012: ['EMP-1012','Nalini Iyer',   '9812012012','Joint Director',       'CSIR',                   'D-204','Block D','Vasant Vihar',    '3 BHK',9200,450,350] as const,
+  // Commercial Shop tenant (monthly rent + security deposit + maintenance)
+  t013: ['EMP-S001','Ravi Traders',  '9813013013','Commercial Lessee',    'Block C Market',         'SHOP-C1','Commercial Block','Main Market', 'COMMERCIAL',5000,0,200] as const,
+  // Convention Hall booking (event advance deposit)
+  t014: ['EMP-H001','Star Events Co.','9814014014','Event Organizer',     'Private Party',          'HALL-B1','Community Block','Main Campus',  'HALL-LARGE',0,0,0] as const,
+  // Guest House commercial lessee with maintenance arrears
+  t015: ['EMP-G001','Govt. PSU Stay', '9815015015','PSU Official',        'BHEL Guest Account',     'GH-101', 'Guest Block',   'Central Campus','GUEST-ROOM',3500,200,100] as const,
 };
 
 function rt(id: string, allot: string, month: string, tk: readonly [string,string,string,string,string,string,string,string,string,number,number,number],
   pen: number, penOvr: number|null, paid: number, mode: RentTile['payment_mode'],
-  status: RentTile['status'], dueDate: string, paidDate: string|null, rcpt: string|null, exempt: string|null): RentTile {
-  return rentTile(id, allot, month, tk[0], tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7], tk[8], tk[9], tk[10], tk[11], pen, penOvr, paid, mode, status, dueDate, paidDate, rcpt, exempt);
+  status: RentTile['status'], dueDate: string, paidDate: string|null, rcpt: string|null, exempt: string|null,
+  sd = 0, adv = 0, maint = 0): RentTile {
+  return rentTile(id, allot, month, tk[0], tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7], tk[8], tk[9], tk[10], tk[11], pen, penOvr, paid, mode, status, dueDate, paidDate, rcpt, exempt, sd, adv, maint);
 }
 
 export const DEMO_RENT_TILES: RentTile[] = [
@@ -1695,6 +1703,16 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-1110','allot-010','2025-11',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-11-05',null,           null,           'Disability exemption'),
   rt('rt-1111','allot-011','2025-11',T.t011, 0,null,4000,     'CASH',         'PARTIAL', '2025-11-05','2025-11-03',  null,           null),
   rt('rt-1112','allot-012','2025-11',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2025-11-02','2025-11-02',  'RCP-2511-0047',null),
+  // ── Commercial Shop (allot-013) — May 2026 — rent + SD pending + maintenance ─
+  rt('rt-s501','allot-013','2026-05',T.t013, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null, 10000, 0, 800),
+  // ── Commercial Shop (allot-013) — April 2026 — paid ─────────────────────────
+  rt('rt-s401','allot-013','2026-04',T.t013, 0,null,5800,     'ONLINE',       'PAID',    '2026-04-05','2026-04-03',  'RCP-2604-S001', null, 0, 0, 800),
+  // ── Convention Hall (allot-014) — May 2026 — advance deposit outstanding ────
+  rt('rt-h501','allot-014','2026-05',T.t014, 0,null,   0,       null,         'DUE',     '2026-05-10',null,           null,           null, 0, 25000, 0),
+  // ── Guest House PSU (allot-015) — May 2026 — rent + maintenance overdue ─────
+  rt('rt-g501','allot-015','2026-05',T.t015,380,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 0, 0, 500),
+  // ── Guest House PSU (allot-015) — April 2026 — paid ─────────────────────────
+  rt('rt-g401','allot-015','2026-04',T.t015, 0,null,4200,     'ONLINE',       'PAID',    '2026-04-05','2026-04-04',  'RCP-2604-G001', null, 0, 0, 500),
 ];
 
 export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
@@ -1709,6 +1727,16 @@ export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
   arrears_count: 2,
   arrears_amount: (8500 + 400 + 300 + 850) + (6000 + 300 + 200 + 600),
   collection_rate: 48,
+  total_outstanding_count: 7,
+  total_outstanding_amount: (6700 + 5150 + 8000) + (8500 + 400 + 300 + 850) + (6000 + 300 + 200 + 600) + 10000 + 800 + 25000 + (3500 + 200 + 100 + 380 + 500),
+  sd_pending_count: 1,
+  sd_pending_amount: 10000,
+  advance_pending_count: 1,
+  advance_pending_amount: 25000,
+  maintenance_arrears_count: 3,
+  maintenance_arrears_amount: 800 + 500 + 500,
+  penalty_accumulated_count: 3,
+  penalty_accumulated_amount: 850 + 600 + 380,
 };
 
 export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {

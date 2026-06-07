@@ -463,6 +463,9 @@ export interface RentTile {
   base_rent: number;
   water_charges: number;
   utility_charges: number;
+  sd_amount: number;
+  advance_amount: number;
+  maintenance_charge: number;
   penalty_amount: number;
   penalty_override: number | null;
   total_due: number;
@@ -523,6 +526,16 @@ export interface RentTrackerSummary {
   arrears_count: number;
   arrears_amount: number;
   collection_rate: number;
+  total_outstanding_count: number;
+  total_outstanding_amount: number;
+  sd_pending_count: number;
+  sd_pending_amount: number;
+  advance_pending_count: number;
+  advance_pending_amount: number;
+  maintenance_arrears_count: number;
+  maintenance_arrears_amount: number;
+  penalty_accumulated_count: number;
+  penalty_accumulated_amount: number;
 }
 
 export interface QuarterGuestInfo {
