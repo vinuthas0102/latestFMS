@@ -760,6 +760,8 @@ export const QuarterRentPage: React.FC = () => {
   // ── Filter / view state ─────────────────────────────────────────────────────
   const [dpFilter, setDpFilter] = useState<DpFilter>('all');
   const [outstandingExpanded, setOutstandingExpanded] = useState(false);
+  const [paidExpanded, setPaidExpanded] = useState(false);
+  const [collectionGraphOpen, setCollectionGraphOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('tile');
   const [monthFrom, setMonthFrom] = useState('2026-05');
   const [monthTo, setMonthTo]     = useState('2026-05');
@@ -1317,10 +1319,14 @@ export const QuarterRentPage: React.FC = () => {
   };
 
   const statusCards = summary ? [
-    { label: 'Paid This Period', value: summary.paid_count,      subtitle: fmtINR(summary.paid_amount),      gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600', dp: 'PAID'     as DpFilter, icon: TrendingUp },
-    { label: 'Partial Payments', value: summary.partial_count,   subtitle: fmtINR(summary.partial_amount),   gradient: 'bg-gradient-to-r from-sky-500 to-blue-600',      dp: 'PARTIAL'  as DpFilter, icon: Clock },
-    { label: 'Exempted',         value: summary.exempted_count,  subtitle: fmtINR(summary.exempted_amount),  gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',   dp: 'EXEMPTED' as DpFilter, icon: Receipt },
-    { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of demand collected',            gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2 },
+    { label: 'Paid & Partially Paid', value: (summary.paid_count ?? 0) + (summary.partial_count ?? 0), subtitle: fmtINR((summary.paid_amount ?? 0) + (summary.partial_amount ?? 0)), gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600', dp: 'PAID' as DpFilter, icon: TrendingUp, isAccordion: true },
+    { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of demand collected',            gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2, isAccordion: false },
+  ] : [];
+
+  // Sub-DP cards under "Paid & Partially Paid"
+  const paidSubCards = summary ? [
+    { label: 'Partially Paid', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  dp: 'PARTIAL'  as DpFilter, icon: Clock,    accentClass: 'border-sky-200    bg-sky-50    hover:bg-sky-100',    textClass: 'text-sky-700' },
+    { label: 'Exempted',       value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), dp: 'EXEMPTED' as DpFilter, icon: Receipt,  accentClass: 'border-slate-200  bg-slate-50  hover:bg-slate-100',  textClass: 'text-slate-700' },
   ] : [];
 
   // Sub-DP components under Total Outstanding
@@ -1447,15 +1453,67 @@ export const QuarterRentPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Status cards */}
-                {statusCards.map((c, i) => (
-                  <SummaryStatsCard
-                    key={c.label} label={c.label} value={c.value} icon={c.icon}
-                    gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
-                    isActive={dpFilter === c.dp}
-                    onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
-                  />
-                ))}
+                {/* Status cards — Paid & Partially Paid (accordion) + Collection Rate (graph toggle) */}
+                {statusCards.map((c, i) => {
+                  const isPaidCard = c.isAccordion;
+                  const isCollRate = c.label === 'Collection Rate';
+                  if (isPaidCard) {
+                    return (
+                      <div key={c.label} className="relative">
+                        <button
+                          onClick={() => { setPaidExpanded(e => !e); setCollectionGraphOpen(false); }}
+                          className={`w-full text-left rounded-xl overflow-hidden transition-all duration-200 group ${
+                            paidExpanded
+                              ? 'shadow-xl ring-2 ring-white ring-offset-1 ring-offset-gray-200 scale-[1.02]'
+                              : 'shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                          } ${c.gradient} flex flex-row min-h-[80px]`}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 pointer-events-none" />
+                          <div className="relative z-10 shrink-0 flex items-center justify-center px-3 border-r border-white/20">
+                            <div className="p-2 bg-white/20 rounded-xl border border-white/30">
+                              <TrendingUp size={16} className="text-white" />
+                            </div>
+                          </div>
+                          <div className="relative z-10 flex-1 px-3 py-3 flex flex-col justify-center min-w-0 gap-1">
+                            <p className="text-xl font-extrabold text-white leading-tight">{c.value}</p>
+                            <div>
+                              <p className="text-[10px] font-bold text-white/95 uppercase tracking-widest leading-tight truncate">{c.label}</p>
+                              <p className="text-[10px] text-white/65 leading-tight mt-0.5 truncate">{c.subtitle}</p>
+                            </div>
+                          </div>
+                          <div className="relative z-10 shrink-0 flex items-center pr-3">
+                            <ChevronDown size={16} className={`text-white/70 transition-transform duration-300 ${paidExpanded ? 'rotate-180' : ''}`} />
+                          </div>
+                          <div className={`absolute bottom-0 left-0 right-0 transition-all duration-200 ${paidExpanded ? 'h-1 bg-emerald-200' : 'h-0.5 bg-white/20'}`} />
+                        </button>
+                        {paidExpanded && (
+                          <>
+                            <div className="absolute -inset-[3px] rounded-[14px] ring-2 ring-white pointer-events-none" />
+                            <div className="absolute -inset-[5px] rounded-[16px] ring-2 ring-emerald-800/20 pointer-events-none" />
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (isCollRate) {
+                    return (
+                      <SummaryStatsCard
+                        key={c.label} label={c.label} value={c.value} icon={c.icon}
+                        gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
+                        isActive={collectionGraphOpen}
+                        onClick={() => { setCollectionGraphOpen(o => !o); setPaidExpanded(false); }}
+                      />
+                    );
+                  }
+                  return (
+                    <SummaryStatsCard
+                      key={c.label} label={c.label} value={c.value} icon={c.icon}
+                      gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
+                      isActive={dpFilter === c.dp}
+                      onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                    />
+                  );
+                })}
               </div>
 
               {/* ── Accordion sub-panel: slides open under Total Outstanding card ── */}
@@ -1464,16 +1522,11 @@ export const QuarterRentPage: React.FC = () => {
                   outstandingExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
                 }`}
               >
-                {/* Connector: thin top border + left triangle pointing at the card */}
                 <div className="relative pt-1 pb-2">
-                  {/* Full-width top rule */}
                   <div className="absolute top-0 left-0 right-0 h-px bg-slate-200" />
-                  {/* Up-pointing caret centred over the first card (~10% width) */}
                   <div className="absolute -top-[5px] left-[10%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-slate-200" />
                   <div className="absolute -top-[3px] left-[10%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
                 </div>
-
-                {/* 5 sub-DP cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
                   {subDpCards.map((c) => {
                     const Icon = c.icon;
@@ -1496,8 +1549,88 @@ export const QuarterRentPage: React.FC = () => {
                     );
                   })}
                 </div>
-
               </div>
+
+              {/* ── Accordion sub-panel: slides open under Paid & Partially Paid card ── */}
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  paidExpanded ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <div className="relative pt-1 pb-2">
+                  <div className="absolute top-0 left-0 right-0 h-px bg-emerald-200" />
+                  <div className="absolute -top-[5px] left-[50%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-emerald-200" />
+                  <div className="absolute -top-[3px] left-[50%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 max-w-sm">
+                  {paidSubCards.map((c) => {
+                    const Icon = c.icon;
+                    const isActive = dpFilter === c.dp;
+                    return (
+                      <button
+                        key={c.dp}
+                        onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                        className={`text-left rounded-md px-2 py-1.5 border-2 transition-all duration-150 ${c.accentClass} ${
+                          isActive ? 'shadow-md ring-2 ring-current/25 scale-[1.02]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <Icon size={9} className={`${c.textClass} shrink-0`} />
+                          <span className={`text-[8px] font-bold uppercase tracking-wide ${c.textClass} truncate`}>{c.label}</span>
+                        </div>
+                        <div className={`text-sm font-extrabold leading-tight ${c.textClass}`}>{c.value}</div>
+                        <div className={`text-[8px] font-medium ${c.textClass} opacity-80 truncate`}>{c.subtitle}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Collection Rate graph panel ── */}
+              {summary && (
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    collectionGraphOpen ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="relative pt-1 pb-2">
+                    <div className="absolute top-0 left-0 right-0 h-px bg-teal-200" />
+                    <div className="absolute -top-[5px] right-[10%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-teal-200" />
+                    <div className="absolute -top-[3px] right-[10%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
+                  </div>
+                  <div className="bg-white rounded-xl border border-teal-100 px-4 py-3 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5">Status Breakdown</p>
+                    {(() => {
+                      const total = summary.total_outstanding_count + summary.paid_count + summary.partial_count + summary.exempted_count || 1;
+                      const rows = [
+                        { label: 'Due',      count: summary.total_due_count,    amount: fmtINR(summary.total_due_amount),    color: 'bg-amber-400',   text: 'text-amber-700' },
+                        { label: 'Overdue',  count: summary.arrears_count,      amount: fmtINR(summary.arrears_amount),      color: 'bg-red-400',     text: 'text-red-700' },
+                        { label: 'Paid',     count: summary.paid_count,         amount: fmtINR(summary.paid_amount),         color: 'bg-emerald-400', text: 'text-emerald-700' },
+                        { label: 'Partial',  count: summary.partial_count,      amount: fmtINR(summary.partial_amount),      color: 'bg-sky-400',     text: 'text-sky-700' },
+                        { label: 'Exempted', count: summary.exempted_count,     amount: fmtINR(summary.exempted_amount),     color: 'bg-slate-400',   text: 'text-slate-600' },
+                      ];
+                      return (
+                        <div className="space-y-1.5">
+                          {rows.map(r => (
+                            <div key={r.label} className="flex items-center gap-2">
+                              <span className="text-[10px] text-gray-500 w-12 shrink-0">{r.label}</span>
+                              <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${r.color} transition-all duration-500`}
+                                  style={{ width: `${Math.max((r.count / total) * 100, r.count > 0 ? 3 : 0)}%` }}
+                                />
+                              </div>
+                              <span className={`text-[10px] font-bold w-4 text-right ${r.text}`}>{r.count}</span>
+                              <span className="text-[9px] text-gray-400 w-16 text-right truncate">{r.amount}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
             </div>
           ) : null}
         </div>
@@ -1538,50 +1671,6 @@ export const QuarterRentPage: React.FC = () => {
                   value: tenantFilter,
                   onChange: setTenantFilter,
                   icon: <Search size={14} />,
-                },
-                {
-                  key: 'status',
-                  label: 'Status',
-                  type: 'chips',
-                  value: dpFilter,
-                  onChange: (v) => {
-                    const next = v as DpFilter;
-                    setDpFilter(next);
-                    // Collapse outstanding accordion when switching to a non-sub filter
-                    if (!['RENT_OUTSTANDING','SD_PENDING','ADVANCE_PENDING','MAINTENANCE_ARREARS','PENALTY'].includes(next)) {
-                      setOutstandingExpanded(false);
-                    }
-                  },
-                  options: [
-                    { value: 'all',      label: 'All'      },
-                    { value: 'DUE',      label: 'Due'      },
-                    { value: 'OVERDUE',  label: 'Overdue'  },
-                    { value: 'PAID',     label: 'Paid'     },
-                    { value: 'PARTIAL',  label: 'Partial'  },
-                    { value: 'EXEMPTED', label: 'Exempted' },
-                  ],
-                },
-                {
-                  key: 'monthFrom',
-                  label: 'From Month',
-                  type: 'date',
-                  value: monthFrom + '-01',
-                  onChange: (v) => setMonthFrom(v.slice(0, 7)),
-                },
-                {
-                  key: 'monthTo',
-                  label: 'To Month',
-                  type: 'date',
-                  value: monthTo + '-01',
-                  onChange: (v) => setMonthTo(v.slice(0, 7)),
-                },
-                {
-                  key: 'mode',
-                  label: 'Payment Mode',
-                  type: 'select',
-                  value: modeFilter,
-                  onChange: setModeFilter,
-                  options: PAYMENT_MODES.map(m => ({ value: m, label: m.replace('_', ' ') })),
                 },
               ]}
               onSearch={loadTiles}
