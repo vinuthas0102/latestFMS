@@ -1586,63 +1586,6 @@ export const QuarterRentPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── Collection Rate graph panel ── */}
-              {summary && (
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    collectionGraphOpen ? 'max-h-[320px] opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="relative pt-1 pb-2">
-                    <div className="absolute top-0 left-0 right-0 h-px bg-teal-200" />
-                    <div className="absolute -top-[5px] right-[10%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-teal-200" />
-                    <div className="absolute -top-[3px] right-[10%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
-                  </div>
-                  <div className="bg-white rounded-xl border border-teal-100 px-4 py-3 shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Status Breakdown</p>
-                    {(() => {
-                      const bars = [
-                        { label: 'Due',      count: summary.total_due_count,  amount: fmtINR(summary.total_due_amount),  dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   ring: 'ring-amber-400',   text: 'text-amber-700',   bg: 'bg-amber-50'   },
-                        { label: 'Overdue',  count: summary.arrears_count,    amount: fmtINR(summary.arrears_amount),    dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     ring: 'ring-red-400',     text: 'text-red-700',     bg: 'bg-red-50'     },
-                        { label: 'Paid',     count: summary.paid_count,       amount: fmtINR(summary.paid_amount),       dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', ring: 'ring-emerald-400', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-                        { label: 'Partial',  count: summary.partial_count,    amount: fmtINR(summary.partial_amount),    dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     ring: 'ring-sky-400',     text: 'text-sky-700',     bg: 'bg-sky-50'     },
-                        { label: 'Exempted', count: summary.exempted_count,   amount: fmtINR(summary.exempted_amount),   dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   ring: 'ring-slate-400',   text: 'text-slate-600',   bg: 'bg-slate-50'   },
-                      ];
-                      const maxCount = Math.max(...bars.map(b => b.count), 1);
-                      const BAR_H = 56;
-                      const renderBar = (b: typeof bars[0]) => {
-                        const isActive = dpFilter === b.dp;
-                        const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 8 : 0);
-                        return (
-                          <button
-                            key={b.dp}
-                            onClick={() => { setDpFilter(dpFilter === b.dp ? 'all' : b.dp); setCollectionGraphOpen(true); }}
-                            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 transition-all duration-150 border ${
-                              isActive ? `${b.bg} border-current ${b.ring} ring-1 scale-[1.04] shadow-sm` : 'border-transparent hover:bg-gray-50'
-                            }`}
-                          >
-                            <span className={`text-xs font-extrabold leading-none ${b.text}`}>{b.count}</span>
-                            <div className="w-full flex flex-col justify-end bg-gray-100 rounded overflow-hidden" style={{ height: BAR_H }}>
-                              <div
-                                className={`w-full rounded ${b.fill} transition-all duration-500`}
-                                style={{ height: `${pct}%` }}
-                              />
-                            </div>
-                            <span className={`text-[10px] font-semibold ${isActive ? b.text : 'text-gray-500'} leading-none`}>{b.label}</span>
-                            <span className="text-[9px] text-gray-400 leading-none truncate w-full text-center">{b.amount}</span>
-                          </button>
-                        );
-                      };
-                      return (
-                        <div className="space-y-1">
-                          <div className="grid grid-cols-3 gap-1">{bars.slice(0, 3).map(renderBar)}</div>
-                          <div className="grid grid-cols-3 gap-1">{bars.slice(3).map(renderBar)}</div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
 
             </div>
           ) : null}
@@ -1674,6 +1617,42 @@ export const QuarterRentPage: React.FC = () => {
 
           {/* ── Filter bar — below DP cards ── */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
+
+            {/* Compact status bar chart — single row inside search frame */}
+            {summary && (
+              <div className="flex items-stretch gap-1 pb-2 mb-2 border-b border-gray-100">
+                {([
+                  { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-400'   },
+                  { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-400'     },
+                  { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400' },
+                  { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-400'     },
+                  { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-400'   },
+                ] as const).map(b => {
+                  const isActive = dpFilter === b.dp;
+                  const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
+                  const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 6 : 0);
+                  return (
+                    <button
+                      key={b.dp}
+                      onClick={() => setDpFilter(dpFilter === b.dp ? 'all' : b.dp)}
+                      title={`${b.label}: ${b.count} (${b.amount})`}
+                      className={`flex-1 flex flex-col justify-end rounded-md px-1.5 pt-1 pb-1 border transition-all duration-150 min-w-0 ${
+                        isActive ? `${b.activeBg} ${b.activeBorder}` : 'border-transparent hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-end justify-between mb-0.5">
+                        <span className={`text-[9px] font-semibold leading-none truncate ${isActive ? b.text : 'text-gray-500'}`}>{b.label}</span>
+                        <span className={`text-[9px] font-extrabold leading-none ml-1 ${b.text}`}>{b.count}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${b.fill} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <MandatorySearchBar
               fields={[
                 {
