@@ -1590,7 +1590,7 @@ export const QuarterRentPage: React.FC = () => {
               {summary && (
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    collectionGraphOpen ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
+                    collectionGraphOpen ? 'max-h-[320px] opacity-100' : 'max-h-0 opacity-0'
                   }`}
                 >
                   <div className="relative pt-1 pb-2">
@@ -1599,31 +1599,44 @@ export const QuarterRentPage: React.FC = () => {
                     <div className="absolute -top-[3px] right-[10%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
                   </div>
                   <div className="bg-white rounded-xl border border-teal-100 px-4 py-3 shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2.5">Status Breakdown</p>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Status Breakdown</p>
                     {(() => {
-                      const total = summary.total_outstanding_count + summary.paid_count + summary.partial_count + summary.exempted_count || 1;
-                      const rows = [
-                        { label: 'Due',      count: summary.total_due_count,    amount: fmtINR(summary.total_due_amount),    color: 'bg-amber-400',   text: 'text-amber-700' },
-                        { label: 'Overdue',  count: summary.arrears_count,      amount: fmtINR(summary.arrears_amount),      color: 'bg-red-400',     text: 'text-red-700' },
-                        { label: 'Paid',     count: summary.paid_count,         amount: fmtINR(summary.paid_amount),         color: 'bg-emerald-400', text: 'text-emerald-700' },
-                        { label: 'Partial',  count: summary.partial_count,      amount: fmtINR(summary.partial_amount),      color: 'bg-sky-400',     text: 'text-sky-700' },
-                        { label: 'Exempted', count: summary.exempted_count,     amount: fmtINR(summary.exempted_amount),     color: 'bg-slate-400',   text: 'text-slate-600' },
+                      const bars = [
+                        { label: 'Due',      count: summary.total_due_count,  amount: fmtINR(summary.total_due_amount),  dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   ring: 'ring-amber-400',   text: 'text-amber-700',   bg: 'bg-amber-50'   },
+                        { label: 'Overdue',  count: summary.arrears_count,    amount: fmtINR(summary.arrears_amount),    dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     ring: 'ring-red-400',     text: 'text-red-700',     bg: 'bg-red-50'     },
+                        { label: 'Paid',     count: summary.paid_count,       amount: fmtINR(summary.paid_amount),       dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', ring: 'ring-emerald-400', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+                        { label: 'Partial',  count: summary.partial_count,    amount: fmtINR(summary.partial_amount),    dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     ring: 'ring-sky-400',     text: 'text-sky-700',     bg: 'bg-sky-50'     },
+                        { label: 'Exempted', count: summary.exempted_count,   amount: fmtINR(summary.exempted_amount),   dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   ring: 'ring-slate-400',   text: 'text-slate-600',   bg: 'bg-slate-50'   },
                       ];
-                      return (
-                        <div className="space-y-1.5">
-                          {rows.map(r => (
-                            <div key={r.label} className="flex items-center gap-2">
-                              <span className="text-[10px] text-gray-500 w-12 shrink-0">{r.label}</span>
-                              <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${r.color} transition-all duration-500`}
-                                  style={{ width: `${Math.max((r.count / total) * 100, r.count > 0 ? 3 : 0)}%` }}
-                                />
-                              </div>
-                              <span className={`text-[10px] font-bold w-4 text-right ${r.text}`}>{r.count}</span>
-                              <span className="text-[9px] text-gray-400 w-16 text-right truncate">{r.amount}</span>
+                      const maxCount = Math.max(...bars.map(b => b.count), 1);
+                      const BAR_H = 56;
+                      const renderBar = (b: typeof bars[0]) => {
+                        const isActive = dpFilter === b.dp;
+                        const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 8 : 0);
+                        return (
+                          <button
+                            key={b.dp}
+                            onClick={() => { setDpFilter(dpFilter === b.dp ? 'all' : b.dp); setCollectionGraphOpen(true); }}
+                            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 transition-all duration-150 border ${
+                              isActive ? `${b.bg} border-current ${b.ring} ring-1 scale-[1.04] shadow-sm` : 'border-transparent hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className={`text-xs font-extrabold leading-none ${b.text}`}>{b.count}</span>
+                            <div className="w-full flex flex-col justify-end bg-gray-100 rounded overflow-hidden" style={{ height: BAR_H }}>
+                              <div
+                                className={`w-full rounded ${b.fill} transition-all duration-500`}
+                                style={{ height: `${pct}%` }}
+                              />
                             </div>
-                          ))}
+                            <span className={`text-[10px] font-semibold ${isActive ? b.text : 'text-gray-500'} leading-none`}>{b.label}</span>
+                            <span className="text-[9px] text-gray-400 leading-none truncate w-full text-center">{b.amount}</span>
+                          </button>
+                        );
+                      };
+                      return (
+                        <div className="space-y-1">
+                          <div className="grid grid-cols-3 gap-1">{bars.slice(0, 3).map(renderBar)}</div>
+                          <div className="grid grid-cols-3 gap-1">{bars.slice(3).map(renderBar)}</div>
                         </div>
                       );
                     })()}
