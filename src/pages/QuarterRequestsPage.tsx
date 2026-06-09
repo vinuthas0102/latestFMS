@@ -10,7 +10,7 @@ import {
   Images, Bell, Users, Paperclip, User, UserCheck, UserPlus, Phone, Mail, CreditCard,
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
-  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Pencil, Loader2, AlertTriangle,
+  HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -190,8 +190,6 @@ export const QuarterRequestsPage: React.FC = () => {
     eoRejectSubmitting, setEoRejectSubmitting,
     rejectModalReqId, setRejectModalReqId, rejectModalReason, setRejectModalReason,
     rejectModalDocFile, setRejectModalDocFile, rejectModalSubmitting, setRejectModalSubmitting,
-    editingReqTypeId, setEditingReqTypeId, editingReqTypeValue, setEditingReqTypeValue,
-    editingReqTypeSubmitting, setEditingReqTypeSubmitting,
     dpFilter, setDpFilter, dpScrollRef, dpCanScrollLeft, setDpCanScrollLeft,
     dpCanScrollRight, setDpCanScrollRight, requestDocUrls, setRequestDocUrls,
     medDocFile, setMedDocFile, medDocSubmitting, setMedDocSubmitting,
@@ -2977,64 +2975,7 @@ export const QuarterRequestsPage: React.FC = () => {
                           {/* Row 2a: request summary fields — shown for Draft/Submitted (no quarter assigned yet) */}
                           {(dpFilter === 'submitted' || dpFilter === 'draft') && (() => {
                             const rtb = getRequestTypeBadge(req.request_type ?? 'GENERAL');
-                            const canEditType = isEO && eoMode === 'employee' && req.request_status === 'SUBMITTED';
-                            const isEditingThisType = editingReqTypeId === req.id;
-                            const requestTypeValue = canEditType ? (
-                              isEditingThisType ? (
-                                <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                  <select
-                                    value={editingReqTypeValue}
-                                    onChange={e => setEditingReqTypeValue(e.target.value)}
-                                    className="text-[10px] border border-blue-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                    disabled={editingReqTypeSubmitting}
-                                  >
-                                    <option value="GENERAL">General</option>
-                                    <option value="MEDICAL">Medical</option>
-                                    <option value="REFERENCE">Reference</option>
-                                  </select>
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      setEditingReqTypeSubmitting(true);
-                                      try {
-                                        await quartersService.updateRequestHeader(req.id, { request_type: editingReqTypeValue });
-                                        setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_type: editingReqTypeValue as 'GENERAL' | 'MEDICAL' | 'REFERENCE' } : r));
-                                        addToast({ type: 'success', message: 'Request type updated.' });
-                                      } catch {
-                                        addToast({ type: 'error', message: 'Failed to update request type.' });
-                                      } finally {
-                                        setEditingReqTypeSubmitting(false);
-                                        setEditingReqTypeId(null);
-                                      }
-                                    }}
-                                    disabled={editingReqTypeSubmitting}
-                                    className="flex items-center justify-center w-5 h-5 rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 transition-colors shrink-0"
-                                    title="Save"
-                                  >
-                                    <Check size={10} />
-                                  </button>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setEditingReqTypeId(null); }}
-                                    disabled={editingReqTypeSubmitting}
-                                    className="flex items-center justify-center w-5 h-5 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors shrink-0"
-                                    title="Cancel"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                  <span className={`text-[9.5px] border px-1 py-0.5 rounded font-semibold ${rtb.cls}`}>{rtb.label}</span>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setEditingReqTypeId(req.id); setEditingReqTypeValue(req.request_type ?? 'GENERAL'); }}
-                                    className="flex items-center justify-center w-4 h-4 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
-                                    title="Override request type"
-                                  >
-                                    <Pencil size={9} />
-                                  </button>
-                                </div>
-                              )
-                            ) : (
+                            const requestTypeValue = (
                               <span className={`text-[9.5px] border px-1 py-0.5 rounded font-semibold ${rtb.cls}`}>{rtb.label}</span>
                             );
                             const reqDetails: { label: string; value: React.ReactNode }[] = [

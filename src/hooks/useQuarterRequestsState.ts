@@ -155,10 +155,6 @@ export function useQuarterRequestsState() {
   const [eoRejectReason, setEoRejectReason] = useState('');
   const [eoRejectSubmitting, setEoRejectSubmitting] = useState(false);
 
-  // ── EO Employee mode: inline request-type override ───────────────────────
-  const [editingReqTypeId, setEditingReqTypeId] = useState<string | null>(null);
-  const [editingReqTypeValue, setEditingReqTypeValue] = useState<string>('');
-  const [editingReqTypeSubmitting, setEditingReqTypeSubmitting] = useState(false);
 
   // ── EO Employee mode: inline reject modal ─────────────────────────────────
   const [rejectModalReqId, setRejectModalReqId] = useState<string | null>(null);
@@ -491,9 +487,6 @@ export function useQuarterRequestsState() {
     rejectModalReason, setRejectModalReason,
     rejectModalDocFile, setRejectModalDocFile,
     rejectModalSubmitting, setRejectModalSubmitting,
-    editingReqTypeId, setEditingReqTypeId,
-    editingReqTypeValue, setEditingReqTypeValue,
-    editingReqTypeSubmitting, setEditingReqTypeSubmitting,
     dpFilter, setDpFilter,
     dpScrollRef,
     dpCanScrollLeft, setDpCanScrollLeft,
