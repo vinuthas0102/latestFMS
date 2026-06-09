@@ -1826,9 +1826,15 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   'allot-012_2026-05': [
     { id: 'pay-0512', allotment_id: 'allot-012', month: '2026-05', amount: 10000, payment_mode: 'ONLINE', payment_date: '2026-05-02', receipt_ref: 'RCP-2605-0071', remarks: '', recorded_by: 'System' },
   ],
+  'allot-017_2026-05': [
+    { id: 'pay-f501', allotment_id: 'allot-017', month: '2026-05', amount: 2500, payment_mode: 'CASH', payment_date: '2026-05-07', receipt_ref: 'TMP-2605-F001', remarks: 'Partial — balance ₹2,050 due', recorded_by: 'EO-Admin' },
+  ],
   // April 2026
   'allot-001_2026-04': [
     { id: 'pay-0401', allotment_id: 'allot-001', month: '2026-04', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-04-04', receipt_ref: 'RCP-2604-0082', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-017_2026-04': [
+    { id: 'pay-f401', allotment_id: 'allot-017', month: '2026-04', amount: 4550, payment_mode: 'ONLINE', payment_date: '2026-04-03', receipt_ref: 'RCP-2604-F001', remarks: '', recorded_by: 'System' },
   ],
   'allot-005_2026-04': [
     { id: 'pay-0405', allotment_id: 'allot-005', month: '2026-04', amount: 7800, payment_mode: 'DD', payment_date: '2026-04-02', receipt_ref: 'RCP-2604-0064', remarks: 'DD#330291', recorded_by: 'EO-Admin' },
@@ -1852,6 +1858,26 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   // November 2025
   'allot-011_2025-11': [
     { id: 'pay-1111', allotment_id: 'allot-011', month: '2025-11', amount: 4000, payment_mode: 'CASH', payment_date: '2025-11-03', receipt_ref: 'TMP-2511-011', remarks: 'Partial payment', recorded_by: 'EO-Admin' },
+  ],
+  // allot-001 (EMP-1001 / Rajesh Kumar) history
+  'allot-001_2026-03': [
+    { id: 'pay-0301', allotment_id: 'allot-001', month: '2026-03', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-03-05', receipt_ref: 'RCP-2603-0059', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-001_2026-02': [
+    { id: 'pay-0201', allotment_id: 'allot-001', month: '2026-02', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-02-04', receipt_ref: 'RCP-2602-0061', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-001_2026-01': [
+    { id: 'pay-0101', allotment_id: 'allot-001', month: '2026-01', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-01-06', receipt_ref: 'RCP-2601-0072', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-001_2025-12': [
+    { id: 'pay-1201', allotment_id: 'allot-001', month: '2025-12', amount: 6700, payment_mode: 'ONLINE', payment_date: '2025-12-04', receipt_ref: 'RCP-2512-0081', remarks: '', recorded_by: 'System' },
+  ],
+  'allot-001_2025-11': [
+    { id: 'pay-1101', allotment_id: 'allot-001', month: '2025-11', amount: 6700, payment_mode: 'ONLINE', payment_date: '2025-11-05', receipt_ref: 'RCP-2511-0089', remarks: '', recorded_by: 'System' },
+  ],
+  // allot-017 (EMP-1001 secondary) history
+  'allot-017_2026-03': [
+    { id: 'pay-f301', allotment_id: 'allot-017', month: '2026-03', amount: 4550, payment_mode: 'ONLINE', payment_date: '2026-03-04', receipt_ref: 'RCP-2603-F001', remarks: '', recorded_by: 'System' },
   ],
 };
 
