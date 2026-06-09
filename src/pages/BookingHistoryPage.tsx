@@ -36,6 +36,7 @@ import { ROUTES } from '../constants/routes';
 import { PropertyDetailModal } from '../components/property/PropertyDetailModal';
 import { bookingServiceRequestService } from '../services/bookingServiceRequestService';
 import { paymentService, ManualPaymentMode } from '../services/paymentService';
+import { isHallPropertyType, isShopPropertyType } from '../utils/moduleHelpers';
 import { supabase } from '../lib/supabase';
 import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal';
 
@@ -3288,21 +3289,37 @@ export const BookingHistoryPage: React.FC = () => {
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Payment Arrangement</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {(['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER', 'COUNTER'] as const).filter(mode => mode !== 'PAID' || isSelf).map(mode => (
-                      <button
-                        key={mode}
-                        onClick={() => setEmpPaymentMode(mode)}
-                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold transition-all ${
-                          empPaymentMode === mode
-                            ? 'bg-blue-50 border-blue-300 text-blue-700'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        {mode === 'PAID' ? 'Guest Pays' : mode === 'COMPLIMENTARY' ? 'Complimentary' : mode === 'ACCOUNT_TRANSFER' ? 'Acct Transfer' : 'Payable at Counter'}
-                      </button>
-                    ))}
+                    {(() => {
+                      const ptCode = bookForEmpProperty.propertyType?.code ?? '';
+                      const isHall = isHallPropertyType(ptCode);
+                      const isShop = isShopPropertyType(ptCode);
+                      const isGuestHouse = ptCode.toUpperCase() === 'GUEST_HOUSE';
+                      let allowed: readonly ('PAID' | 'COMPLIMENTARY' | 'ACCOUNT_TRANSFER' | 'COUNTER')[];
+                      if (isGovtOfficial && isHall) {
+                        allowed = ['PAID'] as const;
+                      } else if (isGovtOfficial && isShop) {
+                        allowed = ['PAID'] as const;
+                      } else if (isGovtOfficial && isGuestHouse) {
+                        allowed = ['PAID', 'COUNTER'] as const;
+                      } else {
+                        allowed = (['PAID', 'COMPLIMENTARY', 'ACCOUNT_TRANSFER', 'COUNTER'] as const).filter(mode => mode !== 'PAID' || isSelf);
+                      }
+                      return allowed.map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setEmpPaymentMode(mode)}
+                          className={`py-1.5 px-2 rounded-xl border text-[11px] font-semibold transition-all ${
+                            empPaymentMode === mode
+                              ? 'bg-blue-50 border-blue-300 text-blue-700'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {mode === 'PAID' ? 'Pay Online' : mode === 'COMPLIMENTARY' ? 'Complimentary' : mode === 'ACCOUNT_TRANSFER' ? 'Acct Transfer' : 'Payable at Counter'}
+                        </button>
+                      ));
+                    })()}
                   </div>
-                  {isSelf && empPaymentMode === 'PAID' && (
+                  {empPaymentMode === 'PAID' && (
                     <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                       <CreditCard size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-[11px] text-amber-700">You will be directed to the payment gateway after confirming this booking.</p>
