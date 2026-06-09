@@ -1641,7 +1641,7 @@ export const QuarterRentPage: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-end justify-between mb-0.5">
-                        <span className={`text-[9px] font-semibold leading-none truncate ${isActive ? b.text : 'text-gray-500'}`}>{b.label}</span>
+                        <span className={`text-[9px] font-semibold leading-none truncate ${isActive ? b.text : 'text-gray-500'}`}>{b.label} <span className="font-normal text-gray-400">({b.amount})</span></span>
                         <span className={`text-[9px] font-extrabold leading-none ml-1 ${b.text}`}>{b.count}</span>
                       </div>
                       <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
