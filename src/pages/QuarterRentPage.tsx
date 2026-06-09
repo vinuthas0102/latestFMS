@@ -93,8 +93,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
   const [planLoading, setPlanLoading] = useState(false);
   const [planMode, setPlanMode] = useState<'view' | 'setup'>('setup');
   const [filterInstalment, setFilterInstalment] = useState<number | 'all'>('all');
-  const [expandedSubRows, setExpandedSubRows] = useState<Set<number>>(new Set());
-
   // Setup form state
   const [startDate, setStartDate] = useState('');
   const [lateFee, setLateFee] = useState('0.00');
@@ -175,14 +173,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
     } finally {
       setPlanSaving(false);
     }
-  };
-
-  const toggleSubRow = (rowNum: number) => {
-    setExpandedSubRows(prev => {
-      const next = new Set(prev);
-      if (next.has(rowNum)) next.delete(rowNum); else next.add(rowNum);
-      return next;
-    });
   };
 
   const INSTALMENT_STATUS: Record<string, { bg: string; text: string }> = {
@@ -603,7 +593,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
-                            {['Action','Installments','Total Amount','Due Date','Paid Date','Paid Amt','Remaining Amt','Status',''].map(h => (
+                            {['Action','Installments','Total Amount','Discount','Penalty (Late Fee)','GST Amt','Due Date','Due w/ Late Fee','Paid Date','Paid Amt','Remaining Amt','Status'].map(h => (
                               <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 whitespace-nowrap text-[10px] uppercase tracking-wide">{h}</th>
                             ))}
                           </tr>
@@ -611,63 +601,60 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                         <tbody>
                           {visibleRows.map(row => {
                             const st = INSTALMENT_STATUS[row.status] ?? INSTALMENT_STATUS.PENDING;
-                            const isSubOpen = expandedSubRows.has(row.row_number) && row.row_number > 0;
+                            const discountAmt = row.row_number === 0 && plan.discount_full_payment_pct > 0
+                              ? (row.amount * plan.discount_full_payment_pct / 100)
+                              : 0;
                             return (
-                              <React.Fragment key={row.row_number}>
-                                <tr className="border-b border-gray-100 hover:bg-gray-50">
-                                  <td className="px-3 py-2">
-                                    {row.row_number === 0 && row.paid_amt > 0 && (
-                                      <button className="px-2 py-0.5 text-[10px] border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-600">View</button>
-                                    )}
-                                  </td>
-                                  <td className="px-3 py-2 font-medium text-gray-800">{row.label}</td>
-                                  <td className="px-3 py-2 font-semibold text-gray-900">{row.amount.toFixed(2)}</td>
-                                  <td className="px-3 py-2 text-gray-600">{row.due_date ? fmtDate(row.due_date) : '—'}</td>
-                                  <td className="px-3 py-2 text-gray-600">{row.paid_date ? fmtDate(row.paid_date) : '—'}</td>
-                                  <td className="px-3 py-2 font-semibold text-emerald-700">{row.paid_amt.toFixed(2)}</td>
-                                  <td className="px-3 py-2 font-semibold text-amber-700">{row.remaining_amount.toFixed(2)}</td>
-                                  <td className="px-3 py-2">
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
-                                      {row.status === 'PENDING' ? '—' : row.status}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    {row.row_number > 0 && (
-                                      <button onClick={() => toggleSubRow(row.row_number)}
-                                        className="text-teal-600 hover:underline text-[10px] font-medium flex items-center gap-0.5">
-                                        More {isSubOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                                {/* Expandable sub-row */}
-                                {isSubOpen && (
-                                  <tr className="bg-gray-50/70 border-b border-gray-100">
-                                    <td colSpan={9} className="px-6 py-2">
-                                      <div className="flex items-center gap-6 text-[10px] text-gray-600 flex-wrap">
-                                        <span>Late Fee: <strong>{row.late_fee > 0 ? `₹${row.late_fee.toFixed(2)}` : 'NA'}</strong></span>
-                                        <span>Due date with late fee: <strong>{row.due_date_with_late_fee ? fmtDate(row.due_date_with_late_fee) : 'NA'}</strong></span>
-                                        <span>Interest(%)Pa: <strong>NA</strong></span>
-                                        <span>Discount: <strong>NA</strong></span>
-                                        <span>GST({plan.gst_pct > 0 ? `${plan.gst_pct}%` : 'NA'}): <strong>NA</strong></span>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
+                              <tr key={row.row_number} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="px-3 py-2">
+                                  {row.row_number === 0 && row.paid_amt > 0 && (
+                                    <button className="px-2 py-0.5 text-[10px] border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-600">View</button>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 font-medium text-gray-800">{row.label}</td>
+                                <td className="px-3 py-2 font-semibold text-gray-900">{row.amount.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-emerald-700 font-medium">
+                                  {discountAmt > 0 ? discountAmt.toFixed(2) : '—'}
+                                </td>
+                                <td className="px-3 py-2 text-rose-600 font-medium">
+                                  {row.late_fee > 0 ? row.late_fee.toFixed(2) : '—'}
+                                </td>
+                                <td className="px-3 py-2 text-blue-600 font-medium">
+                                  {row.gst_amount > 0 ? row.gst_amount.toFixed(2) : '—'}
+                                </td>
+                                <td className="px-3 py-2 text-gray-600">{row.due_date ? fmtDate(row.due_date) : '—'}</td>
+                                <td className="px-3 py-2 text-gray-600">{row.due_date_with_late_fee ? fmtDate(row.due_date_with_late_fee) : '—'}</td>
+                                <td className="px-3 py-2 text-gray-600">{row.paid_date ? fmtDate(row.paid_date) : '—'}</td>
+                                <td className="px-3 py-2 font-semibold text-emerald-700">{row.paid_amt.toFixed(2)}</td>
+                                <td className="px-3 py-2 font-semibold text-amber-700">{row.remaining_amount.toFixed(2)}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+                                    {row.status === 'PENDING' ? '—' : row.status}
+                                  </span>
+                                </td>
+                              </tr>
                             );
                           })}
                           {/* Totals row */}
-                          <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-xs">
-                            <td className="px-3 py-2 text-gray-700">Total</td>
-                            <td className="px-3 py-2 text-gray-700">{plan.rows.filter(r => r.row_number > 0).length}</td>
-                            <td className="px-3 py-2 text-gray-900">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.amount, 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-gray-400">—</td>
-                            <td className="px-3 py-2 text-gray-400">—</td>
-                            <td className="px-3 py-2 text-emerald-700">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.paid_amt, 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-amber-700">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.remaining_amount, 0).toFixed(2)}</td>
-                            <td colSpan={2} className="px-3 py-2 text-gray-400">—</td>
-                          </tr>
+                          {(() => {
+                            const instRows = plan.rows.filter(r => r.row_number > 0);
+                            return (
+                              <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-xs">
+                                <td className="px-3 py-2 text-gray-700">Total</td>
+                                <td className="px-3 py-2 text-gray-700">{instRows.length}</td>
+                                <td className="px-3 py-2 text-gray-900">{instRows.reduce((s, r) => s + r.amount, 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-gray-400">—</td>
+                                <td className="px-3 py-2 text-rose-600">{instRows.reduce((s, r) => s + r.late_fee, 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-blue-600">{instRows.reduce((s, r) => s + r.gst_amount, 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-gray-400">—</td>
+                                <td className="px-3 py-2 text-gray-400">—</td>
+                                <td className="px-3 py-2 text-gray-400">—</td>
+                                <td className="px-3 py-2 text-emerald-700">{instRows.reduce((s, r) => s + r.paid_amt, 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-amber-700">{instRows.reduce((s, r) => s + r.remaining_amount, 0).toFixed(2)}</td>
+                                <td className="px-3 py-2 text-gray-400">—</td>
+                              </tr>
+                            );
+                          })()}
                         </tbody>
                       </table>
                     </div>
