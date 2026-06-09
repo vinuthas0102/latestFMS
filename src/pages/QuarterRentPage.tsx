@@ -8,12 +8,14 @@ import {
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
+  Plus, Percent, FileText, ChevronUp, BarChart,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
 import { quartersService } from '../services/quartersService';
 import type {
   RentTile, RentDueDetail, RentPayment, RentClarification, RentTrackerSummary,
+  InstallmentPlan, InstallmentRow,
 } from '../services/quartersService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
@@ -48,37 +50,157 @@ const STATUS_LEFT: Record<StatusKey, string> = {
 };
 const PAYMENT_MODES = ['ALL','ONLINE','CHEQUE','DD','CASH','AUTO_DEDUCTION','EXEMPTED'] as const;
 
-// ── Due Details Modal ─────────────────────────────────────────────────────────
+// ── Show Due Payment Modal (tabbed: Due Summary + Installment Plan) ───────────
 interface DueDetailsModalProps {
   tile: RentTile; detail: RentDueDetail; isEO: boolean;
+  penaltyMaxDiscountPct: number;
   onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
 }
-const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, onClose, onSave }) => {
-  const [override, setOverride] = useState(String(detail.penalty_override ?? detail.penalty_amount));
+const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, onClose, onSave }) => {
+  const [activeTab, setActiveTab] = useState<'summary' | 'installment'>('summary');
+
+  // ── Summary tab state ──────────────────────────────────────────────────────
+  const [discountPct, setDiscountPct] = useState(0);
   const [remarks, setRemarks] = useState(detail.eo_remarks ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const overrideNum  = Math.min(Math.max(Number(override) || 0, 0), detail.penalty_amount);
-  const overrideChanged = overrideNum !== detail.penalty_amount;
-  const hasOverrideActive = detail.penalty_override !== null && detail.penalty_override < detail.penalty_amount;
+  const penaltyBase = detail.penalty_amount;
+  const discountAmt = Math.round(penaltyBase * discountPct / 100);
+  const effectivePenalty = Math.max(0, penaltyBase - discountAmt);
+  const overrideChanged = discountPct > 0;
   const canSave = !overrideChanged || remarks.trim().length > 0;
+  const hasOverrideActive = detail.penalty_override !== null && detail.penalty_override < detail.penalty_amount;
+
   const subtotal = detail.base_rent + detail.water_charges + detail.utility_charges
     + (tile.sd_amount ?? 0) + (tile.advance_amount ?? 0) + (tile.maintenance_charge ?? 0);
-  const net = subtotal + overrideNum - detail.waiver_amount;
+  const net = subtotal + effectivePenalty - detail.waiver_amount;
+  const fullPaymentDiscount = detail.discount_full_payment_pct
+    ? Math.round(net * detail.discount_full_payment_pct / 100)
+    : 0;
 
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
-    await onSave(overrideNum, remarks.trim());
+    await onSave(effectivePenalty, remarks.trim());
     setSaving(false);
     setSaved(true);
     setTimeout(() => { setSaved(false); onClose(); }, 1400);
   };
 
+  // ── Installment plan state ─────────────────────────────────────────────────
+  const [plan, setPlan] = useState<InstallmentPlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planMode, setPlanMode] = useState<'view' | 'setup'>('setup');
+  const [filterInstalment, setFilterInstalment] = useState<number | 'all'>('all');
+  const [expandedSubRows, setExpandedSubRows] = useState<Set<number>>(new Set());
+
+  // Setup form state
+  const [startDate, setStartDate] = useState('');
+  const [lateFee, setLateFee] = useState('0.00');
+  const [dueDaysLate, setDueDaysLate] = useState('0');
+  const [interestPct, setInterestPct] = useState('0.00');
+  const [discountFullPct, setDiscountFullPct] = useState('0.00');
+  const [gstPct, setGstPct] = useState('0.00');
+  const [gstType, setGstType] = useState<'inclusive' | 'exclusive'>('inclusive');
+  const [emd, setEmd] = useState('0.00');
+  const [numInstals, setNumInstals] = useState(3);
+  const [instalRows, setInstalRows] = useState<{ percentage: string; amount: string; due_date: string }[]>([]);
+  const [planSaving, setPlanSaving] = useState(false);
+
+  const balancePayment = tile.total_due;
+
+  // Build instalment rows array when numInstals changes
+  useEffect(() => {
+    setInstalRows(Array.from({ length: numInstals }, (_, i) => {
+      const existing = instalRows[i];
+      const equalPct = (100 / numInstals).toFixed(2);
+      const equalAmt = (balancePayment / numInstals).toFixed(2);
+      return {
+        percentage: existing?.percentage ?? equalPct,
+        amount: existing?.amount ?? equalAmt,
+        due_date: existing?.due_date ?? '',
+      };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numInstals]);
+
+  // Load plan when switching to installment tab
+  useEffect(() => {
+    if (activeTab !== 'installment') return;
+    setPlanLoading(true);
+    quartersService.getInstallmentPlan(tile.allotment_id, tile.month).then(p => {
+      if (p) { setPlan(p); setPlanMode('view'); }
+      else   { setPlan(null); setPlanMode('setup'); }
+      setPlanLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const updateRow = (i: number, field: keyof typeof instalRows[0], val: string) => {
+    setInstalRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+  };
+
+  const totalPct = instalRows.reduce((s, r) => s + (parseFloat(r.percentage) || 0), 0);
+  const totalAmt = instalRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+
+  const handleCreatePlan = async () => {
+    if (!startDate) return;
+    setPlanSaving(true);
+    try {
+      const config = {
+        installment_start_date: startDate || null,
+        late_fee: parseFloat(lateFee) || 0,
+        due_days_with_late_fee: parseInt(dueDaysLate) || 0,
+        interest_pct_pa: parseFloat(interestPct) || 0,
+        discount_full_payment_pct: parseFloat(discountFullPct) || 0,
+        gst_pct: parseFloat(gstPct) || 0,
+        gst_type: gstType,
+        balance_payment: balancePayment,
+        emd: parseFloat(emd) || 0,
+        no_of_installments: numInstals,
+      };
+      const rows: Pick<InstallmentRow,'row_number'|'label'|'percentage'|'amount'|'due_date'>[] = [
+        { row_number: 0, label: 'Full Payment', percentage: 100, amount: balancePayment, due_date: startDate || null },
+        ...instalRows.map((r, i) => ({
+          row_number: i + 1,
+          label: `${i + 1}${['st','nd','rd'][i] ?? 'th'} Installment`,
+          percentage: parseFloat(r.percentage) || 0,
+          amount: parseFloat(r.amount) || 0,
+          due_date: r.due_date || null,
+        })),
+      ];
+      const created = await quartersService.createInstallmentPlan(tile.allotment_id, tile.month, config, rows);
+      setPlan(created); setPlanMode('view');
+    } finally {
+      setPlanSaving(false);
+    }
+  };
+
+  const toggleSubRow = (rowNum: number) => {
+    setExpandedSubRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowNum)) next.delete(rowNum); else next.add(rowNum);
+      return next;
+    });
+  };
+
+  const INSTALMENT_STATUS: Record<string, { bg: string; text: string }> = {
+    PAID:    { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    DUE:     { bg: 'bg-amber-100',   text: 'text-amber-700'   },
+    PENDING: { bg: 'bg-gray-100',    text: 'text-gray-500'    },
+    OVERDUE: { bg: 'bg-red-100',     text: 'text-red-700'     },
+  };
+
+  const visibleRows = plan
+    ? (filterInstalment === 'all'
+        ? plan.rows
+        : plan.rows.filter(r => r.row_number === 0 || r.row_number === filterInstalment))
+    : [];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
           <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -86,7 +208,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, o
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-gray-900">Due Details — {tile.quarter_number}</span>
+              <span className="text-sm font-bold text-gray-900">Show Due Payment — {tile.quarter_number}</span>
               <StatusBadge status={tile.status} />
             </div>
             <div className="text-xs text-gray-400">{fmtMonthFull(tile.month)} · {tile.tenant_name}</div>
@@ -96,139 +218,493 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, o
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1.5">
-          {/* Rent breakdown */}
-          {[
-            { label: 'Base Rent',       value: detail.base_rent },
-            { label: 'Water Charges',   value: detail.water_charges },
-            { label: 'Utility Charges', value: detail.utility_charges },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-gray-500">{label}</span>
-              <span className="text-sm font-medium text-gray-800">{fmtINR(value)}</span>
-            </div>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 px-6 shrink-0">
+          {([
+            { id: 'summary' as const,     label: 'Due Summary',      icon: IndianRupee },
+            { id: 'installment' as const, label: 'Installment Plan',  icon: FileText },
+          ]).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all -mb-px ${
+                activeTab === id
+                  ? 'border-teal-600 text-teal-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={11} /> {label}
+            </button>
           ))}
-          {/* Additional charge components from tile */}
-          {(tile.sd_amount ?? 0) > 0 && (
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Shield size={11} className="text-blue-400" />Security Deposit</span>
-              <span className="text-sm font-medium text-blue-700">{fmtINR(tile.sd_amount ?? 0)}</span>
-            </div>
-          )}
-          {(tile.advance_amount ?? 0) > 0 && (
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Zap size={11} className="text-violet-400" />Advance Amount</span>
-              <span className="text-sm font-medium text-violet-700">{fmtINR(tile.advance_amount ?? 0)}</span>
-            </div>
-          )}
-          {(tile.maintenance_charge ?? 0) > 0 && (
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-gray-500 flex items-center gap-1.5"><Wrench size={11} className="text-orange-400" />Maintenance Charge</span>
-              <span className="text-sm font-medium text-orange-700">{fmtINR(tile.maintenance_charge ?? 0)}</span>
-            </div>
-          )}
-          {/* Sub-total */}
-          <div className="flex items-center justify-between py-1.5 border-t border-dashed border-gray-200 mt-1">
-            <span className="text-sm font-semibold text-gray-700">Sub-total</span>
-            <span className="text-sm font-bold text-gray-900">{fmtINR(subtotal)}</span>
-          </div>
-          {/* Penalty row */}
-          {detail.penalty_amount > 0 && (
-            <div className="flex items-center justify-between py-1.5 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                <div>
-                  <div className="text-sm text-gray-500 flex items-center gap-1.5">
-                    Penalty
-                    {hasOverrideActive && (
-                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 border border-amber-200">OVERRIDE ACTIVE</span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-gray-400">{detail.months_overdue} month(s) overdue · {detail.penalty_rate}%/month</div>
-                </div>
-              </div>
-              <span className={`text-sm font-semibold ${hasOverrideActive ? 'line-through text-gray-400' : 'text-red-600'}`}>{fmtINR(detail.penalty_amount)}</span>
-            </div>
-          )}
-          {hasOverrideActive && (
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-amber-700">Override Applied</span>
-              <span className="text-sm font-semibold text-amber-600">{fmtINR(detail.penalty_override!)}</span>
-            </div>
-          )}
-          {detail.waiver_amount > 0 && (
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-gray-500">Waiver Applied</span>
-              <span className="text-sm font-semibold text-emerald-600">−{fmtINR(detail.waiver_amount)}</span>
-            </div>
-          )}
-          {/* Net payable */}
-          <div className="flex items-center justify-between pt-3 mt-1 border-t-2 border-gray-200">
-            <span className="text-sm font-bold text-gray-900">Net Payable</span>
-            <span className="text-xl font-extrabold text-teal-700">{fmtINR(net)}</span>
-          </div>
+        </div>
 
-          {/* EO Override section */}
-          {isEO && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
-              <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">EO Penalty Override</div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-gray-600 whitespace-nowrap">Override (₹)</label>
-                <input
-                  type="number"
-                  value={override}
-                  onChange={e => { setOverride(e.target.value); setSaved(false); }}
-                  min={0} max={detail.penalty_amount}
-                  className="flex-1 px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white"
-                />
+        {/* ── Due Summary Tab ── */}
+        {activeTab === 'summary' && (
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1.5">
+            {/* Rent components */}
+            {[
+              { label: 'Base Rent',       value: detail.base_rent },
+              { label: 'Water Charges',   value: detail.water_charges },
+              { label: 'Utility Charges', value: detail.utility_charges },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-500">{label}</span>
+                <span className="text-sm font-medium text-gray-800">{fmtINR(value)}</span>
               </div>
-              <div>
-                <textarea
-                  value={remarks}
-                  onChange={e => { setRemarks(e.target.value); setSaved(false); }}
-                  rows={2}
-                  placeholder={overrideChanged ? 'Remarks required when overriding penalty…' : 'Optional remarks…'}
-                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white resize-none transition-colors ${
-                    overrideChanged && !remarks.trim() ? 'border-red-300' : 'border-amber-200'
-                  }`}
-                />
-                {overrideChanged && !remarks.trim() && (
-                  <p className="text-[10px] text-red-500 mt-0.5">Remarks are required when overriding a penalty.</p>
+            ))}
+            {(tile.sd_amount ?? 0) > 0 && (
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-500 flex items-center gap-1.5"><Shield size={11} className="text-blue-400" />Security Deposit</span>
+                <span className="text-sm font-medium text-blue-700">{fmtINR(tile.sd_amount ?? 0)}</span>
+              </div>
+            )}
+            {(tile.advance_amount ?? 0) > 0 && (
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-500 flex items-center gap-1.5"><Zap size={11} className="text-violet-400" />Advance Amount</span>
+                <span className="text-sm font-medium text-violet-700">{fmtINR(tile.advance_amount ?? 0)}</span>
+              </div>
+            )}
+            {(tile.maintenance_charge ?? 0) > 0 && (
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-500 flex items-center gap-1.5"><Wrench size={11} className="text-orange-400" />Maintenance Arrears</span>
+                <span className="text-sm font-medium text-orange-700">{fmtINR(tile.maintenance_charge ?? 0)}</span>
+              </div>
+            )}
+            {/* Sub-total */}
+            <div className="flex items-center justify-between py-1.5 border-t border-dashed border-gray-200 mt-1">
+              <span className="text-sm font-semibold text-gray-700">Sub-total</span>
+              <span className="text-sm font-bold text-gray-900">{fmtINR(subtotal)}</span>
+            </div>
+            {/* Penalty */}
+            {penaltyBase > 0 && (
+              <div className="rounded-xl border border-red-100 bg-red-50/40 p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-700 font-medium flex items-center gap-1.5">
+                      Penalty
+                      {hasOverrideActive && (
+                        <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 border border-amber-200">OVERRIDE ACTIVE</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-400">{detail.months_overdue} month(s) overdue · {detail.penalty_rate}%/month</div>
+                  </div>
+                  <span className={`text-sm font-semibold ${discountPct > 0 ? 'line-through text-gray-400' : 'text-red-600'}`}>{fmtINR(penaltyBase)}</span>
+                </div>
+                {discountPct > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-amber-700">Discount ({discountPct}%)</span>
+                    <span className="font-semibold text-amber-600">−{fmtINR(discountAmt)}</span>
+                  </div>
+                )}
+                {(discountPct > 0 || hasOverrideActive) && (
+                  <div className="flex items-center justify-between text-sm border-t border-red-100 pt-1.5">
+                    <span className="text-red-700 font-medium">Effective Penalty</span>
+                    <span className="font-bold text-red-600">{fmtINR(effectivePenalty)}</span>
+                  </div>
                 )}
               </div>
-              <div className="text-[10px] text-amber-600 flex items-center gap-1">
-                <AlertTriangle size={10} />
-                Max override: {fmtINR(detail.penalty_amount)} (full waiver)
+            )}
+            {detail.waiver_amount > 0 && (
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-gray-500">Waiver Applied</span>
+                <span className="text-sm font-semibold text-emerald-600">−{fmtINR(detail.waiver_amount)}</span>
               </div>
+            )}
+            {/* Full payment discount */}
+            {fullPaymentDiscount > 0 && (
+              <div className="flex items-center justify-between py-1.5 bg-emerald-50 rounded-lg px-2">
+                <span className="text-sm text-emerald-700 flex items-center gap-1.5"><Percent size={11} />Full Payment Discount</span>
+                <span className="text-sm font-semibold text-emerald-600">−{fmtINR(fullPaymentDiscount)}</span>
+              </div>
+            )}
+            {/* Net payable */}
+            <div className="flex items-center justify-between pt-3 mt-1 border-t-2 border-gray-200">
+              <span className="text-sm font-bold text-gray-900">Net Payable</span>
+              <span className="text-xl font-extrabold text-teal-700">{fmtINR(net)}</span>
             </div>
-          )}
+            {fullPaymentDiscount > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-emerald-600">Net after full-payment discount</span>
+                <span className="text-base font-extrabold text-emerald-700">{fmtINR(net - fullPaymentDiscount)}</span>
+              </div>
+            )}
 
-          {/* Success banner */}
-          {saved && (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mt-2">
-              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-              <span className="text-xs font-semibold text-emerald-700">Override saved successfully.</span>
-            </div>
-          )}
-        </div>
+            {/* EM Penalty Discount section */}
+            {isEO && penaltyBase > 0 && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+                <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">
+                  Estate Manager — Penalty Discount
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span>Discount: <strong className="text-amber-700">{discountPct}%</strong></span>
+                    <span className="text-[10px] text-amber-600">Max allowed: {penaltyMaxDiscountPct}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={penaltyMaxDiscountPct}
+                    step={1}
+                    value={discountPct}
+                    onChange={e => { setDiscountPct(Number(e.target.value)); setSaved(false); }}
+                    className="w-full accent-amber-500"
+                  />
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-gray-600 whitespace-nowrap">Discount %</label>
+                    <input
+                      type="number"
+                      value={discountPct}
+                      onChange={e => {
+                        const v = Math.min(penaltyMaxDiscountPct, Math.max(0, Number(e.target.value) || 0));
+                        setDiscountPct(v); setSaved(false);
+                      }}
+                      min={0} max={penaltyMaxDiscountPct} step={1}
+                      className="w-20 px-2 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white"
+                    />
+                    <span className="text-xs text-gray-500">= saving {fmtINR(discountAmt)}</span>
+                  </div>
+                </div>
+                <div>
+                  <textarea
+                    value={remarks}
+                    onChange={e => { setRemarks(e.target.value); setSaved(false); }}
+                    rows={2}
+                    placeholder={overrideChanged ? 'Remarks required when discounting penalty…' : 'Optional remarks…'}
+                    className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white resize-none transition-colors ${
+                      overrideChanged && !remarks.trim() ? 'border-red-300' : 'border-amber-200'
+                    }`}
+                  />
+                  {overrideChanged && !remarks.trim() && (
+                    <p className="text-[10px] text-red-500 mt-0.5">Remarks are required when applying a penalty discount.</p>
+                  )}
+                </div>
+                <div className="text-[10px] text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  You may discount up to {penaltyMaxDiscountPct}% of the penalty (up to {fmtINR(Math.round(penaltyBase * penaltyMaxDiscountPct / 100))})
+                </div>
+              </div>
+            )}
 
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
-            Close
-          </button>
-          {isEO && (
-            <button
-              onClick={handleSave}
-              disabled={saving || saved || !canSave}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
-              ) : saved ? (
-                <><CheckCircle2 size={14} /> Saved</>
-              ) : 'Update'}
+            {saved && (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mt-2">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span className="text-xs font-semibold text-emerald-700">Override saved successfully.</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Installment Plan Tab ── */}
+        {activeTab === 'installment' && (
+          <div className="flex-1 overflow-y-auto">
+            {planLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <span className="w-6 h-6 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+              </div>
+            ) : planMode === 'setup' ? (
+              /* ── Setup / Define mode ── */
+              <div className="px-5 py-4 space-y-4">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Define Installment Plan</div>
+
+                {/* Config grid */}
+                <div className="grid grid-cols-3 gap-x-4 gap-y-3 bg-gray-50 rounded-xl border border-gray-200 p-4">
+                  {/* Row 1 */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Installment Start Date <span className="text-red-500">*</span></label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Late Fee (₹)</label>
+                    <input type="number" value={lateFee} onChange={e => setLateFee(e.target.value)} min={0} step="0.01"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Due Days with Late Fee</label>
+                    <select value={dueDaysLate} onChange={e => setDueDaysLate(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white">
+                      {[0,5,7,10,15,20,30].map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  {/* Row 2 */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Interest (%)Pa</label>
+                    <input type="number" value={interestPct} onChange={e => setInterestPct(e.target.value)} min={0} step="0.01"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Discount (If Full Payment) %</label>
+                    <input type="number" value={discountFullPct} onChange={e => setDiscountFullPct(e.target.value)} min={0} max={100} step="0.01"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">GST (%)</label>
+                    <div className="flex gap-1.5">
+                      <input type="number" value={gstPct} onChange={e => setGstPct(e.target.value)} min={0} step="0.01"
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white min-w-0" />
+                      <div className="flex items-center gap-1 text-[10px]">
+                        {(['inclusive','exclusive'] as const).map(t => (
+                          <label key={t} className="flex items-center gap-0.5 cursor-pointer">
+                            <input type="radio" name="gst_type" value={t} checked={gstType === t} onChange={() => setGstType(t)} className="accent-teal-600" />
+                            <span className="capitalize text-gray-600">{t.slice(0,3)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Row 3 */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Balance Payment (₹) <span className="text-red-500">*</span></label>
+                    <input type="number" value={balancePayment} readOnly
+                      className="w-full px-2 py-1.5 text-xs border border-gray-100 rounded-lg bg-gray-100 text-gray-700 font-semibold cursor-not-allowed" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">EMD (₹)</label>
+                    <input type="number" value={emd} onChange={e => setEmd(e.target.value)} min={0} step="0.01"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Term No. of Installments <span className="text-red-500">*</span></label>
+                    <select value={numInstals} onChange={e => setNumInstals(Number(e.target.value))}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white">
+                      {[1,2,3,4,6,8,10,12].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Installment rows table */}
+                <div>
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Installment Schedule</div>
+                  <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          {['Installments','Percentage','Amount','Due Date'].map(h => (
+                            <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Full Payment row */}
+                        <tr className="border-b border-gray-100 bg-teal-50/30">
+                          <td className="px-3 py-2 font-semibold text-gray-700">Full Payment</td>
+                          <td className="px-3 py-2 text-gray-600">100.00</td>
+                          <td className="px-3 py-2 font-semibold text-gray-800">{balancePayment.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                              className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
+                          </td>
+                        </tr>
+                        {/* Numbered rows */}
+                        {instalRows.map((row, i) => (
+                          <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-3 py-2 font-medium text-gray-700">{i + 1}</td>
+                            <td className="px-3 py-2">
+                              <input type="number" value={row.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)}
+                                min={0} max={100} step="0.01"
+                                className="w-16 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" value={row.amount} onChange={e => updateRow(i, 'amount', e.target.value)}
+                                min={0} step="0.01"
+                                className="w-24 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="date" value={row.due_date} onChange={e => updateRow(i, 'due_date', e.target.value)}
+                                className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Totals row */}
+                        <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                          <td className="px-3 py-2 text-gray-700">Total</td>
+                          <td className={`px-3 py-2 ${Math.abs(totalPct - 100) < 0.01 ? 'text-emerald-700' : 'text-red-600'}`}>{totalPct.toFixed(2)}</td>
+                          <td className={`px-3 py-2 ${Math.abs(totalAmt - balancePayment) < 0.5 ? 'text-emerald-700' : 'text-red-600'}`}>{totalAmt.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-gray-400">—</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  {Math.abs(totalPct - 100) > 0.01 && (
+                    <p className="text-[10px] text-red-500 mt-1">Percentages must sum to 100 (currently {totalPct.toFixed(2)})</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                    Go Back
+                  </button>
+                  {isEO && (
+                    <button
+                      onClick={handleCreatePlan}
+                      disabled={planSaving || !startDate || Math.abs(totalPct - 100) > 0.01}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-2"
+                    >
+                      {planSaving ? (
+                        <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
+                      ) : <><Plus size={14} /> Submit Plan</>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ── View mode ── */
+              <div className="px-5 py-4 space-y-4">
+                {plan && (
+                  <>
+                    {/* Header config summary */}
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
+                      <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-[11px]">
+                        {[
+                          { label: 'Installment Start Date', value: plan.installment_start_date ? fmtDate(plan.installment_start_date) : 'NA' },
+                          { label: 'Late Fee',               value: `₹${plan.late_fee.toFixed(2)}` },
+                          { label: 'Due Days with Late Fee', value: String(plan.due_days_with_late_fee) },
+                          { label: 'Interest (%)Pa',         value: plan.interest_pct_pa.toFixed(1) },
+                          { label: 'Discount (Full Pmt) %',  value: plan.discount_full_payment_pct.toFixed(1) },
+                          { label: `GST: ${plan.gst_pct.toFixed(1)}`,   value: plan.gst_type === 'inclusive' ? 'Inclusive' : 'Exclusive' },
+                          { label: 'Balance Payment',        value: fmtINR(plan.balance_payment) },
+                          { label: 'No. of Installments',    value: String(plan.no_of_installments) },
+                          { label: 'EMD',                    value: `₹${plan.emd.toFixed(2)}` },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="flex flex-col">
+                            <span className="text-gray-400 font-medium">{label}</span>
+                            <span className="text-gray-800 font-semibold">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Paid / Due counts */}
+                      <div className="flex items-center gap-4 pt-2 border-t border-gray-200 text-[11px]">
+                        <span className="text-gray-500">Installments PAID: <strong className="text-emerald-700">{plan.installments_paid > 0 ? plan.installments_paid : 'NA'}</strong></span>
+                        <span className="text-gray-500">Installments Due: <strong className="text-amber-700">{plan.installments_due > 0 ? plan.installments_due : 'NA'}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Filter + Export controls */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select
+                        value={filterInstalment === 'all' ? 'all' : String(filterInstalment)}
+                        onChange={e => setFilterInstalment(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                        className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-teal-200"
+                      >
+                        <option value="all">Select Installment</option>
+                        {plan.rows.filter(r => r.row_number > 0).map(r => (
+                          <option key={r.row_number} value={r.row_number}>{r.label}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => setFilterInstalment('all')} className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600">Reset</button>
+                      <div className="flex-1" />
+                      <button className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600">
+                        <Download size={11} /> Export to excel
+                      </button>
+                    </div>
+
+                    {/* Installment table */}
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            {['Action','Installments','Total Amount','Due Date','Paid Date','Paid Amt','Remaining Amt','Status',''].map(h => (
+                              <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 whitespace-nowrap text-[10px] uppercase tracking-wide">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {visibleRows.map(row => {
+                            const st = INSTALMENT_STATUS[row.status] ?? INSTALMENT_STATUS.PENDING;
+                            const isSubOpen = expandedSubRows.has(row.row_number) && row.row_number > 0;
+                            return (
+                              <React.Fragment key={row.row_number}>
+                                <tr className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2">
+                                    {row.row_number === 0 && row.paid_amt > 0 && (
+                                      <button className="px-2 py-0.5 text-[10px] border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-600">View</button>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 font-medium text-gray-800">{row.label}</td>
+                                  <td className="px-3 py-2 font-semibold text-gray-900">{row.amount.toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-gray-600">{row.due_date ? fmtDate(row.due_date) : '—'}</td>
+                                  <td className="px-3 py-2 text-gray-600">{row.paid_date ? fmtDate(row.paid_date) : '—'}</td>
+                                  <td className="px-3 py-2 font-semibold text-emerald-700">{row.paid_amt.toFixed(2)}</td>
+                                  <td className="px-3 py-2 font-semibold text-amber-700">{row.remaining_amount.toFixed(2)}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+                                      {row.status === 'PENDING' ? '—' : row.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    {row.row_number > 0 && (
+                                      <button onClick={() => toggleSubRow(row.row_number)}
+                                        className="text-teal-600 hover:underline text-[10px] font-medium flex items-center gap-0.5">
+                                        More {isSubOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                                {/* Expandable sub-row */}
+                                {isSubOpen && (
+                                  <tr className="bg-gray-50/70 border-b border-gray-100">
+                                    <td colSpan={9} className="px-6 py-2">
+                                      <div className="flex items-center gap-6 text-[10px] text-gray-600 flex-wrap">
+                                        <span>Late Fee: <strong>{row.late_fee > 0 ? `₹${row.late_fee.toFixed(2)}` : 'NA'}</strong></span>
+                                        <span>Due date with late fee: <strong>{row.due_date_with_late_fee ? fmtDate(row.due_date_with_late_fee) : 'NA'}</strong></span>
+                                        <span>Interest(%)Pa: <strong>NA</strong></span>
+                                        <span>Discount: <strong>NA</strong></span>
+                                        <span>GST({plan.gst_pct > 0 ? `${plan.gst_pct}%` : 'NA'}): <strong>NA</strong></span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                          {/* Totals row */}
+                          <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-xs">
+                            <td className="px-3 py-2 text-gray-700">Total</td>
+                            <td className="px-3 py-2 text-gray-700">{plan.rows.filter(r => r.row_number > 0).length}</td>
+                            <td className="px-3 py-2 text-gray-900">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.amount, 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-gray-400">—</td>
+                            <td className="px-3 py-2 text-gray-400">—</td>
+                            <td className="px-3 py-2 text-emerald-700">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.paid_amt, 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-amber-700">{plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.remaining_amount, 0).toFixed(2)}</td>
+                            <td colSpan={2} className="px-3 py-2 text-gray-400">—</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex gap-3 pt-1">
+                      <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                        Go Back
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Footer (Summary tab only) ── */}
+        {activeTab === 'summary' && (
+          <div className="flex gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              Close
             </button>
-          )}
-        </div>
+            {isEO && penaltyBase > 0 && (
+              <button
+                onClick={handleSave}
+                disabled={saving || saved || !canSave}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
+                ) : saved ? (
+                  <><CheckCircle2 size={14} /> Saved</>
+                ) : 'Apply Discount'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -454,10 +930,11 @@ interface TileActionsMenuProps {
   onDueDetails: (tile: RentTile) => void;
   onHistoryPanel: (tile: RentTile) => void;
   onChatPanel: (tile: RentTile) => void;
+  onShowStat: (tile: RentTile) => void;
 }
 const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   tile, isEO, chatTileId, expandedId, activePanel,
-  onPayNow, onDueDetails, onHistoryPanel, onChatPanel,
+  onPayNow, onDueDetails, onHistoryPanel, onChatPanel, onShowStat,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -474,7 +951,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
     if (open) { setOpen(false); return; }
     const rect = btnRef.current?.getBoundingClientRect();
     if (rect) {
-      const menuHeight = 80;
+      const menuHeight = 120;
       const spaceBelow = window.innerHeight - rect.bottom;
       const top = spaceBelow >= menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
       setMenuPos({ top, right: window.innerWidth - rect.right });
@@ -512,55 +989,56 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
         </button>
       )}
 
-      {/* Actions dropdown — only shown when there are items */}
-      {(hasDue || hasPayments) && (
-        <>
-          <button
-            ref={btnRef}
-            onClick={openMenu}
-            title="Actions"
-            className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
-              open ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            <MoreVertical size={13} />
-          </button>
+      {/* Actions dropdown — always visible */}
+      <>
+        <button
+          ref={btnRef}
+          onClick={openMenu}
+          title="Actions"
+          className={`flex items-center justify-center p-1.5 rounded-lg border transition-colors ${
+            open ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          <MoreVertical size={13} />
+        </button>
 
-          {open && menuPos && createPortal(
-            <>
-              {/* Backdrop */}
-              <div className="fixed inset-0 z-[9998]" onClick={close} />
-              {/* Menu */}
-              <div
-                className="fixed z-[9999] bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[160px]"
-                style={{ top: menuPos.top, right: menuPos.right }}
+        {open && menuPos && createPortal(
+          <>
+            {/* Backdrop */}
+            <div className="fixed inset-0 z-[9998]" onClick={close} />
+            {/* Menu */}
+            <div
+              className="fixed z-[9999] bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[170px]"
+              style={{ top: menuPos.top, right: menuPos.right }}
+            >
+              <button
+                onClick={e => { e.stopPropagation(); close(); onHistoryPanel(tile); }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
+                  isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
+                }`}
               >
-                {hasDue && (
-                  <button
-                    onClick={e => { e.stopPropagation(); close(); onDueDetails(tile); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
-                  >
-                    <IndianRupee size={12} className="text-amber-500 shrink-0" />
-                    Due Details
-                  </button>
-                )}
-                {hasPayments && (
-                  <button
-                    onClick={e => { e.stopPropagation(); close(); onHistoryPanel(tile); }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
-                      isHistoryOpen ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-700'
-                    }`}
-                  >
-                    <Receipt size={12} className="text-teal-500 shrink-0" />
-                    Paid History
-                  </button>
-                )}
-              </div>
-            </>,
-            document.body
-          )}
-        </>
-      )}
+                <Receipt size={12} className="text-teal-500 shrink-0" />
+                Paid History
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); close(); onDueDetails(tile); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
+              >
+                <IndianRupee size={12} className="text-amber-500 shrink-0" />
+                Show Due Payment
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); close(); onShowStat(tile); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-violet-50 hover:text-violet-800 transition-colors text-left"
+              >
+                <BarChart size={12} className="text-violet-500 shrink-0" />
+                Show Stat
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
+      </>
     </div>
   );
 };
@@ -784,6 +1262,8 @@ export const QuarterRentPage: React.FC = () => {
   const [clarMsg, setClarMsg] = useState('');
   const [paySuccess, setPaySuccess] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [penaltyMaxDiscountPct, setPenaltyMaxDiscountPct] = useState(25);
+  const [statTileId, setStatTileId] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -805,6 +1285,14 @@ export const QuarterRentPage: React.FC = () => {
   }, [monthFrom, monthTo, locFilter, modeFilter, tenantFilter]);
 
   useEffect(() => { loadTiles(); }, [loadTiles]);
+
+  useEffect(() => {
+    quartersService.getPaymentConfig('penalty_max_discount_pct').then(v => setPenaltyMaxDiscountPct(v)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (dpFilter !== 'all' && viewMode === 'graph') setViewMode('tile');
+  }, [dpFilter, viewMode]);
 
   // ── Summary derived from loaded tiles (always in sync with what is displayed) ─
   const summary = useMemo(() => tiles.length ? computeSummaryFromTiles(tiles) : null, [tiles]);
@@ -1014,6 +1502,7 @@ export const QuarterRentPage: React.FC = () => {
                 expandedId={expandedId} activePanel={activePanel}
                 onPayNow={setPayNowTile} onDueDetails={openDueDetails}
                 onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+                onShowStat={t => setStatTileId(t.id)}
               />
             </div>
             {/* Expand toggle */}
@@ -1096,6 +1585,7 @@ export const QuarterRentPage: React.FC = () => {
             expandedId={expandedId} activePanel={activePanel}
             onPayNow={setPayNowTile} onDueDetails={openDueDetails}
             onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+            onShowStat={t => setStatTileId(t.id)}
           />
         </td>
       </tr>
@@ -1160,6 +1650,7 @@ export const QuarterRentPage: React.FC = () => {
                 expandedId={expandedId} activePanel={activePanel}
                 onPayNow={setPayNowTile} onDueDetails={openDueDetails}
                 onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+                onShowStat={t => setStatTileId(t.id)}
               />
               <button
                 className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
@@ -1342,7 +1833,7 @@ export const QuarterRentPage: React.FC = () => {
     { id: 'table', icon: TableProperties, label: 'Table' },
     { id: 'tile',  icon: LayoutGrid,      label: 'Tile'  },
     { id: 'card',  icon: CreditCard,      label: 'Card'  },
-    { id: 'graph', icon: BarChart2,       label: 'Graph' },
+    ...(dpFilter === 'all' ? [{ id: 'graph' as ViewMode, icon: BarChart2, label: 'Graph' }] : []),
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -1748,8 +2239,61 @@ export const QuarterRentPage: React.FC = () => {
           onClose={() => setTenantProfileId(null)}
         />
       )}
+      {statTileId && (() => {
+        const t = tiles.find(x => x.id === statTileId);
+        if (!t) return null;
+        const bars = [
+          { label: 'Base Rent',   value: t.base_rent,         color: 'bg-teal-500' },
+          { label: 'Water/Util',  value: t.water_charges + (t.utility_charges ?? 0), color: 'bg-sky-500' },
+          { label: 'SD',          value: t.sd_amount ?? 0,    color: 'bg-indigo-400' },
+          { label: 'Advance',     value: t.advance_amount ?? 0, color: 'bg-violet-400' },
+          { label: 'Maint.',      value: t.maintenance_charge ?? 0, color: 'bg-amber-400' },
+          { label: 'Penalty',     value: t.penalty_override ?? t.penalty_amount, color: 'bg-rose-500' },
+          { label: 'Total Due',   value: t.total_due,         color: 'bg-gray-700' },
+          { label: 'Paid',        value: t.amount_paid,       color: 'bg-emerald-500' },
+        ].filter(b => b.value > 0);
+        const maxVal = Math.max(...bars.map(b => b.value), 1);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+                <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                  <BarChart size={16} className="text-violet-700" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-gray-900">Charge Breakdown</div>
+                  <div className="text-xs text-gray-400">{t.quarter_number} · {t.tenant_name} · {fmtMonthFull(t.month)}</div>
+                </div>
+                <button onClick={() => setStatTileId(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+              </div>
+              <div className="px-6 py-5 space-y-2.5">
+                {bars.map(b => (
+                  <div key={b.label} className="flex items-center gap-3">
+                    <div className="w-20 text-[11px] text-gray-500 font-medium shrink-0 text-right">{b.label}</div>
+                    <div className="flex-1 h-6 bg-gray-100 rounded-lg overflow-hidden">
+                      <div
+                        className={`h-full ${b.color} rounded-lg transition-all duration-500`}
+                        style={{ width: `${(b.value / maxVal) * 100}%` }}
+                      />
+                    </div>
+                    <div className="w-24 text-[11px] font-semibold text-gray-800 shrink-0">{fmtINR(b.value)}</div>
+                  </div>
+                ))}
+                <div className="pt-3 border-t border-gray-100 flex justify-between text-xs text-gray-500">
+                  <span>Status: <StatusBadge status={t.status} /></span>
+                  <span className="font-semibold text-gray-700">Outstanding: {fmtINR(t.total_due - t.amount_paid)}</span>
+                </div>
+              </div>
+              <div className="px-6 pb-5">
+                <button onClick={() => setStatTileId(null)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {dueModal && (
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
+          penaltyMaxDiscountPct={penaltyMaxDiscountPct}
           onClose={() => setDueModal(null)} onSave={handleSaveOverride} />
       )}
       {payNowTile && (

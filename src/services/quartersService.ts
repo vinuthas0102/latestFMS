@@ -38,6 +38,8 @@ export type {
   RentPayment,
   RentClarification,
   RentTrackerSummary,
+  InstallmentPlan,
+  InstallmentRow,
   Quarter,
   QuarterRequest,
   QuarterServiceChat,
@@ -98,6 +100,8 @@ import type {
   ChatDeliveryMode,
   CreateQuarterInput,
   MedicalCriticality,
+  InstallmentPlan,
+  InstallmentRow,
 } from '../types/quarters';
 
 import type { ChecklistItemDraft } from '../constants/inspectionChecklist';
@@ -1782,4 +1786,137 @@ export const quartersService = {
     };
     return { summary, records };
   },
+
+  // ─── Installment Plans ──────────────────────────────────────────────────────
+
+  async getPaymentConfig(key: string): Promise<number> {
+    if (DEMO_MODE) {
+      if (key === 'penalty_max_discount_pct') return Promise.resolve(25);
+      return Promise.resolve(0);
+    }
+    const { data } = await supabase.from('payment_config').select('value').eq('key', key).maybeSingle();
+    return data ? Number(data.value) : 0;
+  },
+
+  async getInstallmentPlan(allotmentId: string, month: string): Promise<InstallmentPlan | null> {
+    if (DEMO_MODE) return Promise.resolve(null);
+    const { data: plan } = await supabase
+      .from('quarter_installment_plans')
+      .select('*')
+      .eq('allotment_id', allotmentId)
+      .eq('month', month)
+      .maybeSingle();
+    if (!plan) return null;
+    const { data: rowData } = await supabase
+      .from('quarter_installment_rows')
+      .select('*')
+      .eq('plan_id', plan.id)
+      .order('row_number');
+    const rows: InstallmentRow[] = (rowData ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      plan_id: r.plan_id as string,
+      row_number: r.row_number as number,
+      label: r.label as string,
+      percentage: r.percentage as number,
+      amount: r.amount as number,
+      due_date: (r.due_date as string) ?? null,
+      paid_date: (r.paid_date as string) ?? null,
+      paid_amt: r.paid_amt as number,
+      remaining_amount: r.remaining_amount as number,
+      status: r.status as InstallmentRow['status'],
+      late_fee: r.late_fee as number,
+      due_date_with_late_fee: (r.due_date_with_late_fee as string) ?? null,
+      gst_amount: r.gst_amount as number,
+    }));
+    const paidCount = rows.filter(r => r.row_number > 0 && r.status === 'PAID').length;
+    const dueCount  = rows.filter(r => r.row_number > 0 && r.status !== 'PAID').length;
+    return {
+      id: plan.id as string,
+      allotment_id: plan.allotment_id as string,
+      month: plan.month as string,
+      installment_start_date: (plan.installment_start_date as string) ?? null,
+      late_fee: plan.late_fee as number,
+      due_days_with_late_fee: plan.due_days_with_late_fee as number,
+      interest_pct_pa: plan.interest_pct_pa as number,
+      discount_full_payment_pct: plan.discount_full_payment_pct as number,
+      gst_pct: plan.gst_pct as number,
+      gst_type: plan.gst_type as 'inclusive' | 'exclusive',
+      balance_payment: plan.balance_payment as number,
+      emd: plan.emd as number,
+      no_of_installments: plan.no_of_installments as number,
+      created_by: (plan.created_by as string) ?? null,
+      created_at: plan.created_at as string,
+      rows,
+      installments_paid: paidCount,
+      installments_due: dueCount,
+    };
+  },
+
+  async createInstallmentPlan(
+    allotmentId: string,
+    month: string,
+    config: Omit<InstallmentPlan, 'id'|'allotment_id'|'month'|'created_by'|'created_at'|'rows'|'installments_paid'|'installments_due'>,
+    rows: Pick<InstallmentRow, 'row_number'|'label'|'percentage'|'amount'|'due_date'>[],
+  ): Promise<InstallmentPlan> {
+    if (DEMO_MODE) {
+      const planId = `ip-${Date.now()}`;
+      const fullRows: InstallmentRow[] = rows.map(r => ({
+        id: `ir-${Date.now()}-${r.row_number}`,
+        plan_id: planId,
+        row_number: r.row_number,
+        label: r.label,
+        percentage: r.percentage,
+        amount: r.amount,
+        due_date: r.due_date,
+        paid_date: null,
+        paid_amt: 0,
+        remaining_amount: r.amount,
+        status: 'PENDING' as const,
+        late_fee: 0,
+        due_date_with_late_fee: null,
+        gst_amount: 0,
+      }));
+      return Promise.resolve({
+        id: planId,
+        allotment_id: allotmentId,
+        month,
+        ...config,
+        created_by: null,
+        created_at: new Date().toISOString(),
+        rows: fullRows,
+        installments_paid: 0,
+        installments_due: rows.filter(r => r.row_number > 0).length,
+      });
+    }
+    const { data: plan, error } = await supabase
+      .from('quarter_installment_plans')
+      .insert({
+        allotment_id: allotmentId,
+        month,
+        installment_start_date: config.installment_start_date,
+        late_fee: config.late_fee,
+        due_days_with_late_fee: config.due_days_with_late_fee,
+        interest_pct_pa: config.interest_pct_pa,
+        discount_full_payment_pct: config.discount_full_payment_pct,
+        gst_pct: config.gst_pct,
+        gst_type: config.gst_type,
+        balance_payment: config.balance_payment,
+        emd: config.emd,
+        no_of_installments: config.no_of_installments,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    const rowInserts = rows.map(r => ({
+      plan_id: (plan as Record<string,unknown>).id as string,
+      row_number: r.row_number,
+      label: r.label,
+      percentage: r.percentage,
+      amount: r.amount,
+      due_date: r.due_date,
+    }));
+    await supabase.from('quarter_installment_rows').insert(rowInserts);
+    return this.getInstallmentPlan(allotmentId, month) as Promise<InstallmentPlan>;
+  },
 };
+

@@ -538,6 +538,45 @@ export interface RentTrackerSummary {
   penalty_accumulated_amount: number;
 }
 
+// ── Installment Plan ──────────────────────────────────────────────────────────
+export interface InstallmentPlan {
+  id: string;
+  allotment_id: string;
+  month: string;
+  installment_start_date: string | null;
+  late_fee: number;
+  due_days_with_late_fee: number;
+  interest_pct_pa: number;
+  discount_full_payment_pct: number;
+  gst_pct: number;
+  gst_type: 'inclusive' | 'exclusive';
+  balance_payment: number;
+  emd: number;
+  no_of_installments: number;
+  created_by: string | null;
+  created_at: string;
+  rows: InstallmentRow[];
+  installments_paid: number;
+  installments_due: number;
+}
+
+export interface InstallmentRow {
+  id: string;
+  plan_id: string;
+  row_number: number;
+  label: string;
+  percentage: number;
+  amount: number;
+  due_date: string | null;
+  paid_date: string | null;
+  paid_amt: number;
+  remaining_amount: number;
+  status: 'PAID' | 'DUE' | 'PENDING' | 'OVERDUE';
+  late_fee: number;
+  due_date_with_late_fee: string | null;
+  gst_amount: number;
+}
+
 export interface QuarterGuestInfo {
   id: string;
   allotment_id: string;
