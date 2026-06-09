@@ -1396,6 +1396,7 @@ export const QuarterRentPage: React.FC = () => {
   const isTenant = user?.role === 'govt_official' || user?.role === 'dept_user';
   // For demo: the govt_official logs in as EMP-1001 (Rajesh Kumar)
   const tenantScopeId = isTenant ? (quartersService.getDemoGovtOfficialTenantId()) : null;
+  const filterAllotmentId = searchParams.get('allotmentId');
 
   // ── Data state ──────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
