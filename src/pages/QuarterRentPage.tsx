@@ -101,7 +101,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
   const [discountFullPct, setDiscountFullPct] = useState('0.00');
   const [gstPct, setGstPct] = useState('0.00');
   const [gstType, setGstType] = useState<'inclusive' | 'exclusive'>('inclusive');
-  const [emd, setEmd] = useState('0.00');
   const [numInstals, setNumInstals] = useState(3);
   const [instalRows, setInstalRows] = useState<{ percentage: string; amount: string; due_date: string }[]>([]);
   const [planSaving, setPlanSaving] = useState(false);
@@ -155,7 +154,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
         gst_pct: parseFloat(gstPct) || 0,
         gst_type: gstType,
         balance_payment: balancePayment,
-        emd: parseFloat(emd) || 0,
         no_of_installments: numInstals,
       };
       const rows: Pick<InstallmentRow,'row_number'|'label'|'percentage'|'amount'|'due_date'>[] = [
@@ -449,11 +447,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                       className="w-full px-2 py-1.5 text-xs border border-gray-100 rounded-lg bg-gray-100 text-gray-700 font-semibold cursor-not-allowed" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">EMD (₹)</label>
-                    <input type="number" value={emd} onChange={e => setEmd(e.target.value)} min={0} step="0.01"
-                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white" />
-                  </div>
-                  <div>
                     <label className="block text-[10px] font-semibold text-gray-500 mb-1">Term No. of Installments <span className="text-red-500">*</span></label>
                     <select value={numInstals} onChange={e => setNumInstals(Number(e.target.value))}
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 bg-white">
@@ -554,7 +547,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                           { label: `GST: ${plan.gst_pct.toFixed(1)}`,   value: plan.gst_type === 'inclusive' ? 'Inclusive' : 'Exclusive' },
                           { label: 'Balance Payment',        value: fmtINR(plan.balance_payment) },
                           { label: 'No. of Installments',    value: String(plan.no_of_installments) },
-                          { label: 'EMD',                    value: `₹${plan.emd.toFixed(2)}` },
                         ].map(({ label, value }) => (
                           <div key={label} className="flex flex-col">
                             <span className="text-gray-400 font-medium">{label}</span>
