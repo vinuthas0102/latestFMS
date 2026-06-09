@@ -3402,7 +3402,7 @@ export const BookingHistoryPage: React.FC = () => {
                     { key: 'guest' as ModifyMode, label: 'Guest Info', icon: Users },
                     { key: 'price' as ModifyMode, label: 'Change Price', icon: Banknote },
                     { key: 'adhoc' as ModifyMode, label: 'Ad-hoc', icon: Zap },
-                  ]).map(({ key, label, icon: Icon }) => (
+                  ].filter(item => !(isGovtOfficial && item.key === 'price'))).map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
                       onClick={() => setModifyMode(key)}
@@ -3430,7 +3430,7 @@ export const BookingHistoryPage: React.FC = () => {
                     { key: 'room' as ModifyMode, label: 'Change Room', icon: ArrowRightLeft },
                     { key: 'price' as ModifyMode, label: 'Change Price', icon: Banknote },
                     { key: 'adhoc' as ModifyMode, label: 'Ad-hoc', icon: Zap },
-                  ]).map(({ key, label, icon: Icon }) => (
+                  ].filter(item => !(isGovtOfficial && item.key === 'price'))).map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
                       onClick={() => setModifyMode(key)}
@@ -3602,8 +3602,8 @@ export const BookingHistoryPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Price — shown for price/full/adhoc in all statuses */}
-              {['price', 'full', 'adhoc'].includes(modifyMode) && (
+              {/* Price — shown for price/full/adhoc in all statuses, not for govt officials */}
+              {['price', 'full', 'adhoc'].includes(modifyMode) && !isGovtOfficial && (
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">Total Amount (₹)</label>
                   <input
