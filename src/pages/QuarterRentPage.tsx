@@ -1799,14 +1799,13 @@ export const QuarterRentPage: React.FC = () => {
 
   const handleOutstandingClick = () => {
     if (outstandingExpanded) {
-      // Collapse: clear any sub-filter
       setOutstandingExpanded(false);
       setDpFilter('all');
     } else {
-      // Expand: apply RENT_OUTSTANDING filter
       setOutstandingExpanded(true);
       setDpFilter('RENT_OUTSTANDING');
     }
+    setCollectionGraphOpen(false);
   };
 
   const statusCards = summary ? [
@@ -2001,7 +2000,7 @@ export const QuarterRentPage: React.FC = () => {
                       key={c.label} label={c.label} value={c.value} icon={c.icon}
                       gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
                       isActive={dpFilter === c.dp}
-                      onClick={() => setDpFilter(dpFilter === c.dp ? 'all' : c.dp)}
+                      onClick={() => { setCollectionGraphOpen(false); setDpFilter(dpFilter === c.dp ? 'all' : c.dp); }}
                     />
                   );
                 })}
@@ -2109,8 +2108,8 @@ export const QuarterRentPage: React.FC = () => {
           {/* ── Filter bar — below DP cards ── */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
 
-            {/* Compact status bar chart — single row inside search frame */}
-            {summary && (
+            {/* Compact status bar chart — only shown when Collection Rate DP is active */}
+            {summary && collectionGraphOpen && (
               <div className="flex items-stretch gap-1 pb-2 mb-2 border-b border-gray-100">
                 {([
                   { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-400'   },
