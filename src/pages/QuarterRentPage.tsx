@@ -8,7 +8,7 @@ import {
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
-  Plus, Percent, FileText, ChevronUp, BarChart,
+  Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -55,8 +55,9 @@ interface DueDetailsModalProps {
   tile: RentTile; detail: RentDueDetail; isEO: boolean;
   penaltyMaxDiscountPct: number;
   onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
+  onPayInstallment?: (planId: string, rowId: string, amount: number) => void;
 }
-const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, onClose, onSave }) => {
+const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, onClose, onSave, onPayInstallment }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'installment'>('summary');
 
   // ── Summary tab state ──────────────────────────────────────────────────────
@@ -618,6 +619,14 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                                   {row.row_number === 0 && row.paid_amt > 0 && (
                                     <button className="px-2 py-0.5 text-[10px] border border-gray-300 rounded bg-white hover:bg-gray-50 text-gray-600 transition-colors">View</button>
                                   )}
+                                  {!isEO && row.row_number > 0 && (row.status === 'DUE' || row.status === 'OVERDUE') && onPayInstallment && (
+                                    <button
+                                      onClick={() => onPayInstallment(plan.id, row.id, row.remaining_amount)}
+                                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors"
+                                    >
+                                      <Wallet size={9} /> Pay
+                                    </button>
+                                  )}
                                 </td>
                                 <td className="px-2.5 py-2 font-medium text-gray-800 whitespace-nowrap">{row.label}</td>
                                 <td className="px-2.5 py-2 font-semibold text-gray-900 text-right tabular-nums">{row.amount.toFixed(2)}</td>
@@ -808,6 +817,166 @@ const UndoModal: React.FC<UndoModalProps> = ({ payment, onClose, onConfirm }) =>
             className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-sm font-bold transition-colors"
           >
             Undo Payment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Bulk Pay Modal ────────────────────────────────────────────────────────────
+interface BulkPayModalProps {
+  tiles: RentTile[];
+  onClose: () => void;
+  onPay: (mode: string) => Promise<void>;
+}
+const PAY_MODES_BULK = ['UPI', 'NET_BANKING', 'CARD', 'DD'] as const;
+const BulkPayModal: React.FC<BulkPayModalProps> = ({ tiles, onClose, onPay }) => {
+  const [mode, setMode] = useState<string>('UPI');
+  const [paying, setPaying] = useState(false);
+  const total = tiles.reduce((s, t) => s + (t.total_due - t.amount_paid), 0);
+
+  const handlePay = async () => {
+    setPaying(true);
+    try { await onPay(mode); } finally { setPaying(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+            <Wallet size={16} className="text-teal-700" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-gray-900">Pay Multiple Dues</div>
+            <div className="text-xs text-gray-400">{tiles.length} records selected · Total {fmtINR(total)}</div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"><X size={16} /></button>
+        </div>
+
+        {/* Breakdown list */}
+        <div className="px-6 pt-4 pb-2 max-h-52 overflow-y-auto space-y-1.5">
+          {tiles.map(t => (
+            <div key={t.id} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-gray-800">{t.quarter_number}</span>
+                <span className="text-[10px] text-gray-400 ml-2">{fmtMonthFull(t.month)}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <StatusBadge status={t.status} />
+                <span className="text-xs font-bold text-gray-900 tabular-nums">{fmtINR(t.total_due - t.amount_paid)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Total */}
+        <div className="mx-6 py-3 border-t-2 border-gray-200 flex items-center justify-between">
+          <span className="text-sm font-bold text-gray-900">Total Payable</span>
+          <span className="text-xl font-extrabold text-teal-700">{fmtINR(total)}</span>
+        </div>
+
+        {/* Payment mode */}
+        <div className="px-6 pb-4 space-y-3">
+          <label className="block text-xs font-semibold text-gray-600">Payment Mode</label>
+          <div className="grid grid-cols-4 gap-2">
+            {PAY_MODES_BULK.map(m => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`px-2 py-2 rounded-lg text-xs font-semibold border transition-all ${mode === m ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                {m.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+          <div className="bg-teal-50 rounded-xl p-3 border border-teal-100">
+            <div className="text-[10px] font-bold text-teal-700 uppercase tracking-wide mb-0.5">Demo Payment</div>
+            <div className="text-xs text-teal-600">This is a demo. No real transaction will be processed.</div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 px-6 pb-5">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+          <button
+            onClick={handlePay}
+            disabled={paying}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+          >
+            {paying ? (
+              <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing…</>
+            ) : <>Pay {fmtINR(total)}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Installment Pay Modal ─────────────────────────────────────────────────────
+interface InstallmentPayModalProps {
+  amount: number;
+  onClose: () => void;
+  onPay: (mode: string) => Promise<void>;
+}
+const PAY_MODES_INST = ['UPI', 'NET_BANKING', 'CARD', 'DD'] as const;
+const InstallmentPayModal: React.FC<InstallmentPayModalProps> = ({ amount, onClose, onPay }) => {
+  const [mode, setMode] = useState<string>('UPI');
+  const [paying, setPaying] = useState(false);
+
+  const handlePay = async () => {
+    setPaying(true);
+    try { await onPay(mode); } finally { setPaying(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
+            <Wallet size={16} className="text-teal-700" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-gray-900">Pay Installment</div>
+            <div className="text-xs text-gray-400">Amount due: {fmtINR(amount)}</div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"><X size={16} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div className="flex items-center justify-between bg-teal-50 rounded-xl p-4 border border-teal-100">
+            <span className="text-sm font-semibold text-teal-800">Total Payable</span>
+            <span className="text-2xl font-extrabold text-teal-700">{fmtINR(amount)}</span>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-gray-600">Payment Mode</label>
+            <div className="grid grid-cols-4 gap-2">
+              {PAY_MODES_INST.map(m => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={`px-2 py-2 rounded-lg text-xs font-semibold border transition-all ${mode === m ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                  {m.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+            <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-0.5">Demo Mode</div>
+            <div className="text-xs text-amber-600">No real transaction will be processed.</div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 px-5 pb-5">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+          <button
+            onClick={handlePay}
+            disabled={paying}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+          >
+            {paying ? (
+              <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing…</>
+            ) : <>Pay {fmtINR(amount)}</>}
           </button>
         </div>
       </div>
@@ -1225,6 +1394,8 @@ export const QuarterRentPage: React.FC = () => {
 
   const isEO = user?.role === 'admin' || user?.role === 'manager';
   const isTenant = user?.role === 'govt_official' || user?.role === 'dept_user';
+  // For demo: the govt_official logs in as EMP-1001 (Rajesh Kumar)
+  const tenantScopeId = isTenant ? (quartersService.getDemoGovtOfficialTenantId()) : null;
 
   // ── Data state ──────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -1265,19 +1436,40 @@ export const QuarterRentPage: React.FC = () => {
     setTimeout(() => setToast(null), 3200);
   }, []);
 
-  // ── Pre-filter from query param ─────────────────────────────────────────────
-  const filterAllotmentId = searchParams.get('allotment_id');
+  // ── Multi-select state (tenant bulk pay) ────────────────────────────────────
+  const [selectedTileIds, setSelectedTileIds] = useState<Set<string>>(new Set());
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
+
+  const toggleTileSelect = useCallback((id: string) => {
+    setSelectedTileIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllDue = useCallback(() => {
+    setSelectedTileIds(new Set(
+      tiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL').map(t => t.id)
+    ));
+  }, [tiles]);
+
+  const clearSelection = useCallback(() => setSelectedTileIds(new Set()), []);
 
   // ── Load data ───────────────────────────────────────────────────────────────
   const loadTiles = useCallback(async () => {
     setLoading(true);
     try {
-      const t = await quartersService.getRentTrackerTiles({ monthFrom, monthTo, location: locFilter, paymentMode: modeFilter, tenant: tenantFilter });
+      const t = await quartersService.getRentTrackerTiles({
+        monthFrom, monthTo,
+        location: locFilter, paymentMode: modeFilter, tenant: tenantFilter,
+        tenantId: tenantScopeId ?? undefined,
+      });
       setTiles(t);
     } finally {
       setLoading(false);
     }
-  }, [monthFrom, monthTo, locFilter, modeFilter, tenantFilter]);
+  }, [monthFrom, monthTo, locFilter, modeFilter, tenantFilter, tenantScopeId]);
 
   useEffect(() => { loadTiles(); }, [loadTiles]);
 
@@ -1385,6 +1577,37 @@ export const QuarterRentPage: React.FC = () => {
     loadTiles();
   }, [payNowTile, loadTiles]);
 
+  const [installmentPayModal, setInstallmentPayModal] = useState<{ planId: string; rowId: string; amount: number } | null>(null);
+
+  const handleInstallmentPay = useCallback((planId: string, rowId: string, amount: number) => {
+    setInstallmentPayModal({ planId, rowId, amount });
+  }, []);
+
+  const confirmInstallmentPay = useCallback(async (mode: string) => {
+    if (!installmentPayModal || !dueModal) return;
+    await quartersService.payInstallmentRow(installmentPayModal.planId, installmentPayModal.rowId, installmentPayModal.amount, mode);
+    setInstallmentPayModal(null);
+    const refreshed = await quartersService.getRentDueDetail(dueModal.tile.id);
+    setDueModal(prev => prev ? { ...prev, detail: refreshed } : null);
+    setPaySuccess(true);
+    setTimeout(() => setPaySuccess(false), 3000);
+    loadTiles();
+    showToast('Installment payment recorded successfully.');
+  }, [installmentPayModal, dueModal, loadTiles, showToast]);
+
+  const handleBulkPay = useCallback(async (mode: string) => {
+    const toPayTiles = tiles.filter(t => selectedTileIds.has(t.id));
+    for (const t of toPayTiles) {
+      await quartersService.submitEPayment(t.allotment_id, t.month, t.total_due - t.amount_paid, mode);
+    }
+    setBulkPayOpen(false);
+    setSelectedTileIds(new Set());
+    setPaySuccess(true);
+    setTimeout(() => setPaySuccess(false), 3000);
+    loadTiles();
+    showToast(`${toPayTiles.length} payment(s) recorded successfully.`);
+  }, [tiles, selectedTileIds, loadTiles, showToast]);
+
   const toggleInfo = useCallback((id: string) => {
     setExpandedInfoIds(prev => {
       const next = new Set(prev);
@@ -1462,6 +1685,25 @@ export const QuarterRentPage: React.FC = () => {
             className="flex-1 flex items-center gap-3 px-4 py-3 min-w-0 cursor-pointer select-none"
             onClick={() => toggleInfo(tile.id)}
           >
+            {/* Multi-select checkbox (tenant only, DUE/OVERDUE/PARTIAL) */}
+            {isTenant && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
+              <div
+                className="shrink-0"
+                onClick={e => { e.stopPropagation(); toggleTileSelect(tile.id); }}
+              >
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${
+                  selectedTileIds.has(tile.id)
+                    ? 'bg-teal-600 border-teal-600'
+                    : 'border-gray-300 hover:border-teal-400 bg-white'
+                }`}>
+                  {selectedTileIds.has(tile.id) && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+            )}
             {/* Quarter + BHK */}
             <div className="min-w-0 w-28 shrink-0">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -2156,6 +2398,29 @@ export const QuarterRentPage: React.FC = () => {
               onFilterOpen={() => setShowFilters(f => !f)}
             />
 
+            {/* Tenant bulk-select quick actions */}
+            {isTenant && displayTiles.some(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL') && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={selectAllDue}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-teal-200 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors"
+                >
+                  <CheckSquare size={11} /> Select All Due
+                </button>
+                {selectedTileIds.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => setBulkPayOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                    >
+                      <Wallet size={11} /> Pay {selectedTileIds.size} Selected
+                    </button>
+                    <button onClick={clearSelection} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Clear</button>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Secondary filter — location */}
             {showFilters && (
               <div className="flex items-center gap-3 flex-wrap pt-3 mt-1 border-t border-gray-100">
@@ -2288,13 +2553,62 @@ export const QuarterRentPage: React.FC = () => {
       {dueModal && (
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
           penaltyMaxDiscountPct={penaltyMaxDiscountPct}
-          onClose={() => setDueModal(null)} onSave={handleSaveOverride} />
+          onClose={() => setDueModal(null)} onSave={handleSaveOverride}
+          onPayInstallment={!isEO ? handleInstallmentPay : undefined} />
+      )}
+      {installmentPayModal && (
+        <InstallmentPayModal
+          amount={installmentPayModal.amount}
+          onClose={() => setInstallmentPayModal(null)}
+          onPay={confirmInstallmentPay}
+        />
       )}
       {payNowTile && (
         <PayNowModal tile={payNowTile} onClose={() => setPayNowTile(null)} onPay={handlePay} />
       )}
       {undoPayment && (
         <UndoModal payment={undoPayment.payment} onClose={() => setUndoPayment(null)} onConfirm={handleUndoPayment} />
+      )}
+      {bulkPayOpen && selectedTileIds.size > 0 && (
+        <BulkPayModal
+          tiles={tiles.filter(t => selectedTileIds.has(t.id))}
+          onClose={() => setBulkPayOpen(false)}
+          onPay={handleBulkPay}
+        />
+      )}
+
+      {/* ── Tenant floating bulk-pay action bar ── */}
+      {isTenant && selectedTileIds.size > 0 && !bulkPayOpen && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white rounded-2xl px-5 py-3 shadow-2xl border border-white/10 backdrop-blur-sm animate-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center text-[10px] font-bold shrink-0">{selectedTileIds.size}</span>
+            <span className="text-sm font-medium">
+              {selectedTileIds.size} selected ·{' '}
+              <span className="font-bold text-teal-300">
+                {fmtINR(tiles.filter(t => selectedTileIds.has(t.id)).reduce((s, t) => s + (t.total_due - t.amount_paid), 0))}
+              </span>
+            </span>
+          </div>
+          <div className="h-5 w-px bg-white/20" />
+          <button
+            onClick={() => setBulkPayOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-white text-xs font-bold transition-colors"
+          >
+            <Wallet size={12} /> Pay Selected
+          </button>
+          <button
+            onClick={selectAllDue}
+            className="text-[10px] text-gray-400 hover:text-white transition-colors"
+          >
+            Select all due
+          </button>
+          <button
+            onClick={clearSelection}
+            className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
     </div>
   );

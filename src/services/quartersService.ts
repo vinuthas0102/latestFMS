@@ -25,6 +25,8 @@ import {
   DEMO_RENT_TRACKER_SUMMARY,
   DEMO_RENT_PAYMENTS,
   DEMO_RENT_CLARIFICATIONS,
+  DEMO_INSTALLMENT_PLANS,
+  DEMO_GOVT_OFFICIAL_TENANT_ID,
 } from '../mocks/demoData';
 
 // Re-export all types for backwards compatibility
@@ -1604,10 +1606,11 @@ export const quartersService = {
   async getRentTrackerTiles(filters?: {
     monthFrom?: string; monthTo?: string;
     location?: string; paymentMode?: string; tenant?: string;
-    status?: string;
+    status?: string; tenantId?: string;
   }): Promise<RentTile[]> {
     if (DEMO_MODE) {
       let tiles = [...DEMO_RENT_TILES];
+      if (filters?.tenantId) tiles = tiles.filter(t => t.tenant_id === filters.tenantId);
       if (filters?.monthFrom) tiles = tiles.filter(t => t.month >= filters.monthFrom!);
       if (filters?.monthTo)   tiles = tiles.filter(t => t.month <= filters.monthTo!);
       if (filters?.location)  tiles = tiles.filter(t =>
@@ -1799,7 +1802,10 @@ export const quartersService = {
   },
 
   async getInstallmentPlan(allotmentId: string, month: string): Promise<InstallmentPlan | null> {
-    if (DEMO_MODE) return Promise.resolve(null);
+    if (DEMO_MODE) {
+      const key = `${allotmentId}_${month}`;
+      return Promise.resolve(DEMO_INSTALLMENT_PLANS[key] ?? null);
+    }
     const { data: plan } = await supabase
       .from('quarter_installment_plans')
       .select('*')
@@ -1917,6 +1923,56 @@ export const quartersService = {
     }));
     await supabase.from('quarter_installment_rows').insert(rowInserts);
     return this.getInstallmentPlan(allotmentId, month) as Promise<InstallmentPlan>;
+  },
+
+  async payInstallmentRow(planId: string, rowId: string, amount: number, mode: string): Promise<void> {
+    if (DEMO_MODE) {
+      for (const key of Object.keys(DEMO_INSTALLMENT_PLANS)) {
+        const plan = DEMO_INSTALLMENT_PLANS[key];
+        if (plan.id !== planId) continue;
+        const row = plan.rows.find(r => r.id === rowId);
+        if (row) {
+          row.paid_amt = amount;
+          row.remaining_amount = Math.max(0, row.amount - amount);
+          row.status = amount >= row.amount ? 'PAID' : 'DUE';
+          row.paid_date = new Date().toISOString().slice(0, 10);
+          plan.installments_paid = plan.rows.filter(r => r.row_number > 0 && r.status === 'PAID').length;
+          plan.installments_due  = plan.rows.filter(r => r.row_number > 0 && r.status !== 'PAID').length;
+        }
+        // Also record as a tile payment
+        const tile = DEMO_RENT_TILES.find(t => t.allotment_id === plan.allotment_id && t.month === plan.month);
+        if (tile) {
+          const totalPaid = plan.rows.filter(r => r.row_number > 0).reduce((s, r) => s + r.paid_amt, 0);
+          tile.amount_paid = totalPaid;
+          tile.status = totalPaid >= tile.total_due ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : tile.status;
+          tile.last_paid_date = new Date().toISOString().slice(0, 10);
+        }
+        const paymentKey = `${plan.allotment_id}_${plan.month}`;
+        if (!DEMO_RENT_PAYMENTS[paymentKey]) DEMO_RENT_PAYMENTS[paymentKey] = [];
+        DEMO_RENT_PAYMENTS[paymentKey].push({
+          id: `ipay-${Date.now()}`,
+          allotment_id: plan.allotment_id,
+          month: plan.month,
+          amount,
+          payment_mode: mode as RentPayment['payment_mode'],
+          payment_date: new Date().toISOString().slice(0, 10),
+          receipt_ref: `RCP-INST-${Date.now()}`,
+          remarks: `Installment row ${rowId}`,
+          recorded_by: 'System',
+        });
+        break;
+      }
+      return Promise.resolve();
+    }
+    await supabase.from('quarter_installment_rows').update({
+      paid_amt: amount,
+      paid_date: new Date().toISOString().slice(0, 10),
+      status: 'PAID',
+    }).eq('id', rowId);
+  },
+
+  getDemoGovtOfficialTenantId(): string {
+    return DEMO_GOVT_OFFICIAL_TENANT_ID;
   },
 };
 

@@ -1535,7 +1535,11 @@ export const DEMO_UNAPPROVED_CYCLES: (QuarterAllotmentCycle & { allotment_count:
 import type {
   RentRecord, RentSummary,
   RentTile, RentPayment, RentClarification, RentTrackerSummary,
+  InstallmentPlan, InstallmentRow,
 } from '../types/quarters';
+
+// Canonical demo tenant ID used for the govt_official role demo login
+export const DEMO_GOVT_OFFICIAL_TENANT_ID = 'EMP-1001';
 
 export const DEMO_RENT_RECORDS: RentRecord[] = [
   { id: 'rr-001', allotment_id: 'allot-002', month: '2026-05', amount_due: 6800, amount_paid: 0,    status: 'PENDING', due_date: '2026-05-05', payment_date: null,         receipt_ref: null,            remarks: '' },
@@ -1727,6 +1731,58 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-f401','allot-017','2026-04',T.t017,  0,null,4550,     'ONLINE',       'PAID',    '2026-04-05','2026-04-02',  'RCP-2604-F001',null),
   rt('rt-f301','allot-017','2026-03',T.t017,  0,null,4550,     'AUTO_DEDUCTION','PAID',   '2026-03-05','2026-03-01',  'RCP-2603-F001',null),
 ];
+
+// ─── Demo Installment Plan — allot-001 / May 2026 (Rajesh Kumar) ─────────────
+// Pre-seeded so the govt_official can see and pay installments without EO setup.
+const DEMO_PLAN_ROWS: InstallmentRow[] = [
+  {
+    id: 'irow-0', plan_id: 'iplan-001', row_number: 0,
+    label: 'Full Payment', percentage: 100, amount: 6700,
+    due_date: '2026-05-05', paid_date: null, paid_amt: 0, remaining_amount: 6700,
+    status: 'DUE', late_fee: 0, due_date_with_late_fee: '2026-05-12', gst_amount: 0,
+  },
+  {
+    id: 'irow-1', plan_id: 'iplan-001', row_number: 1,
+    label: '1st Installment', percentage: 40, amount: 2680,
+    due_date: '2026-05-05', paid_date: '2026-05-04', paid_amt: 2680, remaining_amount: 0,
+    status: 'PAID', late_fee: 0, due_date_with_late_fee: '2026-05-12', gst_amount: 0,
+  },
+  {
+    id: 'irow-2', plan_id: 'iplan-001', row_number: 2,
+    label: '2nd Installment', percentage: 35, amount: 2345,
+    due_date: '2026-06-05', paid_date: null, paid_amt: 0, remaining_amount: 2345,
+    status: 'DUE', late_fee: 134, due_date_with_late_fee: '2026-06-15', gst_amount: 0,
+  },
+  {
+    id: 'irow-3', plan_id: 'iplan-001', row_number: 3,
+    label: '3rd Installment', percentage: 25, amount: 1675,
+    due_date: '2026-07-05', paid_date: null, paid_amt: 0, remaining_amount: 1675,
+    status: 'PENDING', late_fee: 0, due_date_with_late_fee: '2026-07-12', gst_amount: 0,
+  },
+];
+
+export const DEMO_INSTALLMENT_PLANS: Record<string, InstallmentPlan> = {
+  'allot-001_2026-05': {
+    id: 'iplan-001',
+    allotment_id: 'allot-001',
+    month: '2026-05',
+    installment_start_date: '2026-05-05',
+    late_fee: 134,
+    due_days_with_late_fee: 10,
+    interest_pct_pa: 0,
+    discount_full_payment_pct: 2,
+    gst_pct: 0,
+    gst_type: 'inclusive',
+    balance_payment: 6700,
+    emd: 0,
+    no_of_installments: 3,
+    created_by: 'EO-Admin',
+    created_at: '2026-05-01T10:00:00Z',
+    rows: DEMO_PLAN_ROWS,
+    installments_paid: 1,
+    installments_due: 1,
+  },
+};
 
 export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
   total_due_count: 3,
