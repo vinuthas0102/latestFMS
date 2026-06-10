@@ -463,62 +463,116 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                 </div>
 
                 {/* Installment rows table */}
-                <div>
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Installment Schedule</div>
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          {['Installments','Percentage','Amount','Due Date'].map(h => (
-                            <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Full Payment row */}
-                        <tr className="border-b border-gray-100 bg-teal-50/30">
-                          <td className="px-3 py-2 font-semibold text-gray-700">Full Payment</td>
-                          <td className="px-3 py-2 text-gray-600">100.00</td>
-                          <td className="px-3 py-2 font-semibold text-gray-800">{balancePayment.toFixed(2)}</td>
-                          <td className="px-3 py-2">
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                              className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
-                          </td>
-                        </tr>
-                        {/* Numbered rows */}
-                        {instalRows.map((row, i) => (
-                          <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="px-3 py-2 font-medium text-gray-700">{i + 1}</td>
-                            <td className="px-3 py-2">
-                              <input type="number" value={row.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)}
-                                min={0} max={100} step="0.01"
-                                className="w-16 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input type="number" value={row.amount} onChange={e => updateRow(i, 'amount', e.target.value)}
-                                min={0} step="0.01"
-                                className="w-24 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input type="date" value={row.due_date} onChange={e => updateRow(i, 'due_date', e.target.value)}
-                                className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
-                            </td>
-                          </tr>
-                        ))}
-                        {/* Totals row */}
-                        <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold">
-                          <td className="px-3 py-2 text-gray-700">Total</td>
-                          <td className={`px-3 py-2 ${Math.abs(totalPct - 100) < 0.01 ? 'text-emerald-700' : 'text-red-600'}`}>{totalPct.toFixed(2)}</td>
-                          <td className={`px-3 py-2 ${Math.abs(totalAmt - balancePayment) < 0.5 ? 'text-emerald-700' : 'text-red-600'}`}>{totalAmt.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-gray-400">—</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  {Math.abs(totalPct - 100) > 0.01 && (
-                    <p className="text-[10px] text-red-500 mt-1">Percentages must sum to 100 (currently {totalPct.toFixed(2)})</p>
-                  )}
-                </div>
+                {(() => {
+                  const gstPctNum = Number(gstPct) || 0;
+                  const discountPctNum = Number(discountFullPct) || 0;
+                  const lateFeeNum = Number(lateFee) || 0;
+                  const calcGst = (amt: number) =>
+                    gstType === 'exclusive'
+                      ? amt * gstPctNum / 100
+                      : amt - amt / (1 + gstPctNum / 100);
+                  const fpDiscount = balancePayment * discountPctNum / 100;
+                  const fpGst = calcGst(balancePayment - fpDiscount);
+                  const fpNet = balancePayment - fpDiscount + fpGst;
+                  const totalPenalty = instalRows.length * lateFeeNum;
+                  const totalGst = instalRows.reduce((s, r) => s + calcGst(Number(r.amount) || 0), 0);
+                  const totalNet = instalRows.reduce((s, r) => {
+                    const a = Number(r.amount) || 0;
+                    return s + a + lateFeeNum + calcGst(a);
+                  }, 0);
+                  return (
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Installment Schedule</div>
+                      <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              {[
+                                { label: 'Installments', cls: 'text-left' },
+                                { label: 'Percentage',   cls: 'text-left' },
+                                { label: 'Amount',       cls: 'text-left' },
+                                { label: 'Discount',     cls: 'text-right text-emerald-700' },
+                                { label: 'Penalty',      cls: 'text-right text-rose-600' },
+                                { label: 'GST Amt',      cls: 'text-right text-blue-600' },
+                                { label: 'Net Payable',  cls: 'text-right text-gray-800' },
+                                { label: 'Due Date',     cls: 'text-left' },
+                              ].map(({ label, cls }) => (
+                                <th key={label} className={`px-3 py-2 font-semibold text-[10px] uppercase tracking-wide whitespace-nowrap ${cls}`}>{label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Full Payment row */}
+                            <tr className="border-b border-gray-100 bg-teal-50/30">
+                              <td className="px-3 py-2 font-semibold text-gray-700">Full Payment</td>
+                              <td className="px-3 py-2 text-gray-600">100.00</td>
+                              <td className="px-3 py-2 font-semibold text-gray-800">{balancePayment.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-emerald-700 font-medium text-right tabular-nums">
+                                {fpDiscount > 0 ? fpDiscount.toFixed(2) : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2 text-gray-300 text-right">—</td>
+                              <td className="px-3 py-2 text-blue-600 font-medium text-right tabular-nums">
+                                {fpGst > 0 ? fpGst.toFixed(2) : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2 font-bold text-gray-900 text-right tabular-nums">{fpNet.toFixed(2)}</td>
+                              <td className="px-3 py-2">
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                                  className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
+                              </td>
+                            </tr>
+                            {/* Numbered rows */}
+                            {instalRows.map((row, i) => {
+                              const amt = Number(row.amount) || 0;
+                              const gstAmt = calcGst(amt);
+                              const netPayable = amt + lateFeeNum + gstAmt;
+                              return (
+                                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 font-medium text-gray-700">Installment {i + 1}</td>
+                                  <td className="px-3 py-2">
+                                    <input type="number" value={row.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)}
+                                      min={0} max={100} step="0.01"
+                                      className="w-16 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input type="number" value={row.amount} onChange={e => updateRow(i, 'amount', e.target.value)}
+                                      min={0} step="0.01"
+                                      className="w-24 px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white" />
+                                  </td>
+                                  <td className="px-3 py-2 text-gray-300 text-right">—</td>
+                                  <td className="px-3 py-2 text-rose-600 font-medium text-right tabular-nums">
+                                    {lateFeeNum > 0 ? lateFeeNum.toFixed(2) : <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="px-3 py-2 text-blue-600 font-medium text-right tabular-nums">
+                                    {gstAmt > 0 ? gstAmt.toFixed(2) : <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="px-3 py-2 font-bold text-gray-900 text-right tabular-nums">{netPayable.toFixed(2)}</td>
+                                  <td className="px-3 py-2">
+                                    <input type="date" value={row.due_date} onChange={e => updateRow(i, 'due_date', e.target.value)}
+                                      className="px-1.5 py-1 text-[10px] border border-gray-200 rounded focus:ring-1 focus:ring-teal-200 bg-white w-28" />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {/* Totals row */}
+                            <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                              <td className="px-3 py-2 text-gray-700">Total</td>
+                              <td className={`px-3 py-2 ${Math.abs(totalPct - 100) < 0.01 ? 'text-emerald-700' : 'text-red-600'}`}>{totalPct.toFixed(2)}</td>
+                              <td className={`px-3 py-2 ${Math.abs(totalAmt - balancePayment) < 0.5 ? 'text-emerald-700' : 'text-red-600'}`}>{totalAmt.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-gray-400 text-right">—</td>
+                              <td className="px-3 py-2 text-rose-600 text-right tabular-nums">{totalPenalty > 0 ? totalPenalty.toFixed(2) : '—'}</td>
+                              <td className="px-3 py-2 text-blue-600 text-right tabular-nums">{totalGst > 0 ? totalGst.toFixed(2) : '—'}</td>
+                              <td className="px-3 py-2 text-gray-900 text-right tabular-nums">{totalNet.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-gray-400">—</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      {Math.abs(totalPct - 100) > 0.01 && (
+                        <p className="text-[10px] text-red-500 mt-1">Percentages must sum to 100 (currently {totalPct.toFixed(2)})</p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex gap-3 pt-1">
                   <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
