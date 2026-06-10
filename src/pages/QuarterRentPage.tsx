@@ -2107,8 +2107,9 @@ export const QuarterRentPage: React.FC = () => {
 
   // Sub-DP cards under "Paid & Partially Paid"
   const paidSubCards = summary ? [
-    { label: 'Partially Paid', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  dp: 'PARTIAL'  as DpFilter, icon: Clock,    accentClass: 'border-sky-200    bg-sky-50    hover:bg-sky-100',    textClass: 'text-sky-700' },
-    { label: 'Exempted',       value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), dp: 'EXEMPTED' as DpFilter, icon: Receipt,  accentClass: 'border-slate-200  bg-slate-50  hover:bg-slate-100',  textClass: 'text-slate-700' },
+    { label: 'Paid',           value: summary.paid_count,     subtitle: fmtINR(summary.paid_amount),     dp: 'PAID'     as DpFilter, icon: CheckCircle2, accentClass: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100', textClass: 'text-emerald-700' },
+    { label: 'Partially Paid', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  dp: 'PARTIAL'  as DpFilter, icon: Clock,        accentClass: 'border-sky-200    bg-sky-50    hover:bg-sky-100',     textClass: 'text-sky-700' },
+    { label: 'Exempted',       value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), dp: 'EXEMPTED' as DpFilter, icon: Receipt,      accentClass: 'border-slate-200  bg-slate-50  hover:bg-slate-100',   textClass: 'text-slate-700' },
   ] : [];
 
   // Sub-DP components under Total Outstanding
@@ -2344,7 +2345,7 @@ export const QuarterRentPage: React.FC = () => {
                   <div className="absolute -top-[5px] left-[50%] -translate-x-1/2 w-0 h-0 border-l-[7px] border-r-[7px] border-b-[6px] border-l-transparent border-r-transparent border-b-emerald-200" />
                   <div className="absolute -top-[3px] left-[50%] -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-b-[5px] border-l-transparent border-r-transparent border-b-white" />
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 max-w-sm">
+                <div className="grid grid-cols-3 gap-1.5 max-w-lg">
                   {paidSubCards.map((c) => {
                     const Icon = c.icon;
                     const isActive = dpFilter === c.dp;
