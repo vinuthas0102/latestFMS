@@ -2095,6 +2095,7 @@ export const QuarterRentPage: React.FC = () => {
       setDpFilter('all');
     } else {
       setOutstandingExpanded(true);
+      setPaidExpanded(false);
       setDpFilter('RENT_OUTSTANDING');
     }
     setCollectionGraphOpen(false);
@@ -2244,7 +2245,7 @@ export const QuarterRentPage: React.FC = () => {
                     return (
                       <div key={c.label} className="relative">
                         <button
-                          onClick={() => { setPaidExpanded(e => !e); setCollectionGraphOpen(false); }}
+                          onClick={() => { setPaidExpanded(e => !e); setOutstandingExpanded(false); setCollectionGraphOpen(false); }}
                           className={`w-full text-left rounded-xl overflow-hidden transition-all duration-200 group ${
                             paidExpanded
                               ? 'shadow-xl ring-2 ring-white ring-offset-1 ring-offset-gray-200 scale-[1.02]'
