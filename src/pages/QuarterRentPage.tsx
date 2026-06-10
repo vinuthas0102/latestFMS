@@ -1787,21 +1787,6 @@ export const QuarterRentPage: React.FC = () => {
             </div>
             {/* Status badge */}
             <div className="shrink-0"><StatusBadge status={tile.status} /></div>
-            {/* Inline paid history button for PAID / PARTIAL tiles */}
-            {(tile.status === 'PAID' || tile.status === 'PARTIAL') && (
-              <button
-                onClick={e => { e.stopPropagation(); openHistoryPanel(tile); }}
-                title="View paid history"
-                className={`shrink-0 flex items-center gap-1 text-[10px] font-semibold rounded-lg px-2 py-1 border transition-colors ${
-                  expandedId === tile.id && activePanel === 'history'
-                    ? 'bg-teal-600 text-white border-teal-600'
-                    : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'
-                }`}
-              >
-                <Receipt size={10} />
-                History
-              </button>
-            )}
             {/* Actions — always visible on the row */}
             <div className="shrink-0" onClick={e => e.stopPropagation()}>
               <TileActionsMenu
