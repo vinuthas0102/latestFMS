@@ -80,6 +80,7 @@ export function useQuarterRequestsState() {
   const [runAllocCurrentDate, setRunAllocCurrentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [runAllocGrade, setRunAllocGrade] = useState('');
   const [runAllocQuarterType, setRunAllocQuarterType] = useState('');
+  const [runAllocMedical, setRunAllocMedical] = useState(false);
   const [runAllocWorkflowId, setRunAllocWorkflowId] = useState('');
   const [runAllocApproverUsers, setRunAllocApproverUsers] = useState<Record<number, { id: string; full_name: string; govt_employee_id: string; email: string } | null>>({});
   const [runAllocPickingLevel, setRunAllocPickingLevel] = useState<number | null>(null);
@@ -423,6 +424,7 @@ export function useQuarterRequestsState() {
     runAllocCurrentDate, setRunAllocCurrentDate,
     runAllocGrade, setRunAllocGrade,
     runAllocQuarterType, setRunAllocQuarterType,
+    runAllocMedical, setRunAllocMedical,
     runAllocWorkflowId, setRunAllocWorkflowId,
     runAllocApproverUsers, setRunAllocApproverUsers,
     runAllocPickingLevel, setRunAllocPickingLevel,

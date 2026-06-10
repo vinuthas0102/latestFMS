@@ -147,6 +147,7 @@ export const QuarterRequestsPage: React.FC = () => {
     runAllocCurrentDate, setRunAllocCurrentDate,
     runAllocGrade, setRunAllocGrade,
     runAllocQuarterType, setRunAllocQuarterType,
+    runAllocMedical, setRunAllocMedical,
     runAllocWorkflowId, setRunAllocWorkflowId,
     runAllocApproverUsers, setRunAllocApproverUsers,
     runAllocPickingLevel, setRunAllocPickingLevel,
@@ -1071,7 +1072,9 @@ export const QuarterRequestsPage: React.FC = () => {
     setRunAllocSubmitting(true);
     try {
       let submitted = requests.filter(r => r.request_status === 'SUBMITTED');
-      if (runAllocGrade.trim()) {
+      if (runAllocMedical) {
+        submitted = submitted.filter(r => r.request_type === 'MEDICAL');
+      } else if (runAllocGrade.trim()) {
         submitted = submitted.filter(r => r.required_bhk_config === runAllocGrade);
       }
       if (runAllocQuarterType.trim()) {
@@ -4981,13 +4984,13 @@ export const QuarterRequestsPage: React.FC = () => {
                       <select
                         value={runAllocGrade}
                         onChange={e => setRunAllocGrade(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white pr-8"
+                        disabled={runAllocMedical}
+                        className={`w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 pr-8 transition-colors ${runAllocMedical ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
                       >
                         <option value="">All Grades</option>
                         {QUARTER_TYPE_OPTIONS.map(t => (
                           <option key={t} value={t}>{t}</option>
                         ))}
-                        <option value="Medical">Medical</option>
                       </select>
                       <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
@@ -4998,7 +5001,8 @@ export const QuarterRequestsPage: React.FC = () => {
                       <select
                         value={runAllocQuarterType}
                         onChange={e => setRunAllocQuarterType(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white pr-8"
+                        disabled={runAllocMedical}
+                        className={`w-full appearance-none px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 pr-8 transition-colors ${runAllocMedical ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
                       >
                         <option value="">All Types</option>
                         {QUARTER_TYPE_OPTIONS.map(t => (
@@ -5009,19 +5013,42 @@ export const QuarterRequestsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                {/* Medical checkbox */}
+                <label className="flex items-center gap-2.5 mt-3 cursor-pointer select-none w-fit">
+                  <input
+                    type="checkbox"
+                    checked={runAllocMedical}
+                    onChange={e => {
+                      setRunAllocMedical(e.target.checked);
+                      if (e.target.checked) {
+                        setRunAllocGrade('');
+                        setRunAllocQuarterType('');
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-400 cursor-pointer accent-red-600"
+                  />
+                  <span className="text-xs font-medium text-gray-700">Medical / Priority Allotment</span>
+                  {runAllocMedical && (
+                    <span className="text-[10px] bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">Grade &amp; Type locked</span>
+                  )}
+                </label>
               </div>
 
               {/* Info banner */}
               {(() => {
                 let filtered = requests.filter(r => r.request_status === 'SUBMITTED');
-                if (runAllocGrade) filtered = filtered.filter(r => r.required_bhk_config === runAllocGrade);
+                if (runAllocMedical) {
+                  filtered = filtered.filter(r => r.request_type === 'MEDICAL');
+                } else if (runAllocGrade) {
+                  filtered = filtered.filter(r => r.required_bhk_config === runAllocGrade);
+                }
                 const count = filtered.length;
                 return (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">
                     <strong>{count} request{count !== 1 ? 's' : ''}</strong> will be auto-allotted using each employee's top-ranked quarter preference. Requests without preferences will be skipped.
-                    {(runAllocGrade || runAllocQuarterType) && (
+                    {(runAllocMedical || runAllocGrade || runAllocQuarterType) && (
                       <div className="mt-1.5 text-blue-600">
-                        Filtered to: {[runAllocGrade && `Grade "${runAllocGrade}"`, runAllocQuarterType && `Type "${runAllocQuarterType}"`].filter(Boolean).join(' + ')}.
+                        Filtered to: {[runAllocMedical && 'Medical / Priority requests', !runAllocMedical && runAllocGrade && `Grade "${runAllocGrade}"`, !runAllocMedical && runAllocQuarterType && `Type "${runAllocQuarterType}"`].filter(Boolean).join(' + ')}.
                       </div>
                     )}
                     {runAllocCycleName.trim() && (
@@ -5040,7 +5067,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   setRunAllocCycleName(''); setRunAllocStart(''); setRunAllocEnd('');
                   setRunAllocCycleTime(''); setRunAllocLastDate('');
                   setRunAllocCurrentDate(new Date().toISOString().split('T')[0]);
-                  setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocWorkflowId('');
+                  setRunAllocGrade(''); setRunAllocQuarterType(''); setRunAllocMedical(false); setRunAllocWorkflowId('');
                   setRunAllocApproverUsers({}); setRunAllocPickingLevel(null); setRunAllocUserSearch('');
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
