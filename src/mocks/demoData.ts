@@ -1820,36 +1820,36 @@ export const DEMO_RENT_TRACKER_SUMMARY: RentTrackerSummary = {
 export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   // May 2026
   'allot-002_2026-05': [
-    { id: 'pay-0502', allotment_id: 'allot-002', month: '2026-05', amount: 4850, payment_mode: 'ONLINE', payment_date: '2026-05-04', receipt_ref: 'RCP-2605-0102', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0502', allotment_id: 'allot-002', month: '2026-05', amount: 4850, payment_mode: 'ONLINE', payment_date: '2026-05-04', receipt_ref: 'RCP-2605-0102', remarks: 'UPI Ref: 416205830291 · HDFC Bank', recorded_by: 'System' },
   ],
   'allot-005_2026-05': [
-    { id: 'pay-0505', allotment_id: 'allot-005', month: '2026-05', amount: 3800, payment_mode: 'CASH', payment_date: '2026-05-02', receipt_ref: 'TMP-2605-001', remarks: 'Partial — balance due', recorded_by: 'EO-Admin' },
+    { id: 'pay-0505', allotment_id: 'allot-005', month: '2026-05', amount: 3800, payment_mode: 'CASH', payment_date: '2026-05-02', receipt_ref: 'TMP-2605-001', remarks: 'Partial — balance ₹4,000 due', recorded_by: 'EO-Admin' },
   ],
   'allot-006_2026-05': [
-    { id: 'pay-0506a', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-01', receipt_ref: 'TMP-2605-006a', remarks: 'First instalment', recorded_by: 'System' },
-    { id: 'pay-0506b', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-0098', remarks: 'Final payment', recorded_by: 'System' },
+    { id: 'pay-0506a', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-01', receipt_ref: 'TMP-2605-006a', remarks: 'First instalment · UPI Ref: 406215901882', recorded_by: 'System' },
+    { id: 'pay-0506b', allotment_id: 'allot-006', month: '2026-05', amount: 3500, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-0098', remarks: 'Final payment · UPI Ref: 406531027743', recorded_by: 'System' },
   ],
   'allot-009_2026-05': [
-    { id: 'pay-0509', allotment_id: 'allot-009', month: '2026-05', amount: 8900, payment_mode: 'CHEQUE', payment_date: '2026-05-01', receipt_ref: 'RCP-2605-0087', remarks: 'Cheque #449012', recorded_by: 'EO-Admin' },
+    { id: 'pay-0509', allotment_id: 'allot-009', month: '2026-05', amount: 8900, payment_mode: 'CHEQUE', payment_date: '2026-05-01', receipt_ref: 'RCP-2605-0087', remarks: 'Cheque No. 449012 · SBI Branch: Lodhi Road', recorded_by: 'EO-Admin' },
   ],
   'allot-012_2026-05': [
-    { id: 'pay-0512', allotment_id: 'allot-012', month: '2026-05', amount: 10000, payment_mode: 'ONLINE', payment_date: '2026-05-02', receipt_ref: 'RCP-2605-0071', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0512', allotment_id: 'allot-012', month: '2026-05', amount: 10000, payment_mode: 'ONLINE', payment_date: '2026-05-02', receipt_ref: 'RCP-2605-0071', remarks: 'NEFT Transfer · Ref: SBIN026501987432', recorded_by: 'System' },
   ],
   'allot-017_2026-05': [
     { id: 'pay-f501', allotment_id: 'allot-017', month: '2026-05', amount: 2500, payment_mode: 'CASH', payment_date: '2026-05-07', receipt_ref: 'TMP-2605-F001', remarks: 'Partial — balance ₹2,050 due', recorded_by: 'EO-Admin' },
   ],
   // April 2026
   'allot-001_2026-04': [
-    { id: 'pay-0401', allotment_id: 'allot-001', month: '2026-04', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-04-04', receipt_ref: 'RCP-2604-0082', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0401', allotment_id: 'allot-001', month: '2026-04', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-04-04', receipt_ref: 'RCP-2604-0082', remarks: 'UPI Ref: 404042918772 · ICICI Bank', recorded_by: 'System' },
   ],
   'allot-017_2026-04': [
-    { id: 'pay-f401', allotment_id: 'allot-017', month: '2026-04', amount: 4550, payment_mode: 'ONLINE', payment_date: '2026-04-03', receipt_ref: 'RCP-2604-F001', remarks: '', recorded_by: 'System' },
+    { id: 'pay-f401', allotment_id: 'allot-017', month: '2026-04', amount: 4550, payment_mode: 'ONLINE', payment_date: '2026-04-03', receipt_ref: 'RCP-2604-F001', remarks: 'UPI Ref: 403035610029 · Axis Bank', recorded_by: 'System' },
   ],
   'allot-005_2026-04': [
-    { id: 'pay-0405', allotment_id: 'allot-005', month: '2026-04', amount: 7800, payment_mode: 'DD', payment_date: '2026-04-02', receipt_ref: 'RCP-2604-0064', remarks: 'DD#330291', recorded_by: 'EO-Admin' },
+    { id: 'pay-0405', allotment_id: 'allot-005', month: '2026-04', amount: 7800, payment_mode: 'DD', payment_date: '2026-04-02', receipt_ref: 'RCP-2604-0064', remarks: 'DD No. 330291 · PNB, Sarojini Nagar Branch', recorded_by: 'EO-Admin' },
   ],
   'allot-011_2026-04': [
-    { id: 'pay-0411', allotment_id: 'allot-011', month: '2026-04', amount: 4000, payment_mode: 'CASH', payment_date: '2026-04-03', receipt_ref: 'TMP-2604-011', remarks: 'Partial — balance pending', recorded_by: 'EO-Admin' },
+    { id: 'pay-0411', allotment_id: 'allot-011', month: '2026-04', amount: 4000, payment_mode: 'CASH', payment_date: '2026-04-03', receipt_ref: 'TMP-2604-011', remarks: 'Partial — balance ₹4,000 pending', recorded_by: 'EO-Admin' },
   ],
   // February 2026
   'allot-005_2026-02': [
@@ -1857,7 +1857,7 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   ],
   // January 2026
   'allot-012_2026-01': [
-    { id: 'pay-0112a', allotment_id: 'allot-012', month: '2026-01', amount: 3000, payment_mode: 'ONLINE', payment_date: '2026-01-03', receipt_ref: 'TMP-2601-012a', remarks: 'First instalment', recorded_by: 'System' },
+    { id: 'pay-0112a', allotment_id: 'allot-012', month: '2026-01', amount: 3000, payment_mode: 'ONLINE', payment_date: '2026-01-03', receipt_ref: 'TMP-2601-012a', remarks: 'First instalment · NEFT Ref: HDFC020163009812', recorded_by: 'System' },
     { id: 'pay-0112b', allotment_id: 'allot-012', month: '2026-01', amount: 2000, payment_mode: 'CASH', payment_date: '2026-01-04', receipt_ref: 'TMP-2601-012b', remarks: 'Second instalment — balance pending', recorded_by: 'EO-Admin' },
   ],
   // December 2025
@@ -1870,16 +1870,16 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   ],
   // allot-001 (EMP-1001 / Rajesh Kumar) history
   'allot-001_2026-03': [
-    { id: 'pay-0301', allotment_id: 'allot-001', month: '2026-03', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-03-05', receipt_ref: 'RCP-2603-0059', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0301', allotment_id: 'allot-001', month: '2026-03', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-03-05', receipt_ref: 'RCP-2603-0059', remarks: 'UPI Ref: 305068834561 · ICICI Bank', recorded_by: 'System' },
   ],
   'allot-001_2026-02': [
-    { id: 'pay-0201', allotment_id: 'allot-001', month: '2026-02', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-02-04', receipt_ref: 'RCP-2602-0061', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0201', allotment_id: 'allot-001', month: '2026-02', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-02-04', receipt_ref: 'RCP-2602-0061', remarks: 'UPI Ref: 204041729302 · ICICI Bank', recorded_by: 'System' },
   ],
   'allot-001_2026-01': [
-    { id: 'pay-0101', allotment_id: 'allot-001', month: '2026-01', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-01-06', receipt_ref: 'RCP-2601-0072', remarks: '', recorded_by: 'System' },
+    { id: 'pay-0101', allotment_id: 'allot-001', month: '2026-01', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-01-06', receipt_ref: 'RCP-2601-0072', remarks: 'UPI Ref: 106065502847 · ICICI Bank', recorded_by: 'System' },
   ],
   'allot-001_2025-12': [
-    { id: 'pay-1201', allotment_id: 'allot-001', month: '2025-12', amount: 6700, payment_mode: 'ONLINE', payment_date: '2025-12-04', receipt_ref: 'RCP-2512-0081', remarks: '', recorded_by: 'System' },
+    { id: 'pay-1201', allotment_id: 'allot-001', month: '2025-12', amount: 6700, payment_mode: 'ONLINE', payment_date: '2025-12-04', receipt_ref: 'RCP-2512-0081', remarks: 'UPI Ref: 1204083291047 · ICICI Bank', recorded_by: 'System' },
   ],
   'allot-001_2025-11': [
     { id: 'pay-1101', allotment_id: 'allot-001', month: '2025-11', amount: 6700, payment_mode: 'ONLINE', payment_date: '2025-11-05', receipt_ref: 'RCP-2511-0089', remarks: '', recorded_by: 'System' },
