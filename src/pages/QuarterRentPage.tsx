@@ -1465,6 +1465,7 @@ export const QuarterRentPage: React.FC = () => {
   const [expandedId, setExpandedId]   = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'history' | null>(null);
   const historyPanelRef = useRef<HTMLDivElement>(null);
+  const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
   const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail } | null>(null);
   const [chatTileId, setChatTileId] = useState<string | null>(null);
@@ -1586,6 +1587,7 @@ export const QuarterRentPage: React.FC = () => {
       setExpandedId(null); setActivePanel(null); return;
     }
     setExpandedId(tile.id); setActivePanel('history');
+    setExpandedPaymentIds(new Set());
     const p = await quartersService.getRentPaymentHistory(tile.allotment_id, tile.month);
     setPayments(p);
   }, [expandedId, activePanel]);
@@ -1745,10 +1747,18 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
 
+    const togglePayment = (id: string) => {
+      setExpandedPaymentIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    };
+
     return (
       <div ref={historyPanelRef} className="relative ml-6 mt-2 mr-2 mb-2">
         <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-200 rounded-full" />
-        <div className="space-y-3 pl-5">
+        <div className="space-y-2 pl-5">
           {payments.length === 0 ? (
             <div className="flex items-center gap-2 py-3 text-xs text-gray-400">
               <Receipt size={13} className="text-gray-300" />
@@ -1760,117 +1770,156 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 const ModeIconComp = modeIcon[p.payment_mode] ?? Receipt;
                 const netPenalty = tile.penalty_amount > 0 ? (tile.penalty_override ?? tile.penalty_amount) : 0;
                 const balance = tile.total_due - totalPaid;
+                const isOpen = expandedPaymentIds.has(p.id);
                 return (
                   <div key={p.id} className="relative">
-                    <div className="absolute -left-5 top-4 w-4 h-0.5 bg-teal-200 rounded-full" />
-                    <div className="absolute -left-[22px] top-3.5 w-2.5 h-2.5 rounded-full border-2 border-teal-300 bg-white" />
+                    <div className="absolute -left-5 top-3.5 w-4 h-0.5 bg-teal-200 rounded-full" />
+                    <div className="absolute -left-[22px] top-3 w-2.5 h-2.5 rounded-full border-2 border-teal-300 bg-white" />
                     <div className="bg-white rounded-xl border border-teal-100 overflow-hidden shadow-sm">
-                      {/* Header */}
-                      <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 border-b border-teal-100">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-white border border-emerald-200 flex items-center justify-center shrink-0">
-                            <ModeIconComp size={15} className="text-emerald-600" />
-                          </div>
-                          <div>
-                            <div className="text-base font-extrabold text-gray-900">{fmtINR(p.amount)}</div>
-                            <div className="text-[10px] text-emerald-700 font-semibold">{modeLabel[p.payment_mode] ?? p.payment_mode}</div>
-                          </div>
+
+                      {/* ── Compact single-row summary (always visible) ── */}
+                      <button
+                        onClick={() => togglePayment(p.id)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        {/* Mode icon */}
+                        <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                          <ModeIconComp size={13} className="text-emerald-600" />
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        {/* Amount */}
+                        <span className="text-sm font-extrabold text-gray-900 shrink-0">{fmtINR(p.amount)}</span>
+
+                        {/* Mode badge */}
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-semibold shrink-0 hidden sm:inline">
+                          {modeLabel[p.payment_mode] ?? p.payment_mode}
+                        </span>
+
+                        {/* Separator dot */}
+                        <span className="text-gray-300 text-xs shrink-0">·</span>
+
+                        {/* Date */}
+                        <span className="text-xs text-gray-500 shrink-0">{fmtDate(p.payment_date)}</span>
+
+                        {/* Ref */}
+                        {p.receipt_ref && (
+                          <>
+                            <span className="text-gray-300 text-xs shrink-0">·</span>
+                            <span className="text-[10px] font-mono text-gray-400 truncate min-w-0">{p.receipt_ref}</span>
+                          </>
+                        )}
+
+                        {/* Spacer */}
+                        <span className="flex-1" />
+
+                        {/* Action buttons — stop propagation so they don't toggle the expand */}
+                        <span className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                           {isEO && (
-                            <button onClick={() => setUndoPayment({ tile, payment: p })}
-                              className="flex items-center gap-1 text-[10px] text-rose-600 border border-rose-200 bg-white rounded-lg px-2 py-1 hover:bg-rose-50 font-semibold">
-                              <Undo2 size={10} /> Undo
+                            <button
+                              onClick={() => setUndoPayment({ tile, payment: p })}
+                              className="flex items-center gap-1 text-[10px] text-rose-600 border border-rose-200 bg-white rounded-lg px-1.5 py-0.5 hover:bg-rose-50 font-semibold"
+                            >
+                              <Undo2 size={9} /> Undo
                             </button>
                           )}
-                          <button onClick={() => downloadReceipt(p)}
-                            className="flex items-center gap-1 text-[10px] text-teal-700 border border-teal-200 bg-white rounded-lg px-2 py-1 hover:bg-teal-50 font-semibold">
-                            <Download size={10} /> Receipt
+                          <button
+                            onClick={() => downloadReceipt(p)}
+                            className="flex items-center gap-1 text-[10px] text-teal-700 border border-teal-200 bg-white rounded-lg px-1.5 py-0.5 hover:bg-teal-50 font-semibold"
+                          >
+                            <Download size={9} /> Receipt
                           </button>
-                        </div>
-                      </div>
+                        </span>
 
-                      {/* Two-column body */}
-                      <div className="grid grid-cols-2 divide-x divide-gray-100">
-                        {/* Left — instrument details */}
-                        <div className="px-4 py-3 space-y-2">
-                          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payment Details</div>
-                          <div className="flex items-start gap-2">
-                            <Calendar size={11} className="text-gray-400 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="text-[10px] text-gray-400">Paid On</div>
-                              <div className="text-xs font-semibold text-gray-700">{fmtDate(p.payment_date)}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <Calendar size={11} className="text-gray-400 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="text-[10px] text-gray-400">Due Date</div>
-                              <div className="text-xs font-semibold text-gray-700">{fmtDate(tile.due_date)}</div>
-                            </div>
-                          </div>
-                          {p.receipt_ref && (
+                        {/* Chevron */}
+                        <ChevronDown
+                          size={13}
+                          className={`text-gray-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+
+                      {/* ── Collapsible details ── */}
+                      {isOpen && (
+                        <div className="border-t border-gray-100 grid grid-cols-2 divide-x divide-gray-100">
+                          {/* Left — instrument details */}
+                          <div className="px-4 py-3 space-y-2">
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payment Details</div>
                             <div className="flex items-start gap-2">
-                              <Receipt size={11} className="text-gray-400 mt-0.5 shrink-0" />
+                              <Calendar size={11} className="text-gray-400 mt-0.5 shrink-0" />
                               <div>
-                                <div className="text-[10px] text-gray-400">Ref / Receipt No.</div>
-                                <div className="text-xs font-mono font-semibold text-gray-700 break-all">{p.receipt_ref}</div>
+                                <div className="text-[10px] text-gray-400">Paid On</div>
+                                <div className="text-xs font-semibold text-gray-700">{fmtDate(p.payment_date)}</div>
                               </div>
                             </div>
-                          )}
-                          {p.remarks && (
-                            <div className="text-[10px] text-gray-500 italic pt-1 border-t border-gray-100">{p.remarks}</div>
-                          )}
-                          {p.recorded_by && (
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 pt-0.5">
-                              <User size={9} /> Recorded by: {p.recorded_by}
+                            <div className="flex items-start gap-2">
+                              <Calendar size={11} className="text-gray-400 mt-0.5 shrink-0" />
+                              <div>
+                                <div className="text-[10px] text-gray-400">Due Date</div>
+                                <div className="text-xs font-semibold text-gray-700">{fmtDate(tile.due_date)}</div>
+                              </div>
                             </div>
-                          )}
-                        </div>
+                            {p.receipt_ref && (
+                              <div className="flex items-start gap-2">
+                                <Receipt size={11} className="text-gray-400 mt-0.5 shrink-0" />
+                                <div>
+                                  <div className="text-[10px] text-gray-400">Ref / Receipt No.</div>
+                                  <div className="text-xs font-mono font-semibold text-gray-700 break-all">{p.receipt_ref}</div>
+                                </div>
+                              </div>
+                            )}
+                            {p.remarks && (
+                              <div className="text-[10px] text-gray-500 italic pt-1 border-t border-gray-100">{p.remarks}</div>
+                            )}
+                            {p.recorded_by && (
+                              <div className="text-[10px] text-gray-400 flex items-center gap-1 pt-0.5">
+                                <User size={9} /> Recorded by: {p.recorded_by}
+                              </div>
+                            )}
+                          </div>
 
-                        {/* Right — charge breakdown */}
-                        <div className="px-4 py-3 space-y-1.5">
-                          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Charge Breakdown</div>
-                          {([
-                            ['Base Rent', tile.base_rent],
-                            tile.water_charges > 0      && ['Water Charges', tile.water_charges],
-                            tile.utility_charges > 0    && ['Utility Charges', tile.utility_charges],
-                            tile.maintenance_charge > 0 && ['Maintenance', tile.maintenance_charge],
-                            tile.sd_amount > 0          && ['Security Deposit', tile.sd_amount],
-                            tile.advance_amount > 0     && ['Advance', tile.advance_amount],
-                            netPenalty > 0              && ['Penalty', netPenalty],
-                            (tile.discount_amount ?? 0) > 0 && ['Discount', -(tile.discount_amount!)],
-                          ] as (false | [string, number])[]).filter(Boolean).map(item => {
-                            const [label, amt] = item as [string, number];
-                            return (
-                              <div key={label} className="flex items-center justify-between text-[11px]">
-                                <span className="text-gray-500">{label}</span>
-                                <span className={`font-semibold ${amt < 0 ? 'text-emerald-600' : 'text-gray-700'}`}>
-                                  {amt < 0 ? `−${fmtINR(-amt)}` : fmtINR(amt)}
+                          {/* Right — charge breakdown */}
+                          <div className="px-4 py-3 space-y-1.5">
+                            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Charge Breakdown</div>
+                            {([
+                              ['Base Rent', tile.base_rent],
+                              tile.water_charges > 0      && ['Water Charges', tile.water_charges],
+                              tile.utility_charges > 0    && ['Utility Charges', tile.utility_charges],
+                              tile.maintenance_charge > 0 && ['Maintenance', tile.maintenance_charge],
+                              tile.sd_amount > 0          && ['Security Deposit', tile.sd_amount],
+                              tile.advance_amount > 0     && ['Advance', tile.advance_amount],
+                              netPenalty > 0              && ['Penalty', netPenalty],
+                              (tile.discount_amount ?? 0) > 0 && ['Discount', -(tile.discount_amount!)],
+                            ] as (false | [string, number])[]).filter(Boolean).map(item => {
+                              const [label, amt] = item as [string, number];
+                              return (
+                                <div key={label} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-gray-500">{label}</span>
+                                  <span className={`font-semibold ${amt < 0 ? 'text-emerald-600' : 'text-gray-700'}`}>
+                                    {amt < 0 ? `−${fmtINR(-amt)}` : fmtINR(amt)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            <div className="flex items-center justify-between text-[11px] pt-1.5 mt-0.5 border-t border-gray-100">
+                              <span className="font-bold text-gray-700">Total Due</span>
+                              <span className="font-extrabold text-gray-900">{fmtINR(tile.total_due)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-emerald-700 font-semibold">Paid (this txn)</span>
+                              <span className="font-bold text-emerald-700">{fmtINR(p.amount)}</span>
+                            </div>
+                            {balance !== 0 && (
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className={`font-semibold ${balance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  {balance > 0 ? 'Balance Due' : 'Excess Paid'}
+                                </span>
+                                <span className={`font-bold ${balance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                  {fmtINR(Math.abs(balance))}
                                 </span>
                               </div>
-                            );
-                          })}
-                          <div className="flex items-center justify-between text-[11px] pt-1.5 mt-0.5 border-t border-gray-100">
-                            <span className="font-bold text-gray-700">Total Due</span>
-                            <span className="font-extrabold text-gray-900">{fmtINR(tile.total_due)}</span>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-emerald-700 font-semibold">Paid (this txn)</span>
-                            <span className="font-bold text-emerald-700">{fmtINR(p.amount)}</span>
-                          </div>
-                          {balance !== 0 && (
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className={`font-semibold ${balance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                                {balance > 0 ? 'Balance Due' : 'Excess Paid'}
-                              </span>
-                              <span className={`font-bold ${balance > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                                {fmtINR(Math.abs(balance))}
-                              </span>
-                            </div>
-                          )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 );
