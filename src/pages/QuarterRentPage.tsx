@@ -1148,11 +1148,10 @@ interface TileActionsMenuProps {
   onDueDetails: (tile: RentTile) => void;
   onHistoryPanel: (tile: RentTile) => void;
   onChatPanel: (tile: RentTile) => void;
-  onShowStat: (tile: RentTile) => void;
 }
 const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   tile, isEO, chatTileId, expandedId, activePanel,
-  onPayNow, onDueDetails, onHistoryPanel, onChatPanel, onShowStat,
+  onPayNow, onDueDetails, onHistoryPanel, onChatPanel,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -1244,13 +1243,6 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
               >
                 <IndianRupee size={12} className="text-amber-500 shrink-0" />
                 Show Due Payment
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); close(); onShowStat(tile); }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-violet-50 hover:text-violet-800 transition-colors text-left"
-              >
-                <BarChart size={12} className="text-violet-500 shrink-0" />
-                Show Stat
               </button>
             </div>
           </>,
@@ -1484,7 +1476,6 @@ export const QuarterRentPage: React.FC = () => {
   const [paySuccess, setPaySuccess] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [penaltyMaxDiscountPct, setPenaltyMaxDiscountPct] = useState(25);
-  const [statTileId, setStatTileId] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -1806,7 +1797,6 @@ export const QuarterRentPage: React.FC = () => {
                 expandedId={expandedId} activePanel={activePanel}
                 onPayNow={setPayNowTile} onDueDetails={openDueDetails}
                 onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
-                onShowStat={t => setStatTileId(t.id)}
               />
             </div>
             {/* Expand toggle */}
@@ -2657,58 +2647,6 @@ export const QuarterRentPage: React.FC = () => {
           onClose={() => setTenantProfileId(null)}
         />
       )}
-      {statTileId && (() => {
-        const t = tiles.find(x => x.id === statTileId);
-        if (!t) return null;
-        const bars = [
-          { label: 'Base Rent',   value: t.base_rent,         color: 'bg-teal-500' },
-          { label: 'Water/Util',  value: t.water_charges + (t.utility_charges ?? 0), color: 'bg-sky-500' },
-          { label: 'SD',          value: t.sd_amount ?? 0,    color: 'bg-indigo-400' },
-          { label: 'Advance',     value: t.advance_amount ?? 0, color: 'bg-violet-400' },
-          { label: 'Maint.',      value: t.maintenance_charge ?? 0, color: 'bg-amber-400' },
-          { label: 'Penalty',     value: t.penalty_override ?? t.penalty_amount, color: 'bg-rose-500' },
-          { label: 'Total Due',   value: t.total_due,         color: 'bg-gray-700' },
-          { label: 'Paid',        value: t.amount_paid,       color: 'bg-emerald-500' },
-        ].filter(b => b.value > 0);
-        const maxVal = Math.max(...bars.map(b => b.value), 1);
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-                <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                  <BarChart size={16} className="text-violet-700" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-gray-900">Charge Breakdown</div>
-                  <div className="text-xs text-gray-400">{t.quarter_number} · {t.tenant_name} · {fmtMonthFull(t.month)}</div>
-                </div>
-                <button onClick={() => setStatTileId(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-              </div>
-              <div className="px-6 py-5 space-y-2.5">
-                {bars.map(b => (
-                  <div key={b.label} className="flex items-center gap-3">
-                    <div className="w-20 text-[11px] text-gray-500 font-medium shrink-0 text-right">{b.label}</div>
-                    <div className="flex-1 h-6 bg-gray-100 rounded-lg overflow-hidden">
-                      <div
-                        className={`h-full ${b.color} rounded-lg transition-all duration-500`}
-                        style={{ width: `${(b.value / maxVal) * 100}%` }}
-                      />
-                    </div>
-                    <div className="w-24 text-[11px] font-semibold text-gray-800 shrink-0">{fmtINR(b.value)}</div>
-                  </div>
-                ))}
-                <div className="pt-3 border-t border-gray-100 flex justify-between text-xs text-gray-500">
-                  <span>Status: <StatusBadge status={t.status} /></span>
-                  <span className="font-semibold text-gray-700">Outstanding: {fmtINR(t.total_due - t.amount_paid)}</span>
-                </div>
-              </div>
-              <div className="px-6 pb-5">
-                <button onClick={() => setStatTileId(null)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Close</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
       {dueModal && (
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
           penaltyMaxDiscountPct={penaltyMaxDiscountPct}
