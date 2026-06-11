@@ -1780,32 +1780,42 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                       {/* ── Compact single-row summary (always visible) ── */}
                       <button
                         onClick={() => togglePayment(p.id)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
                       >
                         {/* Mode icon */}
                         <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
                           <ModeIconComp size={13} className="text-emerald-600" />
                         </div>
 
-                        {/* Amount */}
+                        {/* Amount — primary value */}
                         <span className="text-sm font-extrabold text-gray-900 shrink-0">{fmtINR(p.amount)}</span>
 
-                        {/* Mode badge */}
-                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-semibold shrink-0 hidden sm:inline">
-                          {modeLabel[p.payment_mode] ?? p.payment_mode}
+                        {/* Divider */}
+                        <span className="text-gray-200 text-sm shrink-0">|</span>
+
+                        {/* Mode label:value */}
+                        <span className="flex items-baseline gap-1 shrink-0 min-w-0">
+                          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Mode</span>
+                          <span className="text-[11px] font-semibold text-gray-700 truncate">{modeLabel[p.payment_mode] ?? p.payment_mode}</span>
                         </span>
 
-                        {/* Separator dot */}
-                        <span className="text-gray-300 text-xs shrink-0">·</span>
+                        {/* Divider */}
+                        <span className="text-gray-200 text-sm shrink-0 hidden sm:inline">|</span>
 
-                        {/* Date */}
-                        <span className="text-xs text-gray-500 shrink-0">{fmtDate(p.payment_date)}</span>
+                        {/* Paid date label:value */}
+                        <span className="flex items-baseline gap-1 shrink-0 hidden sm:flex">
+                          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Paid</span>
+                          <span className="text-[11px] font-semibold text-gray-700">{fmtDate(p.payment_date)}</span>
+                        </span>
 
-                        {/* Ref */}
+                        {/* Ref label:value */}
                         {p.receipt_ref && (
                           <>
-                            <span className="text-gray-300 text-xs shrink-0">·</span>
-                            <span className="text-[10px] font-mono text-gray-400 truncate min-w-0">{p.receipt_ref}</span>
+                            <span className="text-gray-200 text-sm shrink-0 hidden md:inline">|</span>
+                            <span className="flex items-baseline gap-1 min-w-0 hidden md:flex">
+                              <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Ref</span>
+                              <span className="text-[11px] font-mono text-gray-600 truncate">{p.receipt_ref}</span>
+                            </span>
                           </>
                         )}
 
@@ -2633,7 +2643,13 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                         key={c.label} label={c.label} value={c.value} icon={c.icon}
                         gradient={c.gradient} subtitle={c.subtitle} delay={(i + 1) * 50}
                         isActive={collectionGraphOpen}
-                        onClick={() => { setCollectionGraphOpen(o => !o); setPaidExpanded(false); }}
+                        onClick={() => {
+                          const opening = !collectionGraphOpen;
+                          setCollectionGraphOpen(opening);
+                          setPaidExpanded(false);
+                          setOutstandingExpanded(false);
+                          if (opening) setDpFilter('all'); else setDpFilter('all');
+                        }}
                       />
                     );
                   }
@@ -2718,6 +2734,47 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 </div>
               </div>
 
+              {/* ── Mini bar chart — anchored below Collection Rate card ── */}
+              {summary && collectionGraphOpen && (
+                <div className="mt-2 rounded-xl bg-white border border-teal-100 shadow-sm overflow-hidden">
+                  <div className="px-3 pt-2 pb-1 border-b border-gray-100">
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-teal-700">Collection Breakdown by Status</span>
+                  </div>
+                  <div className="flex items-stretch gap-px px-2 py-2">
+                    {([
+                      { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-400'   },
+                      { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-400'     },
+                      { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400' },
+                      { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-400'     },
+                      { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-400'   },
+                    ] as const).map(b => {
+                      const isActive = dpFilter === b.dp;
+                      const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
+                      const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 6 : 0);
+                      return (
+                        <button
+                          key={b.dp}
+                          onClick={() => setDpFilter(dpFilter === b.dp ? 'all' : b.dp)}
+                          title={`${b.label}: ${b.count} (${b.amount})`}
+                          className={`flex-1 flex flex-col justify-end rounded-md px-2 pt-1 pb-1.5 border transition-all duration-150 min-w-0 ${
+                            isActive ? `${b.activeBg} ${b.activeBorder}` : 'border-transparent hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[9px] font-bold leading-none ${isActive ? b.text : 'text-gray-500'}`}>{b.label}</span>
+                            <span className={`text-[9px] font-extrabold leading-none ml-1 ${b.text}`}>{b.count}</span>
+                          </div>
+                          <div className="w-full h-5 bg-gray-100 rounded overflow-hidden flex items-end">
+                            <div className={`w-full rounded ${b.fill} transition-all duration-500`} style={{ height: `${pct}%` }} />
+                          </div>
+                          <div className={`text-[8px] mt-0.5 truncate ${isActive ? b.text : 'text-gray-400'}`}>{b.amount}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
 
             </div>
           ) : null}
@@ -2749,41 +2806,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
 
           {/* ── Filter bar — below DP cards ── */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
-
-            {/* Compact status bar chart — only shown when Collection Rate DP is active */}
-            {summary && collectionGraphOpen && (
-              <div className="flex items-stretch gap-1 pb-2 mb-2 border-b border-gray-100">
-                {([
-                  { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-400'   },
-                  { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-400'     },
-                  { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400' },
-                  { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-400'     },
-                  { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-400'   },
-                ] as const).map(b => {
-                  const isActive = dpFilter === b.dp;
-                  const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
-                  const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 6 : 0);
-                  return (
-                    <button
-                      key={b.dp}
-                      onClick={() => setDpFilter(dpFilter === b.dp ? 'all' : b.dp)}
-                      title={`${b.label}: ${b.count} (${b.amount})`}
-                      className={`flex-1 flex flex-col justify-end rounded-md px-1.5 pt-1 pb-1 border transition-all duration-150 min-w-0 ${
-                        isActive ? `${b.activeBg} ${b.activeBorder}` : 'border-transparent hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-end justify-between mb-0.5">
-                        <span className={`text-[9px] font-semibold leading-none truncate ${isActive ? b.text : 'text-gray-500'}`}>{b.label} <span className="font-normal text-gray-400">({b.amount})</span></span>
-                        <span className={`text-[9px] font-extrabold leading-none ml-1 ${b.text}`}>{b.count}</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${b.fill} transition-all duration-500`} style={{ width: `${pct}%` }} />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
             <MandatorySearchBar
               fields={[

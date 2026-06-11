@@ -1629,18 +1629,22 @@ function rt(id: string, allot: string, month: string, tk: readonly [string,strin
 }
 
 export const DEMO_RENT_TILES: RentTile[] = [
+  // ── June 2026 (current month) ────────────────────────────────────────────
+  rt('rt-0601','allot-001','2026-06',T.t001, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-04',  null,           null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
+  rt('rt-0607','allot-007','2026-06',T.t007, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-03',  null,           null, 0,0,0, 5150,      '2025-01-15','2025-01-20', null),
+  rt('rt-0611','allot-011','2026-06',T.t011, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-03',  null,           null, 0,0,0, 8000,      '2024-10-01','2024-10-08', null),
   // ── May 2026 ──────────────────────────────────────────────────────────────
-  rt('rt-0501','allot-001','2026-05',T.t001, 0,null,   0,       null,         'DUE',     '2026-05-05','2026-04-04',  null,           null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
+  rt('rt-0501','allot-001','2026-05',T.t001,200,null,   0,       null,         'OVERDUE', '2026-05-05','2026-04-04',  null,           null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
   rt('rt-0502','allot-002','2026-05',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-05-04','2026-05-04',  'RCP-2605-0102',null, 0,0,0, 4850,      '2023-11-01','2023-11-10', null),
   rt('rt-0503','allot-003','2026-05',T.t003,850,null,  0,       null,         'OVERDUE', '2026-05-05','2026-03-03',  null,           null, 0,0,0, 9200,      '2022-06-01','2022-06-15', null),
   rt('rt-0504','allot-004','2026-05',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Medical grounds', 0,0,0, null, '2021-09-10','2021-09-10', 6800),
   rt('rt-0505','allot-005','2026-05',T.t005, 0,null,3800,     'CASH',         'PARTIAL', '2026-05-05','2026-05-02',  null,           null, 0,0,0, 3800,      '2023-04-01','2023-04-05', null),
   rt('rt-0506','allot-006','2026-05',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-05-03','2026-05-03',  'RCP-2605-0098',null, 0,0,0, 7000,      '2022-12-01','2022-12-08', null),
-  rt('rt-0507','allot-007','2026-05',T.t007, 0,null,   0,       null,         'DUE',     '2026-05-05','2026-03-04',  null,           null, 0,0,0, 5150,      '2025-01-15','2025-01-20', null),
+  rt('rt-0507','allot-007','2026-05',T.t007,150,null,   0,       null,         'OVERDUE', '2026-05-05','2026-03-04',  null,           null, 0,0,0, 5150,      '2025-01-15','2025-01-20', null),
   rt('rt-0508','allot-008','2026-05',T.t008,600,null,  0,       null,         'OVERDUE', '2026-05-05','2026-03-04',  null,           null, 0,0,0, 6500,      '2023-07-01','2023-07-10', null),
   rt('rt-0509','allot-009','2026-05',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-05-01','2026-05-01',  'RCP-2605-0087',null, 0,0,0, 8900,      '2021-03-01','2021-03-15', null),
   rt('rt-0510','allot-010','2026-05',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Disability exemption', 0,0,0, null, '2020-08-01','2020-08-05', 6800),
-  rt('rt-0511','allot-011','2026-05',T.t011, 0,null,   0,       null,         'DUE',     '2026-05-05','2026-04-03',  null,           null, 0,0,0, 8000,      '2024-10-01','2024-10-08', null),
+  rt('rt-0511','allot-011','2026-05',T.t011,300,null,   0,       null,         'OVERDUE', '2026-05-05','2026-04-03',  null,           null, 0,0,0, 8000,      '2024-10-01','2024-10-08', null),
   rt('rt-0512','allot-012','2026-05',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-05-02','2026-05-02',  'RCP-2605-0071',null, 0,0,0, 10000,     '2022-02-14','2022-02-20', null),
   // ── April 2026 ────────────────────────────────────────────────────────────
   rt('rt-0401','allot-001','2026-04',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-04-05','2026-04-04',  'RCP-2604-0082',null),
@@ -1649,7 +1653,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-0404','allot-004','2026-04',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-04-05',null,           null,           'Medical grounds'),
   rt('rt-0405','allot-005','2026-04',T.t005, 0,null,7800,     'DD',           'PAID',    '2026-04-05','2026-04-02',  'RCP-2604-0064',null),
   rt('rt-0406','allot-006','2026-04',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-04-04','2026-04-04',  'RCP-2604-0058',null),
-  rt('rt-0407','allot-007','2026-04',T.t007, 0,null,   0,       null,         'DUE',     '2026-04-05','2026-03-04',  null,           null, 0,0,0, 5150),
+  rt('rt-0407','allot-007','2026-04',T.t007,250,null,   0,       null,         'OVERDUE', '2026-04-05','2026-03-04',  null,           null, 0,0,0, 5150),
   rt('rt-0408','allot-008','2026-04',T.t008,300,null,  0,       null,         'OVERDUE', '2026-04-05','2026-03-04',  null,           null, 0,0,0, 6500),
   rt('rt-0409','allot-009','2026-04',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-04-01','2026-04-01',  'RCP-2604-0043',null),
   rt('rt-0410','allot-010','2026-04',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-04-05',null,           null,           'Disability exemption'),
@@ -1666,7 +1670,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-0308','allot-008','2026-03',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2026-03-04','2026-03-04',  'RCP-2603-0025',null),
   rt('rt-0309','allot-009','2026-03',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-03-01','2026-03-01',  'RCP-2603-0020',null),
   rt('rt-0310','allot-010','2026-03',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-03-05',null,           null,           'Disability exemption'),
-  rt('rt-0311','allot-011','2026-03',T.t011, 0,null,   0,       null,         'DUE',     '2026-03-05','2026-02-03',  null,           null, 0,0,0, 8000),
+  rt('rt-0311','allot-011','2026-03',T.t011,180,null,   0,       null,         'OVERDUE', '2026-03-05','2026-02-03',  null,           null, 0,0,0, 8000),
   rt('rt-0312','allot-012','2026-03',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-03-02','2026-03-02',  'RCP-2603-0015',null),
   // ── February 2026 ─────────────────────────────────────────────────────────
   rt('rt-0201','allot-001','2026-02',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-02-05','2026-02-04',  'RCP-2602-0061',null),
@@ -1675,7 +1679,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-0204','allot-004','2026-02',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-02-05',null,           null,           'Medical grounds'),
   rt('rt-0205','allot-005','2026-02',T.t005, 0,null,3900,     'CASH',         'PARTIAL', '2026-02-05','2026-02-02',  null,           null),
   rt('rt-0206','allot-006','2026-02',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-02-04','2026-02-04',  'RCP-2602-0041',null),
-  rt('rt-0207','allot-007','2026-02',T.t007, 0,null,   0,       null,         'DUE',     '2026-02-05','2026-01-03',  null,           null, 0,0,0, 5150),
+  rt('rt-0207','allot-007','2026-02',T.t007,100,null,   0,       null,         'OVERDUE', '2026-02-05','2026-01-03',  null,           null, 0,0,0, 5150),
   rt('rt-0208','allot-008','2026-02',T.t008,150,null,  0,       null,         'OVERDUE', '2026-02-05','2026-01-04',  null,           null, 0,0,0, 6500),
   rt('rt-0209','allot-009','2026-02',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-02-01','2026-02-01',  'RCP-2602-0037',null),
   rt('rt-0210','allot-010','2026-02',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-02-05',null,           null,           'Disability exemption'),
@@ -1688,7 +1692,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-0104','allot-004','2026-01',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-01-05',null,           null,           'Medical grounds'),
   rt('rt-0105','allot-005','2026-01',T.t005, 0,null,7800,     'DD',           'PAID',    '2026-01-05','2026-01-03',  'RCP-2601-0058',null),
   rt('rt-0106','allot-006','2026-01',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-01-04','2026-01-04',  'RCP-2601-0053',null),
-  rt('rt-0107','allot-007','2026-01',T.t007, 0,null,   0,       null,         'DUE',     '2026-01-05','2025-12-04',  null,           null, 0,0,0, 5150),
+  rt('rt-0107','allot-007','2026-01',T.t007, 75,null,   0,       null,         'OVERDUE', '2026-01-05','2025-12-04',  null,           null, 0,0,0, 5150),
   rt('rt-0108','allot-008','2026-01',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2026-01-04','2026-01-04',  'RCP-2601-0044',null),
   rt('rt-0109','allot-009','2026-01',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-01-01','2026-01-01',  'RCP-2601-0039',null),
   rt('rt-0110','allot-010','2026-01',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-01-05',null,           null,           'Disability exemption'),
@@ -1705,7 +1709,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-1208','allot-008','2025-12',T.t008,130,null,  0,       null,         'OVERDUE', '2025-12-05','2025-11-04',  null,           null, 0,0,0, 6500),
   rt('rt-1209','allot-009','2025-12',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2025-12-01','2025-12-01',  'RCP-2512-0052',null),
   rt('rt-1210','allot-010','2025-12',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-12-05',null,           null,           'Disability exemption'),
-  rt('rt-1211','allot-011','2025-12',T.t011, 0,null,   0,       null,         'DUE',     '2025-12-05','2025-11-03',  null,           null, 0,0,0, 4000),
+  rt('rt-1211','allot-011','2025-12',T.t011, 90,null,   0,       null,         'OVERDUE', '2025-12-05','2025-11-03',  null,           null, 0,0,0, 4000),
   rt('rt-1212','allot-012','2025-12',T.t012, 0,null,10000,    'DD',           'PAID',    '2025-12-02','2025-12-02',  'RCP-2512-0044',null),
   // ── November 2025 ─────────────────────────────────────────────────────────
   rt('rt-1101','allot-001','2025-11',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2025-11-05','2025-11-04',  'RCP-2511-0089',null),
@@ -1713,7 +1717,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-1103','allot-003','2025-11',T.t003,185,null,  0,       null,         'OVERDUE', '2025-11-05','2025-10-03',  null,           null, 0,0,0, 9200),
   rt('rt-1104','allot-004','2025-11',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2025-11-05',null,           null,           'Medical grounds'),
   rt('rt-1105','allot-005','2025-11',T.t005, 0,null,7800,     'DD',           'PAID',    '2025-11-05','2025-11-03',  'RCP-2511-0075',null),
-  rt('rt-1106','allot-006','2025-11',T.t006, 0,null,   0,       null,         'DUE',     '2025-11-05','2025-10-04',  null,           null, 0,0,0, 7000),
+  rt('rt-1106','allot-006','2025-11',T.t006, 60,null,   0,       null,         'OVERDUE', '2025-11-05','2025-10-04',  null,           null, 0,0,0, 7000),
   rt('rt-1107','allot-007','2025-11',T.t007, 0,null,5150,     'AUTO_DEDUCTION','PAID',   '2025-11-05','2025-11-04',  'RCP-2511-0068',null),
   rt('rt-1108','allot-008','2025-11',T.t008, 0,null,6500,     'ONLINE',       'PAID',    '2025-11-04','2025-11-04',  'RCP-2511-0062',null),
   rt('rt-1109','allot-009','2025-11',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2025-11-01','2025-11-01',  'RCP-2511-0055',null),
@@ -1721,11 +1725,11 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-1111','allot-011','2025-11',T.t011, 0,null,4000,     'CASH',         'PARTIAL', '2025-11-05','2025-11-03',  null,           null),
   rt('rt-1112','allot-012','2025-11',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2025-11-02','2025-11-02',  'RCP-2511-0047',null),
   // ── Commercial Shop (allot-013) — May 2026 — rent + SD pending + maintenance ─
-  rt('rt-s501','allot-013','2026-05',T.t013, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null, 10000, 0, 800),
+  rt('rt-s501','allot-013','2026-05',T.t013,120,null,   0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 10000, 0, 800),
   // ── Commercial Shop (allot-013) — April 2026 — paid ─────────────────────────
   rt('rt-s401','allot-013','2026-04',T.t013, 0,null,5800,     'ONLINE',       'PAID',    '2026-04-05','2026-04-03',  'RCP-2604-S001', null, 0, 0, 800),
   // ── Convention Hall (allot-014) — May 2026 — advance deposit outstanding ────
-  rt('rt-h501','allot-014','2026-05',T.t014, 0,null,   0,       null,         'DUE',     '2026-05-10',null,           null,           null, 0, 25000, 0),
+  rt('rt-h501','allot-014','2026-05',T.t014, 0,null,   0,       null,         'OVERDUE', '2026-05-10',null,           null,           null, 0, 25000, 0),
   // ── Guest House PSU (allot-015) — May 2026 — rent + maintenance overdue ─────
   rt('rt-g501','allot-015','2026-05',T.t015,380,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 0, 0, 500),
   // ── Guest House PSU (allot-015) — April 2026 — paid ─────────────────────────
