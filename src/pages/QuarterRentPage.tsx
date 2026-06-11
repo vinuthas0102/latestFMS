@@ -9,6 +9,7 @@ import {
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
   Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare, ClipboardList, Tag,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -18,7 +19,6 @@ import type {
   InstallmentPlan, InstallmentRow,
 } from '../services/quartersService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
-import { MandatorySearchBar } from '../components/ui/MandatorySearchBar';
 import SplitLayout from '../components/ui/SplitLayout';
 import { useAuthStore } from '../stores/authStore';
 
@@ -2735,45 +2735,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               </div>
 
               {/* ── Mini bar chart — anchored below Collection Rate card ── */}
-              {summary && collectionGraphOpen && (
-                <div className="mt-2 rounded-xl bg-white border border-teal-100 shadow-sm overflow-hidden">
-                  <div className="px-3 pt-2 pb-1 border-b border-gray-100">
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-teal-700">Collection Breakdown by Status</span>
-                  </div>
-                  <div className="flex items-stretch gap-px px-2 py-2">
-                    {([
-                      { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-400'   },
-                      { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-400'     },
-                      { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400' },
-                      { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-400'     },
-                      { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-400'   },
-                    ] as const).map(b => {
-                      const isActive = dpFilter === b.dp;
-                      const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
-                      const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 6 : 0);
-                      return (
-                        <button
-                          key={b.dp}
-                          onClick={() => setDpFilter(dpFilter === b.dp ? 'all' : b.dp)}
-                          title={`${b.label}: ${b.count} (${b.amount})`}
-                          className={`flex-1 flex flex-col justify-end rounded-md px-2 pt-1 pb-1.5 border transition-all duration-150 min-w-0 ${
-                            isActive ? `${b.activeBg} ${b.activeBorder}` : 'border-transparent hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className={`text-[9px] font-bold leading-none ${isActive ? b.text : 'text-gray-500'}`}>{b.label}</span>
-                            <span className={`text-[9px] font-extrabold leading-none ml-1 ${b.text}`}>{b.count}</span>
-                          </div>
-                          <div className="w-full h-5 bg-gray-100 rounded overflow-hidden flex items-end">
-                            <div className={`w-full rounded ${b.fill} transition-all duration-500`} style={{ height: `${pct}%` }} />
-                          </div>
-                          <div className={`text-[8px] mt-0.5 truncate ${isActive ? b.text : 'text-gray-400'}`}>{b.amount}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
 
             </div>
@@ -2805,29 +2766,93 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
 
           {/* ── Filter bar — below DP cards ── */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-1.5">
+            <div className="flex items-stretch divide-x divide-gray-100">
 
-            <MandatorySearchBar
-              fields={[
-                {
-                  key: 'tenant',
-                  label: 'Search',
-                  type: 'text',
-                  placeholder: 'Tenant name or quarter…',
-                  value: tenantFilter,
-                  onChange: setTenantFilter,
-                  icon: <Search size={14} />,
-                },
-              ]}
-              onSearch={loadTiles}
-              searchLabel="Apply"
-              filterCount={activeFilterCount}
-              onFilterOpen={() => setShowFilters(f => !f)}
-            />
+              {/* Search input */}
+              <div className="px-4 py-2.5 flex flex-col gap-1 justify-center" style={{ minWidth: 180 }}>
+                <span className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold leading-none">Search</span>
+                <div className="flex items-center gap-2">
+                  <Search size={14} className="text-gray-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Tenant name or quarter…"
+                    value={tenantFilter}
+                    onChange={e => setTenantFilter(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') loadTiles(); }}
+                    className="flex-1 min-w-0 text-sm font-medium text-gray-800 bg-transparent border-none outline-none focus:outline-none placeholder-gray-300"
+                  />
+                </div>
+              </div>
+
+              {/* Collection breakdown chip-bars — visible when Collection Rate DP is active */}
+              {summary && collectionGraphOpen && (
+                <div className="flex-1 flex items-center gap-1 px-3 py-2 min-w-0">
+                  {([
+                    { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-300'   },
+                    { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-300'     },
+                    { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-300' },
+                    { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-300'     },
+                    { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-300'   },
+                  ] as const).map(b => {
+                    const isActive = dpFilter === b.dp;
+                    const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
+                    const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 5 : 0);
+                    return (
+                      <button
+                        key={b.dp}
+                        onClick={() => setDpFilter(dpFilter === b.dp ? 'all' : b.dp)}
+                        title={`${b.label}: ${b.count} (${b.amount})`}
+                        className={`flex-1 flex flex-col gap-0.5 rounded-lg px-2 py-1.5 border transition-all duration-150 min-w-0 ${
+                          isActive ? `${b.activeBg} ${b.activeBorder}` : 'border-transparent hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[9px] font-semibold leading-none truncate ${isActive ? b.text : 'text-gray-500'}`}>{b.label}</span>
+                          <span className={`text-[9px] font-extrabold leading-none ml-1 shrink-0 ${b.text}`}>{b.count}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${b.fill} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-[8px] leading-none truncate ${isActive ? b.text : 'text-gray-400'}`}>{b.amount}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Filter + Apply action buttons */}
+              <div className="flex items-center gap-2 px-3 py-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(f => !f)}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all text-sm font-medium ${activeFilterCount > 0 ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
+                  title="Filters"
+                >
+                  <SlidersHorizontal size={15} />
+                  <span className="hidden sm:inline text-xs">Filter</span>
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full w-[18px] h-[18px] flex items-center justify-center shadow-sm">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={loadTiles}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md active:scale-95"
+                >
+                  <Search size={15} />
+                  <span className="hidden sm:inline">Apply</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
 
             {/* Tenant bulk-select quick actions */}
             {isTenant && displayTiles.some(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL') && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
                 <button
                   onClick={selectAllDue}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-teal-200 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors"
@@ -2850,7 +2875,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
 
             {/* Secondary filter — location */}
             {showFilters && (
-              <div className="flex items-center gap-3 flex-wrap pt-3 mt-1 border-t border-gray-100">
+              <div className="flex items-center gap-3 flex-wrap bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-1.5">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Location</span>
                 <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
                   placeholder="Estate / Block…"
@@ -2862,7 +2887,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 )}
               </div>
             )}
-          </div>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
