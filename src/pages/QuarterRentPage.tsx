@@ -1889,102 +1889,142 @@ export const QuarterRentPage: React.FC = () => {
     </React.Fragment>
   );
 
-  // ── Card view — compact 3-row header + expand/collapse ──────────────────────
+  // ── Card view — compact 2-row header + always-visible info strip + expand ──
   const renderCardItem = (tile: RentTile) => {
     const accentBar = STATUS_LEFT[tile.status];
     const isOpen = expandedInfoIds.has(tile.id);
-    const avatarBg = tile.status === 'PAID' ? 'bg-emerald-100' : tile.status === 'OVERDUE' ? 'bg-red-100' : tile.status === 'EXEMPTED' ? 'bg-slate-100' : 'bg-amber-100';
-    const avatarText = tile.status === 'PAID' ? 'text-emerald-700' : tile.status === 'OVERDUE' ? 'text-red-700' : tile.status === 'EXEMPTED' ? 'text-slate-500' : 'text-amber-700';
+    const amtColor = tile.status === 'PAID' ? 'text-emerald-700' : tile.status === 'EXEMPTED' ? 'text-slate-500' : 'text-amber-700';
+
     return (
-      <div key={tile.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-        {/* ── Always-visible compact header (3 rows) ── */}
-        <div
-          className="p-4 cursor-pointer select-none"
-          onClick={() => toggleInfo(tile.id)}
-        >
-          {/* Row 1: avatar + tenant name + eye icon + status badge */}
-          <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${avatarBg}`}>
-              <span className={`text-xs font-extrabold ${avatarText}`}>{tile.tenant_name[0]}</span>
+      <div key={tile.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+        {/* ── Compact header with left accent bar ── */}
+        <div className="flex overflow-hidden">
+          <div className={`w-1 shrink-0 ${accentBar}`} />
+          <div className="flex-1 min-w-0 px-3 pt-2.5 pb-2 cursor-pointer select-none" onClick={() => toggleInfo(tile.id)}>
+            {/* Row 1: Avatar + Tenant + Quarter badge + Status */}
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                <span className="text-xs font-extrabold text-gray-600">{tile.tenant_name[0]}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-sm font-bold text-gray-900 truncate leading-tight">{tile.tenant_name}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }}
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-gray-300 hover:text-teal-600 hover:bg-teal-50 transition-colors shrink-0"
+                    title="View all payments for this tenant"
+                  >
+                    <Eye size={10} />
+                  </button>
+                </div>
+                <div className="text-[10px] text-gray-400 truncate leading-tight">{tile.tenant_designation}</div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{tile.quarter_number} · {tile.bhk_config}</span>
+                <StatusBadge status={tile.status} />
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold text-gray-900 truncate leading-tight">{tile.tenant_name}</span>
+            {/* Row 2: Amount + block + actions */}
+            <div className="flex items-center justify-between mt-1.5 gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className={`text-sm font-extrabold ${amtColor}`}>{fmtINR(tile.total_due)}</span>
+                <span className="text-[9px] text-gray-400">due {fmtMonth(tile.month)}</span>
+                <span className="text-[10px] text-gray-500 flex items-center gap-0.5 hidden sm:flex">
+                  <Building2 size={9} />{tile.block_name}
+                </span>
+                {tile.location_area && (
+                  <span className="text-[10px] text-gray-400 flex items-center gap-0.5 hidden md:flex">
+                    <MapPin size={9} />{tile.location_area}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                <TileActionsMenu
+                  tile={tile} isEO={isEO} chatTileId={chatTileId}
+                  expandedId={expandedId} activePanel={activePanel}
+                  onPayNow={setPayNowTile} onDueDetails={openDueDetails}
+                  onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+                  onShowStat={t => setStatTileId(t.id)}
+                />
                 <button
-                  onClick={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-gray-300 hover:text-teal-600 hover:bg-teal-50 transition-colors shrink-0"
-                  title="View all payments for this tenant"
+                  className="w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
+                  aria-label={isOpen ? 'Collapse' : 'Expand'}
                 >
-                  <Eye size={11} />
+                  <ChevronDown size={11} className={`text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
               </div>
-              <div className="text-[10px] text-gray-400 truncate leading-tight">{tile.tenant_designation}</div>
-            </div>
-            <StatusBadge status={tile.status} />
-          </div>
-          {/* Row 2: quarter + location */}
-          <div className={`mx-0 my-2 h-0.5 rounded-full ${accentBar}`} />
-          <div className="flex items-center gap-3 text-[10px] text-gray-500">
-            <span className="flex items-center gap-1"><Building2 size={9} /> {tile.quarter_number} · {tile.block_name}</span>
-            <span className="flex items-center gap-1 truncate"><MapPin size={9} /> {tile.location_area}</span>
-          </div>
-          {/* Row 3: due amount + month + actions + chevron */}
-          <div className="flex items-center justify-between mt-2">
-            <div>
-              <span className={`text-base font-extrabold ${tile.status === 'PAID' ? 'text-emerald-700' : tile.status === 'EXEMPTED' ? 'text-slate-500' : 'text-amber-700'}`}>
-                {fmtINR(tile.total_due)}
-              </span>
-              <span className="text-[10px] text-gray-400 ml-1.5">due · {fmtMonth(tile.month)}</span>
-            </div>
-            <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-              <TileActionsMenu
-                tile={tile} isEO={isEO} chatTileId={chatTileId}
-                expandedId={expandedId} activePanel={activePanel}
-                onPayNow={setPayNowTile} onDueDetails={openDueDetails}
-                onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
-                onShowStat={t => setStatTileId(t.id)}
-              />
-              <button
-                className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                onClick={e => { e.stopPropagation(); toggleInfo(tile.id); }}
-                aria-label={isOpen ? 'Collapse' : 'Expand'}
-              >
-                <ChevronDown size={13} className={`text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-              </button>
             </div>
           </div>
         </div>
 
-        {/* ── Expanded detail section ── */}
+        {/* ── Always-visible tenant + payment info strip ── */}
+        <div className="border-t border-gray-100 bg-gray-50/70 px-3 py-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+          {([
+            { label: 'Base Rent', value: fmtINR(tile.base_rent) },
+            { label: 'Collected',  value: tile.amount_paid > 0 ? fmtINR(tile.amount_paid) : null },
+            { label: 'Due Date',  value: fmtDate(tile.due_date) },
+            { label: 'Last Paid', value: tile.last_paid_date ? fmtDate(tile.last_paid_date) : null },
+            { label: 'Phone',     value: tile.tenant_phone || null },
+          ] as { label: string; value: string | null }[]).filter(f => f.value !== null).map(f => (
+            <span key={f.label} className="flex items-center gap-1 text-[10px]">
+              <span className="text-gray-400 font-medium">{f.label}:</span>
+              <span className="text-gray-700 font-semibold">{f.value}</span>
+            </span>
+          ))}
+        </div>
+
+        {/* ── Expanded charges + tenant detail section ── */}
         {isOpen && (
-          <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50/40">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-              <div className="flex items-center gap-1.5 text-gray-600"><IndianRupee size={10} /> Base: {fmtINR(tile.base_rent)}</div>
-              <div className="flex items-center gap-1.5 font-bold text-amber-700"><IndianRupee size={10} /> Due: {fmtINR(tile.total_due)}</div>
-              <div className="flex items-center gap-1.5 text-gray-500"><Phone size={10} /> {tile.tenant_phone}</div>
-              <div className="flex items-center gap-1.5 text-gray-500"><Calendar size={10} /> {fmtDate(tile.due_date)}</div>
-              {tile.last_paid_date && (
-                <div className="flex items-center gap-1.5 text-emerald-600 col-span-2">
-                  <CheckCircle2 size={10} /> Last paid: {fmtDate(tile.last_paid_date)}
+          <div className="border-t border-gray-100 px-3 py-2.5 bg-white">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Charges</div>
+                {([
+                  { label: 'Water',    value: tile.water_charges,      show: tile.water_charges > 0 },
+                  { label: 'Utility',  value: tile.utility_charges,    show: tile.utility_charges > 0 },
+                  { label: 'Maint.',   value: tile.maintenance_charge, show: tile.maintenance_charge > 0 },
+                  { label: 'Sec. Dep', value: tile.sd_amount,          show: tile.sd_amount > 0 },
+                  { label: 'Advance',  value: tile.advance_amount,     show: tile.advance_amount > 0 },
+                ] as { label: string; value: number; show: boolean }[]).filter(r => r.show).map(r => (
+                  <div key={r.label} className="flex justify-between items-center text-[10px] py-0.5">
+                    <span className="text-gray-500">{r.label}</span>
+                    <span className="font-semibold text-gray-700">{fmtINR(r.value)}</span>
+                  </div>
+                ))}
+                {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
+                  <div className="flex justify-between items-center text-[10px] py-0.5 text-red-600">
+                    <span className="flex items-center gap-0.5"><AlertTriangle size={9} />Penalty{tile.penalty_override !== null ? ' (OVR)' : ''}</span>
+                    <span className="font-semibold">{fmtINR(tile.penalty_override ?? tile.penalty_amount)}</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Tenant</div>
+                <div className="flex items-start gap-1 text-[10px] py-0.5">
+                  <span className="text-gray-400 shrink-0">Dept:</span>
+                  <span className="text-gray-700 font-medium leading-tight">{tile.tenant_dept || '—'}</span>
                 </div>
-              )}
-              <div className="flex items-center gap-1.5 text-gray-500 col-span-2 truncate">
-                <User size={10} /> {tile.tenant_dept}
+                <div className="flex items-center gap-1 text-[10px] py-0.5">
+                  <span className="text-gray-400">Receipt:</span>
+                  <span className="text-gray-700 font-medium">{tile.receipt_ref || '—'}</span>
+                </div>
+                {tile.payment_mode && (
+                  <div className="flex items-center gap-1 text-[10px] py-0.5">
+                    <span className="text-gray-400">Mode:</span>
+                    <span className="text-gray-700 font-medium">{tile.payment_mode}</span>
+                  </div>
+                )}
               </div>
             </div>
-            {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
-              <div className="flex items-center gap-1.5 text-[10px] text-red-600">
-                <AlertTriangle size={9} />
-                Penalty: {fmtINR(tile.penalty_override ?? tile.penalty_amount)}
-                {tile.penalty_override !== null && <span className="text-gray-400">(overridden)</span>}
-              </div>
-            )}
             {tile.exemption_reason && (
-              <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
+              <div className="mt-2 text-[10px] text-slate-500 italic bg-slate-50 border border-slate-100 rounded px-2 py-1">
+                Exemption: {tile.exemption_reason}
+              </div>
             )}
           </div>
         )}
-        {/* Paid history panel — visible without requiring expand */}
+
         {renderPanel(tile)}
       </div>
     );
