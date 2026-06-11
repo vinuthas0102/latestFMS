@@ -1457,8 +1457,8 @@ export const QuarterRentPage: React.FC = () => {
   const [tiles, setTiles] = useState<RentTile[]>([]);
 
   // ── Filter / view state ─────────────────────────────────────────────────────
-  const [dpFilter, setDpFilter] = useState<DpFilter>('all');
-  const [outstandingExpanded, setOutstandingExpanded] = useState(false);
+  const [dpFilter, setDpFilter] = useState<DpFilter>('RENT_OUTSTANDING');
+  const [outstandingExpanded, setOutstandingExpanded] = useState(true);
   const [paidExpanded, setPaidExpanded] = useState(false);
   const [collectionGraphOpen, setCollectionGraphOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('tile');
@@ -1782,16 +1782,13 @@ export const QuarterRentPage: React.FC = () => {
                 { label: 'Last Paid', value: tile.last_paid_date ? fmtDate(tile.last_paid_date) : null },
                 { label: 'Phone',     value: tile.tenant_phone || null },
                 { label: 'Area',      value: tile.location_area || null },
+                { label: 'Month',     value: fmtMonth(tile.month) },
               ] as { label: string; value: string | null }[]).filter(f => f.value !== null).map(f => (
                 <span key={f.label} className="flex items-center gap-1 text-[10px] whitespace-nowrap">
                   <span className="text-gray-400">{f.label}:</span>
                   <span className="text-gray-600 font-semibold">{f.value}</span>
                 </span>
               ))}
-            </div>
-            {/* Month */}
-            <div className="text-[10px] text-gray-400 shrink-0 hidden lg:block w-14 text-center">
-              {fmtMonth(tile.month)}
             </div>
             {/* Amount due */}
             <div className="shrink-0 text-right">
@@ -1825,45 +1822,89 @@ export const QuarterRentPage: React.FC = () => {
 
         {/* ── Expanded detail section ── */}
         {isOpen && (
-          <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50/40">
-            {/* Tenant row on mobile, extra info on all */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="sm:hidden"><TenantChip tile={tile} /></div>
-              <div className="flex items-center gap-4 flex-wrap text-[10px] text-gray-400">
-                <span className="flex items-center gap-1"><Phone size={9} /> {tile.tenant_phone}</span>
-                <span className="flex items-center gap-1"><MapPin size={9} /> {tile.location_area}</span>
-                <span className="flex items-center gap-1"><Calendar size={9} /> Due: {fmtDate(tile.due_date)}</span>
+          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/40">
+            {/* Mobile-only tenant chip */}
+            <div className="sm:hidden mb-3"><TenantChip tile={tile} /></div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* ── Left: Property details ── */}
+              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5 space-y-1.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Property</p>
+                <div className="flex items-start gap-1.5">
+                  <Building2 size={10} className="text-teal-500 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="text-xs font-semibold text-gray-800">{tile.quarter_number}</span>
+                    <span className="text-[10px] text-gray-400 ml-1">{tile.bhk_config}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <MapPin size={10} className="text-gray-400 mt-0.5 shrink-0" />
+                  <span className="text-[10px] text-gray-600">{tile.block_name}{tile.location_area ? `, ${tile.location_area}` : ''}</span>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <Calendar size={10} className="text-gray-400 mt-0.5 shrink-0" />
+                  <span className="text-[10px] text-gray-600">Due: <span className="font-medium text-gray-800">{fmtDate(tile.due_date)}</span></span>
+                </div>
                 {tile.last_paid_date && (
-                  <span className="flex items-center gap-1"><CheckCircle2 size={9} className="text-emerald-400" /> Paid: {fmtDate(tile.last_paid_date)}</span>
+                  <div className="flex items-start gap-1.5">
+                    <CheckCircle2 size={10} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-[10px] text-gray-600">Last Paid: <span className="font-medium text-emerald-700">{fmtDate(tile.last_paid_date)}</span></span>
+                  </div>
                 )}
+                <div className="flex items-start gap-1.5">
+                  <Phone size={10} className="text-gray-400 mt-0.5 shrink-0" />
+                  <span className="text-[10px] text-gray-600">{tile.tenant_phone || '—'}</span>
+                </div>
+              </div>
+
+              {/* ── Right: Financial breakdown ── */}
+              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Financial Breakdown</p>
+                <div className="space-y-1">
+                  {([
+                    { label: 'Base Rent',     value: tile.base_rent,            color: 'text-gray-700' },
+                    { label: 'Maintenance',   value: tile.maintenance_charge ?? 0, color: 'text-gray-700', hide: !(tile.maintenance_charge) },
+                    { label: 'Water Charges', value: tile.water_charges ?? 0,   color: 'text-gray-700', hide: !(tile.water_charges) },
+                    { label: 'Utility',       value: tile.utility_charges ?? 0, color: 'text-gray-700', hide: !(tile.utility_charges) },
+                    { label: 'SD Pending',    value: tile.sd_amount ?? 0,       color: 'text-amber-600', hide: !(tile.sd_amount) },
+                    { label: 'Advance',       value: tile.advance_amount ?? 0,  color: 'text-amber-600', hide: !(tile.advance_amount) },
+                  ] as { label: string; value: number; color: string; hide?: boolean }[]).filter(r => !r.hide).map(r => (
+                    <div key={r.label} className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-400">{r.label}</span>
+                      <span className={`text-[10px] font-semibold ${r.color}`}>{fmtINR(r.value)}</span>
+                    </div>
+                  ))}
+                  {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-red-500 flex items-center gap-0.5">
+                        <AlertTriangle size={8} /> Penalty{tile.penalty_override !== null ? ' (ovr)' : ''}
+                      </span>
+                      <span className="text-[10px] font-semibold text-red-600">{fmtINR(tile.penalty_override ?? tile.penalty_amount)}</span>
+                    </div>
+                  )}
+                  {tile.exemption_reason && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 italic">Discount/Exemption</span>
+                      <span className="text-[10px] text-slate-500 italic truncate max-w-[120px]">{tile.exemption_reason}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-100 mt-1.5 pt-1.5 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-700">Total Due</span>
+                    <span className={`text-xs font-extrabold ${tile.total_due > tile.amount_paid ? 'text-amber-700' : 'text-emerald-700'}`}>{fmtINR(tile.total_due)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-600">Collected</span>
+                    <span className="text-[10px] font-semibold text-emerald-700">{tile.amount_paid > 0 ? fmtINR(tile.amount_paid) : '—'}</span>
+                  </div>
+                  {tile.total_due > tile.amount_paid && (
+                    <div className="flex items-center justify-between bg-red-50 rounded px-1.5 py-0.5 mt-0.5">
+                      <span className="text-[10px] font-bold text-red-600">Balance</span>
+                      <span className="text-[10px] font-extrabold text-red-700">{fmtINR(tile.total_due - tile.amount_paid)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            {/* Finance mini-grid */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="text-center p-2 rounded-lg bg-white border border-gray-100">
-                <div className="text-[9px] text-gray-400 font-medium">Base Rent</div>
-                <div className="text-xs font-bold text-gray-700">{fmtINR(tile.base_rent)}</div>
-              </div>
-              <div className={`text-center p-2 rounded-lg border ${tile.total_due > tile.amount_paid ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                <div className="text-[9px] text-gray-400 font-medium">Total Due</div>
-                <div className={`text-xs font-bold ${tile.total_due > tile.amount_paid ? 'text-amber-700' : 'text-emerald-700'}`}>{fmtINR(tile.total_due)}</div>
-              </div>
-              <div className="text-center p-2 rounded-lg bg-white border border-gray-100">
-                <div className="text-[9px] text-gray-400 font-medium">Paid</div>
-                <div className="text-xs font-bold text-emerald-700">{tile.amount_paid > 0 ? fmtINR(tile.amount_paid) : '—'}</div>
-              </div>
-            </div>
-            {/* Penalty / exemption notes */}
-            {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
-              <div className="flex items-center gap-1.5 text-[10px] text-red-600">
-                <AlertTriangle size={9} />
-                Penalty: {fmtINR(tile.penalty_override ?? tile.penalty_amount)}
-                {tile.penalty_override !== null && <span className="text-gray-400">(overridden)</span>}
-              </div>
-            )}
-            {tile.exemption_reason && (
-              <div className="text-[10px] text-slate-500 italic">Exemption: {tile.exemption_reason}</div>
-            )}
           </div>
         )}
         {/* Paid history panel — visible without requiring expand */}
@@ -2300,7 +2341,13 @@ export const QuarterRentPage: React.FC = () => {
                     return (
                       <div key={c.label} className="relative">
                         <button
-                          onClick={() => { setPaidExpanded(e => !e); setOutstandingExpanded(false); setCollectionGraphOpen(false); }}
+                          onClick={() => {
+                            const opening = !paidExpanded;
+                            setPaidExpanded(opening);
+                            setOutstandingExpanded(false);
+                            setCollectionGraphOpen(false);
+                            if (opening) setDpFilter('PAID'); else setDpFilter('all');
+                          }}
                           className={`w-full text-left rounded-xl overflow-hidden transition-all duration-200 group ${
                             paidExpanded
                               ? 'shadow-xl ring-2 ring-white ring-offset-1 ring-offset-gray-200 scale-[1.02]'
