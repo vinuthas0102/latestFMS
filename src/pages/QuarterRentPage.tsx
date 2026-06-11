@@ -8,7 +8,7 @@ import {
   BarChart2, LayoutGrid, CreditCard, TableProperties,
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
-  Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare,
+  Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare, ClipboardList, Tag,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -1831,6 +1831,18 @@ export const QuarterRentPage: React.FC = () => {
                   <MapPin size={10} className="text-gray-400 mt-0.5 shrink-0" />
                   <span className="text-[10px] text-gray-600">{tile.block_name}{tile.location_area ? `, ${tile.location_area}` : ''}</span>
                 </div>
+                {tile.allotment_date && (
+                  <div className="flex items-start gap-1.5">
+                    <ClipboardList size={10} className="text-sky-400 mt-0.5 shrink-0" />
+                    <span className="text-[10px] text-gray-600">Allotted: <span className="font-medium text-gray-800">{fmtDate(tile.allotment_date)}</span></span>
+                  </div>
+                )}
+                {tile.possession_date && (
+                  <div className="flex items-start gap-1.5">
+                    <Home size={10} className="text-teal-400 mt-0.5 shrink-0" />
+                    <span className="text-[10px] text-gray-600">Occupied: <span className="font-medium text-gray-800">{fmtDate(tile.possession_date)}</span></span>
+                  </div>
+                )}
                 <div className="flex items-start gap-1.5">
                   <Calendar size={10} className="text-gray-400 mt-0.5 shrink-0" />
                   <span className="text-[10px] text-gray-600">Due: <span className="font-medium text-gray-800">{fmtDate(tile.due_date)}</span></span>
@@ -1838,7 +1850,10 @@ export const QuarterRentPage: React.FC = () => {
                 {tile.last_paid_date && (
                   <div className="flex items-start gap-1.5">
                     <CheckCircle2 size={10} className="text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-[10px] text-gray-600">Last Paid: <span className="font-medium text-emerald-700">{fmtDate(tile.last_paid_date)}</span></span>
+                    <span className="text-[10px] text-gray-600">
+                      Last Paid:{tile.last_paid_amount != null ? <span className="font-semibold text-emerald-700 ml-0.5">{fmtINR(tile.last_paid_amount)}</span> : null}
+                      <span className="font-medium text-gray-500 ml-1">on {fmtDate(tile.last_paid_date)}</span>
+                    </span>
                   </div>
                 )}
                 <div className="flex items-start gap-1.5">
@@ -1864,18 +1879,40 @@ export const QuarterRentPage: React.FC = () => {
                       <span className={`text-[10px] font-semibold ${r.color}`}>{fmtINR(r.value)}</span>
                     </div>
                   ))}
-                  {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
+                  {tile.penalty_amount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-red-500 flex items-center gap-0.5">
-                        <AlertTriangle size={8} /> Penalty{tile.penalty_override !== null ? ' (ovr)' : ''}
+                      <span className="text-[10px] text-red-400 flex items-center gap-0.5">
+                        <AlertTriangle size={8} /> Penalty (original)
                       </span>
-                      <span className="text-[10px] font-semibold text-red-600">{fmtINR(tile.penalty_override ?? tile.penalty_amount)}</span>
+                      <span className="text-[10px] font-semibold text-red-400">{fmtINR(tile.penalty_amount)}</span>
+                    </div>
+                  )}
+                  {tile.penalty_amount > 0 && tile.penalty_override !== null && tile.penalty_override < tile.penalty_amount && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-emerald-500 flex items-center gap-0.5">
+                        <Tag size={8} /> Penalty Waiver
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-600">−{fmtINR(tile.penalty_amount - tile.penalty_override)}</span>
+                    </div>
+                  )}
+                  {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
+                    <div className="flex items-center justify-between bg-red-50 rounded px-1.5 py-0.5">
+                      <span className="text-[10px] font-semibold text-red-600">Net Penalty</span>
+                      <span className="text-[10px] font-bold text-red-700">{fmtINR(tile.penalty_override ?? tile.penalty_amount)}</span>
+                    </div>
+                  )}
+                  {tile.discount_amount != null && tile.discount_amount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-emerald-500 flex items-center gap-0.5">
+                        <Tag size={8} /> Discount
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-600">−{fmtINR(tile.discount_amount)}</span>
                     </div>
                   )}
                   {tile.exemption_reason && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400 italic">Discount/Exemption</span>
-                      <span className="text-[10px] text-slate-500 italic truncate max-w-[120px]">{tile.exemption_reason}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-[10px] text-slate-400 italic shrink-0">Exemption</span>
+                      <span className="text-[10px] text-slate-500 italic text-right leading-tight">{tile.exemption_reason}</span>
                     </div>
                   )}
                   <div className="border-t border-gray-100 mt-1.5 pt-1.5 flex items-center justify-between">

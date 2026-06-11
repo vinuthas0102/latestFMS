@@ -1581,9 +1581,13 @@ function rentTile(
   last_paid_date: string | null, receipt_ref: string | null,
   exemption_reason: string | null,
   sd_amount = 0, advance_amount = 0, maintenance_charge = 0,
+  last_paid_amount: number | null = null,
+  allotment_date: string | null = null,
+  possession_date: string | null = null,
+  discount_amount: number | null = null,
 ): RentTile {
   const total_due = base_rent + water_charges + utility_charges + sd_amount + advance_amount + maintenance_charge + (penalty_override ?? penalty_amount);
-  return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, sd_amount, advance_amount, maintenance_charge, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, receipt_ref, exemption_reason };
+  return { id, allotment_id, month, tenant_id, tenant_name, tenant_phone, tenant_designation, tenant_dept, quarter_number, block_name, location_area, bhk_config, base_rent, water_charges, utility_charges, sd_amount, advance_amount, maintenance_charge, penalty_amount, penalty_override, total_due, amount_paid, payment_mode, status, due_date, last_paid_date, last_paid_amount, receipt_ref, exemption_reason, allotment_date, possession_date, discount_amount };
 }
 
 // Tenant shorthand helpers
@@ -1615,24 +1619,29 @@ const T = {
 function rt(id: string, allot: string, month: string, tk: readonly [string,string,string,string,string,string,string,string,string,number,number,number],
   pen: number, penOvr: number|null, paid: number, mode: RentTile['payment_mode'],
   status: RentTile['status'], dueDate: string, paidDate: string|null, rcpt: string|null, exempt: string|null,
-  sd = 0, adv = 0, maint = 0): RentTile {
-  return rentTile(id, allot, month, tk[0], tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7], tk[8], tk[9], tk[10], tk[11], pen, penOvr, paid, mode, status, dueDate, paidDate, rcpt, exempt, sd, adv, maint);
+  sd = 0, adv = 0, maint = 0,
+  lastPaidAmt: number|null = null,
+  allotDate: string|null = null,
+  possDate: string|null = null,
+  discAmt: number|null = null,
+): RentTile {
+  return rentTile(id, allot, month, tk[0], tk[1], tk[2], tk[3], tk[4], tk[5], tk[6], tk[7], tk[8], tk[9], tk[10], tk[11], pen, penOvr, paid, mode, status, dueDate, paidDate, rcpt, exempt, sd, adv, maint, lastPaidAmt, allotDate, possDate, discAmt);
 }
 
 export const DEMO_RENT_TILES: RentTile[] = [
   // ── May 2026 ──────────────────────────────────────────────────────────────
-  rt('rt-0501','allot-001','2026-05',T.t001, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
-  rt('rt-0502','allot-002','2026-05',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-05-04','2026-05-04',  'RCP-2605-0102',null),
-  rt('rt-0503','allot-003','2026-05',T.t003,850,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null),
-  rt('rt-0504','allot-004','2026-05',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Medical grounds'),
-  rt('rt-0505','allot-005','2026-05',T.t005, 0,null,3800,     'CASH',         'PARTIAL', '2026-05-05','2026-05-02',  null,           null),
-  rt('rt-0506','allot-006','2026-05',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-05-03','2026-05-03',  'RCP-2605-0098',null),
-  rt('rt-0507','allot-007','2026-05',T.t007, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
-  rt('rt-0508','allot-008','2026-05',T.t008,600,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null),
-  rt('rt-0509','allot-009','2026-05',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-05-01','2026-05-01',  'RCP-2605-0087',null),
-  rt('rt-0510','allot-010','2026-05',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Disability exemption'),
-  rt('rt-0511','allot-011','2026-05',T.t011, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null),
-  rt('rt-0512','allot-012','2026-05',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-05-02','2026-05-02',  'RCP-2605-0071',null),
+  rt('rt-0501','allot-001','2026-05',T.t001, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
+  rt('rt-0502','allot-002','2026-05',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-05-04','2026-05-04',  'RCP-2605-0102',null, 0,0,0, 4850,      '2023-11-01','2023-11-10', null),
+  rt('rt-0503','allot-003','2026-05',T.t003,850,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 0,0,0, 9200,      '2022-06-01','2022-06-15', null),
+  rt('rt-0504','allot-004','2026-05',T.t004, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Medical grounds', 0,0,0, null, '2021-09-10','2021-09-10', 6800),
+  rt('rt-0505','allot-005','2026-05',T.t005, 0,null,3800,     'CASH',         'PARTIAL', '2026-05-05','2026-05-02',  null,           null, 0,0,0, 3800,      '2023-04-01','2023-04-05', null),
+  rt('rt-0506','allot-006','2026-05',T.t006, 0,null,7000,     'ONLINE',       'PAID',    '2026-05-03','2026-05-03',  'RCP-2605-0098',null, 0,0,0, 7000,      '2022-12-01','2022-12-08', null),
+  rt('rt-0507','allot-007','2026-05',T.t007, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null, 0,0,0, 5150,      '2025-01-15','2025-01-20', null),
+  rt('rt-0508','allot-008','2026-05',T.t008,600,null,  0,       null,         'OVERDUE', '2026-05-05',null,           null,           null, 0,0,0, 6500,      '2023-07-01','2023-07-10', null),
+  rt('rt-0509','allot-009','2026-05',T.t009, 0,null,8900,     'CHEQUE',       'PAID',    '2026-05-01','2026-05-01',  'RCP-2605-0087',null, 0,0,0, 8900,      '2021-03-01','2021-03-15', null),
+  rt('rt-0510','allot-010','2026-05',T.t010, 0,null,   0,     'EXEMPTED',     'EXEMPTED','2026-05-05',null,           null,           'Disability exemption', 0,0,0, null, '2020-08-01','2020-08-05', 6800),
+  rt('rt-0511','allot-011','2026-05',T.t011, 0,null,   0,       null,         'DUE',     '2026-05-05',null,           null,           null, 0,0,0, 8000,      '2024-10-01','2024-10-08', null),
+  rt('rt-0512','allot-012','2026-05',T.t012, 0,null,10000,    'ONLINE',       'PAID',    '2026-05-02','2026-05-02',  'RCP-2605-0071',null, 0,0,0, 10000,     '2022-02-14','2022-02-20', null),
   // ── April 2026 ────────────────────────────────────────────────────────────
   rt('rt-0401','allot-001','2026-04',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-04-05','2026-04-04',  'RCP-2604-0082',null),
   rt('rt-0402','allot-002','2026-04',T.t002, 0,null,4850,     'ONLINE',       'PAID',    '2026-04-05','2026-04-03',  'RCP-2604-0071',null),

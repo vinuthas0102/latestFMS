@@ -474,6 +474,10 @@ export interface RentTile {
   status: RentTileStatus;
   due_date: string;
   last_paid_date: string | null;
+  last_paid_amount: number | null;
+  allotment_date: string | null;
+  possession_date: string | null;
+  discount_amount: number | null;
   receipt_ref: string | null;
   exemption_reason: string | null;
 }
