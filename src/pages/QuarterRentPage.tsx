@@ -1770,12 +1770,27 @@ export const QuarterRentPage: React.FC = () => {
               </div>
               <div className="text-[10px] text-gray-400 truncate">{tile.block_name}</div>
             </div>
-            {/* Tenant */}
-            <div className="flex-1 min-w-0 hidden sm:block">
+            {/* Tenant — fixed width so it doesn't steal all middle space */}
+            <div className="w-44 shrink-0 hidden sm:block min-w-0">
               <TenantChip tile={tile} onViewProfile={e => { e.stopPropagation(); setTenantProfileId(tile.tenant_id); }} />
             </div>
+            {/* Info strip — fills the blank middle area */}
+            <div className="flex-1 min-w-0 hidden md:flex items-center gap-x-4 gap-y-0 flex-wrap">
+              {([
+                { label: 'Due',       value: fmtDate(tile.due_date) },
+                { label: 'Base',      value: fmtINR(tile.base_rent) },
+                { label: 'Last Paid', value: tile.last_paid_date ? fmtDate(tile.last_paid_date) : null },
+                { label: 'Phone',     value: tile.tenant_phone || null },
+                { label: 'Area',      value: tile.location_area || null },
+              ] as { label: string; value: string | null }[]).filter(f => f.value !== null).map(f => (
+                <span key={f.label} className="flex items-center gap-1 text-[10px] whitespace-nowrap">
+                  <span className="text-gray-400">{f.label}:</span>
+                  <span className="text-gray-600 font-semibold">{f.value}</span>
+                </span>
+              ))}
+            </div>
             {/* Month */}
-            <div className="text-[10px] text-gray-400 shrink-0 hidden md:block w-16 text-center">
+            <div className="text-[10px] text-gray-400 shrink-0 hidden lg:block w-14 text-center">
               {fmtMonth(tile.month)}
             </div>
             {/* Amount due */}
