@@ -76,7 +76,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
   const canSave = !overrideChanged || remarks.trim().length > 0;
   const hasOverrideActive = detail.penalty_override !== null && detail.penalty_override < detail.penalty_amount;
 
-  const subtotal = detail.base_rent + detail.water_charges + detail.utility_charges
+  const subtotal = detail.base_rent + detail.water_charges
     + (tile.sd_amount ?? 0) + (tile.advance_amount ?? 0) + (tile.maintenance_charge ?? 0);
   const net = subtotal + effectivePenalty - detail.waiver_amount;
   const fullPaymentDiscount = detail.discount_full_payment_pct
@@ -240,9 +240,8 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               {/* Left: line items */}
               <div className="flex-1 min-w-0 space-y-1">
                 {[
-                  { label: 'Base Rent',       value: detail.base_rent },
-                  { label: 'Water Charges',   value: detail.water_charges },
-                  { label: 'Utility Charges', value: detail.utility_charges },
+                  { label: 'Base Rent',     value: detail.base_rent },
+                  { label: 'Water Charges', value: detail.water_charges },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50">
                     <span className="text-sm text-gray-500">{label}</span>
@@ -1714,7 +1713,6 @@ export const QuarterRentPage: React.FC = () => {
       const breakdown: [string, number][] = ([
         ['Base Rent', tile.base_rent],
         tile.water_charges > 0   ? ['Water Charges', tile.water_charges]   : null,
-        tile.utility_charges > 0 ? ['Utility Charges', tile.utility_charges] : null,
         tile.maintenance_charge > 0 ? ['Maintenance', tile.maintenance_charge] : null,
         tile.penalty_amount > 0  ? ['Penalty', tile.penalty_override ?? tile.penalty_amount] : null,
       ] as ([string, number] | null)[]).filter(Boolean) as [string, number][];
@@ -1894,7 +1892,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                             {([
                               ['Base Rent', tile.base_rent],
                               tile.water_charges > 0      && ['Water Charges', tile.water_charges],
-                              tile.utility_charges > 0    && ['Utility Charges', tile.utility_charges],
                               tile.maintenance_charge > 0 && ['Maintenance', tile.maintenance_charge],
                               tile.sd_amount > 0          && ['Security Deposit', tile.sd_amount],
                               tile.advance_amount > 0     && ['Advance', tile.advance_amount],
@@ -2099,12 +2096,11 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Financial Breakdown</p>
                 <div className="space-y-1">
                   {([
-                    { label: 'Base Rent',     value: tile.base_rent,            color: 'text-gray-700' },
+                    { label: 'Base Rent',     value: tile.base_rent,               color: 'text-gray-700' },
                     { label: 'Maintenance',   value: tile.maintenance_charge ?? 0, color: 'text-gray-700', hide: !(tile.maintenance_charge) },
-                    { label: 'Water Charges', value: tile.water_charges ?? 0,   color: 'text-gray-700', hide: !(tile.water_charges) },
-                    { label: 'Utility',       value: tile.utility_charges ?? 0, color: 'text-gray-700', hide: !(tile.utility_charges) },
-                    { label: 'SD Pending',    value: tile.sd_amount ?? 0,       color: 'text-amber-600', hide: !(tile.sd_amount) },
-                    { label: 'Advance',       value: tile.advance_amount ?? 0,  color: 'text-amber-600', hide: !(tile.advance_amount) },
+                    { label: 'Water Charges', value: tile.water_charges ?? 0,      color: 'text-gray-700', hide: !(tile.water_charges) },
+                    { label: 'SD Pending',    value: tile.sd_amount ?? 0,          color: 'text-amber-600', hide: !(tile.sd_amount) },
+                    { label: 'Advance',       value: tile.advance_amount ?? 0,     color: 'text-amber-600', hide: !(tile.advance_amount) },
                   ] as { label: string; value: number; color: string; hide?: boolean }[]).filter(r => !r.hide).map(r => (
                     <div key={r.label} className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-400">{r.label}</span>
@@ -2166,6 +2162,63 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
             </div>
           </div>
         )}
+        {/* Monthly rent breakdown — shown for rent due tiles when expanded */}
+        {isOpen && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (() => {
+          const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
+          const rows: { sl: number; date: string; rent: number; latePayment: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
+          let sl = 1;
+          for (let y = 2026, m = 1; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
+            const isCurrentMonth = y === tileYear && m === tileMonthNum;
+            const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
+            const rent = tile.base_rent;
+            const latePayment = !isCurrentMonth ? (tile.water_charges ?? 0) : 0;
+            const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
+            const maintenance = tile.maintenance_charge ?? 0;
+            const total = rent + latePayment + penalty + maintenance;
+            const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
+            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, total - tile.amount_paid) : total);
+            const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
+            const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+            rows.push({ sl: sl++, date: dateStr, rent, latePayment, penalty, maintenance, total, due, statusLabel, statusColor });
+            m++;
+            if (m > 12) { m = 1; y++; }
+          }
+          return (
+            <div className="border-t border-gray-100 bg-white px-4 py-3">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <IndianRupee size={10} className="text-teal-500" /> Month-wise Rent Due (Jan 2026 onwards)
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="bg-teal-600 text-white">
+                      {['Sl No', 'Date', 'Rent Amount', 'Late Payment', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
+                        <th key={h} className="px-2.5 py-2 font-semibold text-left whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={r.sl} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                        <td className="px-2.5 py-1.5 font-bold text-gray-600 text-center">{r.sl}</td>
+                        <td className="px-2.5 py-1.5 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
+                        <td className="px-2.5 py-1.5 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
+                        <td className="px-2.5 py-1.5 text-right text-gray-600">{r.latePayment > 0 ? r.latePayment.toLocaleString('en-IN') : '-'}</td>
+                        <td className="px-2.5 py-1.5 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
+                        <td className="px-2.5 py-1.5 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
+                        <td className="px-2.5 py-1.5 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
+                        <td className="px-2.5 py-1.5 text-right font-bold text-amber-700">{r.due.toLocaleString('en-IN')}</td>
+                        <td className="px-2.5 py-1.5">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold ${r.statusColor}`}>{r.statusLabel}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
         {/* Paid history panel — visible without requiring expand */}
         {renderPanel(tile)}
       </div>
@@ -2299,7 +2352,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Charges</div>
                 {([
                   { label: 'Water',    value: tile.water_charges,      show: tile.water_charges > 0 },
-                  { label: 'Utility',  value: tile.utility_charges,    show: tile.utility_charges > 0 },
                   { label: 'Maint.',   value: tile.maintenance_charge, show: tile.maintenance_charge > 0 },
                   { label: 'Sec. Dep', value: tile.sd_amount,          show: tile.sd_amount > 0 },
                   { label: 'Advance',  value: tile.advance_amount,     show: tile.advance_amount > 0 },
