@@ -317,12 +317,12 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                 {/* Net payable */}
                 <div className="flex items-center justify-between pt-3 mt-2 border-t-2 border-gray-200">
                   <span className="text-sm font-bold text-gray-900">Net Payable</span>
-                  <span className="text-2xl font-extrabold text-teal-700">{fmtINR(net)}</span>
+                  <span className="text-2xl font-extrabold text-teal-700">{fmtINR(tile.total_due)}</span>
                 </div>
                 {fullPaymentDiscount > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-emerald-600">Net after full-payment discount</span>
-                    <span className="text-base font-extrabold text-emerald-700">{fmtINR(net - fullPaymentDiscount)}</span>
+                    <span className="text-base font-extrabold text-emerald-700">{fmtINR(tile.total_due - fullPaymentDiscount)}</span>
                   </div>
                 )}
                 {saved && (
@@ -399,42 +399,43 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const [startY, startM] = posDate
             ? [parseInt(posDate.slice(0, 4), 10), parseInt(posDate.slice(5, 7), 10)]
             : [2026, 1];
-          const rows: { sl: number; date: string; rent: number; latePayment: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
+          const rows: { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
           let sl = 1;
           for (let y = startY, m = startM; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
             const isCurrentMonth = y === tileYear && m === tileMonthNum;
             const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
             const rent = tile.base_rent;
-            const latePayment = !isCurrentMonth ? (tile.water_charges ?? 0) : 0;
+            const waterCharges = tile.water_charges ?? 0;
             const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
             const maintenance = tile.maintenance_charge ?? 0;
-            const total = rent + latePayment + penalty + maintenance;
+            const total = rent + waterCharges + penalty + maintenance;
             const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
             const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
             const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
             const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
-            rows.push({ sl: sl++, date: dateStr, rent, latePayment, penalty, maintenance, total, due, statusLabel, statusColor });
+            rows.push({ sl: sl++, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor });
             m++;
             if (m > 12) { m = 1; y++; }
           }
+          const displayRows = [...rows].reverse().map((r, i) => ({ ...r, sl: i + 1 }));
           return (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-teal-600 text-white">
-                      {['Sl No', 'Date', 'Rent Amount', 'Late Payment', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
+                      {['Sl No', 'Date', 'Rent Amount', 'Water Charges', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r, i) => (
+                    {displayRows.map((r, i) => (
                       <tr key={r.sl} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
                         <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
                         <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
-                        <td className="px-3 py-2 text-right text-gray-600">{r.latePayment > 0 ? r.latePayment.toLocaleString('en-IN') : '-'}</td>
+                        <td className="px-3 py-2 text-right text-gray-600">{r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>
                         <td className="px-3 py-2 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
@@ -2108,188 +2109,27 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
 
         {/* ── Expanded detail section ── */}
         {isOpen && (
-          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/40">
+          <div className="border-t border-gray-100 px-4 py-2.5 bg-gray-50/40">
             {/* Mobile-only tenant chip */}
-            <div className="sm:hidden mb-3"><TenantChip tile={tile} /></div>
+            <div className="sm:hidden mb-2"><TenantChip tile={tile} /></div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* ── Left: Property details ── */}
-              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5 space-y-1.5">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Property</p>
-                <div className="flex items-start gap-1.5">
-                  <Building2 size={10} className="text-teal-500 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="text-xs font-semibold text-gray-800">{tile.quarter_number}</span>
-                    <span className="text-[10px] text-gray-400 ml-1">{tile.bhk_config}</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-1.5">
-                  <MapPin size={10} className="text-gray-400 mt-0.5 shrink-0" />
-                  <span className="text-[10px] text-gray-600">{tile.block_name}{tile.location_area ? `, ${tile.location_area}` : ''}</span>
-                </div>
-                {tile.allotment_date && (
-                  <div className="flex items-start gap-1.5">
-                    <ClipboardList size={10} className="text-sky-400 mt-0.5 shrink-0" />
-                    <span className="text-[10px] text-gray-600">Allotted: <span className="font-medium text-gray-800">{fmtDate(tile.allotment_date)}</span></span>
-                  </div>
-                )}
-                {tile.possession_date && (
-                  <div className="flex items-start gap-1.5">
-                    <Home size={10} className="text-teal-400 mt-0.5 shrink-0" />
-                    <span className="text-[10px] text-gray-600">Occupied: <span className="font-medium text-gray-800">{fmtDate(tile.possession_date)}</span></span>
-                  </div>
-                )}
-                <div className="flex items-start gap-1.5">
-                  <Calendar size={10} className="text-gray-400 mt-0.5 shrink-0" />
-                  <span className="text-[10px] text-gray-600">Due: <span className="font-medium text-gray-800">{fmtDate(tile.due_date)}</span></span>
-                </div>
-                {tile.last_paid_date && (
-                  <div className="flex items-start gap-1.5">
-                    <CheckCircle2 size={10} className="text-emerald-400 mt-0.5 shrink-0" />
-                    <span className="text-[10px] text-gray-600">
-                      Last Paid:{tile.last_paid_amount != null ? <span className="font-semibold text-emerald-700 ml-0.5">{fmtINR(tile.last_paid_amount)}</span> : null}
-                      <span className="font-medium text-gray-500 ml-1">on {fmtDate(tile.last_paid_date)}</span>
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-start gap-1.5">
-                  <Phone size={10} className="text-gray-400 mt-0.5 shrink-0" />
-                  <span className="text-[10px] text-gray-600">{tile.tenant_phone || '—'}</span>
-                </div>
-              </div>
-
-              {/* ── Right: Financial breakdown ── */}
-              <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Financial Breakdown</p>
-                <div className="space-y-1">
-                  {([
-                    { label: 'Base Rent',     value: tile.base_rent,               color: 'text-gray-700' },
-                    { label: 'Maintenance',   value: tile.maintenance_charge ?? 0, color: 'text-gray-700', hide: !(tile.maintenance_charge) },
-                    { label: 'Water Charges', value: tile.water_charges ?? 0,      color: 'text-gray-700', hide: !(tile.water_charges) },
-                    { label: 'SD Pending',    value: tile.sd_amount ?? 0,          color: 'text-amber-600', hide: !(tile.sd_amount) },
-                    { label: 'Advance',       value: tile.advance_amount ?? 0,     color: 'text-amber-600', hide: !(tile.advance_amount) },
-                  ] as { label: string; value: number; color: string; hide?: boolean }[]).filter(r => !r.hide).map(r => (
-                    <div key={r.label} className="flex items-center justify-between">
-                      <span className="text-[10px] text-gray-400">{r.label}</span>
-                      <span className={`text-[10px] font-semibold ${r.color}`}>{fmtINR(r.value)}</span>
-                    </div>
-                  ))}
-                  {tile.penalty_amount > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-red-400 flex items-center gap-0.5">
-                        <AlertTriangle size={8} /> Penalty (original)
-                      </span>
-                      <span className="text-[10px] font-semibold text-red-400">{fmtINR(tile.penalty_amount)}</span>
-                    </div>
-                  )}
-                  {tile.penalty_amount > 0 && tile.penalty_override !== null && tile.penalty_override < tile.penalty_amount && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-emerald-500 flex items-center gap-0.5">
-                        <Tag size={8} /> Penalty Waiver
-                      </span>
-                      <span className="text-[10px] font-semibold text-emerald-600">−{fmtINR(tile.penalty_amount - tile.penalty_override)}</span>
-                    </div>
-                  )}
-                  {tile.penalty_amount > 0 && (tile.penalty_override === null || tile.penalty_override > 0) && (
-                    <div className="flex items-center justify-between bg-red-50 rounded px-1.5 py-0.5">
-                      <span className="text-[10px] font-semibold text-red-600">Net Penalty</span>
-                      <span className="text-[10px] font-bold text-red-700">{fmtINR(tile.penalty_override ?? tile.penalty_amount)}</span>
-                    </div>
-                  )}
-                  {tile.discount_amount != null && tile.discount_amount > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-emerald-500 flex items-center gap-0.5">
-                        <Tag size={8} /> Discount
-                      </span>
-                      <span className="text-[10px] font-semibold text-emerald-600">−{fmtINR(tile.discount_amount)}</span>
-                    </div>
-                  )}
-                  {tile.exemption_reason && (
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[10px] text-slate-400 italic shrink-0">Exemption</span>
-                      <span className="text-[10px] text-slate-500 italic text-right leading-tight">{tile.exemption_reason}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-100 mt-1.5 pt-1.5 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-gray-700">Total Due</span>
-                    <span className={`text-xs font-extrabold ${tile.total_due > tile.amount_paid ? 'text-amber-700' : 'text-emerald-700'}`}>{fmtINR(tile.total_due)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-emerald-600">Collected</span>
-                    <span className="text-[10px] font-semibold text-emerald-700">{tile.amount_paid > 0 ? fmtINR(tile.amount_paid) : '—'}</span>
-                  </div>
-                  {tile.total_due > tile.amount_paid && (
-                    <div className="flex items-center justify-between bg-red-50 rounded px-1.5 py-0.5 mt-0.5">
-                      <span className="text-[10px] font-bold text-red-600">Balance</span>
-                      <span className="text-[10px] font-extrabold text-red-700">{fmtINR(tile.total_due - tile.amount_paid)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* Compact property strip */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px] text-gray-500 bg-white rounded-lg border border-gray-100 px-3 py-2">
+              <span className="flex items-center gap-1"><Building2 size={9} className="text-teal-500 shrink-0" /><span className="font-semibold text-gray-800">{tile.quarter_number}</span><span className="text-gray-400 ml-0.5">{tile.bhk_config}</span></span>
+              <span className="flex items-center gap-1"><MapPin size={9} className="text-gray-400 shrink-0" />{tile.block_name}{tile.location_area ? `, ${tile.location_area}` : ''}</span>
+              {(tile.possession_date ?? tile.allotment_date) && (
+                <span className="flex items-center gap-1"><Home size={9} className="text-teal-400 shrink-0" />Occupied: <span className="font-medium text-gray-700 ml-0.5">{fmtDate((tile.possession_date ?? tile.allotment_date)!)}</span></span>
+              )}
+              <span className="flex items-center gap-1"><Calendar size={9} className="text-gray-400 shrink-0" />Due: <span className="font-medium text-gray-700 ml-0.5">{fmtDate(tile.due_date)}</span></span>
+              {tile.last_paid_date && (
+                <span className="flex items-center gap-1"><CheckCircle2 size={9} className="text-emerald-400 shrink-0" />Last Paid:{tile.last_paid_amount != null ? <span className="font-semibold text-emerald-700 ml-0.5">{fmtINR(tile.last_paid_amount)}</span> : null}<span className="ml-0.5">on {fmtDate(tile.last_paid_date)}</span></span>
+              )}
+              {tile.tenant_phone && (
+                <span className="flex items-center gap-1"><Phone size={9} className="text-gray-400 shrink-0" />{tile.tenant_phone}</span>
+              )}
             </div>
           </div>
         )}
-        {/* Monthly rent breakdown — shown for rent due tiles when expanded (not SD pending) */}
-        {isOpen && !(tile.sd_amount > 0) && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (() => {
-          const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
-          const posDate = tile.possession_date ?? tile.allotment_date;
-          const [startY, startM] = posDate
-            ? [parseInt(posDate.slice(0, 4), 10), parseInt(posDate.slice(5, 7), 10)]
-            : [2026, 1];
-          const rows: { sl: number; date: string; rent: number; latePayment: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
-          let sl = 1;
-          for (let y = startY, m = startM; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
-            const isCurrentMonth = y === tileYear && m === tileMonthNum;
-            const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
-            const rent = tile.base_rent;
-            const latePayment = !isCurrentMonth ? (tile.water_charges ?? 0) : 0;
-            const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
-            const maintenance = tile.maintenance_charge ?? 0;
-            const total = rent + latePayment + penalty + maintenance;
-            const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
-            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
-            const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
-            const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
-            rows.push({ sl: sl++, date: dateStr, rent, latePayment, penalty, maintenance, total, due, statusLabel, statusColor });
-            m++;
-            if (m > 12) { m = 1; y++; }
-          }
-          return (
-            <div className="border-t border-gray-100 bg-white px-4 py-3">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <IndianRupee size={10} className="text-teal-500" /> Month-wise Rent Due (from possession)
-              </div>
-              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                <table className="w-full text-[10px] border-collapse">
-                  <thead>
-                    <tr className="bg-teal-600 text-white">
-                      {['Sl No', 'Date', 'Rent Amount', 'Late Payment', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
-                        <th key={h} className="px-2.5 py-2 font-semibold text-left whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r, i) => (
-                      <tr key={r.sl} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
-                        <td className="px-2.5 py-1.5 font-bold text-gray-600 text-center">{r.sl}</td>
-                        <td className="px-2.5 py-1.5 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
-                        <td className="px-2.5 py-1.5 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
-                        <td className="px-2.5 py-1.5 text-right text-gray-600">{r.latePayment > 0 ? r.latePayment.toLocaleString('en-IN') : '-'}</td>
-                        <td className="px-2.5 py-1.5 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
-                        <td className="px-2.5 py-1.5 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
-                        <td className="px-2.5 py-1.5 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
-                        <td className="px-2.5 py-1.5 text-right font-bold text-amber-700">{r.due.toLocaleString('en-IN')}</td>
-                        <td className="px-2.5 py-1.5">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold ${r.statusColor}`}>{r.statusLabel}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
-        })()}
         {/* Paid history panel — visible without requiring expand */}
         {renderPanel(tile)}
       </div>
