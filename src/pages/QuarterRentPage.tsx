@@ -20,6 +20,9 @@ import type {
 } from '../services/quartersService';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
 import SplitLayout from '../components/ui/SplitLayout';
+import { LogDetailsModal } from '../components/ui/LogDetailsModal';
+import type { LogEntry } from '../components/ui/LogDetailsModal';
+import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { useAuthStore } from '../stores/authStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -214,8 +217,8 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
         <div className="flex border-b border-gray-100 px-6 shrink-0 bg-gray-50/50">
           {([
             { id: 'summary' as const,     label: 'Due Summary',      icon: IndianRupee },
-            { id: 'installment' as const, label: 'Installment Plan',  icon: FileText },
-          ]).map(({ id, label, icon: Icon }) => (
+            // { id: 'installment' as const, label: 'Installment Plan',  icon: FileText },
+          ] as { id: 'summary' | 'installment'; label: string; icon: typeof IndianRupee }[]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -330,8 +333,8 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                 )}
               </div>
 
-              {/* Right: EO penalty discount controls (always visible as side panel) */}
-              {isEO && penaltyBase > 0 && (
+              {/* Right: EO penalty discount controls (hidden — code preserved) */}
+              {false && isEO && penaltyBase > 0 && (
                 <div className="w-72 shrink-0 rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3 self-start">
                   <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">
                     Estate Manager — Penalty Discount
@@ -748,19 +751,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
               Close
             </button>
-            {isEO && penaltyBase > 0 && (
-              <button
-                onClick={handleSave}
-                disabled={saving || saved || !canSave}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                {saving ? (
-                  <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving…</>
-                ) : saved ? (
-                  <><CheckCircle2 size={14} /> Saved</>
-                ) : 'Apply Discount'}
-              </button>
-            )}
+            {/* Apply Discount button hidden — code preserved */}
           </div>
         )}
       </div>
@@ -1148,10 +1139,11 @@ interface TileActionsMenuProps {
   onDueDetails: (tile: RentTile) => void;
   onHistoryPanel: (tile: RentTile) => void;
   onChatPanel: (tile: RentTile) => void;
+  onLogDetails: (tile: RentTile) => void;
 }
 const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   tile, isEO, chatTileId, expandedId, activePanel,
-  onPayNow, onDueDetails, onHistoryPanel, onChatPanel,
+  onPayNow, onDueDetails, onHistoryPanel, onChatPanel, onLogDetails,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -1228,6 +1220,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
               className="fixed z-[9999] bg-white rounded-xl border border-gray-200 shadow-xl py-1.5 min-w-[170px]"
               style={{ top: menuPos.top, right: menuPos.right }}
             >
+              {hasPayments && (
               <button
                 onClick={e => { e.stopPropagation(); close(); onHistoryPanel(tile); }}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs transition-colors text-left ${
@@ -1237,12 +1230,20 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
                 <Receipt size={12} className="text-teal-500 shrink-0" />
                 Paid History
               </button>
+              )}
               <button
                 onClick={e => { e.stopPropagation(); close(); onDueDetails(tile); }}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
               >
                 <IndianRupee size={12} className="text-amber-500 shrink-0" />
                 Show Due Payment
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); close(); onLogDetails(tile); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
+              >
+                <ClipboardList size={12} className="text-slate-400 shrink-0" />
+                Log Details
               </button>
             </div>
           </>,
@@ -1478,6 +1479,7 @@ export const QuarterRentPage: React.FC = () => {
   const [paySuccess, setPaySuccess] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [penaltyMaxDiscountPct, setPenaltyMaxDiscountPct] = useState(25);
+  const [logTile, setLogTile] = useState<RentTile | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -2026,6 +2028,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 expandedId={expandedId} activePanel={activePanel}
                 onPayNow={setPayNowTile} onDueDetails={openDueDetails}
                 onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+                onLogDetails={setLogTile}
               />
             </div>
             {/* Expand toggle */}
@@ -2189,6 +2192,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
             expandedId={expandedId} activePanel={activePanel}
             onPayNow={setPayNowTile} onDueDetails={openDueDetails}
             onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+            onLogDetails={setLogTile}
             onShowStat={t => setStatTileId(t.id)}
           />
         </td>
@@ -2256,6 +2260,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                   expandedId={expandedId} activePanel={activePanel}
                   onPayNow={setPayNowTile} onDueDetails={openDueDetails}
                   onHistoryPanel={openHistoryPanel} onChatPanel={openChatPanel}
+                  onLogDetails={setLogTile}
                   onShowStat={t => setStatTileId(t.id)}
                 />
                 <button
@@ -2461,6 +2466,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
   // Sub-DP cards under "Paid & Partially Paid"
   const paidSubCards = summary ? [
     { label: 'Paid',           value: summary.paid_count,     subtitle: fmtINR(summary.paid_amount),     dp: 'PAID'     as DpFilter, icon: CheckCircle2, accentClass: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100', textClass: 'text-emerald-700' },
+    // Partially Paid is in paidSubCards (partial payment made) — not in outstanding/due
     { label: 'Partially Paid', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  dp: 'PARTIAL'  as DpFilter, icon: Clock,        accentClass: 'border-sky-200    bg-sky-50    hover:bg-sky-100',     textClass: 'text-sky-700' },
     { label: 'Exempted',       value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), dp: 'EXEMPTED' as DpFilter, icon: Receipt,      accentClass: 'border-slate-200  bg-slate-50  hover:bg-slate-100',   textClass: 'text-slate-700' },
   ] : [];
@@ -2482,7 +2488,17 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const activeFilterCount = [locFilter, modeFilter !== 'ALL' ? modeFilter : ''].filter(Boolean).length;
+  const activeFilterCount = [
+    locFilter,
+    modeFilter !== 'ALL' ? modeFilter : '',
+    tenantFilter,
+  ].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setLocFilter('');
+    setModeFilter('ALL');
+    setTenantFilter('');
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-teal-50/20">
@@ -2873,20 +2889,109 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               </div>
             )}
 
-            {/* Secondary filter — location */}
-            {showFilters && (
-              <div className="flex items-center gap-3 flex-wrap bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-3 mb-1.5">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Location</span>
-                <input value={locFilter} onChange={e => setLocFilter(e.target.value)}
-                  placeholder="Estate / Block…"
-                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-200 w-44" />
-                {locFilter && (
-                  <button onClick={() => setLocFilter('')} className="text-[10px] text-gray-400 hover:text-gray-700 flex items-center gap-0.5">
-                    <X size={10} /> Clear
-                  </button>
-                )}
+            {/* Filter drawer — rich popup */}
+            <FilterDrawer
+              isOpen={showFilters}
+              onClose={() => setShowFilters(false)}
+              title="Search Filters"
+              activeFilterCount={activeFilterCount}
+              onClearAll={clearAllFilters}
+            >
+              {/* Tenant / Quarter search */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Tenant / Quarter</label>
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Name or quarter number…"
+                    value={tenantFilter}
+                    onChange={e => setTenantFilter(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-200 focus:border-teal-300 outline-none transition-all"
+                  />
+                  {tenantFilter && (
+                    <button onClick={() => setTenantFilter('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
+
+              {/* Location */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Location (Estate / Block)</label>
+                <div className="relative">
+                  <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Block B, Sarojini Nagar…"
+                    value={locFilter}
+                    onChange={e => setLocFilter(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-200 focus:border-teal-300 outline-none transition-all"
+                  />
+                  {locFilter && (
+                    <button onClick={() => setLocFilter('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Rent Duration */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Rent Duration (Month Range)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 mb-1 block">From</span>
+                    <input
+                      type="month"
+                      value={monthFrom}
+                      onChange={e => setMonthFrom(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-200 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 mb-1 block">To</span>
+                    <input
+                      type="month"
+                      value={monthTo}
+                      onChange={e => setMonthTo(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-200 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Mode */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Payment Mode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['ALL', 'ONLINE', 'CHEQUE', 'DD', 'CASH', 'AUTO_DEDUCTION', 'EXEMPTED'] as const).map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setModeFilter(m)}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                        modeFilter === m
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                      }`}
+                    >
+                      {m === 'ALL' ? 'All Modes' : m.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Apply button */}
+              <button
+                type="button"
+                onClick={() => { loadTiles(); setShowFilters(false); }}
+                className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all"
+              >
+                Apply Filters
+              </button>
+            </FilterDrawer>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2942,6 +3047,31 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
       )}
 
       {/* Modals */}
+      {logTile && (
+        <LogDetailsModal
+          title={`Payment Log — ${logTile.quarter_number}`}
+          subtitle={`${logTile.tenant_name} · ${logTile.location_area ?? ''} · ${fmtMonth(logTile.month)}`}
+          entries={[
+            ...(logTile.last_paid_date ? [{
+              id: 'last-pay',
+              timestamp: new Date(logTile.last_paid_date).toISOString(),
+              actorRole: logTile.payment_mode ?? 'system',
+              message: `Payment of ${fmtINR(logTile.last_paid_amount ?? logTile.amount_paid)} received via ${logTile.payment_mode ?? 'N/A'}${logTile.receipt_ref ? ` (Ref: ${logTile.receipt_ref})` : ''}.`,
+              tag: logTile.status,
+              tagColor: (logTile.status === 'PAID' ? 'emerald' : logTile.status === 'PARTIAL' ? 'sky' : logTile.status === 'OVERDUE' ? 'red' : 'amber') as LogEntry['tagColor'],
+            }] : []),
+            ...(logTile.exemption_reason ? [{
+              id: 'exemption',
+              timestamp: logTile.allotment_date ?? new Date().toISOString(),
+              actorRole: 'system',
+              message: `Exempted: ${logTile.exemption_reason}`,
+              tag: 'EXEMPTED',
+              tagColor: 'gray' as LogEntry['tagColor'],
+            }] : []),
+          ]}
+          onClose={() => setLogTile(null)}
+        />
+      )}
       {tenantProfileId && (
         <TenantPaymentProfileModal
           tenantId={tenantProfileId}
