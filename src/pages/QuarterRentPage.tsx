@@ -9,7 +9,7 @@ import {
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
   Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare, ClipboardList, Tag,
-  SlidersHorizontal,
+  SlidersHorizontal, CalendarDays,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -61,7 +61,7 @@ interface DueDetailsModalProps {
   onPayInstallment?: (planId: string, rowId: string, amount: number) => void;
 }
 const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, onClose, onSave, onPayInstallment }) => {
-  const [activeTab, setActiveTab] = useState<'summary' | 'installment'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'installment' | 'monthly'>('summary');
 
   // ── Summary tab state ──────────────────────────────────────────────────────
   const [discountPct, setDiscountPct] = useState(0);
@@ -216,9 +216,10 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
         {/* Tabs */}
         <div className="flex border-b border-gray-100 px-6 shrink-0 bg-gray-50/50">
           {([
-            { id: 'summary' as const,     label: 'Due Summary',      icon: IndianRupee },
+            { id: 'summary'  as const, label: 'Due Summary',       icon: IndianRupee },
+            { id: 'monthly'  as const, label: 'Monthly Breakdown',  icon: CalendarDays },
             // { id: 'installment' as const, label: 'Installment Plan',  icon: FileText },
-          ] as { id: 'summary' | 'installment'; label: string; icon: typeof IndianRupee }[]).map(({ id, label, icon: Icon }) => (
+          ] as { id: 'summary' | 'installment' | 'monthly'; label: string; icon: typeof IndianRupee }[]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -390,6 +391,72 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             </div>
           </div>
         )}
+
+        {/* ── Monthly Breakdown Tab ── */}
+        {activeTab === 'monthly' && (() => {
+          const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
+          const posDate = tile.possession_date ?? tile.allotment_date;
+          const [startY, startM] = posDate
+            ? [parseInt(posDate.slice(0, 4), 10), parseInt(posDate.slice(5, 7), 10)]
+            : [2026, 1];
+          const rows: { sl: number; date: string; rent: number; latePayment: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
+          let sl = 1;
+          for (let y = startY, m = startM; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
+            const isCurrentMonth = y === tileYear && m === tileMonthNum;
+            const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
+            const rent = tile.base_rent;
+            const latePayment = !isCurrentMonth ? (tile.water_charges ?? 0) : 0;
+            const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
+            const maintenance = tile.maintenance_charge ?? 0;
+            const total = rent + latePayment + penalty + maintenance;
+            const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
+            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
+            const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
+            const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+            rows.push({ sl: sl++, date: dateStr, rent, latePayment, penalty, maintenance, total, due, statusLabel, statusColor });
+            m++;
+            if (m > 12) { m = 1; y++; }
+          }
+          return (
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-teal-600 text-white">
+                      {['Sl No', 'Date', 'Rent Amount', 'Late Payment', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
+                        <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={r.sl} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                        <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
+                        <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
+                        <td className="px-3 py-2 text-right text-gray-600">{r.latePayment > 0 ? r.latePayment.toLocaleString('en-IN') : '-'}</td>
+                        <td className="px-3 py-2 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
+                        <td className="px-3 py-2 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
+                        <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
+                        <td className="px-3 py-2 text-right font-bold text-amber-700">{r.due.toLocaleString('en-IN')}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${r.statusColor}`}>{r.statusLabel}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100 border-t-2 border-gray-300">
+                      <td colSpan={7} className="px-3 py-2 font-bold text-gray-700 text-right text-xs">Total Rent Pending</td>
+                      <td className="px-3 py-2 font-extrabold text-amber-800 text-right">{rows.reduce((s, r) => s + r.due, 0).toLocaleString('en-IN')}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Installment Plan Tab ── */}
         {activeTab === 'installment' && (
@@ -2162,12 +2229,16 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
             </div>
           </div>
         )}
-        {/* Monthly rent breakdown — shown for rent due tiles when expanded */}
-        {isOpen && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (() => {
+        {/* Monthly rent breakdown — shown for rent due tiles when expanded (not SD pending) */}
+        {isOpen && !(tile.sd_amount > 0) && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (() => {
           const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
+          const posDate = tile.possession_date ?? tile.allotment_date;
+          const [startY, startM] = posDate
+            ? [parseInt(posDate.slice(0, 4), 10), parseInt(posDate.slice(5, 7), 10)]
+            : [2026, 1];
           const rows: { sl: number; date: string; rent: number; latePayment: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
           let sl = 1;
-          for (let y = 2026, m = 1; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
+          for (let y = startY, m = startM; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
             const isCurrentMonth = y === tileYear && m === tileMonthNum;
             const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
             const rent = tile.base_rent;
@@ -2176,7 +2247,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
             const maintenance = tile.maintenance_charge ?? 0;
             const total = rent + latePayment + penalty + maintenance;
             const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
-            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, total - tile.amount_paid) : total);
+            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
             const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
             const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
             rows.push({ sl: sl++, date: dateStr, rent, latePayment, penalty, maintenance, total, due, statusLabel, statusColor });
@@ -2186,7 +2257,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
           return (
             <div className="border-t border-gray-100 bg-white px-4 py-3">
               <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <IndianRupee size={10} className="text-teal-500" /> Month-wise Rent Due (Jan 2026 onwards)
+                <IndianRupee size={10} className="text-teal-500" /> Month-wise Rent Due (from possession)
               </div>
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="w-full text-[10px] border-collapse">
