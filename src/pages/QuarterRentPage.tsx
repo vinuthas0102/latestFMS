@@ -671,10 +671,10 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           </div>
         )}
 
-        {/* ── Footer (Summary tab only) ── */}
-        {activeTab === 'summary' && (
-          <div className="flex gap-3 px-6 py-3 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+        {/* ── Footer ── */}
+        {(
+          <div className="flex justify-end gap-3 px-6 py-3 border-t border-gray-100 shrink-0">
+            <button onClick={onClose} className="px-5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition-colors">
               Close
             </button>
             {/* Apply Discount button hidden — code preserved */}
