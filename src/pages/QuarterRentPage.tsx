@@ -213,187 +213,46 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 px-6 shrink-0 bg-gray-50/50">
-          {([
-            { id: 'summary'  as const, label: 'Due Summary',       icon: IndianRupee },
-            { id: 'monthly'  as const, label: 'Monthly Breakdown',  icon: CalendarDays },
-            // { id: 'installment' as const, label: 'Installment Plan',  icon: FileText },
-          ] as { id: 'summary' | 'installment' | 'monthly'; label: string; icon: typeof IndianRupee }[]).map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-5 py-3 text-xs font-semibold border-b-2 transition-all -mb-px ${
-                activeTab === id
-                  ? 'border-teal-600 text-teal-700 bg-white rounded-t-lg'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-white/60'
-              }`}
-            >
-              <Icon size={11} /> {label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Due Summary Tab ── */}
-        {activeTab === 'summary' && (
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            <div className="flex gap-6 h-full">
-              {/* Left: line items */}
-              <div className="flex-1 min-w-0 space-y-1">
-                {[
-                  { label: 'Base Rent',     value: detail.base_rent },
-                  { label: 'Water Charges', value: detail.water_charges },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-sm text-gray-500">{label}</span>
-                    <span className="text-sm font-medium text-gray-800">{fmtINR(value)}</span>
-                  </div>
-                ))}
-                {(tile.sd_amount ?? 0) > 0 && (
-                  <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-sm text-gray-500 flex items-center gap-1.5"><Shield size={11} className="text-blue-400" />Security Deposit</span>
-                    <span className="text-sm font-medium text-blue-700">{fmtINR(tile.sd_amount ?? 0)}</span>
-                  </div>
-                )}
-                {(tile.advance_amount ?? 0) > 0 && (
-                  <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-sm text-gray-500 flex items-center gap-1.5"><Zap size={11} className="text-violet-400" />Advance Amount</span>
-                    <span className="text-sm font-medium text-violet-700">{fmtINR(tile.advance_amount ?? 0)}</span>
-                  </div>
-                )}
-                {(tile.maintenance_charge ?? 0) > 0 && (
-                  <div className="flex items-center justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-sm text-gray-500 flex items-center gap-1.5"><Wrench size={11} className="text-orange-400" />Maintenance Arrears</span>
-                    <span className="text-sm font-medium text-orange-700">{fmtINR(tile.maintenance_charge ?? 0)}</span>
-                  </div>
-                )}
-                {/* Sub-total */}
-                <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200 mt-1">
-                  <span className="text-sm font-semibold text-gray-700">Sub-total</span>
-                  <span className="text-sm font-bold text-gray-900">{fmtINR(subtotal)}</span>
-                </div>
-                {/* Penalty */}
-                {penaltyBase > 0 && (
-                  <div className="rounded-xl border border-red-100 bg-red-50/40 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-gray-700 font-medium flex items-center gap-1.5">
-                          Penalty
-                          {hasOverrideActive && (
-                            <span className="text-[9px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 border border-amber-200">OVERRIDE ACTIVE</span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-gray-400">{detail.months_overdue} month(s) overdue · {detail.penalty_rate}%/month</div>
-                      </div>
-                      <span className={`text-sm font-semibold ${discountPct > 0 ? 'line-through text-gray-400' : 'text-red-600'}`}>{fmtINR(penaltyBase)}</span>
-                    </div>
-                    {discountPct > 0 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-amber-700">Discount ({discountPct}%)</span>
-                        <span className="font-semibold text-amber-600">−{fmtINR(discountAmt)}</span>
-                      </div>
-                    )}
-                    {(discountPct > 0 || hasOverrideActive) && (
-                      <div className="flex items-center justify-between text-sm border-t border-red-100 pt-1.5">
-                        <span className="text-red-700 font-medium">Effective Penalty</span>
-                        <span className="font-bold text-red-600">{fmtINR(effectivePenalty)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {detail.waiver_amount > 0 && (
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-sm text-gray-500">Waiver Applied</span>
-                    <span className="text-sm font-semibold text-emerald-600">−{fmtINR(detail.waiver_amount)}</span>
-                  </div>
-                )}
-                {/* Full payment discount */}
-                {fullPaymentDiscount > 0 && (
-                  <div className="flex items-center justify-between py-1.5 bg-emerald-50 rounded-lg px-2">
-                    <span className="text-sm text-emerald-700 flex items-center gap-1.5"><Percent size={11} />Full Payment Discount</span>
-                    <span className="text-sm font-semibold text-emerald-600">−{fmtINR(fullPaymentDiscount)}</span>
-                  </div>
-                )}
-                {/* Net payable */}
-                <div className="flex items-center justify-between pt-3 mt-2 border-t-2 border-gray-200">
-                  <span className="text-sm font-bold text-gray-900">Net Payable</span>
-                  <span className="text-2xl font-extrabold text-teal-700">{fmtINR(tile.total_due)}</span>
-                </div>
-                {fullPaymentDiscount > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-emerald-600">Net after full-payment discount</span>
-                    <span className="text-base font-extrabold text-emerald-700">{fmtINR(tile.total_due - fullPaymentDiscount)}</span>
-                  </div>
-                )}
-                {saved && (
-                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mt-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span className="text-xs font-semibold text-emerald-700">Override saved successfully.</span>
-                  </div>
+        {/* ── Summary header ── */}
+        {(() => {
+          const posDate = tile.possession_date ?? tile.allotment_date;
+          const pendingSince = posDate
+            ? new Date(posDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+            : '—';
+          return (
+            <div className="shrink-0 border-b border-gray-100 bg-gray-50/60 px-6 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-white rounded-xl border border-amber-100 px-3 py-2.5 flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Total Outstanding</span>
+                <span className="text-xl font-extrabold text-amber-700 leading-tight">{fmtINR(tile.total_due)}</span>
+                <span className="text-[10px] text-gray-400">{tile.amount_paid > 0 ? `${fmtINR(tile.amount_paid)} collected` : 'Nothing collected yet'}</span>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Last Paid</span>
+                {tile.last_paid_date ? (
+                  <>
+                    <span className="text-base font-bold text-emerald-700 leading-tight">{fmtINR(tile.last_paid_amount ?? 0)}</span>
+                    <span className="text-[10px] text-gray-400">{fmtDate(tile.last_paid_date)}</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold text-gray-400 mt-1">—</span>
                 )}
               </div>
-
-              {/* Right: EO penalty discount controls (hidden — code preserved) */}
-              {false && isEO && penaltyBase > 0 && (
-                <div className="w-72 shrink-0 rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3 self-start">
-                  <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">
-                    Estate Manager — Penalty Discount
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Discount: <strong className="text-amber-700">{discountPct}%</strong></span>
-                      <span className="text-[10px] text-amber-600">Max: {penaltyMaxDiscountPct}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={penaltyMaxDiscountPct}
-                      step={1}
-                      value={discountPct}
-                      onChange={e => { setDiscountPct(Number(e.target.value)); setSaved(false); }}
-                      className="w-full accent-amber-500"
-                    />
-                    <div className="flex items-center gap-3">
-                      <label className="text-xs text-gray-600 whitespace-nowrap">Discount %</label>
-                      <input
-                        type="number"
-                        value={discountPct}
-                        onChange={e => {
-                          const v = Math.min(penaltyMaxDiscountPct, Math.max(0, Number(e.target.value) || 0));
-                          setDiscountPct(v); setSaved(false);
-                        }}
-                        min={0} max={penaltyMaxDiscountPct} step={1}
-                        className="w-20 px-2 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white"
-                      />
-                      <span className="text-xs text-gray-500">= {fmtINR(discountAmt)}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <textarea
-                      value={remarks}
-                      onChange={e => { setRemarks(e.target.value); setSaved(false); }}
-                      rows={2}
-                      placeholder={overrideChanged ? 'Remarks required…' : 'Optional remarks…'}
-                      className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-300/50 bg-white resize-none transition-colors ${
-                        overrideChanged && !remarks.trim() ? 'border-red-300' : 'border-amber-200'
-                      }`}
-                    />
-                    {overrideChanged && !remarks.trim() && (
-                      <p className="text-[10px] text-red-500 mt-0.5">Remarks are required when applying a penalty discount.</p>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-amber-600 flex items-center gap-1">
-                    <AlertTriangle size={10} />
-                    Max discount: {fmtINR(Math.round(penaltyBase * penaltyMaxDiscountPct / 100))}
-                  </div>
-                </div>
-              )}
+              <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Pending Since</span>
+                <span className="text-base font-bold text-gray-800 leading-tight">{pendingSince}</span>
+                <span className="text-[10px] text-gray-400">{posDate ? `Occupied ${fmtDate(posDate)}` : 'No possession date'}</span>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Due Date</span>
+                <span className="text-base font-bold text-gray-800 leading-tight">{fmtDate(tile.due_date)}</span>
+                <StatusBadge status={tile.status} />
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
-        {/* ── Monthly Breakdown Tab ── */}
-        {activeTab === 'monthly' && (() => {
+        {/* ── Monthly Rent Due Table ── */}
+        {(() => {
           const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
           const posDate = tile.possession_date ?? tile.allotment_date;
           const [startY, startM] = posDate
@@ -447,9 +306,9 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-gray-100 border-t-2 border-gray-300">
-                      <td colSpan={7} className="px-3 py-2 font-bold text-gray-700 text-right text-xs">Total Rent Pending</td>
-                      <td className="px-3 py-2 font-extrabold text-amber-800 text-right">{rows.reduce((s, r) => s + r.due, 0).toLocaleString('en-IN')}</td>
+                    <tr className="bg-amber-50 border-t-2 border-amber-200">
+                      <td colSpan={7} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
+                      <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(tile.total_due)}</td>
                       <td />
                     </tr>
                   </tfoot>
