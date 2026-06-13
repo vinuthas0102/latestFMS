@@ -277,13 +277,15 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             if (m > 12) { m = 1; y++; }
           }
           const displayRows = [...rows].reverse().map((r, i) => ({ ...r, sl: i + 1 }));
+          const isCommercial = tile.bhk_config === 'COMMERCIAL';
+          const colCount = isCommercial ? 8 : 9;
           return (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-teal-600 text-white">
-                      {['Sl No', 'Date', 'Rent Amount', 'Water Charges', 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
+                      {['Sl No', 'Date', 'Rent Amount', ...(!isCommercial ? ['Water Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -294,7 +296,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                         <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
                         <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
-                        <td className="px-3 py-2 text-right text-gray-600">{r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>
+                        {!isCommercial && <td className="px-3 py-2 text-right text-gray-600">{r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>}
                         <td className="px-3 py-2 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
@@ -307,7 +309,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   </tbody>
                   <tfoot>
                     <tr className="bg-amber-50 border-t-2 border-amber-200">
-                      <td colSpan={7} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
+                      <td colSpan={colCount - 2} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
                       <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(tile.total_due)}</td>
                       <td />
                     </tr>
