@@ -57,10 +57,11 @@ const PAYMENT_MODES = ['ALL','ONLINE','CHEQUE','DD','CASH','AUTO_DEDUCTION','EXE
 interface DueDetailsModalProps {
   tile: RentTile; detail: RentDueDetail; isEO: boolean;
   penaltyMaxDiscountPct: number;
+  dpFilter: DpFilter;
   onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
   onPayInstallment?: (planId: string, rowId: string, amount: number) => void;
 }
-const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, onClose, onSave, onPayInstallment }) => {
+const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, dpFilter, onClose, onSave, onPayInstallment }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'installment' | 'monthly'>('summary');
 
   // ── Summary tab state ──────────────────────────────────────────────────────
@@ -251,8 +252,49 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           );
         })()}
 
-        {/* ── Monthly Rent Due Table ── */}
-        {(() => {
+        {/* ── Monthly Rent Due Table or SD/Advance focused table ── */}
+        {dpFilter === 'SD_PENDING' || dpFilter === 'ADVANCE_PENDING' ? (() => {
+          const isSD = dpFilter === 'SD_PENDING';
+          const chargeLabel = isSD ? 'Security Deposit' : 'Advance Deposit';
+          const chargeAmount = isSD ? (tile.sd_amount ?? 0) : (tile.advance_amount ?? 0);
+          const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+          const statusLabel = isPending ? (tile.status === 'OVERDUE' ? 'Overdue' : 'Pending') : 'Paid';
+          const statusColor = isPending ? (tile.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700') : 'bg-emerald-100 text-emerald-700';
+          return (
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-teal-600 text-white">
+                      {['Sl No', 'Charge Type', 'Due Date', 'Amount', 'Due Amount', 'Payment Status'].map(h => (
+                        <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white">
+                      <td className="px-3 py-2 font-bold text-gray-600 text-center">1</td>
+                      <td className="px-3 py-2 font-semibold text-gray-800">{chargeLabel}</td>
+                      <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{fmtDate(tile.due_date)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-800">{chargeAmount.toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-2 text-right font-bold text-amber-700">{isPending ? chargeAmount.toLocaleString('en-IN') : '0'}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColor}`}>{statusLabel}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-amber-50 border-t-2 border-amber-200">
+                      <td colSpan={4} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
+                      <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(tile.total_due)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          );
+        })() : (() => {
           const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
           const posDate = tile.possession_date ?? tile.allotment_date;
           const [startY, startM] = posDate
@@ -1396,7 +1438,7 @@ export const QuarterRentPage: React.FC = () => {
   const historyPanelRef = useRef<HTMLDivElement>(null);
   const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
-  const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail } | null>(null);
+  const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail; dpFilter: DpFilter } | null>(null);
   const [chatTileId, setChatTileId] = useState<string | null>(null);
   const [payNowTile, setPayNowTile] = useState<RentTile | null>(null);
   const [undoPayment, setUndoPayment] = useState<{ tile: RentTile; payment: RentPayment } | null>(null);
@@ -1532,8 +1574,8 @@ export const QuarterRentPage: React.FC = () => {
 
   const openDueDetails = useCallback(async (tile: RentTile) => {
     const detail = await quartersService.getRentDueDetail(tile.id);
-    setDueModal({ tile, detail });
-  }, []);
+    setDueModal({ tile, detail, dpFilter });
+  }, [dpFilter]);
 
   const handleSaveOverride = useCallback(async (override: number, remarks: string) => {
     if (!dueModal) return;
@@ -2906,6 +2948,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
       {dueModal && (
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
           penaltyMaxDiscountPct={penaltyMaxDiscountPct}
+          dpFilter={dueModal.dpFilter}
           onClose={() => setDueModal(null)} onSave={handleSaveOverride}
           onPayInstallment={!isEO ? handleInstallmentPay : undefined} />
       )}
