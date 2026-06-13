@@ -1352,7 +1352,7 @@ const TenantChip: React.FC<{ tile: RentTile; onViewProfile?: (e: React.MouseEven
 // ─────────────────────────────────────────────────────────────────────────────
 type ViewMode = 'table' | 'tile' | 'card' | 'graph';
 type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID' | 'PARTIAL'
-  | 'RENT_OUTSTANDING' | 'SD_PENDING' | 'ADVANCE_PENDING' | 'MAINTENANCE_ARREARS' | 'PENALTY';
+  | 'RENT_OUTSTANDING' | 'SD_PENDING' | 'ADVANCE_PENDING';
 
 function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
   let total_due_count = 0, total_due_amount = 0;
@@ -1528,8 +1528,6 @@ export const QuarterRentPage: React.FC = () => {
     else if (dpFilter === 'RENT_OUTSTANDING') t = t.filter(x => x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL');
     else if (dpFilter === 'SD_PENDING')      t = t.filter(x => (x.sd_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
     else if (dpFilter === 'ADVANCE_PENDING') t = t.filter(x => (x.advance_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
-    else if (dpFilter === 'MAINTENANCE_ARREARS') t = t.filter(x => (x.maintenance_charge ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
-    else if (dpFilter === 'PENALTY')         t = t.filter(x => (x.penalty_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
     return t;
   }, [tiles, dpFilter, filterAllotmentId, isTenant]);
 
@@ -2309,7 +2307,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
   };
 
   // ── DP cards config ─────────────────────────────────────────────────────────
-  const SUB_FILTERS: DpFilter[] = ['RENT_OUTSTANDING','SD_PENDING','ADVANCE_PENDING','MAINTENANCE_ARREARS','PENALTY'];
+  const SUB_FILTERS: DpFilter[] = ['RENT_OUTSTANDING','SD_PENDING','ADVANCE_PENDING'];
   const hasActiveSubFilter = SUB_FILTERS.includes(dpFilter);
 
   const handleOutstandingClick = () => {
@@ -2342,8 +2340,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
     { label: 'Rent Due',       value: summary.total_due_count + summary.arrears_count, subtitle: fmtINR(summary.total_due_amount + summary.arrears_amount), dp: 'RENT_OUTSTANDING'    as DpFilter, icon: IndianRupee,  accentClass: 'border-amber-200  bg-amber-50  hover:bg-amber-100',  textClass: 'text-amber-700',  barColor: 'bg-amber-400' },
     { label: 'SD Pending',     value: summary.sd_pending_count,          subtitle: fmtINR(summary.sd_pending_amount),          dp: 'SD_PENDING'          as DpFilter, icon: Shield,        accentClass: 'border-blue-200   bg-blue-50   hover:bg-blue-100',   textClass: 'text-blue-700',   barColor: 'bg-blue-400' },
     { label: 'Adv. Pending',   value: summary.advance_pending_count,     subtitle: fmtINR(summary.advance_pending_amount),     dp: 'ADVANCE_PENDING'     as DpFilter, icon: Zap,           accentClass: 'border-violet-200 bg-violet-50 hover:bg-violet-100', textClass: 'text-violet-700', barColor: 'bg-violet-400' },
-    { label: 'Maint. Arrears', value: summary.maintenance_arrears_count, subtitle: fmtINR(summary.maintenance_arrears_amount), dp: 'MAINTENANCE_ARREARS' as DpFilter, icon: Wrench,        accentClass: 'border-orange-200 bg-orange-50 hover:bg-orange-100', textClass: 'text-orange-700', barColor: 'bg-orange-400' },
-    { label: 'Penalty Acc.',   value: summary.penalty_accumulated_count, subtitle: fmtINR(summary.penalty_accumulated_amount), dp: 'PENALTY'             as DpFilter, icon: AlertTriangle, accentClass: 'border-red-200    bg-red-50    hover:bg-red-100',    textClass: 'text-red-700',    barColor: 'bg-red-500' },
   ] : [];
 
   const views: { id: ViewMode; icon: LucideIcon; label: string }[] = [
