@@ -1228,7 +1228,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
-  const hasPayments = tile.status !== 'EXEMPTED';
+  const hasPayments = tile.status === 'PAID';
   const showClar = tile.status !== 'EXEMPTED';
   const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
   const isChatOpen = chatTileId === tile.id;
@@ -1790,7 +1790,7 @@ export const QuarterRentPage: React.FC = () => {
       const rows: [string, string][] = [
         ['Quarter', `${tile.quarter_number} (${tile.bhk_config}), ${tile.block_name}`],
         ['Tenant', `${tile.tenant_name} — ${tile.tenant_designation}`],
-        ['Month', fmtMonthYear(tile.month)],
+        ['Month', fmtMonthFull(tile.month)],
         ['Due Date', fmtDate(tile.due_date)],
         ['Payment Mode', modeLabel[p.payment_mode] ?? p.payment_mode],
         ['Payment Date', fmtDate(p.payment_date)],
@@ -1877,7 +1877,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                         <span className="text-sm font-extrabold text-gray-900 shrink-0">{fmtINR(p.amount)}</span>
 
                         {/* Month badge */}
-                        <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 rounded px-1.5 py-0.5 shrink-0">{fmtMonthYear(p.month)}</span>
+                        <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 rounded px-1.5 py-0.5 shrink-0">{fmtMonthFull(p.month)}</span>
 
                         {/* Divider */}
                         <span className="text-gray-200 text-sm shrink-0">|</span>
