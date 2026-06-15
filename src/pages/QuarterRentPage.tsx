@@ -23,6 +23,8 @@ import SplitLayout from '../components/ui/SplitLayout';
 import { LogDetailsModal } from '../components/ui/LogDetailsModal';
 import type { LogEntry } from '../components/ui/LogDetailsModal';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
+import type { ChatDeliveryMode } from '../types/quarters';
 import { useAuthStore } from '../stores/authStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1186,11 +1188,13 @@ interface RentChatPanelProps {
   clarMsg: string;
   isEO: boolean;
   controls: React.ReactNode;
+  deliveryMode: ChatDeliveryMode[];
+  onDeliveryModeChange: (modes: ChatDeliveryMode[]) => void;
   onChange: (v: string) => void;
   onSend: () => void;
 }
 const RentChatPanel: React.FC<RentChatPanelProps> = ({
-  tile, clarifications, clarMsg, isEO, controls, onChange, onSend,
+  tile, clarifications, clarMsg, isEO, controls, deliveryMode, onDeliveryModeChange, onChange, onSend,
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [clarifications]);
@@ -1240,6 +1244,7 @@ const RentChatPanel: React.FC<RentChatPanelProps> = ({
 
       {/* Input footer */}
       <div className="px-4 pt-3 pb-4 border-t border-gray-100 shrink-0 space-y-1.5 bg-white">
+        <ChatDeliveryModePicker value={deliveryMode} onChange={onDeliveryModeChange} className="mb-2" />
         <div className="flex gap-2 items-end">
           <textarea
             value={clarMsg}
@@ -1609,6 +1614,7 @@ export const QuarterRentPage: React.FC = () => {
   const [clarifications, setClarifications] = useState<RentClarification[]>([]);
   const [tenantProfileId, setTenantProfileId] = useState<string | null>(null);
   const [clarMsg, setClarMsg] = useState('');
+  const [rentChatDeliveryMode, setRentChatDeliveryMode] = useState<ChatDeliveryMode[]>(['IN_APP']);
   const [paySuccess, setPaySuccess] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [penaltyMaxDiscountPct, setPenaltyMaxDiscountPct] = useState(25);
@@ -2806,6 +2812,8 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               clarMsg={clarMsg}
               isEO={isEO}
               controls={controls}
+              deliveryMode={rentChatDeliveryMode}
+              onDeliveryModeChange={setRentChatDeliveryMode}
               onChange={setClarMsg}
               onSend={() => sendClarification(chatTile)}
             />
