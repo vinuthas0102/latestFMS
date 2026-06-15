@@ -493,6 +493,7 @@ export interface RentDueMonthEntry {
   due: number;
   statusLabel: string;
   statusColor: string;
+  isPending: boolean;
 }
 
 export interface RentDueDetail {

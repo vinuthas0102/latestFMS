@@ -1645,15 +1645,14 @@ export const quartersService = {
       const penOvr = tile?.penalty_override ?? null;
       const net = base + water + util + (penOvr ?? pen);
 
-      // Build monthly_dues from all tiles for this allotment, pending only
+      // Build monthly_dues from all tiles for this allotment (all months)
       const monthly_dues: import('../types/quarters').RentDueMonthEntry[] = [];
       if (tile) {
         const allotmentTiles = DEMO_RENT_TILES
           .filter(t => t.allotment_id === tile.allotment_id)
           .sort((a, b) => a.month.localeCompare(b.month));
-        allotmentTiles.forEach((t, idx) => {
+        allotmentTiles.forEach((t) => {
           const isPending = t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL';
-          if (!isPending) return;
           const [yr, mo] = t.month.split('-');
           const dateStr = `01-${mo}-${yr}`;
           const rent = t.base_rent;
@@ -1662,10 +1661,21 @@ export const quartersService = {
           const penalty = t.penalty_override ?? t.penalty_amount;
           const maintenance = t.maintenance_charge ?? 0;
           const total = rent + waterCharges + utility + penalty + maintenance;
-          const due = Math.max(0, total - (t.amount_paid ?? 0));
-          const statusLabel = t.status === 'PARTIAL' ? 'Partial' : 'Pending';
-          const statusColor = t.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
-          monthly_dues.push({ month: t.month, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor });
+          const due = isPending ? Math.max(0, total - (t.amount_paid ?? 0)) : 0;
+          let statusLabel: string;
+          let statusColor: string;
+          if (t.status === 'PAID') {
+            statusLabel = 'Paid'; statusColor = 'bg-emerald-100 text-emerald-700';
+          } else if (t.status === 'EXEMPTED') {
+            statusLabel = 'Exempted'; statusColor = 'bg-slate-100 text-slate-600';
+          } else if (t.status === 'PARTIAL') {
+            statusLabel = 'Partial'; statusColor = 'bg-sky-100 text-sky-700';
+          } else if (t.status === 'OVERDUE') {
+            statusLabel = 'Overdue'; statusColor = 'bg-red-100 text-red-700';
+          } else {
+            statusLabel = 'Pending'; statusColor = 'bg-amber-100 text-amber-700';
+          }
+          monthly_dues.push({ month: t.month, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending });
         });
       }
 

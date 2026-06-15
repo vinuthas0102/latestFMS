@@ -306,18 +306,17 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const isCommercial = tile.bhk_config === 'COMMERCIAL';
           const colCount = isCommercial ? 8 : 9;
 
-          // Use monthly_dues from detail if available (pending entries only), otherwise fall back to single-tile loop
-          type RowShape = { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string };
-          let pendingRows: RowShape[];
+          // Use monthly_dues from detail if available (all entries), otherwise fall back to single-tile loop
+          type RowShape = { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string; isPending: boolean };
+          let allRows: RowShape[];
           if (detail.monthly_dues && detail.monthly_dues.length > 0) {
-            pendingRows = detail.monthly_dues.map((d, i) => ({
+            allRows = detail.monthly_dues.map((d, i) => ({
               sl: i + 1, date: d.date, rent: d.rent, waterCharges: d.waterCharges,
               penalty: d.penalty, maintenance: d.maintenance, total: d.total, due: d.due,
-              statusLabel: d.statusLabel, statusColor: d.statusColor,
+              statusLabel: d.statusLabel, statusColor: d.statusColor, isPending: d.isPending,
             }));
           } else {
             // Fallback: single tile month
-            const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
             const [yr, mo] = tile.month.split('-');
             const dateStr = `01-${mo}-${yr}`;
             const rent = tile.base_rent;
@@ -326,14 +325,17 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             const maintenance = tile.maintenance_charge ?? 0;
             const total = rent + waterCharges + penalty + maintenance;
             const due = Math.max(0, total - (tile.amount_paid ?? 0));
-            if (due > 0) {
+            const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+            if (isPending && due > 0) {
               const statusLabel = tile.status === 'PARTIAL' ? 'Partial' : 'Pending';
               const statusColor = tile.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
-              pendingRows = [{ sl: 1, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor }];
+              allRows = [{ sl: 1, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending: true }];
             } else {
-              pendingRows = [];
+              allRows = [];
             }
           }
+          // pendingRows is used for Pay Now selection logic only
+          const pendingRows = allRows.filter(r => r.isPending);
 
           // A row can be toggled only if not EO (pending rows are always due > 0 here)
           const canSelectRow = () => !isEO;
@@ -381,7 +383,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               {!isEO && (
                 <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-sm bg-teal-500" />
-                  Showing <span className="font-semibold text-gray-700">{pendingRows.length}</span> pending due{pendingRows.length !== 1 ? 's' : ''}. Select months in order (oldest first), then click <span className="font-semibold text-teal-700">Pay Now</span>.
+                  Showing <span className="font-semibold text-gray-700">{allRows.length}</span> month{allRows.length !== 1 ? 's' : ''} · <span className="font-semibold text-amber-700">{pendingRows.length}</span> pending. Select pending months in order (oldest first), then click <span className="font-semibold text-teal-700">Pay Now</span>.
                 </div>
               )}
               {seqWarning && (
@@ -391,11 +393,11 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   <button onClick={() => setSeqWarning(null)} className="shrink-0 text-amber-400 hover:text-amber-600"><X size={13} /></button>
                 </div>
               )}
-              {pendingRows.length === 0 ? (
+              {allRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                   <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-                  <div className="text-sm font-medium text-emerald-700">No pending dues</div>
-                  <div className="text-xs mt-1">All months are cleared for this quarter.</div>
+                  <div className="text-sm font-medium text-emerald-700">No payment records</div>
+                  <div className="text-xs mt-1">No months found for this allotment.</div>
                 </div>
               ) : (
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
@@ -409,15 +411,19 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingRows.map((r, i) => (
-                      <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''}`}
-                        onClick={() => toggleRow(r.sl)}>
+                    {allRows.map((r, i) => (
+                      <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO && r.isPending ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''} ${!r.isPending ? 'opacity-70' : ''}`}
+                        onClick={() => r.isPending && toggleRow(r.sl)}>
                         {!isEO && (
                           <td className="px-3 py-2 text-center">
-                            <input type="checkbox" checked={selectedMonthSls.has(r.sl)}
-                              onChange={() => toggleRow(r.sl)}
-                              onClick={e => e.stopPropagation()}
-                              className="w-3.5 h-3.5 rounded accent-teal-600 cursor-pointer" />
+                            {r.isPending ? (
+                              <input type="checkbox" checked={selectedMonthSls.has(r.sl)}
+                                onChange={() => toggleRow(r.sl)}
+                                onClick={e => e.stopPropagation()}
+                                className="w-3.5 h-3.5 rounded accent-teal-600 cursor-pointer" />
+                            ) : (
+                              <span className="inline-block w-3.5 h-3.5 rounded border border-gray-200 bg-gray-100" />
+                            )}
                           </td>
                         )}
                         <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
@@ -427,7 +433,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                         <td className="px-3 py-2 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
-                        <td className="px-3 py-2 text-right font-bold text-amber-700">{r.due.toLocaleString('en-IN')}</td>
+                        <td className="px-3 py-2 text-right font-bold text-amber-700">{r.isPending ? r.due.toLocaleString('en-IN') : <span className="text-emerald-600">—</span>}</td>
                         <td className="px-3 py-2">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${r.statusColor}`}>{r.statusLabel}</span>
                         </td>
