@@ -224,12 +224,16 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const pendingSince = posDate
             ? new Date(posDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
             : '—';
+          const combinedOutstanding = detail.monthly_dues && detail.monthly_dues.length > 0
+            ? detail.monthly_dues.reduce((s, d) => s + d.due, 0)
+            : tile.total_due;
+          const pendingMonthCount = detail.monthly_dues?.length ?? 0;
           return (
             <div className="shrink-0 border-b border-gray-100 bg-gray-50/60 px-6 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl border border-amber-100 px-3 py-2.5 flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Total Outstanding</span>
-                <span className="text-xl font-extrabold text-amber-700 leading-tight">{fmtINR(tile.total_due)}</span>
-                <span className="text-[10px] text-gray-400">{tile.amount_paid > 0 ? `${fmtINR(tile.amount_paid)} collected` : 'Nothing collected yet'}</span>
+                <span className="text-xl font-extrabold text-amber-700 leading-tight">{fmtINR(combinedOutstanding)}</span>
+                <span className="text-[10px] text-gray-400">{pendingMonthCount > 1 ? `Across ${pendingMonthCount} pending months` : tile.amount_paid > 0 ? `${fmtINR(tile.amount_paid)} collected` : 'Nothing collected yet'}</span>
               </div>
               <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Last Paid</span>
@@ -434,7 +438,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     <tr className="bg-amber-50 border-t-2 border-amber-200">
                       {!isEO && <td />}
                       <td colSpan={colCount - 2} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
-                      <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(tile.total_due)}</td>
+                      <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(pendingRows.reduce((s, r) => s + r.due, 0))}</td>
                       <td />
                     </tr>
                   </tfoot>

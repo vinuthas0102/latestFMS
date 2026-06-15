@@ -1658,9 +1658,10 @@ export const quartersService = {
           const dateStr = `01-${mo}-${yr}`;
           const rent = t.base_rent;
           const waterCharges = t.water_charges ?? 0;
+          const utility = t.utility_charges ?? 0;
           const penalty = t.penalty_override ?? t.penalty_amount;
           const maintenance = t.maintenance_charge ?? 0;
-          const total = rent + waterCharges + penalty + maintenance;
+          const total = rent + waterCharges + utility + penalty + maintenance;
           const due = Math.max(0, total - (t.amount_paid ?? 0));
           const statusLabel = t.status === 'PARTIAL' ? 'Partial' : 'Pending';
           const statusColor = t.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
