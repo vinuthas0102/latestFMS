@@ -312,7 +312,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
             const maintenance = tile.maintenance_charge ?? 0;
             const total = rent + waterCharges + penalty + maintenance;
-            const isPastPaid = !isCurrentMonth && tile.status !== 'OVERDUE';
+            const isPastPaid = !isCurrentMonth;
             const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
             const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
             const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
