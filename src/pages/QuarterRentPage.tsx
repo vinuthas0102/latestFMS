@@ -472,7 +472,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     </tr>
                   </thead>
                   <tbody>
-                    {(isEO ? allRows : pendingRows).map((r, i) => (
+                    {allRows.map((r, i) => (
                       <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO && r.isPending ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''} ${!r.isPending ? 'opacity-70' : ''}`}
                         onClick={() => r.isPending && toggleRow(r.sl)}>
                         {!isEO && (

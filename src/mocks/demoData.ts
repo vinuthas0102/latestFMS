@@ -1874,10 +1874,7 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
   'allot-011_2025-11': [
     { id: 'pay-1111', allotment_id: 'allot-011', month: '2025-11', amount: 4000, payment_mode: 'CASH', payment_date: '2025-11-03', receipt_ref: 'TMP-2511-011', remarks: 'Partial payment', recorded_by: 'EO-Admin' },
   ],
-  // allot-001 (EMP-1001 / Rajesh Kumar) history
-  'allot-001_2026-06': [
-    { id: 'pay-0601', allotment_id: 'allot-001', month: '2026-06', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-06-04', receipt_ref: 'RCP-2606-0091', remarks: 'UPI Ref: 604018294537 · ICICI Bank', recorded_by: 'System' },
-  ],
+  // allot-001 (EMP-1001 / Rajesh Kumar) history — June 2026 is OVERDUE (no payment record)
   'allot-016_2026-06': [
     { id: 'pay-e601', allotment_id: 'allot-016', month: '2026-06', amount: 9500, payment_mode: 'ONLINE', payment_date: '2026-06-03', receipt_ref: 'RCP-2606-E001', remarks: 'UPI Ref: 603027483920 · HDFC Bank', recorded_by: 'System' },
   ],
