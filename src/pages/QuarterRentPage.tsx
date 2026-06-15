@@ -442,7 +442,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               {!isEO && (
                 <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-sm bg-teal-500" />
-                  Showing <span className="font-semibold text-gray-700">{allRows.length}</span> month{allRows.length !== 1 ? 's' : ''} · <span className="font-semibold text-amber-700">{pendingRows.length}</span> pending. Select pending months in order (oldest first), then click <span className="font-semibold text-teal-700">Pay Now</span>.
+                  Showing <span className="font-semibold text-amber-700">{pendingRows.length}</span> pending month{pendingRows.length !== 1 ? 's' : ''} with dues. Select in order (oldest first), then click <span className="font-semibold text-teal-700">Pay Now</span>.
                 </div>
               )}
               {seqWarning && (
@@ -452,7 +452,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   <button onClick={() => setSeqWarning(null)} className="shrink-0 text-amber-400 hover:text-amber-600"><X size={13} /></button>
                 </div>
               )}
-              {allRows.length === 0 ? (
+              {(isEO ? allRows.length === 0 : pendingRows.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                   <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
                   <div className="text-sm font-medium text-emerald-700">No payment records</div>
@@ -470,7 +470,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     </tr>
                   </thead>
                   <tbody>
-                    {allRows.map((r, i) => (
+                    {(isEO ? allRows : pendingRows).map((r, i) => (
                       <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO && r.isPending ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''} ${!r.isPending ? 'opacity-70' : ''}`}
                         onClick={() => r.isPending && toggleRow(r.sl)}>
                         {!isEO && (
@@ -485,7 +485,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                             )}
                           </td>
                         )}
-                        <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
+                        <td className="px-3 py-2 font-bold text-gray-600 text-center">{i + 1}</td>
                         <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
                         {!isCommercial && <td className="px-3 py-2 text-right text-gray-600">{r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>}
