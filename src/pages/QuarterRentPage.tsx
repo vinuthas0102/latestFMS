@@ -58,13 +58,15 @@ interface DueDetailsModalProps {
   tile: RentTile; detail: RentDueDetail; isEO: boolean;
   penaltyMaxDiscountPct: number;
   dpFilter: DpFilter;
+  initialTab?: 'summary' | 'installment' | 'monthly';
   onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
   onPayInstallment?: (planId: string, rowId: string, amount: number) => void;
   onPaySelected?: (amount: number) => void;
 }
-const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, dpFilter, onClose, onSave, onPayInstallment, onPaySelected }) => {
-  const [activeTab, setActiveTab] = useState<'summary' | 'installment' | 'monthly'>('summary');
+const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, dpFilter, initialTab, onClose, onSave, onPayInstallment, onPaySelected }) => {
+  const [activeTab, setActiveTab] = useState<'summary' | 'installment' | 'monthly'>(initialTab ?? 'summary');
   const [selectedMonthSls, setSelectedMonthSls] = useState<Set<number>>(new Set());
+  const [seqWarning, setSeqWarning] = useState<string | null>(null);
 
   // ── Summary tab state ──────────────────────────────────────────────────────
   const [discountPct, setDiscountPct] = useState(0);
@@ -323,24 +325,67 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const displayRows = [...rows].map((r, i) => ({ ...r, sl: i + 1 }));
           const isCommercial = tile.bhk_config === 'COMMERCIAL';
           const colCount = isCommercial ? 8 : 9;
+
+          // Ordered list of pending (due > 0) rows, ascending by their sl (already in date order)
+          const pendingRows = displayRows.filter(r => r.due > 0);
+
+          // A row can be toggled only if it is pending
           const canSelectRow = (r: typeof displayRows[0]) => !isEO && r.due > 0;
-          const selectedTotal = displayRows
-            .filter(r => selectedMonthSls.has(r.sl))
-            .reduce((sum, r) => sum + r.due, 0);
+
+          // Sequential enforcement: selected sls must always be a contiguous prefix of pendingRows
           const toggleRow = (sl: number, r: typeof displayRows[0]) => {
             if (!canSelectRow(r)) return;
+            setSeqWarning(null);
+            const pendingSlsInOrder = pendingRows.map(pr => pr.sl);
+            const idx = pendingSlsInOrder.indexOf(sl);
             setSelectedMonthSls(prev => {
               const next = new Set(prev);
-              if (next.has(sl)) next.delete(sl); else next.add(sl);
+              if (next.has(sl)) {
+                // Uncheck: only allow if no later pending month is selected
+                const laterSelected = pendingSlsInOrder.slice(idx + 1).some(s => next.has(s));
+                if (laterSelected) {
+                  setSeqWarning('Please deselect later months first before removing this month.');
+                  return prev;
+                }
+                next.delete(sl);
+              } else {
+                // Check: only allow if all earlier pending months are already selected
+                const earlierUnselected = pendingSlsInOrder.slice(0, idx).some(s => !next.has(s));
+                if (earlierUnselected) {
+                  const earliest = pendingRows.find(pr => !next.has(pr.sl));
+                  setSeqWarning(`Please clear dues from ${earliest?.date ?? 'earlier months'} first before selecting this month.`);
+                  return prev;
+                }
+                next.add(sl);
+              }
               return next;
             });
           };
+
+          const selectedTotal = displayRows
+            .filter(r => selectedMonthSls.has(r.sl))
+            .reduce((sum, r) => sum + r.due, 0);
+
+          // Month range label for the summary bar
+          const selectedPendingRows = pendingRows.filter(r => selectedMonthSls.has(r.sl));
+          const selectionRangeLabel = selectedPendingRows.length > 0
+            ? (selectedPendingRows.length === 1
+                ? selectedPendingRows[0].date
+                : `${selectedPendingRows[0].date} — ${selectedPendingRows[selectedPendingRows.length - 1].date}`)
+            : '';
           return (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {!isEO && (
                 <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-sm bg-teal-500" />
-                  Select months below to make a partial payment, then click <span className="font-semibold text-teal-700">Pay Now</span>.
+                  Select months in order (oldest first) to make a payment, then click <span className="font-semibold text-teal-700">Pay Now</span>. You must clear earlier dues before selecting a later month.
+                </div>
+              )}
+              {seqWarning && (
+                <div className="mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                  <AlertTriangle size={13} className="text-amber-600 mt-0.5 shrink-0" />
+                  <span className="text-xs text-amber-800 flex-1">{seqWarning}</span>
+                  <button onClick={() => setSeqWarning(null)} className="shrink-0 text-amber-400 hover:text-amber-600"><X size={13} /></button>
                 </div>
               )}
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
@@ -395,12 +440,14 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               </div>
               {!isEO && selectedMonthSls.size > 0 && (
                 <div className="mt-3 flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-2.5">
-                  <div className="text-xs text-teal-800">
-                    <span className="font-semibold">{selectedMonthSls.size}</span> month{selectedMonthSls.size > 1 ? 's' : ''} selected &mdash; <span className="font-bold">{fmtINR(selectedTotal)}</span>
+                  <div className="text-xs text-teal-800 min-w-0 mr-3">
+                    <span className="font-semibold">{selectedMonthSls.size}</span> month{selectedMonthSls.size > 1 ? 's' : ''} selected
+                    {selectionRangeLabel && <span className="text-teal-600"> ({selectionRangeLabel})</span>}
+                    {' '}&mdash; <span className="font-bold">{fmtINR(selectedTotal)}</span>
                   </div>
                   <button
                     onClick={() => onPaySelected?.(selectedTotal)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-colors shrink-0"
                   >
                     <Wallet size={11} /> Pay Now
                   </button>
@@ -1154,7 +1201,7 @@ interface TileActionsMenuProps {
   expandedId: string | null;
   activePanel: 'history' | null;
   onPayNow: (tile: RentTile) => void;
-  onDueDetails: (tile: RentTile) => void;
+  onDueDetails: (tile: RentTile, initialTab?: 'summary' | 'installment' | 'monthly') => void;
   onHistoryPanel: (tile: RentTile) => void;
   onChatPanel: (tile: RentTile) => void;
   onLogDetails: (tile: RentTile) => void;
@@ -1190,10 +1237,10 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* Pay Now — primary CTA (tenant only) */}
+      {/* Pay Now — opens monthly tab for sequential selection */}
       {!isEO && hasDue && (
         <button
-          onClick={e => { e.stopPropagation(); onPayNow(tile); }}
+          onClick={e => { e.stopPropagation(); onDueDetails(tile, 'monthly'); }}
           title="Pay Now"
           className="flex items-center justify-center p-1.5 rounded-lg bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 transition-colors"
         >
@@ -1486,7 +1533,7 @@ export const QuarterRentPage: React.FC = () => {
   const historyPanelRef = useRef<HTMLDivElement>(null);
   const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
   const [expandedInfoIds, setExpandedInfoIds] = useState<Set<string>>(new Set());
-  const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail; dpFilter: DpFilter } | null>(null);
+  const [dueModal, setDueModal]   = useState<{ tile: RentTile; detail: RentDueDetail; dpFilter: DpFilter; initialTab?: 'summary' | 'installment' | 'monthly' } | null>(null);
   const [chatTileId, setChatTileId] = useState<string | null>(null);
   const [payNowTile, setPayNowTile] = useState<RentTile | null>(null);
   const [undoPayment, setUndoPayment] = useState<{ tile: RentTile; payment: RentPayment } | null>(null);
@@ -1618,11 +1665,10 @@ export const QuarterRentPage: React.FC = () => {
     setClarMsg('');
   }, [chatTileId]);
 
-  const openDueDetails = useCallback(async (tile: RentTile) => {
+  const openDueDetails = useCallback(async (tile: RentTile, initialTab?: 'summary' | 'installment' | 'monthly') => {
     const detail = await quartersService.getRentDueDetail(tile.id);
-    setDueModal({ tile, detail, dpFilter });
+    setDueModal({ tile, detail, dpFilter, initialTab });
   }, [dpFilter]);
-
   const handleSaveOverride = useCallback(async (override: number, remarks: string) => {
     if (!dueModal) return;
     await quartersService.applyPenaltyOverride(dueModal.tile.id, override, remarks);
@@ -3003,6 +3049,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
         <DueDetailsModal tile={dueModal.tile} detail={dueModal.detail} isEO={isEO}
           penaltyMaxDiscountPct={penaltyMaxDiscountPct}
           dpFilter={dueModal.dpFilter}
+          initialTab={dueModal.initialTab}
           onClose={() => setDueModal(null)} onSave={handleSaveOverride}
           onPayInstallment={!isEO ? handleInstallmentPay : undefined}
           onPaySelected={!isEO ? handlePaySelected : undefined} />
