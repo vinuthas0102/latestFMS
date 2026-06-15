@@ -280,13 +280,13 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const combinedOutstanding = detail.monthly_dues && detail.monthly_dues.length > 0
             ? detail.monthly_dues.reduce((s, d) => s + d.due, 0)
             : tile.total_due;
-          const pendingMonthCount = detail.monthly_dues?.length ?? 0;
+          const pendingMonthCount = detail.monthly_dues?.filter(d => d.isPending).length ?? 0;
           return (
             <div className="shrink-0 border-b border-gray-100 bg-gray-50/60 px-6 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white rounded-xl border border-amber-100 px-3 py-2.5 flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Total Outstanding</span>
                 <span className="text-xl font-extrabold text-amber-700 leading-tight">{fmtINR(combinedOutstanding)}</span>
-                <span className="text-[10px] text-gray-400">{pendingMonthCount > 1 ? `Across ${pendingMonthCount} pending months` : tile.amount_paid > 0 ? `${fmtINR(tile.amount_paid)} collected` : 'Nothing collected yet'}</span>
+                <span className="text-[10px] text-gray-400">{pendingMonthCount > 0 ? `Across ${pendingMonthCount} pending month${pendingMonthCount !== 1 ? 's' : ''}` : tile.amount_paid > 0 ? `${fmtINR(tile.amount_paid)} collected` : 'Nothing collected yet'}</span>
               </div>
               <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Last Paid</span>
