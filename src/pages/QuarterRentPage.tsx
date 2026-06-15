@@ -9,7 +9,7 @@ import {
   MessageSquare, Eye, Wallet, Undo2, Search, X,
   Download, MoreVertical, Shield, Wrench, Zap, Layers,
   Plus, Percent, FileText, ChevronUp, BarChart, CheckSquare, ClipboardList, Tag,
-  SlidersHorizontal, CalendarDays,
+  SlidersHorizontal, CalendarDays, Share2,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '../constants/routes';
@@ -94,6 +94,54 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
     setSaving(false);
     setSaved(true);
     setTimeout(() => { setSaved(false); onClose(); }, 1400);
+  };
+
+  const downloadDueStatement = () => {
+    const rows = detail.monthly_dues ?? [];
+    const totalOutstanding = rows.filter(r => r.isPending).reduce((s, r) => s + r.due, 0);
+    const tableRows = rows.map((r, i) => {
+      const bg = i % 2 === 0 ? '#fff' : '#f9fafb';
+      const dueCell = r.isPending ? `<td style="text-align:right;font-weight:700;color:#b45309">${r.due.toLocaleString('en-IN')}</td>` : `<td style="text-align:right;color:#059669">—</td>`;
+      return `<tr style="background:${bg}">
+        <td style="text-align:center">${i + 1}</td>
+        <td>${r.date}</td>
+        <td style="text-align:right">${r.rent.toLocaleString('en-IN')}</td>
+        <td style="text-align:right">${r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>
+        <td style="text-align:right;color:#1d4ed8">${r.electricityCharges > 0 ? r.electricityCharges.toLocaleString('en-IN') : '-'}</td>
+        <td style="text-align:right;color:#dc2626">${r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
+        <td style="text-align:right">${r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
+        <td style="text-align:right;font-weight:700">${r.total.toLocaleString('en-IN')}</td>
+        ${dueCell}
+        <td><span style="padding:2px 8px;border-radius:9999px;font-size:11px;background:${r.statusColor?.includes('emerald') ? '#d1fae5' : r.statusColor?.includes('red') ? '#fee2e2' : '#fef3c7'};color:${r.statusColor?.includes('emerald') ? '#065f46' : r.statusColor?.includes('red') ? '#991b1b' : '#92400e'}">${r.statusLabel}</span></td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Due Statement — ${tile.quarter_number}</title>
+    <style>body{font-family:sans-serif;font-size:13px;color:#1f2937;margin:32px}h2{margin:0 0 4px}p{margin:2px 0;color:#6b7280;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#0f766e;color:#fff;padding:8px 10px;text-align:left;font-size:12px;white-space:nowrap}td{padding:7px 10px;border-bottom:1px solid #f3f4f6;font-size:12px}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
+    <body><h2>Due Statement — ${tile.quarter_number} (${tile.bhk_config})</h2>
+    <p>Tenant: ${tile.tenant_name} &bull; ${tile.tenant_designation} &bull; ${tile.tenant_dept}</p>
+    <p>Location: ${tile.block_name}, ${tile.location_area} &bull; Generated: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</p>
+    <table><thead><tr><th>Sl No</th><th>Month</th><th>Rent</th><th>Water</th><th>Electricity</th><th>Penalty</th><th>Maintenance</th><th>Total</th><th>Due Amount</th><th>Status</th></tr></thead>
+    <tbody>${tableRows}</tbody></table>
+    <div class="footer">Total Outstanding: ₹${totalOutstanding.toLocaleString('en-IN')}</div>
+    </body></html>`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Due_Statement_${tile.quarter_number}_${tile.tenant_id}.html`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const shareDueStatement = async () => {
+    const rows = detail.monthly_dues ?? [];
+    const totalOutstanding = rows.filter(r => r.isPending).reduce((s, r) => s + r.due, 0);
+    const pendingCount = rows.filter(r => r.isPending).length;
+    const text = `Due Statement — ${tile.quarter_number} (${tile.bhk_config})\nTenant: ${tile.tenant_name}\nLocation: ${tile.block_name}, ${tile.location_area}\nPending Months: ${pendingCount}\nTotal Outstanding: ₹${totalOutstanding.toLocaleString('en-IN')}`;
+    if (navigator.share) {
+      await navigator.share({ title: `Due Statement — ${tile.quarter_number}`, text }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+    }
   };
 
   // ── Installment plan state ─────────────────────────────────────────────────
@@ -212,6 +260,12 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               <StatusBadge status={tile.status} />
             </div>
           </div>
+          <button onClick={downloadDueStatement} title="Download PDF" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0 transition-colors" aria-label="Download statement">
+            <Download size={15} />
+          </button>
+          <button onClick={shareDueStatement} title="Share" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0 transition-colors" aria-label="Share statement">
+            <Share2 size={15} />
+          </button>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0 transition-colors">
             <X size={16} />
           </button>
@@ -252,7 +306,11 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               </div>
               <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 flex flex-col gap-0.5">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Due Date</span>
-                <span className="text-base font-bold text-gray-800 leading-tight">{fmtDate(tile.due_date)}</span>
+                {tile.status === 'OVERDUE' ? (
+                  <span className="text-base font-bold text-red-600 leading-tight">Immediate</span>
+                ) : (
+                  <span className="text-base font-bold text-gray-800 leading-tight">{fmtDate(tile.due_date)}</span>
+                )}
                 <StatusBadge status={tile.status} />
               </div>
             </div>
@@ -303,14 +361,15 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           );
         })() : (() => {
           const isCommercial = tile.bhk_config === 'COMMERCIAL';
-          const colCount = isCommercial ? 8 : 9;
+          const colCount = isCommercial ? 9 : 10;
 
           // Use monthly_dues from detail if available (all entries), otherwise fall back to single-tile loop
-          type RowShape = { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string; isPending: boolean };
+          type RowShape = { sl: number; date: string; rent: number; waterCharges: number; electricityCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string; isPending: boolean };
           let allRows: RowShape[];
           if (detail.monthly_dues && detail.monthly_dues.length > 0) {
             allRows = detail.monthly_dues.map((d, i) => ({
               sl: i + 1, date: d.date, rent: d.rent, waterCharges: d.waterCharges,
+              electricityCharges: d.electricityCharges,
               penalty: d.penalty, maintenance: d.maintenance, total: d.total, due: d.due,
               statusLabel: d.statusLabel, statusColor: d.statusColor, isPending: d.isPending,
             }));
@@ -320,15 +379,16 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             const dateStr = `01-${mo}-${yr}`;
             const rent = tile.base_rent;
             const waterCharges = tile.water_charges ?? 0;
+            const electricityCharges = tile.utility_charges ?? 0;
             const penalty = tile.penalty_override ?? tile.penalty_amount;
             const maintenance = tile.maintenance_charge ?? 0;
-            const total = rent + waterCharges + penalty + maintenance;
+            const total = rent + waterCharges + electricityCharges + penalty + maintenance;
             const due = Math.max(0, total - (tile.amount_paid ?? 0));
             const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE';
             if (isPending && due > 0) {
               const statusLabel = 'Pending';
               const statusColor = tile.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
-              allRows = [{ sl: 1, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending: true }];
+              allRows = [{ sl: 1, date: dateStr, rent, waterCharges, electricityCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending: true }];
             } else {
               allRows = [];
             }
@@ -404,7 +464,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   <thead>
                     <tr className="bg-teal-600 text-white">
                       {!isEO && <th className="px-3 py-2.5 w-8" />}
-                      {['Sl No', 'Month', 'Rent Amount', ...(!isCommercial ? ['Water Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Status'].map(h => (
+                      {['Sl No', 'Month', 'Rent Amount', ...(!isCommercial ? ['Water Charges', 'Electricity Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -429,6 +489,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                         <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
                         {!isCommercial && <td className="px-3 py-2 text-right text-gray-600">{r.waterCharges > 0 ? r.waterCharges.toLocaleString('en-IN') : '-'}</td>}
+                        {!isCommercial && <td className="px-3 py-2 text-right text-blue-700">{r.electricityCharges > 0 ? r.electricityCharges.toLocaleString('en-IN') : '-'}</td>}
                         <td className="px-3 py-2 text-right text-red-600 font-medium">{r.penalty > 0 ? r.penalty.toLocaleString('en-IN') : ''}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{r.maintenance > 0 ? r.maintenance.toLocaleString('en-IN') : '0'}</td>
                         <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>

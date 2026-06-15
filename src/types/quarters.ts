@@ -487,6 +487,7 @@ export interface RentDueMonthEntry {
   date: string;
   rent: number;
   waterCharges: number;
+  electricityCharges: number;
   penalty: number;
   maintenance: number;
   total: number;

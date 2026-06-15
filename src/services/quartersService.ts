@@ -1652,7 +1652,7 @@ export const quartersService = {
           .filter(t => t.allotment_id === tile.allotment_id)
           .sort((a, b) => a.month.localeCompare(b.month));
         allotmentTiles.forEach((t) => {
-          const isPending = t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL';
+          const isPending = t.status === 'DUE' || t.status === 'OVERDUE';
           const [yr, mo] = t.month.split('-');
           const dateStr = `01-${mo}-${yr}`;
           const rent = t.base_rent;
@@ -1675,7 +1675,7 @@ export const quartersService = {
           } else {
             statusLabel = 'Pending'; statusColor = 'bg-amber-100 text-amber-700';
           }
-          monthly_dues.push({ month: t.month, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending });
+          monthly_dues.push({ month: t.month, date: dateStr, rent, waterCharges, electricityCharges: utility, penalty, maintenance, total, due, statusLabel, statusColor, isPending });
         });
       }
 
