@@ -1374,6 +1374,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
                 Paid History
               </button>
               )}
+              {hasDue && (
               <button
                 onClick={e => { e.stopPropagation(); close(); onDueDetails(tile); }}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-amber-50 hover:text-amber-800 transition-colors text-left"
@@ -1381,6 +1382,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
                 <IndianRupee size={12} className="text-amber-500 shrink-0" />
                 Show Due Payment
               </button>
+              )}
               <button
                 onClick={e => { e.stopPropagation(); close(); onLogDetails(tile); }}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-slate-50 hover:text-slate-800 transition-colors text-left"
@@ -1919,9 +1921,9 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 const isOpen = expandedPaymentIds.has(p.id);
                 return (
                   <div key={p.id} className="relative">
-                    <div className="absolute -left-5 top-3.5 w-4 h-0.5 bg-teal-200 rounded-full" />
-                    <div className="absolute -left-[22px] top-3 w-2.5 h-2.5 rounded-full border-2 border-teal-300 bg-white" />
-                    <div className="bg-white rounded-xl border border-teal-100 overflow-hidden shadow-sm">
+                    <div className="absolute -left-5 top-3.5 w-4 h-0.5 bg-teal-300 rounded-full" />
+                    <div className={`absolute -left-[22px] top-3 w-2.5 h-2.5 rounded-full border-2 bg-white transition-colors ${isOpen ? 'border-teal-500 bg-teal-100' : 'border-teal-300'}`} />
+                    <div className={`rounded-xl border overflow-hidden shadow-sm transition-colors ${isOpen ? 'border-teal-300' : 'border-teal-100 bg-white'}`}>
 
                       {/* ── Compact single-row summary (always visible) ── */}
                       <button
@@ -1998,9 +2000,9 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
 
                       {/* ── Collapsible details ── */}
                       {isOpen && (
-                        <div className="border-t border-gray-100 grid grid-cols-2 divide-x divide-gray-100">
+                        <div className="border-t border-teal-200 bg-teal-50/50 grid grid-cols-2 divide-x divide-teal-100">
                           {/* Left — instrument details */}
-                          <div className="px-4 py-3 space-y-2">
+                          <div className="px-4 py-3 space-y-2 border-l-4 border-teal-400">
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payment Details</div>
                             <div className="flex items-start gap-2">
                               <Calendar size={11} className="text-gray-400 mt-0.5 shrink-0" />
@@ -2036,7 +2038,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                           </div>
 
                           {/* Right — charge breakdown */}
-                          <div className="px-4 py-3 space-y-1.5">
+                          <div className="px-4 py-3 space-y-1.5 bg-teal-50/30">
                             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Charge Breakdown</div>
                             {([
                               ['Base Rent', tile.base_rent],
