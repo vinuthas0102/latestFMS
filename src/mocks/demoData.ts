@@ -1630,7 +1630,9 @@ function rt(id: string, allot: string, month: string, tk: readonly [string,strin
 
 export const DEMO_RENT_TILES: RentTile[] = [
   // ── June 2026 (current month) ────────────────────────────────────────────
-  rt('rt-0601','allot-001','2026-06',T.t001, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-04',  null,           null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
+  rt('rt-0601','allot-001','2026-06',T.t001, 0,null,6700,     'ONLINE',       'PAID',    '2026-06-05','2026-06-04',  'RCP-2606-0091',null, 0,0,0, 6700,      '2024-03-15','2024-03-20', null),
+  rt('rt-e601','allot-016','2026-06',T.t016, 0,null,9500,     'ONLINE',       'PAID',    '2026-06-05','2026-06-03',  'RCP-2606-E001',null),
+  rt('rt-f601','allot-017','2026-06',T.t017, 0,null,4550,     'AUTO_DEDUCTION','PAID',   '2026-06-05','2026-06-01',  'RCP-2606-F001',null),
   rt('rt-0607','allot-007','2026-06',T.t007, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-03',  null,           null, 0,0,0, 5150,      '2025-01-15','2025-01-20', null),
   rt('rt-0611','allot-011','2026-06',T.t011, 0,null,   0,       null,         'DUE',     '2026-06-05','2026-05-03',  null,           null, 0,0,0, 8000,      '2024-10-01','2024-10-08', null),
   // ── May 2026 ──────────────────────────────────────────────────────────────
@@ -1873,6 +1875,15 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
     { id: 'pay-1111', allotment_id: 'allot-011', month: '2025-11', amount: 4000, payment_mode: 'CASH', payment_date: '2025-11-03', receipt_ref: 'TMP-2511-011', remarks: 'Partial payment', recorded_by: 'EO-Admin' },
   ],
   // allot-001 (EMP-1001 / Rajesh Kumar) history
+  'allot-001_2026-06': [
+    { id: 'pay-0601', allotment_id: 'allot-001', month: '2026-06', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-06-04', receipt_ref: 'RCP-2606-0091', remarks: 'UPI Ref: 604018294537 · ICICI Bank', recorded_by: 'System' },
+  ],
+  'allot-016_2026-06': [
+    { id: 'pay-e601', allotment_id: 'allot-016', month: '2026-06', amount: 9500, payment_mode: 'ONLINE', payment_date: '2026-06-03', receipt_ref: 'RCP-2606-E001', remarks: 'UPI Ref: 603027483920 · HDFC Bank', recorded_by: 'System' },
+  ],
+  'allot-017_2026-06': [
+    { id: 'pay-f601', allotment_id: 'allot-017', month: '2026-06', amount: 4550, payment_mode: 'AUTO_DEDUCTION', payment_date: '2026-06-01', receipt_ref: 'RCP-2606-F001', remarks: 'Auto-deduction · Salary A/C SBI', recorded_by: 'System' },
+  ],
   'allot-001_2026-03': [
     { id: 'pay-0301', allotment_id: 'allot-001', month: '2026-03', amount: 6700, payment_mode: 'ONLINE', payment_date: '2026-03-05', receipt_ref: 'RCP-2603-0059', remarks: 'UPI Ref: 305068834561 · ICICI Bank', recorded_by: 'System' },
   ],
