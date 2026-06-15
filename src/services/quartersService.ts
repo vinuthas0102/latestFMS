@@ -1644,11 +1644,36 @@ export const quartersService = {
       const pen = tile?.penalty_amount ?? 0;
       const penOvr = tile?.penalty_override ?? null;
       const net = base + water + util + (penOvr ?? pen);
+
+      // Build monthly_dues from all tiles for this allotment, pending only
+      const monthly_dues: import('../types/quarters').RentDueMonthEntry[] = [];
+      if (tile) {
+        const allotmentTiles = DEMO_RENT_TILES
+          .filter(t => t.allotment_id === tile.allotment_id)
+          .sort((a, b) => a.month.localeCompare(b.month));
+        allotmentTiles.forEach((t, idx) => {
+          const isPending = t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL';
+          if (!isPending) return;
+          const [yr, mo] = t.month.split('-');
+          const dateStr = `01-${mo}-${yr}`;
+          const rent = t.base_rent;
+          const waterCharges = t.water_charges ?? 0;
+          const penalty = t.penalty_override ?? t.penalty_amount;
+          const maintenance = t.maintenance_charge ?? 0;
+          const total = rent + waterCharges + penalty + maintenance;
+          const due = Math.max(0, total - (t.amount_paid ?? 0));
+          const statusLabel = t.status === 'PARTIAL' ? 'Partial' : 'Pending';
+          const statusColor = t.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+          monthly_dues.push({ month: t.month, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor });
+        });
+      }
+
       return Promise.resolve({
         tile_id: tileId, base_rent: base, water_charges: water,
         utility_charges: util, months_overdue: tile?.status === 'OVERDUE' ? 1 : 0,
         penalty_rate: 2, penalty_amount: pen, penalty_override: penOvr,
         waiver_amount: 0, net_payable: net, eo_remarks: DEMO_EO_REMARKS[tileId] ?? '',
+        monthly_dues,
       });
     }
     return Promise.resolve({ tile_id: tileId, base_rent: 0, water_charges: 0, utility_charges: 0, months_overdue: 0, penalty_rate: 2, penalty_amount: 0, penalty_override: null, waiver_amount: 0, net_payable: 0, eo_remarks: '' });

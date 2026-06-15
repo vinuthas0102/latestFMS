@@ -482,6 +482,19 @@ export interface RentTile {
   exemption_reason: string | null;
 }
 
+export interface RentDueMonthEntry {
+  month: string;
+  date: string;
+  rent: number;
+  waterCharges: number;
+  penalty: number;
+  maintenance: number;
+  total: number;
+  due: number;
+  statusLabel: string;
+  statusColor: string;
+}
+
 export interface RentDueDetail {
   tile_id: string;
   base_rent: number;
@@ -494,6 +507,7 @@ export interface RentDueDetail {
   waiver_amount: number;
   net_payable: number;
   eo_remarks: string;
+  monthly_dues?: RentDueMonthEntry[];
 }
 
 export interface RentPayment {

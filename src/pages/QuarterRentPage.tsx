@@ -299,49 +299,50 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             </div>
           );
         })() : (() => {
-          const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
-          const posDate = tile.possession_date ?? tile.allotment_date;
-          const [startY, startM] = posDate
-            ? [parseInt(posDate.slice(0, 4), 10), parseInt(posDate.slice(5, 7), 10)]
-            : [2026, 1];
-          const rows: { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string }[] = [];
-          let sl = 1;
-          for (let y = startY, m = startM; y < tileYear || (y === tileYear && m <= tileMonthNum); ) {
-            const isCurrentMonth = y === tileYear && m === tileMonthNum;
-            const dateStr = `01-${String(m).padStart(2, '0')}-${y}`;
-            const rent = tile.base_rent;
-            const waterCharges = tile.water_charges ?? 0;
-            const penalty = isCurrentMonth ? (tile.penalty_override ?? tile.penalty_amount) : 0;
-            const maintenance = tile.maintenance_charge ?? 0;
-            const total = rent + waterCharges + penalty + maintenance;
-            const isPastPaid = !isCurrentMonth;
-            const due = isPastPaid ? 0 : (isCurrentMonth && tile.amount_paid > 0 ? Math.max(0, rent - tile.amount_paid) : rent);
-            const statusLabel = due === 0 ? 'Paid' : (isCurrentMonth && tile.amount_paid > 0 ? 'Partial' : 'Pending');
-            const statusColor = due === 0 ? 'bg-emerald-100 text-emerald-700' : statusLabel === 'Partial' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
-            rows.push({ sl: sl++, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor });
-            m++;
-            if (m > 12) { m = 1; y++; }
-          }
-          const displayRows = [...rows].map((r, i) => ({ ...r, sl: i + 1 }));
           const isCommercial = tile.bhk_config === 'COMMERCIAL';
           const colCount = isCommercial ? 8 : 9;
 
-          // Ordered list of pending (due > 0) rows, ascending by their sl (already in date order)
-          const pendingRows = displayRows.filter(r => r.due > 0);
+          // Use monthly_dues from detail if available (pending entries only), otherwise fall back to single-tile loop
+          type RowShape = { sl: number; date: string; rent: number; waterCharges: number; penalty: number; maintenance: number; total: number; due: number; statusLabel: string; statusColor: string };
+          let pendingRows: RowShape[];
+          if (detail.monthly_dues && detail.monthly_dues.length > 0) {
+            pendingRows = detail.monthly_dues.map((d, i) => ({
+              sl: i + 1, date: d.date, rent: d.rent, waterCharges: d.waterCharges,
+              penalty: d.penalty, maintenance: d.maintenance, total: d.total, due: d.due,
+              statusLabel: d.statusLabel, statusColor: d.statusColor,
+            }));
+          } else {
+            // Fallback: single tile month
+            const [tileYear, tileMonthNum] = tile.month.split('-').map(Number);
+            const [yr, mo] = tile.month.split('-');
+            const dateStr = `01-${mo}-${yr}`;
+            const rent = tile.base_rent;
+            const waterCharges = tile.water_charges ?? 0;
+            const penalty = tile.penalty_override ?? tile.penalty_amount;
+            const maintenance = tile.maintenance_charge ?? 0;
+            const total = rent + waterCharges + penalty + maintenance;
+            const due = Math.max(0, total - (tile.amount_paid ?? 0));
+            if (due > 0) {
+              const statusLabel = tile.status === 'PARTIAL' ? 'Partial' : 'Pending';
+              const statusColor = tile.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+              pendingRows = [{ sl: 1, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor }];
+            } else {
+              pendingRows = [];
+            }
+          }
 
-          // A row can be toggled only if it is pending
-          const canSelectRow = (r: typeof displayRows[0]) => !isEO && r.due > 0;
+          // A row can be toggled only if not EO (pending rows are always due > 0 here)
+          const canSelectRow = () => !isEO;
 
           // Sequential enforcement: selected sls must always be a contiguous prefix of pendingRows
-          const toggleRow = (sl: number, r: typeof displayRows[0]) => {
-            if (!canSelectRow(r)) return;
+          const toggleRow = (sl: number) => {
+            if (!canSelectRow()) return;
             setSeqWarning(null);
             const pendingSlsInOrder = pendingRows.map(pr => pr.sl);
             const idx = pendingSlsInOrder.indexOf(sl);
             setSelectedMonthSls(prev => {
               const next = new Set(prev);
               if (next.has(sl)) {
-                // Uncheck: only allow if no later pending month is selected
                 const laterSelected = pendingSlsInOrder.slice(idx + 1).some(s => next.has(s));
                 if (laterSelected) {
                   setSeqWarning('Please deselect later months first before removing this month.');
@@ -349,7 +350,6 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                 }
                 next.delete(sl);
               } else {
-                // Check: only allow if all earlier pending months are already selected
                 const earlierUnselected = pendingSlsInOrder.slice(0, idx).some(s => !next.has(s));
                 if (earlierUnselected) {
                   const earliest = pendingRows.find(pr => !next.has(pr.sl));
@@ -362,11 +362,10 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             });
           };
 
-          const selectedTotal = displayRows
+          const selectedTotal = pendingRows
             .filter(r => selectedMonthSls.has(r.sl))
             .reduce((sum, r) => sum + r.due, 0);
 
-          // Month range label for the summary bar
           const selectedPendingRows = pendingRows.filter(r => selectedMonthSls.has(r.sl));
           const selectionRangeLabel = selectedPendingRows.length > 0
             ? (selectedPendingRows.length === 1
@@ -378,7 +377,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               {!isEO && (
                 <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-sm bg-teal-500" />
-                  Select months in order (oldest first) to make a payment, then click <span className="font-semibold text-teal-700">Pay Now</span>. You must clear earlier dues before selecting a later month.
+                  Showing <span className="font-semibold text-gray-700">{pendingRows.length}</span> pending due{pendingRows.length !== 1 ? 's' : ''}. Select months in order (oldest first), then click <span className="font-semibold text-teal-700">Pay Now</span>.
                 </div>
               )}
               {seqWarning && (
@@ -388,30 +387,33 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   <button onClick={() => setSeqWarning(null)} className="shrink-0 text-amber-400 hover:text-amber-600"><X size={13} /></button>
                 </div>
               )}
+              {pendingRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
+                  <div className="text-sm font-medium text-emerald-700">No pending dues</div>
+                  <div className="text-xs mt-1">All months are cleared for this quarter.</div>
+                </div>
+              ) : (
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-teal-600 text-white">
                       {!isEO && <th className="px-3 py-2.5 w-8" />}
-                      {['Sl No', 'Date', 'Rent Amount', ...(!isCommercial ? ['Water Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
+                      {['Sl No', 'Month', 'Rent Amount', ...(!isCommercial ? ['Water Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {displayRows.map((r, i) => (
-                      <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${canSelectRow(r) ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''}`}
-                        onClick={() => toggleRow(r.sl, r)}>
+                    {pendingRows.map((r, i) => (
+                      <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''}`}
+                        onClick={() => toggleRow(r.sl)}>
                         {!isEO && (
                           <td className="px-3 py-2 text-center">
-                            {canSelectRow(r) ? (
-                              <input type="checkbox" checked={selectedMonthSls.has(r.sl)}
-                                onChange={() => toggleRow(r.sl, r)}
-                                onClick={e => e.stopPropagation()}
-                                className="w-3.5 h-3.5 rounded accent-teal-600 cursor-pointer" />
-                            ) : (
-                              <input type="checkbox" disabled className="w-3.5 h-3.5 rounded opacity-30 cursor-not-allowed" />
-                            )}
+                            <input type="checkbox" checked={selectedMonthSls.has(r.sl)}
+                              onChange={() => toggleRow(r.sl)}
+                              onClick={e => e.stopPropagation()}
+                              className="w-3.5 h-3.5 rounded accent-teal-600 cursor-pointer" />
                           </td>
                         )}
                         <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
@@ -438,6 +440,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   </tfoot>
                 </table>
               </div>
+              )}
               {!isEO && selectedMonthSls.size > 0 && (
                 <div className="mt-3 flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-2.5">
                   <div className="text-xs text-teal-800 min-w-0 mr-3">
