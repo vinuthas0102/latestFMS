@@ -45,11 +45,10 @@ const STATUS: Record<StatusKey, { label: string; bg: string; text: string; borde
   DUE:      { label: 'Due',      bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400' },
   OVERDUE:  { label: 'Overdue',  bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     dot: 'bg-red-500' },
   PAID:     { label: 'Paid',     bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  PARTIAL:  { label: 'Partial',  bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     dot: 'bg-sky-400' },
   EXEMPTED: { label: 'Exempted', bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-400' },
 };
 const STATUS_LEFT: Record<StatusKey, string> = {
-  DUE: 'bg-amber-400', OVERDUE: 'bg-red-500', PAID: 'bg-emerald-500', PARTIAL: 'bg-sky-400', EXEMPTED: 'bg-slate-300',
+  DUE: 'bg-amber-400', OVERDUE: 'bg-red-500', PAID: 'bg-emerald-500', EXEMPTED: 'bg-slate-300',
 };
 const PAYMENT_MODES = ['ALL','ONLINE','CHEQUE','DD','CASH','AUTO_DEDUCTION','EXEMPTED'] as const;
 
@@ -265,7 +264,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           const isSD = dpFilter === 'SD_PENDING';
           const chargeLabel = isSD ? 'Security Deposit' : 'Advance Deposit';
           const chargeAmount = isSD ? (tile.sd_amount ?? 0) : (tile.advance_amount ?? 0);
-          const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+          const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE';
           const statusLabel = isPending ? (tile.status === 'OVERDUE' ? 'Overdue' : 'Pending') : 'Paid';
           const statusColor = isPending ? (tile.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700') : 'bg-emerald-100 text-emerald-700';
           return (
@@ -325,10 +324,10 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             const maintenance = tile.maintenance_charge ?? 0;
             const total = rent + waterCharges + penalty + maintenance;
             const due = Math.max(0, total - (tile.amount_paid ?? 0));
-            const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+            const isPending = tile.status === 'DUE' || tile.status === 'OVERDUE';
             if (isPending && due > 0) {
-              const statusLabel = tile.status === 'PARTIAL' ? 'Partial' : 'Pending';
-              const statusColor = tile.status === 'PARTIAL' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700';
+              const statusLabel = 'Pending';
+              const statusColor = tile.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
               allRows = [{ sl: 1, date: dateStr, rent, waterCharges, penalty, maintenance, total, due, statusLabel, statusColor, isPending: true }];
             } else {
               allRows = [];
@@ -1227,7 +1226,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
+  const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
   const hasPayments = tile.status === 'PAID';
   const showClar = tile.status !== 'EXEMPTED';
   const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
@@ -1345,10 +1344,10 @@ const TenantPaymentProfileModal: React.FC<{
   if (tenantTiles.length === 0) return null;
   const first = tenantTiles[0];
   const totalPending = tenantTiles
-    .filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')
-    .reduce((s, t) => s + (t.status === 'PARTIAL' ? t.total_due - t.amount_paid : t.total_due), 0);
+    .filter(t => t.status === 'DUE' || t.status === 'OVERDUE')
+    .reduce((s, t) => s + t.total_due, 0);
   const totalPaid = tenantTiles.reduce((s, t) => s + t.amount_paid, 0);
-  const unpaidCount = tenantTiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL').length;
+  const unpaidCount = tenantTiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE').length;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -1394,7 +1393,7 @@ const TenantPaymentProfileModal: React.FC<{
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {tenantTiles.map(t => {
             const s = STATUS[t.status];
-            const pendingAmt = t.status === 'PARTIAL' ? t.total_due - t.amount_paid : t.status === 'PAID' || t.status === 'EXEMPTED' ? 0 : t.total_due;
+            const pendingAmt = t.status === 'PAID' || t.status === 'EXEMPTED' ? 0 : t.total_due;
             return (
               <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
                 <div className={`w-1 self-stretch shrink-0 rounded-full ${STATUS_LEFT[t.status]}`} />
@@ -1408,9 +1407,6 @@ const TenantPaymentProfileModal: React.FC<{
                 </div>
                 <div className="shrink-0 text-right min-w-[80px]">
                   <div className={`text-sm font-extrabold ${s.text}`}>{fmtINR(t.total_due)}</div>
-                  {t.status === 'PARTIAL' && (
-                    <div className="text-[9px] text-amber-600 font-medium">Pending: {fmtINR(pendingAmt)}</div>
-                  )}
                   <div className="text-[9px] text-gray-400">total due</div>
                 </div>
                 <div className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg ${s.bg} ${s.text} ${s.border} border`}>
@@ -1459,7 +1455,7 @@ const TenantChip: React.FC<{ tile: RentTile; onViewProfile?: (e: React.MouseEven
 //  Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 type ViewMode = 'table' | 'tile' | 'card' | 'graph';
-type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID' | 'PARTIAL'
+type DpFilter = 'all' | 'DUE' | 'OVERDUE' | 'EXEMPTED' | 'PAID'
   | 'RENT_OUTSTANDING' | 'SD_PENDING' | 'ADVANCE_PENDING';
 
 function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
@@ -1467,7 +1463,6 @@ function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
   let arrears_count = 0, arrears_amount = 0;
   let exempted_count = 0, exempted_amount = 0;
   let paid_count = 0, paid_amount = 0;
-  let partial_count = 0, partial_amount = 0;
   let sd_pending_count = 0, sd_pending_amount = 0;
   let advance_pending_count = 0, advance_pending_amount = 0;
   let maintenance_arrears_count = 0, maintenance_arrears_amount = 0;
@@ -1478,32 +1473,31 @@ function computeSummaryFromTiles(tiles: RentTile[]): RentTrackerSummary {
     else if (t.status === 'OVERDUE')  { arrears_count++;   arrears_amount   += t.total_due; }
     else if (t.status === 'EXEMPTED') { exempted_count++;  exempted_amount  += t.base_rent; }
     else if (t.status === 'PAID')     { paid_count++;      paid_amount      += t.amount_paid; }
-    else if (t.status === 'PARTIAL')  { partial_count++;   partial_amount   += t.amount_paid; }
 
-    if ((t.sd_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+    if ((t.sd_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE')) {
       sd_pending_count++; sd_pending_amount += (t.sd_amount ?? 0);
     }
-    if ((t.advance_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+    if ((t.advance_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE')) {
       advance_pending_count++; advance_pending_amount += (t.advance_amount ?? 0);
     }
-    if ((t.maintenance_charge ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+    if ((t.maintenance_charge ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE')) {
       maintenance_arrears_count++; maintenance_arrears_amount += (t.maintenance_charge ?? 0);
     }
-    if ((t.penalty_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL')) {
+    if ((t.penalty_amount ?? 0) > 0 && (t.status === 'DUE' || t.status === 'OVERDUE')) {
       penalty_accumulated_count++; penalty_accumulated_amount += (t.penalty_override ?? t.penalty_amount ?? 0);
     }
   }
 
-  const demand = total_due_amount + arrears_amount + paid_amount + partial_amount;
-  const collection_rate = demand > 0 ? Math.round((paid_amount + partial_amount) / demand * 100) : 0;
+  const demand = total_due_amount + arrears_amount + paid_amount;
+  const collection_rate = demand > 0 ? Math.round(paid_amount / demand * 100) : 0;
 
-  const total_outstanding_count = total_due_count + arrears_count + partial_count;
-  const total_outstanding_amount = total_due_amount + arrears_amount + (tiles.filter(t => t.status === 'PARTIAL').reduce((s, t) => s + (t.total_due - t.amount_paid), 0));
+  const total_outstanding_count = total_due_count + arrears_count;
+  const total_outstanding_amount = total_due_amount + arrears_amount;
 
   return {
     total_due_count, total_due_amount, arrears_count, arrears_amount,
     exempted_count, exempted_amount, paid_count, paid_amount,
-    partial_count, partial_amount, collection_rate,
+    collection_rate,
     total_outstanding_count, total_outstanding_amount,
     sd_pending_count, sd_pending_amount,
     advance_pending_count, advance_pending_amount,
@@ -1590,7 +1584,7 @@ export const QuarterRentPage: React.FC = () => {
 
   const selectAllDue = useCallback(() => {
     setSelectedTileIds(new Set(
-      tiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL').map(t => t.id)
+      tiles.filter(t => t.status === 'DUE' || t.status === 'OVERDUE').map(t => t.id)
     ));
   }, [tiles]);
 
@@ -1632,10 +1626,9 @@ export const QuarterRentPage: React.FC = () => {
     else if (dpFilter === 'OVERDUE')         t = t.filter(x => x.status === 'OVERDUE');
     else if (dpFilter === 'EXEMPTED')        t = t.filter(x => x.status === 'EXEMPTED');
     else if (dpFilter === 'PAID')            t = t.filter(x => x.status === 'PAID');
-    else if (dpFilter === 'PARTIAL')         t = t.filter(x => x.status === 'PARTIAL');
-    else if (dpFilter === 'RENT_OUTSTANDING') t = t.filter(x => x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL');
-    else if (dpFilter === 'SD_PENDING')      t = t.filter(x => (x.sd_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
-    else if (dpFilter === 'ADVANCE_PENDING') t = t.filter(x => (x.advance_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE' || x.status === 'PARTIAL'));
+    else if (dpFilter === 'RENT_OUTSTANDING') t = t.filter(x => x.status === 'DUE' || x.status === 'OVERDUE');
+    else if (dpFilter === 'SD_PENDING')      t = t.filter(x => (x.sd_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE'));
+    else if (dpFilter === 'ADVANCE_PENDING') t = t.filter(x => (x.advance_amount ?? 0) > 0 && (x.status === 'DUE' || x.status === 'OVERDUE'));
     return t;
   }, [tiles, dpFilter, filterAllotmentId, isTenant]);
 
@@ -1644,15 +1637,15 @@ export const QuarterRentPage: React.FC = () => {
 
   // ── Graph data ──────────────────────────────────────────────────────────────
   const graphData = useMemo(() => {
-    const byMonth: Record<string, { due: number; paid: number; exempted: number; overdue: number; partial: number; count: number }> = {};
+    const byMonth: Record<string, { due: number; paid: number; exempted: number; overdue: number; count: number }> = {};
     for (const t of tiles) {
-      if (!byMonth[t.month]) byMonth[t.month] = { due: 0, paid: 0, exempted: 0, overdue: 0, partial: 0, count: 0 };
-      byMonth[t.month][t.status === 'DUE' ? 'due' : t.status === 'PAID' ? 'paid' : t.status === 'EXEMPTED' ? 'exempted' : t.status === 'OVERDUE' ? 'overdue' : 'partial'] += t.total_due || t.base_rent;
+      if (!byMonth[t.month]) byMonth[t.month] = { due: 0, paid: 0, exempted: 0, overdue: 0, count: 0 };
+      byMonth[t.month][t.status === 'DUE' ? 'due' : t.status === 'PAID' ? 'paid' : t.status === 'EXEMPTED' ? 'exempted' : 'overdue'] += t.total_due || t.base_rent;
       byMonth[t.month].count += 1;
     }
     return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({
       month,
-      total: data.due + data.paid + data.exempted + data.overdue + data.partial,
+      total: data.due + data.paid + data.exempted + data.overdue,
       ...data,
     }));
   }, [tiles]);
@@ -2048,8 +2041,8 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
             className="flex-1 flex items-center gap-3 px-4 py-3 min-w-0 cursor-pointer select-none"
             onClick={() => toggleInfo(tile.id)}
           >
-            {/* Multi-select checkbox (tenant only, DUE/OVERDUE/PARTIAL) */}
-            {isTenant && (tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL') && (
+            {/* Multi-select checkbox (tenant only, DUE/OVERDUE) */}
+            {isTenant && (tile.status === 'DUE' || tile.status === 'OVERDUE') && (
               <div
                 className="shrink-0"
                 onClick={e => { e.stopPropagation(); toggleTileSelect(tile.id); }}
@@ -2337,7 +2330,6 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
       { key: 'due'      as const, label: 'Due',      color: 'bg-amber-400',   hoverColor: 'hover:bg-amber-500'   },
       { key: 'overdue'  as const, label: 'Overdue',  color: 'bg-red-500',     hoverColor: 'hover:bg-red-600'     },
       { key: 'paid'     as const, label: 'Paid',     color: 'bg-emerald-500', hoverColor: 'hover:bg-emerald-600' },
-      { key: 'partial'  as const, label: 'Partial',  color: 'bg-sky-400',     hoverColor: 'hover:bg-sky-500'     },
       { key: 'exempted' as const, label: 'Exempted', color: 'bg-slate-300',   hoverColor: 'hover:bg-slate-400'   },
     ] as { key: keyof typeof graphData[0]; label: string; color: string; hoverColor: string }[];
 
@@ -2443,15 +2435,13 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
   };
 
   const statusCards = summary ? [
-    { label: 'Paid & Partially Paid', value: (summary.paid_count ?? 0) + (summary.partial_count ?? 0), subtitle: fmtINR((summary.paid_amount ?? 0) + (summary.partial_amount ?? 0)), gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600', dp: 'PAID' as DpFilter, icon: TrendingUp, isAccordion: true },
+    { label: 'Paid', value: summary.paid_count ?? 0, subtitle: fmtINR(summary.paid_amount ?? 0), gradient: 'bg-gradient-to-r from-emerald-500 to-teal-600', dp: 'PAID' as DpFilter, icon: TrendingUp, isAccordion: true },
     { label: 'Collection Rate',  value: summary.collection_rate, subtitle: 'of demand collected',            gradient: 'bg-gradient-to-r from-teal-600 to-emerald-600',  dp: 'all'      as DpFilter, icon: BarChart2, isAccordion: false },
   ] : [];
 
-  // Sub-DP cards under "Paid & Partially Paid"
+  // Sub-DP cards under "Paid"
   const paidSubCards = summary ? [
     { label: 'Paid',           value: summary.paid_count,     subtitle: fmtINR(summary.paid_amount),     dp: 'PAID'     as DpFilter, icon: CheckCircle2, accentClass: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100', textClass: 'text-emerald-700' },
-    // Partially Paid is in paidSubCards (partial payment made) — not in outstanding/due
-    { label: 'Partially Paid', value: summary.partial_count,  subtitle: fmtINR(summary.partial_amount),  dp: 'PARTIAL'  as DpFilter, icon: Clock,        accentClass: 'border-sky-200    bg-sky-50    hover:bg-sky-100',     textClass: 'text-sky-700' },
     { label: 'Exempted',       value: summary.exempted_count, subtitle: fmtINR(summary.exempted_amount), dp: 'EXEMPTED' as DpFilter, icon: Receipt,      accentClass: 'border-slate-200  bg-slate-50  hover:bg-slate-100',   textClass: 'text-slate-700' },
   ] : [];
 
@@ -2587,7 +2577,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                   )}
                 </div>
 
-                {/* Status cards — Paid & Partially Paid (accordion) + Collection Rate (graph toggle) */}
+                {/* Status cards — Paid (accordion) + Collection Rate (graph toggle) */}
                 {statusCards.map((c, i) => {
                   const isPaidCard = c.isAccordion;
                   const isCollRate = c.label === 'Collection Rate';
@@ -2697,7 +2687,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                 </div>
               </div>
 
-              {/* ── Accordion sub-panel: slides open under Paid & Partially Paid card ── */}
+              {/* ── Accordion sub-panel: slides open under Paid card ── */}
               <div
                 className={`overflow-hidden transition-all duration-300 ease-in-out ${
                   paidExpanded ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
@@ -2790,11 +2780,10 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                     { label: 'Due',      count: summary.total_due_count, amount: fmtINR(summary.total_due_amount), dp: 'DUE'      as DpFilter, fill: 'bg-amber-400',   text: 'text-amber-700',   activeBg: 'bg-amber-50',   activeBorder: 'border-amber-300'   },
                     { label: 'Overdue',  count: summary.arrears_count,   amount: fmtINR(summary.arrears_amount),   dp: 'OVERDUE'  as DpFilter, fill: 'bg-red-400',     text: 'text-red-700',     activeBg: 'bg-red-50',     activeBorder: 'border-red-300'     },
                     { label: 'Paid',     count: summary.paid_count,      amount: fmtINR(summary.paid_amount),      dp: 'PAID'     as DpFilter, fill: 'bg-emerald-400', text: 'text-emerald-700', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-300' },
-                    { label: 'Partial',  count: summary.partial_count,   amount: fmtINR(summary.partial_amount),   dp: 'PARTIAL'  as DpFilter, fill: 'bg-sky-400',     text: 'text-sky-700',     activeBg: 'bg-sky-50',     activeBorder: 'border-sky-300'     },
                     { label: 'Exempted', count: summary.exempted_count,  amount: fmtINR(summary.exempted_amount),  dp: 'EXEMPTED' as DpFilter, fill: 'bg-slate-400',   text: 'text-slate-500',   activeBg: 'bg-slate-50',   activeBorder: 'border-slate-300'   },
                   ] as const).map(b => {
                     const isActive = dpFilter === b.dp;
-                    const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.partial_count, summary.exempted_count, 1);
+                    const maxCount = Math.max(summary.total_due_count, summary.arrears_count, summary.paid_count, summary.exempted_count, 1);
                     const pct = Math.max((b.count / maxCount) * 100, b.count > 0 ? 5 : 0);
                     return (
                       <button
@@ -2849,7 +2838,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
           </div>
 
             {/* Tenant bulk-select quick actions */}
-            {isTenant && displayTiles.some(t => t.status === 'DUE' || t.status === 'OVERDUE' || t.status === 'PARTIAL') && (
+            {isTenant && displayTiles.some(t => t.status === 'DUE' || t.status === 'OVERDUE') && (
               <div className="flex items-center gap-2 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2 mb-1.5">
                 <button
                   onClick={selectAllDue}
@@ -3040,7 +3029,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               actorRole: logTile.payment_mode ?? 'system',
               message: `Payment of ${fmtINR(logTile.last_paid_amount ?? logTile.amount_paid)} received via ${logTile.payment_mode ?? 'N/A'}${logTile.receipt_ref ? ` (Ref: ${logTile.receipt_ref})` : ''}.`,
               tag: logTile.status,
-              tagColor: (logTile.status === 'PAID' ? 'emerald' : logTile.status === 'PARTIAL' ? 'sky' : logTile.status === 'OVERDUE' ? 'red' : 'amber') as LogEntry['tagColor'],
+              tagColor: (logTile.status === 'PAID' ? 'emerald' : logTile.status === 'OVERDUE' ? 'red' : 'amber') as LogEntry['tagColor'],
             }] : []),
             ...(logTile.exemption_reason ? [{
               id: 'exemption',

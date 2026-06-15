@@ -444,7 +444,7 @@ export interface RentSummary {
   months_overdue: number;
 }
 
-export type RentTileStatus = 'DUE' | 'PAID' | 'EXEMPTED' | 'PARTIAL' | 'OVERDUE';
+export type RentTileStatus = 'DUE' | 'PAID' | 'EXEMPTED' | 'OVERDUE';
 export type RentPaymentMode = 'ONLINE' | 'CHEQUE' | 'DD' | 'CASH' | 'AUTO_DEDUCTION' | 'EXEMPTED';
 
 export interface RentTile {
@@ -540,8 +540,6 @@ export interface RentTrackerSummary {
   exempted_amount: number;
   paid_count: number;
   paid_amount: number;
-  partial_count: number;
-  partial_amount: number;
   arrears_count: number;
   arrears_amount: number;
   collection_rate: number;
