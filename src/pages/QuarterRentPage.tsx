@@ -917,7 +917,7 @@ const UndoModal: React.FC<UndoModalProps> = ({ payment, onClose, onConfirm }) =>
         <div className="px-6 py-4 space-y-4">
           <div className="bg-rose-50 border border-rose-100 rounded-xl p-3">
             <p className="text-sm text-gray-700">Remove payment of <strong className="text-gray-900">{fmtINR(payment.amount)}</strong> made on <strong className="text-gray-900">{fmtDate(payment.payment_date)}</strong>?</p>
-            <p className="text-xs text-rose-600 mt-1">Tile status will revert to <strong>Due</strong> or <strong>Partial</strong> depending on remaining payments.</p>
+            <p className="text-xs text-rose-600 mt-1">Tile status will revert to <strong>Due</strong> depending on remaining payments.</p>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Reason for reversal <span className="text-red-500">*</span></label>
@@ -1228,7 +1228,7 @@ const TileActionsMenu: React.FC<TileActionsMenuProps> = ({
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const hasDue = tile.status === 'DUE' || tile.status === 'OVERDUE' || tile.status === 'PARTIAL';
-  const hasPayments = tile.status === 'PAID' || tile.status === 'PARTIAL';
+  const hasPayments = tile.status !== 'EXEMPTED';
   const showClar = tile.status !== 'EXEMPTED';
   const isHistoryOpen = expandedId === tile.id && activePanel === 'history';
   const isChatOpen = chatTileId === tile.id;
@@ -1666,7 +1666,7 @@ export const QuarterRentPage: React.FC = () => {
     }
     setExpandedId(tile.id); setActivePanel('history');
     setExpandedPaymentIds(new Set());
-    const p = await quartersService.getRentPaymentHistory(tile.allotment_id, tile.month);
+    const p = await quartersService.getRentPaymentHistoryAll(tile.allotment_id);
     setPayments(p);
   }, [expandedId, activePanel]);
 
@@ -1876,6 +1876,9 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                         {/* Amount — primary value */}
                         <span className="text-sm font-extrabold text-gray-900 shrink-0">{fmtINR(p.amount)}</span>
 
+                        {/* Month badge */}
+                        <span className="text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200 rounded px-1.5 py-0.5 shrink-0">{fmtMonthYear(p.month)}</span>
+
                         {/* Divider */}
                         <span className="text-gray-200 text-sm shrink-0">|</span>
 
@@ -2021,7 +2024,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
               })}
               {payments.length > 1 && (
                 <div className="flex items-center justify-between px-3 py-2 bg-teal-50 rounded-xl border border-teal-100">
-                  <span className="text-xs font-semibold text-teal-700">Total Paid ({payments.length} payments)</span>
+                  <span className="text-xs font-semibold text-teal-700">Total Paid ({payments.length} payments · all months)</span>
                   <span className="text-sm font-extrabold text-teal-700">{fmtINR(totalPaid)}</span>
                 </div>
               )}

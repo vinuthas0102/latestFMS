@@ -1669,7 +1669,7 @@ export const quartersService = {
           } else if (t.status === 'EXEMPTED') {
             statusLabel = 'Exempted'; statusColor = 'bg-slate-100 text-slate-600';
           } else if (t.status === 'PARTIAL') {
-            statusLabel = 'Partial'; statusColor = 'bg-sky-100 text-sky-700';
+            statusLabel = 'Pending'; statusColor = 'bg-amber-100 text-amber-700';
           } else if (t.status === 'OVERDUE') {
             statusLabel = 'Overdue'; statusColor = 'bg-red-100 text-red-700';
           } else {
@@ -1694,6 +1694,19 @@ export const quartersService = {
     if (DEMO_MODE) {
       const key = `${allotmentId}_${month}`;
       return Promise.resolve(DEMO_RENT_PAYMENTS[key] ?? []);
+    }
+    return Promise.resolve([]);
+  },
+
+  async getRentPaymentHistoryAll(allotmentId: string): Promise<RentPayment[]> {
+    if (DEMO_MODE) {
+      const prefix = `${allotmentId}_`;
+      const all: RentPayment[] = [];
+      for (const key of Object.keys(DEMO_RENT_PAYMENTS)) {
+        if (key.startsWith(prefix)) all.push(...DEMO_RENT_PAYMENTS[key]);
+      }
+      all.sort((a, b) => b.payment_date.localeCompare(a.payment_date));
+      return Promise.resolve(all);
     }
     return Promise.resolve([]);
   },
