@@ -60,9 +60,11 @@ interface DueDetailsModalProps {
   dpFilter: DpFilter;
   onClose: () => void; onSave: (override: number, remarks: string) => Promise<void>;
   onPayInstallment?: (planId: string, rowId: string, amount: number) => void;
+  onPaySelected?: (amount: number) => void;
 }
-const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, dpFilter, onClose, onSave, onPayInstallment }) => {
+const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, penaltyMaxDiscountPct, dpFilter, onClose, onSave, onPayInstallment, onPaySelected }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'installment' | 'monthly'>('summary');
+  const [selectedMonthSls, setSelectedMonthSls] = useState<Set<number>>(new Set());
 
   // ── Summary tab state ──────────────────────────────────────────────────────
   const [discountPct, setDiscountPct] = useState(0);
@@ -318,15 +320,34 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
             m++;
             if (m > 12) { m = 1; y++; }
           }
-          const displayRows = [...rows].reverse().map((r, i) => ({ ...r, sl: i + 1 }));
+          const displayRows = [...rows].map((r, i) => ({ ...r, sl: i + 1 }));
           const isCommercial = tile.bhk_config === 'COMMERCIAL';
           const colCount = isCommercial ? 8 : 9;
+          const canSelectRow = (r: typeof displayRows[0]) => !isEO && r.due > 0;
+          const selectedTotal = displayRows
+            .filter(r => selectedMonthSls.has(r.sl))
+            .reduce((sum, r) => sum + r.due, 0);
+          const toggleRow = (sl: number, r: typeof displayRows[0]) => {
+            if (!canSelectRow(r)) return;
+            setSelectedMonthSls(prev => {
+              const next = new Set(prev);
+              if (next.has(sl)) next.delete(sl); else next.add(sl);
+              return next;
+            });
+          };
           return (
             <div className="flex-1 overflow-y-auto px-6 py-4">
+              {!isEO && (
+                <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-teal-500" />
+                  Select months below to make a partial payment, then click <span className="font-semibold text-teal-700">Pay Now</span>.
+                </div>
+              )}
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-teal-600 text-white">
+                      {!isEO && <th className="px-3 py-2.5 w-8" />}
                       {['Sl No', 'Date', 'Rent Amount', ...(!isCommercial ? ['Water Charges'] : []), 'Penalty Fee', 'Maint. Charges', 'Total Amount', 'Due Amount', 'Payment Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 font-semibold text-left whitespace-nowrap">{h}</th>
                       ))}
@@ -334,7 +355,20 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   </thead>
                   <tbody>
                     {displayRows.map((r, i) => (
-                      <tr key={r.sl} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
+                      <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${canSelectRow(r) ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''}`}
+                        onClick={() => toggleRow(r.sl, r)}>
+                        {!isEO && (
+                          <td className="px-3 py-2 text-center">
+                            {canSelectRow(r) ? (
+                              <input type="checkbox" checked={selectedMonthSls.has(r.sl)}
+                                onChange={() => toggleRow(r.sl, r)}
+                                onClick={e => e.stopPropagation()}
+                                className="w-3.5 h-3.5 rounded accent-teal-600 cursor-pointer" />
+                            ) : (
+                              <input type="checkbox" disabled className="w-3.5 h-3.5 rounded opacity-30 cursor-not-allowed" />
+                            )}
+                          </td>
+                        )}
                         <td className="px-3 py-2 font-bold text-gray-600 text-center">{r.sl}</td>
                         <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{r.date}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{r.rent.toLocaleString('en-IN')}</td>
@@ -351,6 +385,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   </tbody>
                   <tfoot>
                     <tr className="bg-amber-50 border-t-2 border-amber-200">
+                      {!isEO && <td />}
                       <td colSpan={colCount - 2} className="px-3 py-2.5 font-bold text-amber-800 text-right text-xs">Total Outstanding</td>
                       <td className="px-3 py-2.5 font-extrabold text-amber-800 text-right">{fmtINR(tile.total_due)}</td>
                       <td />
@@ -358,6 +393,19 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                   </tfoot>
                 </table>
               </div>
+              {!isEO && selectedMonthSls.size > 0 && (
+                <div className="mt-3 flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-2.5">
+                  <div className="text-xs text-teal-800">
+                    <span className="font-semibold">{selectedMonthSls.size}</span> month{selectedMonthSls.size > 1 ? 's' : ''} selected &mdash; <span className="font-bold">{fmtINR(selectedTotal)}</span>
+                  </div>
+                  <button
+                    onClick={() => onPaySelected?.(selectedTotal)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition-colors"
+                  >
+                    <Wallet size={11} /> Pay Now
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -730,10 +778,10 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
 };
 
 // ── Pay Now Modal ─────────────────────────────────────────────────────────────
-interface PayNowModalProps { tile: RentTile; onClose: () => void; onPay: (amount: number, mode: string) => void; }
+interface PayNowModalProps { tile: RentTile; lockedAmount?: number; onClose: () => void; onPay: (amount: number, mode: string) => void; }
 const PAY_MODES = ['UPI','NET_BANKING','CARD','DD'] as const;
-const PayNowModal: React.FC<PayNowModalProps> = ({ tile, onClose, onPay }) => {
-  const [amount, setAmount] = useState(String(tile.total_due - tile.amount_paid));
+const PayNowModal: React.FC<PayNowModalProps> = ({ tile, lockedAmount, onClose, onPay }) => {
+  const payableAmount = lockedAmount ?? (tile.total_due - tile.amount_paid);
   const [mode, setMode] = useState<string>('UPI');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -750,11 +798,11 @@ const PayNowModal: React.FC<PayNowModalProps> = ({ tile, onClose, onPay }) => {
         </div>
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Amount (₹)</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full px-3 py-2.5 text-lg font-bold border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-200"
-              min={1} max={tile.total_due - tile.amount_paid} />
-            <div className="text-[10px] text-gray-400 mt-1">Total due: {fmtINR(tile.total_due - tile.amount_paid)}</div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Amount Payable (₹)</label>
+            <div className="w-full px-3 py-2.5 text-lg font-bold border border-gray-100 rounded-xl bg-gray-50 text-teal-700 select-none">
+              {fmtINR(payableAmount)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-1">This amount is fixed and cannot be changed here.</div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-2">Payment Mode</label>
@@ -775,10 +823,10 @@ const PayNowModal: React.FC<PayNowModalProps> = ({ tile, onClose, onPay }) => {
         <div className="flex gap-3 px-6 pb-5">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
           <button
-            onClick={() => onPay(Number(amount) || 0, mode)}
+            onClick={() => onPay(payableAmount, mode)}
             className="flex-1 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold shadow-sm"
           >
-            Pay {fmtINR(Number(amount) || 0)}
+            Pay {fmtINR(payableAmount)}
           </button>
         </div>
       </div>
@@ -1603,10 +1651,20 @@ export const QuarterRentPage: React.FC = () => {
     if (!payNowTile) return;
     await quartersService.submitEPayment(payNowTile.allotment_id, payNowTile.month, amount, mode);
     setPayNowTile(null);
+    setPayNowOverrideAmount(undefined);
     setPaySuccess(true);
     setTimeout(() => setPaySuccess(false), 3000);
     loadTiles();
   }, [payNowTile, loadTiles]);
+
+  const [payNowOverrideAmount, setPayNowOverrideAmount] = useState<number | undefined>(undefined);
+
+  const handlePaySelected = useCallback((amount: number) => {
+    if (!dueModal) return;
+    setPayNowOverrideAmount(amount);
+    setPayNowTile(dueModal.tile);
+    setDueModal(null);
+  }, [dueModal]);
 
   const [installmentPayModal, setInstallmentPayModal] = useState<{ planId: string; rowId: string; amount: number } | null>(null);
 
@@ -2946,7 +3004,8 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
           penaltyMaxDiscountPct={penaltyMaxDiscountPct}
           dpFilter={dueModal.dpFilter}
           onClose={() => setDueModal(null)} onSave={handleSaveOverride}
-          onPayInstallment={!isEO ? handleInstallmentPay : undefined} />
+          onPayInstallment={!isEO ? handleInstallmentPay : undefined}
+          onPaySelected={!isEO ? handlePaySelected : undefined} />
       )}
       {installmentPayModal && (
         <InstallmentPayModal
@@ -2956,7 +3015,7 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
         />
       )}
       {payNowTile && (
-        <PayNowModal tile={payNowTile} onClose={() => setPayNowTile(null)} onPay={handlePay} />
+        <PayNowModal tile={payNowTile} lockedAmount={payNowOverrideAmount} onClose={() => { setPayNowTile(null); setPayNowOverrideAmount(undefined); }} onPay={handlePay} />
       )}
       {undoPayment && (
         <UndoModal payment={undoPayment.payment} onClose={() => setUndoPayment(null)} onConfirm={handleUndoPayment} />
