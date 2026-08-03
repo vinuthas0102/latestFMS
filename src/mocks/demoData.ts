@@ -1742,7 +1742,7 @@ export const DEMO_RENT_TILES: RentTile[] = [
   rt('rt-e301','allot-016','2026-03',T.t016,  0,null,9500,     'ONLINE',       'PAID',    '2026-03-05','2026-03-03',  'RCP-2603-E001',null),
   rt('rt-e201','allot-016','2026-02',T.t016,  0,null,9500,     'CHEQUE',       'PAID',    '2026-02-05','2026-02-04',  'RCP-2602-E001',null),
   // ── Rajesh Kumar — F-204 (allot-017) — multi-quarter demo ───────────────────
-  rt('rt-f501','allot-017','2026-05',T.t017, 80,null,2500,     'CASH',         'OVERDUE', '2026-05-05','2026-05-01',  null,           null),
+  rt('rt-f501','allot-017','2026-05',T.t017, 0,null,4550,     'ONLINE',       'PAID',    '2026-05-05','2026-05-03',  'RCP-2605-F001',null),
   rt('rt-f401','allot-017','2026-04',T.t017,  0,null,4550,     'ONLINE',       'PAID',    '2026-04-05','2026-04-02',  'RCP-2604-F001',null),
   rt('rt-f301','allot-017','2026-03',T.t017,  0,null,4550,     'AUTO_DEDUCTION','PAID',   '2026-03-05','2026-03-01',  'RCP-2603-F001',null),
 ];
@@ -1842,7 +1842,7 @@ export const DEMO_RENT_PAYMENTS: Record<string, RentPayment[]> = {
     { id: 'pay-0512', allotment_id: 'allot-012', month: '2026-05', amount: 10000, payment_mode: 'ONLINE', payment_date: '2026-05-02', receipt_ref: 'RCP-2605-0071', remarks: 'NEFT Transfer · Ref: SBIN026501987432', recorded_by: 'System' },
   ],
   'allot-017_2026-05': [
-    { id: 'pay-f501', allotment_id: 'allot-017', month: '2026-05', amount: 2500, payment_mode: 'CASH', payment_date: '2026-05-07', receipt_ref: 'TMP-2605-F001', remarks: 'Partial — balance ₹2,050 due', recorded_by: 'EO-Admin' },
+    { id: 'pay-f501', allotment_id: 'allot-017', month: '2026-05', amount: 4550, payment_mode: 'ONLINE', payment_date: '2026-05-03', receipt_ref: 'RCP-2605-F001', remarks: 'UPI Ref: 503027483920 · Axis Bank', recorded_by: 'System' },
   ],
   // April 2026
   'allot-001_2026-04': [
