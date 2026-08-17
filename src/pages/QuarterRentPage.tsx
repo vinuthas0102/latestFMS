@@ -319,8 +319,29 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
           );
         })()}
 
+        {/* ── Tab strip ── */}
+        <div className="shrink-0 flex items-center gap-1 px-6 pt-2 border-b border-gray-100 bg-white">
+          {([
+            { id: 'summary',     label: 'Due Summary',     icon: Receipt },
+            { id: 'installment', label: 'Installment Plan', icon: CreditCard },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                activeTab === t.id
+                  ? 'border-teal-600 text-teal-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <t.icon size={13} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* ── Monthly Rent Due Table or SD/Advance focused table ── */}
-        {dpFilter === 'SD_PENDING' || dpFilter === 'ADVANCE_PENDING' ? (() => {
+        {activeTab === 'summary' && (dpFilter === 'SD_PENDING' || dpFilter === 'ADVANCE_PENDING' ? (() => {
           const isSD = dpFilter === 'SD_PENDING';
           const chargeLabel = isSD ? 'Security Deposit' : 'Advance Deposit';
           const chargeAmount = isSD ? (tile.sd_amount ?? 0) : (tile.advance_amount ?? 0);
@@ -530,7 +551,7 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
               )}
             </div>
           );
-        })()}
+        })())}
 
         {/* ── Installment Plan Tab ── */}
         {activeTab === 'installment' && (
