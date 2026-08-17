@@ -493,7 +493,9 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                     </tr>
                   </thead>
                   <tbody>
-                    {allRows.map((r, i) => (
+                    {allRows.map((r, i) => {
+                      const hasEarlierPending = !r.isPending && allRows.slice(0, i).some(row => row.isPending);
+                      return (
                       <tr key={r.sl} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} ${!isEO && r.isPending ? 'cursor-pointer hover:bg-teal-50/40' : ''} ${selectedMonthSls.has(r.sl) ? '!bg-teal-50' : ''} ${!r.isPending ? 'opacity-70' : ''}`}
                         onClick={() => r.isPending && toggleRow(r.sl)}>
                         {!isEO && (
@@ -518,10 +520,15 @@ const DueDetailsModal: React.FC<DueDetailsModalProps> = ({ tile, detail, isEO, p
                         <td className="px-3 py-2 text-right font-bold text-gray-800">{r.total.toLocaleString('en-IN')}</td>
                         <td className="px-3 py-2 text-right font-bold text-amber-700">{r.isPending ? r.due.toLocaleString('en-IN') : <span className="text-emerald-600">—</span>}</td>
                         <td className="px-3 py-2">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${r.statusColor}`}>{r.statusLabel}</span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${r.statusColor}`}>
+                            {r.statusLabel}
+                            {hasEarlierPending && <AlertTriangle size={10} className="text-amber-600" title="An earlier month is still pending" />}
+                          </span>
+                          {hasEarlierPending && <div className="mt-1 text-[9px] text-amber-700 whitespace-nowrap">Earlier dues pending</div>}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="bg-amber-50 border-t-2 border-amber-200">
@@ -1791,13 +1798,17 @@ export const QuarterRentPage: React.FC = () => {
 
   const handlePay = useCallback(async (amount: number, mode: string) => {
     if (!payNowTile) return;
-    await quartersService.submitEPayment(payNowTile.allotment_id, payNowTile.month, amount, mode);
-    setPayNowTile(null);
-    setPayNowOverrideAmount(undefined);
-    setPaySuccess(true);
-    setTimeout(() => setPaySuccess(false), 3000);
-    loadTiles();
-  }, [payNowTile, loadTiles]);
+    try {
+      await quartersService.submitEPayment(payNowTile.allotment_id, payNowTile.month, amount, mode);
+      setPayNowTile(null);
+      setPayNowOverrideAmount(undefined);
+      setPaySuccess(true);
+      setTimeout(() => setPaySuccess(false), 3000);
+      loadTiles();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Payment could not be recorded.');
+    }
+  }, [payNowTile, loadTiles, showToast]);
 
   const [payNowOverrideAmount, setPayNowOverrideAmount] = useState<number | undefined>(undefined);
 
@@ -1816,27 +1827,35 @@ export const QuarterRentPage: React.FC = () => {
 
   const confirmInstallmentPay = useCallback(async (mode: string) => {
     if (!installmentPayModal || !dueModal) return;
-    await quartersService.payInstallmentRow(installmentPayModal.planId, installmentPayModal.rowId, installmentPayModal.amount, mode);
-    setInstallmentPayModal(null);
-    const refreshed = await quartersService.getRentDueDetail(dueModal.tile.id);
-    setDueModal(prev => prev ? { ...prev, detail: refreshed } : null);
-    setPaySuccess(true);
-    setTimeout(() => setPaySuccess(false), 3000);
-    loadTiles();
-    showToast('Installment payment recorded successfully.');
+    try {
+      await quartersService.payInstallmentRow(installmentPayModal.planId, installmentPayModal.rowId, installmentPayModal.amount, mode);
+      setInstallmentPayModal(null);
+      const refreshed = await quartersService.getRentDueDetail(dueModal.tile.id);
+      setDueModal(prev => prev ? { ...prev, detail: refreshed } : null);
+      setPaySuccess(true);
+      setTimeout(() => setPaySuccess(false), 3000);
+      loadTiles();
+      showToast('Installment payment recorded successfully.');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Payment could not be recorded.');
+    }
   }, [installmentPayModal, dueModal, loadTiles, showToast]);
 
   const handleBulkPay = useCallback(async (mode: string) => {
     const toPayTiles = tiles.filter(t => selectedTileIds.has(t.id));
-    for (const t of toPayTiles) {
-      await quartersService.submitEPayment(t.allotment_id, t.month, t.total_due - t.amount_paid, mode);
+    try {
+      for (const t of toPayTiles) {
+        await quartersService.submitEPayment(t.allotment_id, t.month, t.total_due - t.amount_paid, mode);
+      }
+      setBulkPayOpen(false);
+      setSelectedTileIds(new Set());
+      setPaySuccess(true);
+      setTimeout(() => setPaySuccess(false), 3000);
+      loadTiles();
+      showToast(`${toPayTiles.length} payment(s) recorded successfully.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Payment could not be recorded.');
     }
-    setBulkPayOpen(false);
-    setSelectedTileIds(new Set());
-    setPaySuccess(true);
-    setTimeout(() => setPaySuccess(false), 3000);
-    loadTiles();
-    showToast(`${toPayTiles.length} payment(s) recorded successfully.`);
   }, [tiles, selectedTileIds, loadTiles, showToast]);
 
   const toggleInfo = useCallback((id: string) => {

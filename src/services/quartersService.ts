@@ -3,6 +3,14 @@ import { supabase } from '../lib/supabase';
 // Per-tile EO remarks storage (demo mode only — not persisted across page reloads)
 const DEMO_EO_REMARKS: Record<string, string> = {};
 
+function getEarlierPendingRentMonth(allotmentId: string, month: string): string | null {
+  const earlierPendingTile = DEMO_RENT_TILES
+    .filter(t => t.allotment_id === allotmentId && t.month < month)
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .find(t => t.status !== 'PAID' && t.status !== 'EXEMPTED');
+  return earlierPendingTile?.month ?? null;
+}
+
 import {
   DEMO_MODE,
   DEMO_QUARTERS,
@@ -1783,6 +1791,10 @@ export const quartersService = {
       receipt_ref: `RCP-${Date.now()}`, remarks: 'Online payment', recorded_by: 'System',
     };
     if (DEMO_MODE) {
+      const earlierPendingMonth = getEarlierPendingRentMonth(allotmentId, month);
+      if (earlierPendingMonth) {
+        throw new Error(`Please clear the pending dues for ${earlierPendingMonth} before paying for ${month}.`);
+      }
       const key = `${allotmentId}_${month}`;
       if (!DEMO_RENT_PAYMENTS[key]) DEMO_RENT_PAYMENTS[key] = [];
       DEMO_RENT_PAYMENTS[key].push(payment);
@@ -1976,6 +1988,13 @@ export const quartersService = {
 
   async payInstallmentRow(planId: string, rowId: string, amount: number, mode: string): Promise<void> {
     if (DEMO_MODE) {
+      const planForPayment = Object.values(DEMO_INSTALLMENT_PLANS).find(plan => plan.id === planId);
+      if (planForPayment) {
+        const earlierPendingMonth = getEarlierPendingRentMonth(planForPayment.allotment_id, planForPayment.month);
+        if (earlierPendingMonth) {
+          throw new Error(`Please clear the pending dues for ${earlierPendingMonth} before paying for ${planForPayment.month}.`);
+        }
+      }
       for (const key of Object.keys(DEMO_INSTALLMENT_PLANS)) {
         const plan = DEMO_INSTALLMENT_PLANS[key];
         if (plan.id !== planId) continue;
