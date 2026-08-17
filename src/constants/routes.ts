@@ -27,4 +27,5 @@ export const ROUTES = {
   QUARTERS_REQUESTS: '/quarters/requests',
   QUARTERS_MANAGER: '/quarters/manager',
   QUARTERS_RENT: '/quarters/rent',
+  MT_SETUP: '/mt-setup',
 } as const;

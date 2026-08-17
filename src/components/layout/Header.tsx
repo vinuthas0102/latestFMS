@@ -4,6 +4,7 @@ import {
   Building2, Bell, LogOut, UserCheck, Calendar, Settings,
   Wrench, Link as LinkIcon, Shield, ChevronLeft, ChevronRight,
   LayoutDashboard, Download, CircleUser as UserCircle, Pencil,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -82,6 +83,7 @@ export const Header: React.FC = () => {
     { route: ROUTES.MANAGER, label: 'Manager', icon: <Settings size={17} /> },
     { route: ROUTES.MAINTENANCE, label: 'Maintenance', icon: <Wrench size={17} /> },
     { route: '/ad-hoc-links', label: 'Links', icon: <LinkIcon size={17} /> },
+    { route: ROUTES.MT_SETUP, label: 'MT Setup', icon: <SlidersHorizontal size={17} /> },
   ];
 
   const adminNavItems: NavItem[] = [

@@ -31,6 +31,7 @@ const QuarterDetailPage = lazy(() => import('./pages/QuarterDetailPage').then(m 
 const QuarterRequestsPage = lazy(() => import('./pages/QuarterRequestsPage').then(m => ({ default: m.QuarterRequestsPage })));
 const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(m => ({ default: m.QuarterManagerPage })));
 const QuarterRentPage = lazy(() => import('./pages/QuarterRentPage').then(m => ({ default: m.QuarterRentPage })));
+const MTSetupPage = lazy(() => import('./pages/MTSetupPage').then(m => ({ default: m.MTSetupPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 function PageLoader() {
@@ -218,6 +219,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
                     <AppLayout><QuarterRentPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mt-setup"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><MTSetupPage /></AppLayout>
                   </ProtectedRoute>
                 }
               />
