@@ -2578,6 +2578,15 @@ ${p.remarks ? `<p style="font-size:12px;color:#6b7280;font-style:italic">Remarks
                   </button>
                 ))}
               </div>
+              {isEO && (
+                <button
+                  onClick={() => navigate(ROUTES.MT_SETUP)}
+                  title="MT Setup — Payable Criteria"
+                  className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 text-xs font-medium text-gray-600 bg-white hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 transition-colors"
+                >
+                  <SlidersHorizontal size={12} /> MT Setup
+                </button>
+              )}
               <button className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-gray-900 transition-colors">
                 <Download size={12} /> Export
               </button>
