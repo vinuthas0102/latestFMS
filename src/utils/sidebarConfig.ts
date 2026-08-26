@@ -10,7 +10,7 @@ export interface ModuleTab {
 }
 
 const RENT_TAB: ModuleTab = {
-  title: 'Rent',
+  title: 'Demand and Collection Center',
   iconName: 'IndianRupee',
   route: ROUTES.QUARTERS_RENT,
   activePrefix: '/quarters/rent',
