@@ -51,11 +51,11 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
 );
 
 function isTabActive(tab: ModuleTab, pathname: string): boolean {
-  if (tab.activePrefix === '/quarters/rent') {
-    return pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/');
+  if (tab.activePrefix === '/dcc') {
+    return pathname === '/dcc' || pathname.startsWith('/dcc/');
   }
   if (tab.activePrefix === '/quarters') {
-    if (pathname === '/quarters/rent' || pathname.startsWith('/quarters/rent/')) return false;
+    if (pathname === '/dcc' || pathname.startsWith('/dcc/')) return false;
   }
   return pathname === tab.activePrefix || pathname.startsWith(tab.activePrefix + '/');
 }

@@ -12,8 +12,8 @@ export interface ModuleTab {
 const RENT_TAB: ModuleTab = {
   title: 'Demand and Collection Center',
   iconName: 'IndianRupee',
-  route: ROUTES.QUARTERS_RENT,
-  activePrefix: '/quarters/rent',
+  route: ROUTES.DCC,
+  activePrefix: '/dcc',
 };
 
 export function getModuleTabs(role: UserRole): ModuleTab[] {
