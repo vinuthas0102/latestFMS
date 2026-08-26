@@ -3,7 +3,7 @@ import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp, Search, X,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
-  Wallet, Eye, Users, Sliders, Plus,
+  Wallet, Eye, Users, Sliders, Plus, FileText,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,8 @@ import type {
   DccDemandType, DccObjectOwner, DccObject,
 } from '../types/dcc';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
+import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
+import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtINR = (n: number) =>
@@ -169,8 +171,11 @@ const DemandTile: React.FC<{
 };
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
+type DccMainTab = 'dashboard' | 'reconciliation' | 'reports';
+
 export const DCCPage: React.FC = () => {
   const navigate = useNavigate();
+  const [mainTab, setMainTab] = useState<DccMainTab>('dashboard');
   const [tiles, setTiles] = useState<DccTile[]>([]);
   const [summary, setSummary] = useState<DccTrackerSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -275,6 +280,12 @@ export const DCCPage: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const mainTabs: { key: DccMainTab; label: string; icon: typeof Receipt }[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: Receipt },
+    { key: 'reconciliation', label: 'Reconciliation', icon: TrendingUp },
+    { key: 'reports', label: 'Reports', icon: FileText },
+  ];
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Page header */}
@@ -286,29 +297,61 @@ export const DCCPage: React.FC = () => {
           <h1 className="text-base font-bold text-gray-900">Demand and Collection Center</h1>
           <p className="text-xs text-gray-500">Track all demands and collections across any object type</p>
         </div>
-        <button
-          onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
-        >
-          <Sliders size={14} /> Rule Setup
-        </button>
-        <button
-          onClick={() => navigate(ROUTES.DCC_GENERATE)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
-        >
-          <Plus size={14} /> Generate
-        </button>
-        <button
-          onClick={() => setShowFilters(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
-        >
-          <SlidersHorizontal size={14} /> Filters
-          {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
-            <span className="w-2 h-2 rounded-full bg-teal-500" />
-          )}
-        </button>
+        {/* Tab bar */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          {mainTabs.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setMainTab(t.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  mainTab === t.key
+                    ? 'bg-white text-teal-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon size={13} /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {mainTab === 'dashboard' && (
+          <>
+            <button
+              onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
+            >
+              <Sliders size={14} /> Rule Setup
+            </button>
+            <button
+              onClick={() => navigate(ROUTES.DCC_GENERATE)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+            >
+              <Plus size={14} /> Generate
+            </button>
+            <button
+              onClick={() => setShowFilters(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
+            >
+              <SlidersHorizontal size={14} /> Filters
+              {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
+                <span className="w-2 h-2 rounded-full bg-teal-500" />
+              )}
+            </button>
+          </>
+        )}
       </div>
 
+      {/* Reconciliation Tab */}
+      {mainTab === 'reconciliation' && <DCCReconciliationTab />}
+
+      {/* Reports Tab */}
+      {mainTab === 'reports' && <DCCReportsTab />}
+
+      {/* Dashboard Tab */}
+      {mainTab === 'dashboard' && (
+      <>
       {/* DPs */}
       <div className="px-5 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
         {DPS.map(dp => {
@@ -511,6 +554,8 @@ export const DCCPage: React.FC = () => {
           </div>
         </div>
       </FilterDrawer>
+      </>
+      )}
     </div>
   );
 };

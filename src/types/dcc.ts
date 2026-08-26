@@ -181,3 +181,53 @@ export interface DccDemandFilters {
   payment_date_to?: string | null;
   status?: DccDemandStatus | null;
 }
+
+// ── Reconciliation & Reports ──────────────────────────────────────────────────
+
+export type BankStatus = 'Matched' | 'Unmatched' | 'Pending';
+
+export interface DccReconciliationRow {
+  object_id: string;
+  object_ref: string;
+  object_type: string;
+  owner_name: string;
+  demand_type_code: string;
+  demand_type_label: string;
+  total_demand: number;
+  total_collected: number;
+  total_outstanding: number;
+  bank_status: BankStatus;
+}
+
+export interface DccReconciliationSummary {
+  total_demand: number;
+  total_collected: number;
+  total_outstanding: number;
+  reconciliation_rate: number;
+  matched_count: number;
+  unmatched_count: number;
+  pending_count: number;
+}
+
+export interface DccReportRow {
+  demand_type_code: string;
+  demand_type_label: string;
+  total_demand: number;
+  total_collected: number;
+  total_outstanding: number;
+  overdue_amount: number;
+  collection_rate: number;
+  demand_count: number;
+  overdue_count: number;
+}
+
+export interface DccOwnerReportRow {
+  owner_id: string;
+  owner_name: string;
+  total_demand: number;
+  total_collected: number;
+  total_outstanding: number;
+  overdue_amount: number;
+  demand_count: number;
+  overdue_count: number;
+}

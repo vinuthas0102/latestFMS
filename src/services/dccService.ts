@@ -12,6 +12,11 @@ import type {
   DccGenerationSource,
   DccInstallmentPlan,
   DccInstallmentRow,
+  DccReconciliationRow,
+  DccReconciliationSummary,
+  DccReportRow,
+  DccOwnerReportRow,
+  BankStatus,
 } from '../types/dcc';
 
 const OWNERS = 'dcc_object_owners';
@@ -521,5 +526,123 @@ export const dccService = {
     if (plan) {
       await supabase.from(IPLANS).delete().eq('id', (plan as { id: string }).id);
     }
+  },
+
+  // ── Reconciliation ────────────────────────────────────────────────────────────
+  async getReconciliationData(filters?: DccDemandFilters): Promise<{
+    rows: DccReconciliationRow[];
+    summary: DccReconciliationSummary;
+  }> {
+    const tiles = await this.getTiles(filters);
+
+    const groupMap: Record<string, DccReconciliationRow> = {};
+    for (const t of tiles) {
+      const key = `${t.object_id}-${t.demand_type_code}`;
+      if (!groupMap[key]) {
+        groupMap[key] = {
+          object_id: t.object_id,
+          object_ref: t.object_ref,
+          object_type: t.object_type,
+          owner_name: t.owner_name,
+          demand_type_code: t.demand_type_code,
+          demand_type_label: t.demand_type_label,
+          total_demand: 0,
+          total_collected: 0,
+          total_outstanding: 0,
+          bank_status: 'Pending',
+        };
+      }
+      groupMap[key].total_demand += t.total_amount;
+      groupMap[key].total_collected += t.amount_paid;
+      groupMap[key].total_outstanding += t.amount_due;
+    }
+
+    const rows = Object.values(groupMap).map((r) => {
+      let bankStatus: BankStatus = 'Pending';
+      if (r.total_outstanding === 0 && r.total_demand > 0) bankStatus = 'Matched';
+      else if (r.total_collected > 0) bankStatus = 'Unmatched';
+      return { ...r, bank_status: bankStatus };
+    });
+
+    const totalDemand = rows.reduce((s, r) => s + r.total_demand, 0);
+    const totalCollected = rows.reduce((s, r) => s + r.total_collected, 0);
+    const totalOutstanding = rows.reduce((s, r) => s + r.total_outstanding, 0);
+    const reconRate = totalDemand > 0 ? Math.round((totalCollected / totalDemand) * 100) : 0;
+
+    return {
+      rows,
+      summary: {
+        total_demand: totalDemand,
+        total_collected: totalCollected,
+        total_outstanding: totalOutstanding,
+        reconciliation_rate: reconRate,
+        matched_count: rows.filter((r) => r.bank_status === 'Matched').length,
+        unmatched_count: rows.filter((r) => r.bank_status === 'Unmatched').length,
+        pending_count: rows.filter((r) => r.bank_status === 'Pending').length,
+      },
+    };
+  },
+
+  // ── Reports ─────────────────────────────────────────────────────────────────────
+  async getReportByDemandType(filters?: DccDemandFilters): Promise<DccReportRow[]> {
+    const tiles = await this.getTiles(filters);
+
+    const groupMap: Record<string, DccReportRow> = {};
+    for (const t of tiles) {
+      const key = t.demand_type_code || 'UNKNOWN';
+      if (!groupMap[key]) {
+        groupMap[key] = {
+          demand_type_code: key,
+          demand_type_label: t.demand_type_label || key,
+          total_demand: 0,
+          total_collected: 0,
+          total_outstanding: 0,
+          overdue_amount: 0,
+          collection_rate: 0,
+          demand_count: 0,
+          overdue_count: 0,
+        };
+      }
+      groupMap[key].total_demand += t.total_amount;
+      groupMap[key].total_collected += t.amount_paid;
+      groupMap[key].total_outstanding += t.amount_due;
+      groupMap[key].overdue_amount += t.overdue_amount;
+      groupMap[key].demand_count++;
+      if (t.status === 'OVERDUE') groupMap[key].overdue_count++;
+    }
+
+    return Object.values(groupMap).map((r) => ({
+      ...r,
+      collection_rate: r.total_demand > 0 ? Math.round((r.total_collected / r.total_demand) * 100) : 0,
+    }));
+  },
+
+  async getReportByOwner(filters?: DccDemandFilters): Promise<DccOwnerReportRow[]> {
+    const tiles = await this.getTiles(filters);
+
+    const groupMap: Record<string, DccOwnerReportRow> = {};
+    for (const t of tiles) {
+      const key = t.owner_id || 'UNKNOWN';
+      if (!groupMap[key]) {
+        groupMap[key] = {
+          owner_id: key,
+          owner_name: t.owner_name || 'Unknown',
+          total_demand: 0,
+          total_collected: 0,
+          total_outstanding: 0,
+          overdue_amount: 0,
+          demand_count: 0,
+          overdue_count: 0,
+        };
+      }
+      groupMap[key].total_demand += t.total_amount;
+      groupMap[key].total_collected += t.amount_paid;
+      groupMap[key].total_outstanding += t.amount_due;
+      groupMap[key].overdue_amount += t.overdue_amount;
+      groupMap[key].demand_count++;
+      if (t.status === 'OVERDUE') groupMap[key].overdue_count++;
+    }
+
+    return Object.values(groupMap).sort((a, b) => b.total_outstanding - a.total_outstanding);
   },
 };

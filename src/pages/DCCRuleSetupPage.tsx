@@ -3,10 +3,10 @@ import {
   SlidersHorizontal, Plus, Search, Trash2, Save, X, ChevronDown,
   ChevronRight, Percent, IndianRupee, Calendar, AlertCircle, Loader2,
   CheckCircle2, Clock, Layers, Tag, Building2, User, ArrowLeft,
+  TrendingUp, Upload, Zap,
 } from 'lucide-react';
 import { payableCriteriaService } from '../services/payableCriteriaService';
 import { dccService } from '../services/dccService';
-import { useAuthStore } from '../stores/authStore';
 import type {
   PayableCriteria,
   PayableCriteriaInput,
@@ -15,8 +15,13 @@ import type {
   ReferenceDateType,
   DiscountSlabRow,
   PayablePenaltySlab,
+  PayableIncreaseSpec,
+  PayableInstalmentGridRow,
+  PayableCollectionException,
+  CollectionExceptionType,
+  PctBasis,
+  DueDateReference,
 } from '../types/payableCriteria';
-import type { DccDemandType, DccObjectOwner } from '../types/dcc';
 import {
   PAYABLE_TRANSACTION_TYPES,
   PAYABLE_TRANSACTION_TYPE_LABELS,
@@ -24,9 +29,19 @@ import {
   PAYMENT_MODE_LABELS,
   ALL_REFERENCE_DATES,
   REFERENCE_DATE_LABELS,
+  FREQUENCY_CODES,
+  frequencyCodeLabel,
+  isInstalmentCode,
+  isFixedDateCode,
+  computeNextRunDate,
+  COLLECTION_EXCEPTION_TYPES,
+  COLLECTION_EXCEPTION_TYPE_LABELS,
+  DUE_DATE_REFERENCE_LABELS,
 } from '../types/payableCriteria';
+import type { DccDemandType, DccObjectOwner } from '../types/dcc';
 import { ROUTES } from '../constants/routes';
 import { useNavigate } from 'react-router-dom';
+import { CollectionExceptionRow } from '../components/dcc/CollectionExceptionRow';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null) =>
@@ -44,6 +59,36 @@ const emptyPenaltySlab = (row: number): PayablePenaltySlab => ({
   penalty_type: 'PERCENTAGE',
   penalty_value: 0,
   late_days: 0,
+});
+
+const emptyIncreaseSpec = (): PayableIncreaseSpec => ({
+  increase_after_months: 12,
+  increase_pct: 0,
+  increase_min: null,
+  increase_max: null,
+  alert_message_hook: '',
+});
+
+const emptyGridRow = (seq: number): PayableInstalmentGridRow => ({
+  object_id: null,
+  instalment_seq: seq,
+  instalment_date: null,
+  instalment_amount: 0,
+  next_run_date: null,
+});
+
+const emptyException = (type: CollectionExceptionType, seq: number): PayableCollectionException => ({
+  exception_type: type,
+  seq_no: seq,
+  demand_slab_min: null,
+  demand_slab_max: null,
+  offset_days: 0,
+  applicable_pct: 0,
+  pct_basis: 'Monthly',
+  pct_min: null,
+  pct_max: null,
+  actual_amount: null,
+  message_hook: '',
 });
 
 const OBJECT_TYPES = ['PROPERTY', 'QUARTER', 'CAR', 'LOAN', 'ASSET', 'OTHER'];
@@ -71,6 +116,12 @@ const emptyInput = (): PayableCriteriaInput => ({
   object_type: null,
   object_owner_id: null,
   import_source: 'AUTO',
+  generation_frequency_code: 1,
+  default_demand_amount: null,
+  default_gst_pct: null,
+  due_date_reference: null,
+  grace_period_days: 0,
+  tpa_url_id: null,
   full_payment_spec: {
     reference_date: 'allotted_date',
     days_offset: 0,
@@ -93,6 +144,9 @@ const emptyInput = (): PayableCriteriaInput => ({
     days_before_due: 7,
     message_hook: '',
   },
+  increase_spec: emptyIncreaseSpec(),
+  instalment_grid: [],
+  collection_exceptions: [],
 });
 
 // ── Collapsible Section ────────────────────────────────────────────────────────
@@ -138,7 +192,6 @@ const inputCls =
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const DCCRuleSetupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const [records, setRecords] = useState<PayableCriteria[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -163,7 +216,6 @@ export const DCCRuleSetupPage: React.FC = () => {
         dccService.listDemandTypes(),
         dccService.listObjectOwners(),
       ]);
-      // Filter to DCC rules only (those with demand_type_id or object_type set)
       const dccRules = data.filter(r => r.demand_type_id !== null || r.object_type !== null);
       setRecords(dccRules);
       setDemandTypes(dt);
@@ -214,6 +266,12 @@ export const DCCRuleSetupPage: React.FC = () => {
       object_type: rec.object_type ?? null,
       object_owner_id: rec.object_owner_id ?? null,
       import_source: rec.import_source ?? null,
+      generation_frequency_code: rec.generation_frequency_code ?? 1,
+      default_demand_amount: rec.default_demand_amount ?? null,
+      default_gst_pct: rec.default_gst_pct ?? null,
+      due_date_reference: rec.due_date_reference ?? null,
+      grace_period_days: rec.grace_period_days ?? 0,
+      tpa_url_id: rec.tpa_url_id ?? null,
       full_payment_spec: rec.full_payment_spec ?? {
         reference_date: 'allotted_date',
         days_offset: 0,
@@ -238,6 +296,9 @@ export const DCCRuleSetupPage: React.FC = () => {
         days_before_due: 7,
         message_hook: '',
       },
+      increase_spec: rec.increase_spec ?? emptyIncreaseSpec(),
+      instalment_grid: rec.instalment_grid ?? [],
+      collection_exceptions: rec.collection_exceptions ?? [],
     });
   };
 
@@ -307,7 +368,124 @@ export const DCCRuleSetupPage: React.FC = () => {
     });
   };
 
+  // ── Collection exception helpers ──────────────────────────────────────────────
+  const addException = (type: CollectionExceptionType) => {
+    setForm((f) => {
+      const seq = f.collection_exceptions.filter((e) => e.exception_type === type).length + 1;
+      return { ...f, collection_exceptions: [...f.collection_exceptions, emptyException(type, seq)] };
+    });
+  };
+
+  const updateException = (idx: number, field: string, value: string) => {
+    setForm((f) => {
+      const excs = [...f.collection_exceptions];
+      const exc = { ...excs[idx] };
+      if (field === 'demand_slab_min' || field === 'demand_slab_max' || field === 'pct_min' || field === 'pct_max' || field === 'actual_amount') {
+        (exc as Record<string, unknown>)[field] = value === '' ? null : Number(value);
+      } else if (field === 'offset_days' || field === 'applicable_pct' || field === 'seq_no') {
+        (exc as Record<string, unknown>)[field] = value === '' ? 0 : Number(value);
+      } else {
+        (exc as Record<string, unknown>)[field] = value;
+      }
+      excs[idx] = exc;
+      return { ...f, collection_exceptions: excs };
+    });
+  };
+
+  const removeException = (idx: number) => {
+    setForm((f) => ({
+      ...f,
+      collection_exceptions: f.collection_exceptions.filter((_, i) => i !== idx),
+    }));
+  };
+
+  // ── Instalment grid helpers ────────────────────────────────────────────────────
+  const addGridRow = () => {
+    setForm((f) => ({
+      ...f,
+      instalment_grid: [...f.instalment_grid, emptyGridRow(f.instalment_grid.length + 1)],
+    }));
+  };
+
+  const updateGridRow = (idx: number, field: keyof PayableInstalmentGridRow, value: string | number | null) => {
+    setForm((f) => {
+      const grid = [...f.instalment_grid];
+      grid[idx] = { ...grid[idx], [field]: value };
+      return { ...f, instalment_grid: grid };
+    });
+  };
+
+  const removeGridRow = (idx: number) => {
+    setForm((f) => ({
+      ...f,
+      instalment_grid: f.instalment_grid.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const handleGridExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Simple CSV parse for instalment grid: seq,date,amount
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = String(ev.target?.result ?? '');
+      const lines = text.split('\n').filter((l) => l.trim());
+      const rows: PayableInstalmentGridRow[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(',').map((p) => p.trim());
+        if (parts.length < 3) continue;
+        const seq = parseInt(parts[0], 10);
+        if (isNaN(seq)) continue;
+        rows.push({
+          object_id: null,
+          instalment_seq: seq,
+          instalment_date: parts[1] || null,
+          instalment_amount: parseFloat(parts[2]) || 0,
+          next_run_date: parts[1] || null,
+        });
+      }
+      if (rows.length > 0) {
+        setForm((f) => ({ ...f, instalment_grid: rows }));
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // ── Frequency code change handler ──────────────────────────────────────────────
+  const handleFrequencyCodeChange = (code: number) => {
+    setForm((f) => {
+      const nextRun = computeNextRunDate(code);
+      return { ...f, generation_frequency_code: code, next_run_date: nextRun ?? f.next_run_date };
+    });
+  };
+
+  // ── Computed next instalment seq for display ────────────────────────────────────
+  const nextInstalmentSeq = useMemo(() => {
+    if (!isInstalmentCode(form.generation_frequency_code)) return null;
+    if (form.instalment_grid.length === 0) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = form.instalment_grid
+      .filter((r) => r.instalment_date && r.instalment_date >= today)
+      .sort((a, b) => (a.instalment_date ?? '').localeCompare(b.instalment_date ?? ''));
+    return upcoming[0]?.instalment_seq ?? null;
+  }, [form.generation_frequency_code, form.instalment_grid]);
+
+  const computedNextRun = useMemo(() => {
+    if (isInstalmentCode(form.generation_frequency_code) && form.instalment_grid.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = form.instalment_grid
+        .filter((r) => r.instalment_date && r.instalment_date >= today)
+        .sort((a, b) => (a.instalment_date ?? '').localeCompare(b.instalment_date ?? ''));
+      return upcoming[0]?.instalment_date ?? null;
+    }
+    return computeNextRunDate(form.generation_frequency_code);
+  }, [form.generation_frequency_code, form.instalment_grid]);
+
   const showForm = showNew || editing !== null;
+  const showInstalmentGrid = isInstalmentCode(form.generation_frequency_code);
+  const showTPAField = form.import_source === 'TPA';
+  const showFixedDate = isFixedDateCode(form.generation_frequency_code);
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -404,12 +582,25 @@ export const DCCRuleSetupPage: React.FC = () => {
                           <span className="flex items-center gap-1"><Building2 size={11} />{rec.object_type ?? '—'}</span>
                           <span className="flex items-center gap-1"><User size={11} />{ownerName}</span>
                           <span className="flex items-center gap-1"><Tag size={11} />{rec.import_source ?? '—'}</span>
+                          <span className="flex items-center gap-1 text-teal-600"><Zap size={11} />{frequencyCodeLabel(rec.generation_frequency_code ?? 1)}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-[10px]">
                           <span className={`flex items-center gap-1 ${hasRun ? 'text-emerald-600' : 'text-amber-600'}`}>
                             {hasRun ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                            {hasRun ? `Last run: ${fmtDate(rec.next_run_date)}` : 'No run yet'}
+                            {hasRun ? `Next run: ${fmtDate(rec.next_run_date)}` : 'No run yet'}
                           </span>
+                          {rec.last_run_date && (
+                            <>
+                              <span className="text-gray-400">·</span>
+                              <span className="text-gray-500">Last: {fmtDate(rec.last_run_date)}</span>
+                            </>
+                          )}
+                          {rec.next_instalment_seq != null && (
+                            <>
+                              <span className="text-gray-400">·</span>
+                              <span className="text-sky-600 font-medium">Inst #{rec.next_instalment_seq}</span>
+                            </>
+                          )}
                           <span className="text-gray-400">·</span>
                           <span className="text-gray-500">{rec.available_payment_modes.length} mode{rec.available_payment_modes.length !== 1 ? 's' : ''}</span>
                           {rec.include_gst && (
@@ -443,7 +634,7 @@ export const DCCRuleSetupPage: React.FC = () => {
 
         {/* Right: Form panel */}
         {showForm && (
-          <div className="w-[480px] shrink-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="w-[520px] shrink-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 bg-teal-600 shrink-0">
               <span className="text-sm font-bold text-white">{editing ? 'Edit Rule' : 'New Rule'}</span>
               <button
@@ -495,7 +686,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                       onChange={(e) => setForm({ ...form, import_source: (e.target.value || null) as PayableCriteriaInput['import_source'] })}
                     >
                       <option value="">Select…</option>
-                      {IMPORT_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      {IMPORT_SOURCES.map(s => <option key={s.value ?? 'none'} value={s.value ?? ''}>{s.label}</option>)}
                     </select>
                   </Field>
                   <Field label="Transaction Type" required>
@@ -505,16 +696,37 @@ export const DCCRuleSetupPage: React.FC = () => {
                       ))}
                     </select>
                   </Field>
+                  {showTPAField && (
+                    <Field label="TPA URL ID">
+                      <input
+                        className={inputCls}
+                        value={form.tpa_url_id ?? ''}
+                        onChange={(e) => setForm({ ...form, tpa_url_id: e.target.value || null })}
+                        placeholder="e.g. TPA_PROP_TAX_API"
+                      />
+                    </Field>
+                  )}
                 </div>
               </Section>
 
               {/* Generation Schedule */}
-              <Section title="Generation Schedule" icon={<Calendar size={13} className="text-amber-500" />}>
+              <Section title="Generation Schedule" icon={<Calendar size={13} className="text-amber-500" />} defaultOpen>
+                <Field label="Generation Frequency Code" required>
+                  <select
+                    className={inputCls}
+                    value={form.generation_frequency_code}
+                    onChange={(e) => handleFrequencyCodeChange(Number(e.target.value))}
+                  >
+                    {FREQUENCY_CODES.map((f) => (
+                      <option key={f.code} value={f.code}>{f.label}</option>
+                    ))}
+                  </select>
+                </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="First Run Date">
                     <input type="date" className={inputCls} value={form.first_btm_run_date ?? ''} onChange={(e) => setForm({ ...form, first_btm_run_date: e.target.value || null })} />
                   </Field>
-                  <Field label="Subsequent Run Day">
+                  <Field label="Subsequent Run Day (legacy)">
                     <select className={inputCls} value={form.subsequent_btm_run_day} onChange={(e) => setForm({ ...form, subsequent_btm_run_day: e.target.value })}>
                       {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                         <option key={d} value={String(d)}>Day {d}</option>
@@ -523,11 +735,178 @@ export const DCCRuleSetupPage: React.FC = () => {
                     </select>
                   </Field>
                   <Field label="Next Run Date">
-                    <input type="date" className={inputCls} value={form.next_run_date ?? ''} onChange={(e) => setForm({ ...form, next_run_date: e.target.value || null })} />
-                    <p className="text-[10px] text-gray-400 mt-1">Leave empty if no run has been done yet</p>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={form.next_run_date ?? ''}
+                      onChange={(e) => setForm({ ...form, next_run_date: e.target.value || null })}
+                      disabled={!showFixedDate}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {showFixedDate ? 'Enter the fixed generation date' : `Auto-computed: ${computedNextRun ?? 'N/A'}`}
+                    </p>
+                  </Field>
+                  <Field label="Default Demand Amount">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.default_demand_amount ?? ''}
+                      onChange={(e) => setForm({ ...form, default_demand_amount: e.target.value === '' ? null : Number(e.target.value) })}
+                      placeholder="Fallback if TPA/Excel omits amount"
+                    />
+                  </Field>
+                  <Field label="Default GST %">
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={inputCls}
+                      value={form.default_gst_pct ?? ''}
+                      onChange={(e) => setForm({ ...form, default_gst_pct: e.target.value === '' ? null : Number(e.target.value) })}
+                      placeholder="Fallback GST %"
+                    />
+                  </Field>
+                  <Field label="Due Date Reference">
+                    <select
+                      className={inputCls}
+                      value={form.due_date_reference ?? ''}
+                      onChange={(e) => setForm({ ...form, due_date_reference: (e.target.value || null) as DueDateReference | null })}
+                    >
+                      <option value="">Select…</option>
+                      {Object.entries(DUE_DATE_REFERENCE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Grace Period (days)">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.grace_period_days}
+                      onChange={(e) => setForm({ ...form, grace_period_days: Number(e.target.value) })}
+                    />
                   </Field>
                 </div>
+                {form.due_date_reference && (
+                  <div className="px-3 py-2 bg-teal-50 rounded-lg text-[11px] text-teal-700 font-medium">
+                    Due date = {form.due_date_reference} date + {form.grace_period_days} days
+                  </div>
+                )}
               </Section>
+
+              {/* Demand Increase */}
+              <Section title="Demand Increase" icon={<TrendingUp size={13} className="text-teal-500" />}>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Increase After (months)">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.increase_spec.increase_after_months}
+                      onChange={(e) => setForm({ ...form, increase_spec: { ...form.increase_spec, increase_after_months: Number(e.target.value) } })}
+                    />
+                  </Field>
+                  <Field label="Increase %">
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={inputCls}
+                      value={form.increase_spec.increase_pct}
+                      onChange={(e) => setForm({ ...form, increase_spec: { ...form.increase_spec, increase_pct: Number(e.target.value) } })}
+                    />
+                  </Field>
+                  <Field label="Min Increase Amount">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.increase_spec.increase_min ?? ''}
+                      onChange={(e) => setForm({ ...form, increase_spec: { ...form.increase_spec, increase_min: e.target.value === '' ? null : Number(e.target.value) } })}
+                    />
+                  </Field>
+                  <Field label="Max Increase Amount">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={form.increase_spec.increase_max ?? ''}
+                      onChange={(e) => setForm({ ...form, increase_spec: { ...form.increase_spec, increase_max: e.target.value === '' ? null : Number(e.target.value) } })}
+                    />
+                  </Field>
+                </div>
+                <Field label="Alert Message Hook">
+                  <input
+                    className={inputCls}
+                    value={form.increase_spec.alert_message_hook}
+                    onChange={(e) => setForm({ ...form, increase_spec: { ...form.increase_spec, alert_message_hook: e.target.value } })}
+                    placeholder="e.g. HOOK_DEMAND_INCREASE_ALERT"
+                  />
+                </Field>
+                <p className="text-[10px] text-gray-400">
+                  After {form.increase_spec.increase_after_months} months, {form.increase_spec.increase_pct}% increase applied to last demand.
+                  Repeats every {form.increase_spec.increase_after_months} months thereafter (compounded).
+                </p>
+              </Section>
+
+              {/* Instalment Grid (frequency code 95 only) */}
+              {showInstalmentGrid && (
+                <Section title="Instalment Grid" icon={<Layers size={13} className="text-sky-500" />} defaultOpen>
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={addGridRow}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-700 text-[11px] font-semibold hover:bg-sky-100 transition-colors"
+                    >
+                      <Plus size={12} /> Add Row
+                    </button>
+                    <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-[11px] font-semibold hover:bg-gray-100 transition-colors cursor-pointer">
+                      <Upload size={12} /> Upload CSV
+                      <input type="file" accept=".csv" className="hidden" onChange={handleGridExcelUpload} />
+                    </label>
+                    <div className="ml-auto flex items-center gap-3 text-[10px]">
+                      {nextInstalmentSeq != null && (
+                        <span className="text-sky-600 font-semibold">Next Instalment: #{nextInstalmentSeq}</span>
+                      )}
+                      {computedNextRun && (
+                        <span className="text-gray-500">Next Run: {fmtDate(computedNextRun)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {form.instalment_grid.length === 0 ? (
+                      <p className="text-[11px] text-gray-400 py-2">No instalment rows defined. Add rows manually or upload a CSV (seq,date,amount).</p>
+                    ) : (
+                      form.instalment_grid.map((row, idx) => (
+                        <div key={idx} className="grid grid-cols-12 gap-1.5 items-center">
+                          <input
+                            type="number"
+                            placeholder="Seq"
+                            className={`${inputCls} col-span-2`}
+                            value={row.instalment_seq}
+                            onChange={(e) => updateGridRow(idx, 'instalment_seq', Number(e.target.value))}
+                          />
+                          <input
+                            type="date"
+                            placeholder="Date"
+                            className={`${inputCls} col-span-4`}
+                            value={row.instalment_date ?? ''}
+                            onChange={(e) => updateGridRow(idx, 'instalment_date', e.target.value || null)}
+                          />
+                          <input
+                            type="number"
+                            placeholder="Amount"
+                            className={`${inputCls} col-span-4`}
+                            value={row.instalment_amount}
+                            onChange={(e) => updateGridRow(idx, 'instalment_amount', Number(e.target.value))}
+                          />
+                          <button
+                            onClick={() => removeGridRow(idx)}
+                            className="col-span-2 flex items-center justify-center p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Section>
+              )}
 
               {/* Collection Rules */}
               <Section title="Collection Rules" icon={<IndianRupee size={13} className="text-emerald-500" />}>
@@ -612,7 +991,7 @@ export const DCCRuleSetupPage: React.FC = () => {
               </Section>
 
               {/* Installment Payment */}
-              <Section title="Installment Payment" icon={<Layers size={13} className="text-sky-500" />}>
+              <Section title="Instalment Payment" icon={<Layers size={13} className="text-sky-500" />}>
                 <div className="grid grid-cols-3 gap-3">
                   <Field label="Instalment Type">
                     <select className={inputCls} value={form.installment_spec.installment_type} onChange={(e) => setForm({ ...form, installment_spec: { ...form.installment_spec, installment_type: e.target.value as 'PERCENTAGE' | 'AMOUNT' } })}>
@@ -634,7 +1013,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                     ))}
                   </select>
                 </Field>
-                <p className="text-[10px] text-gray-400"># of instalments is auto-calculated: (payable amount − advance) / instalment amount</p>
+                <p className="text-[10px] text-gray-400"># of instalments is auto-calculated: (payable amount - advance) / instalment amount</p>
               </Section>
 
               {/* Penalty Slabs */}
@@ -664,6 +1043,66 @@ export const DCCRuleSetupPage: React.FC = () => {
                     <input className={inputCls} value={form.alert_spec.message_hook} onChange={(e) => setForm({ ...form, alert_spec: { ...form.alert_spec, message_hook: e.target.value } })} placeholder="e.g. HOOK_PAYABLE_DUE_REMINDER" />
                   </Field>
                 </div>
+              </Section>
+
+              {/* Collection Exception Grid */}
+              <Section title="Collection Exception Grid" icon={<SlidersHorizontal size={13} className="text-violet-500" />}>
+                <div className="flex items-center gap-2 mb-2">
+                  {COLLECTION_EXCEPTION_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => addException(type)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-[11px] font-semibold hover:bg-gray-100 transition-colors"
+                    >
+                      <Plus size={12} /> {COLLECTION_EXCEPTION_TYPE_LABELS[type]}
+                    </button>
+                  ))}
+                </div>
+                {form.collection_exceptions.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 py-2">
+                    No exception rules defined. Add Instalment, Discount, Penalty, or Alert rules with demand slabs and offset days.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 gap-1.5 px-2 text-[9px] font-bold uppercase text-gray-400">
+                      <span className="col-span-2">Type</span>
+                      <span className="col-span-1">Slab Min</span>
+                      <span className="col-span-1">Slab Max</span>
+                      <span className="col-span-1">Offset</span>
+                      <span className="col-span-1">App %</span>
+                      <span className="col-span-1">Basis</span>
+                      <span className="col-span-1">Min</span>
+                      <span className="col-span-1">Max</span>
+                      <span className="col-span-1">Actual</span>
+                      <span className="col-span-1">Hook</span>
+                      <span className="col-span-1"></span>
+                    </div>
+                    {form.collection_exceptions.map((exc, idx) => (
+                      <CollectionExceptionRow
+                        key={idx}
+                        exceptionType={exc.exception_type}
+                        seqNo={exc.seq_no}
+                        demandSlabMin={exc.demand_slab_min?.toString() ?? ''}
+                        demandSlabMax={exc.demand_slab_max?.toString() ?? ''}
+                        offsetDays={exc.offset_days.toString()}
+                        applicablePct={exc.applicable_pct.toString()}
+                        pctBasis={exc.pct_basis}
+                        pctMin={exc.pct_min?.toString() ?? ''}
+                        pctMax={exc.pct_max?.toString() ?? ''}
+                        actualAmount={exc.actual_amount?.toString() ?? ''}
+                        messageHook={exc.message_hook}
+                        onChange={(field, value) => updateException(idx, field, value)}
+                        onRemove={() => removeException(idx)}
+                      />
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-gray-400 mt-2">
+                  Define demand slabs, offset days, and applicable % for instalment, discount, penalty, and alert exceptions.
+                  Actual amount overrules % based amount when specified.
+                </p>
               </Section>
 
               {/* Active toggle */}
