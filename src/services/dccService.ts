@@ -10,6 +10,8 @@ import type {
   DccTrackerSummary,
   DccDemandFilters,
   DccGenerationSource,
+  DccInstallmentPlan,
+  DccInstallmentRow,
 } from '../types/dcc';
 
 const OWNERS = 'dcc_object_owners';
@@ -18,6 +20,8 @@ const DTYPES = 'dcc_demand_types';
 const DEMANDS = 'dcc_demands';
 const PAYMENTS = 'dcc_payments';
 const RUNLOG = 'dcc_demand_run_log';
+const IPLANS = 'dcc_installment_plans';
+const IROWS = 'dcc_installment_rows';
 
 export const dccService = {
   // ── Reference data ──────────────────────────────────────────────────────────
@@ -396,5 +400,126 @@ export const dccService = {
       .eq('code', code)
       .maybeSingle();
     return (data as DccDemandType) ?? null;
+  },
+
+  // ── Installment plans ──────────────────────────────────────────────────────────
+  async getInstallmentPlan(demandId: string): Promise<{ plan: DccInstallmentPlan | null; rows: DccInstallmentRow[] }> {
+    const { data: plan } = await supabase
+      .from(IPLANS)
+      .select('*')
+      .eq('demand_id', demandId)
+      .maybeSingle();
+    if (!plan) return { plan: null, rows: [] };
+    const { data: rows, error } = await supabase
+      .from(IROWS)
+      .select('*')
+      .eq('plan_id', (plan as DccInstallmentPlan).id)
+      .order('row_number', { ascending: true });
+    if (error) throw error;
+    return { plan: plan as DccInstallmentPlan, rows: (rows ?? []) as DccInstallmentRow[] };
+  },
+
+  async createInstallmentPlan(
+    demandId: string,
+    noOfInstallments: number,
+    totalAmount: number,
+    dueDate: string,
+    options?: {
+      late_fee?: number;
+      interest_pct_pa?: number;
+      discount_full_payment_pct?: number;
+      gst_pct?: number;
+      gst_type?: 'inclusive' | 'exclusive';
+    },
+  ): Promise<{ plan: DccInstallmentPlan; rows: DccInstallmentRow[] }> {
+    const planInsert = {
+      demand_id: demandId,
+      no_of_installments: noOfInstallments,
+      late_fee: options?.late_fee ?? 0,
+      interest_pct_pa: options?.interest_pct_pa ?? 0,
+      discount_full_payment_pct: options?.discount_full_payment_pct ?? 0,
+      gst_pct: options?.gst_pct ?? 0,
+      gst_type: options?.gst_type ?? 'inclusive',
+    };
+    const { data: plan, error: planErr } = await supabase
+      .from(IPLANS)
+      .insert(planInsert)
+      .select('*')
+      .single();
+    if (planErr) throw planErr;
+    const planData = plan as DccInstallmentPlan;
+
+    // Row 0 = Full Payment
+    const perInstallment = noOfInstallments > 0 ? totalAmount / noOfInstallments : totalAmount;
+    const rowInserts: {
+      plan_id: string; row_number: number; label: string; percentage: number;
+      amount: number; due_date: string;
+    }[] = [
+      {
+        plan_id: planData.id,
+        row_number: 0,
+        label: 'Full Payment',
+        percentage: 100,
+        amount: totalAmount,
+        due_date: dueDate,
+      },
+    ];
+    for (let i = 1; i <= noOfInstallments; i++) {
+      rowInserts.push({
+        plan_id: planData.id,
+        row_number: i,
+        label: `Installment ${i}`,
+        percentage: noOfInstallments > 0 ? 100 / noOfInstallments : 0,
+        amount: perInstallment,
+        due_date: dueDate,
+      });
+    }
+    const { data: rows, error: rowErr } = await supabase
+      .from(IROWS)
+      .insert(rowInserts)
+      .select('*')
+      .order('row_number', { ascending: true });
+    if (rowErr) throw rowErr;
+    return { plan: planData, rows: (rows ?? []) as DccInstallmentRow[] };
+  },
+
+  async payInstallmentRow(
+    rowId: string,
+    amount: number,
+    paymentDate: string,
+  ): Promise<DccInstallmentRow> {
+    const { data: row, error: rowErr } = await supabase
+      .from(IROWS)
+      .select('*')
+      .eq('id', rowId)
+      .single();
+    if (rowErr) throw rowErr;
+    const rowData = row as DccInstallmentRow;
+    const newPaidAmt = rowData.paid_amt + amount;
+    const newStatus = newPaidAmt >= rowData.amount ? 'PAID' : 'DUE';
+    const { data: updated, error } = await supabase
+      .from(IROWS)
+      .update({
+        paid_amt: newPaidAmt,
+        paid_date: newStatus === 'PAID' ? paymentDate : rowData.paid_date,
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', rowId)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return updated as DccInstallmentRow;
+  },
+
+  async deleteInstallmentPlan(demandId: string): Promise<void> {
+    const { data: plan } = await supabase
+      .from(IPLANS)
+      .select('id')
+      .eq('demand_id', demandId)
+      .maybeSingle();
+    if (plan) {
+      await supabase.from(IPLANS).delete().eq('id', (plan as { id: string }).id);
+    }
   },
 };

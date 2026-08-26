@@ -81,6 +81,40 @@ export interface DccPayment {
   created_at: string;
 }
 
+export type DccInstallmentRowStatus = 'PAID' | 'DUE' | 'PENDING' | 'OVERDUE';
+
+export interface DccInstallmentPlan {
+  id: string;
+  demand_id: string;
+  no_of_installments: number;
+  late_fee: number;
+  interest_pct_pa: number;
+  discount_full_payment_pct: number;
+  gst_pct: number;
+  gst_type: 'inclusive' | 'exclusive';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DccInstallmentRow {
+  id: string;
+  plan_id: string;
+  row_number: number;
+  label: string;
+  percentage: number;
+  amount: number;
+  due_date: string | null;
+  paid_date: string | null;
+  paid_amt: number;
+  remaining_amount: number;
+  status: DccInstallmentRowStatus;
+  late_fee: number;
+  due_date_with_late_fee: string | null;
+  gst_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DccDemandRunLog {
   id: string;
   run_date: string;

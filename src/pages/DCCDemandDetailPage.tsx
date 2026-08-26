@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
-import type { DccTile, DccPayment, DccDemand } from '../types/dcc';
+import type { DccTile, DccPayment, DccDemand, DccInstallmentPlan, DccInstallmentRow } from '../types/dcc';
 import type { PaymentMode } from '../types/payableCriteria';
 import { ALL_PAYMENT_MODES, PAYMENT_MODE_LABELS } from '../types/payableCriteria';
+import { supabase } from '../lib/supabase';
 
 const fmtINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -56,26 +57,37 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [disputeRemarks, setDisputeRemarks] = useState('');
   const [disputing, setDisputing] = useState(false);
 
+  // Installment plan
+  const [instPlan, setInstPlan] = useState<DccInstallmentPlan | null>(null);
+  const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
+  const [instLoading, setInstLoading] = useState(false);
+  const [showInstForm, setShowInstForm] = useState(false);
+  const [instCount, setInstCount] = useState(2);
+  const [payingRowId, setPayingRowId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!demandId) return;
     setLoading(true);
     setError(null);
     try {
-      const [allTiles, pays] = await Promise.all([
+      const [allTiles, pays, instData] = await Promise.all([
         dccService.getTiles({ object_id: undefined }),
         dccService.getPayments(demandId),
+        dccService.getInstallmentPlan(demandId),
       ]);
       const foundTile = allTiles.find(t => t.id === demandId);
       setTile(foundTile ?? null);
 
-      const { data: demandData } = await import('../lib/supabase').then(m => m.supabase
+      const { data: demandData } = await supabase
         .from('dcc_demands')
         .select('*, object:object_id(*, owner:owner_id(*)), owner:owner_id(*), demand_type:demand_type_id(*)')
         .eq('id', demandId)
-        .maybeSingle());
+        .maybeSingle();
       setDemand(demandData as DccDemand | null);
 
       setPayments(pays);
+      setInstPlan(instData.plan);
+      setInstRows(instData.rows);
       if (foundTile) {
         setPayAmount(foundTile.amount_due);
       }
@@ -85,6 +97,57 @@ export const DCCDemandDetailPage: React.FC = () => {
       setLoading(false);
     }
   }, [demandId]);
+
+  const loadInstallments = useCallback(async () => {
+    if (!demandId) return;
+    setInstLoading(true);
+    try {
+      const instData = await dccService.getInstallmentPlan(demandId);
+      setInstPlan(instData.plan);
+      setInstRows(instData.rows);
+    } catch {
+      // silent
+    } finally {
+      setInstLoading(false);
+    }
+  }, [demandId]);
+
+  const handleCreatePlan = async () => {
+    if (!demandId || !tile || instCount < 1) return;
+    setInstLoading(true);
+    setError(null);
+    try {
+      await dccService.deleteInstallmentPlan(demandId);
+      await dccService.createInstallmentPlan(demandId, instCount, tile.total_amount, tile.due_date);
+      setShowInstForm(false);
+      await loadInstallments();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to create installment plan');
+    } finally {
+      setInstLoading(false);
+    }
+  };
+
+  const handlePayInstallment = async (row: DccInstallmentRow) => {
+    if (!demandId || !tile) return;
+    setPayingRowId(row.id);
+    setError(null);
+    try {
+      const payAmt = row.remaining_amount;
+      await dccService.payInstallmentRow(row.id, payAmt, new Date().toISOString().slice(0, 10));
+      await dccService.submitPayment(
+        demandId, tile.object_id, payAmt, 'EPAY',
+        new Date().toISOString().slice(0, 10),
+        `Installment ${row.row_number}`, undefined,
+      );
+      await loadInstallments();
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to pay installment');
+    } finally {
+      setPayingRowId(null);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -179,7 +242,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const TABS: { key: Tab; label: string; icon: typeof History }[] = [
     { key: 'overview', label: 'Overview', icon: FileText },
     { key: 'payments', label: `Payments (${payments.length})`, icon: Receipt },
-    { key: 'installments', label: 'Installments', icon: Layers },
+    { key: 'installments', label: `Installments (${instRows.length})`, icon: Layers },
     { key: 'dispute', label: hasDispute ? 'Dispute (Active)' : 'Dispute', icon: MessageSquareWarning },
   ];
 
@@ -416,41 +479,106 @@ export const DCCDemandDetailPage: React.FC = () => {
           )}
 
           {activeTab === 'installments' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-2">
                 <Layers size={15} className="text-gray-500" />
                 <h3 className="text-sm font-bold text-gray-900">Installment Plan</h3>
+                {!isPaidOrExempted && !showInstForm && (
+                  <button
+                    onClick={() => setShowInstForm(true)}
+                    className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[11px] font-semibold hover:bg-teal-100 transition-colors"
+                  >
+                    <Percent size={12} /> {instPlan ? 'Recreate Plan' : 'Create Plan'}
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mb-4">Installments are auto-calculated based on the demand rule: (payable amount − advance) / installment amount.</p>
-              {(() => {
-                const total = tile.total_amount;
-                const paid = tile.amount_paid;
-                const remaining = tile.amount_due;
-                const installmentCount = total > 0 ? Math.ceil(remaining / Math.max(1, total / 4)) : 0;
-                const perInstallment = installmentCount > 0 ? remaining / installmentCount : 0;
-                if (installmentCount === 0) {
-                  return <p className="text-xs text-gray-400">No installment plan applicable — demand is fully paid or exempted.</p>;
-                }
-                return (
-                  <div className="space-y-2">
-                    {Array.from({ length: installmentCount }, (_, i) => {
-                      const isPaid = i < Math.floor(paid / perInstallment);
-                      return (
-                        <div key={i} className={`flex items-center gap-3 rounded-xl border p-3 ${isPaid ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200'}`}>
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${isPaid ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                            {isPaid ? <CheckCircle2 size={14} /> : i + 1}
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs font-semibold text-gray-700">Installment {i + 1}</div>
-                            <div className="text-[10px] text-gray-400">Due: {fmtDate(tile.due_date)}</div>
-                          </div>
-                          <div className="text-xs font-bold text-gray-900">{fmtINR(perInstallment)}</div>
-                        </div>
-                      );
-                    })}
+
+              {showInstForm && !isPaidOrExempted && (
+                <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-4 space-y-3">
+                  <div className="grid grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">No. of Installments *</label>
+                      <input type="number" min={1} max={12} value={instCount} onChange={e => setInstCount(Math.max(1, Math.min(12, Number(e.target.value))))} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Amount</label>
+                      <div className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(tile.total_amount)}</div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Per Installment</label>
+                      <div className="px-3 py-2 text-xs font-bold text-teal-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(instCount > 0 ? tile.total_amount / instCount : 0)}</div>
+                    </div>
                   </div>
-                );
-              })()}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCreatePlan}
+                      disabled={instLoading || instCount < 1}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                    >
+                      {instLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                      {instLoading ? 'Creating…' : 'Create Plan'}
+                    </button>
+                    <button onClick={() => setShowInstForm(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {instLoading && !instPlan ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={20} className="animate-spin text-teal-500" />
+                </div>
+              ) : instRows.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Layers size={24} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No installment plan created yet.</p>
+                  <p className="text-[10px] mt-1">Click "Create Plan" to split this demand into installments.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {instRows.map(row => {
+                    const isPaid = row.status === 'PAID';
+                    const isFullPayment = row.row_number === 0;
+                    const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted;
+                    return (
+                      <div
+                        key={row.id}
+                        className={`flex items-center gap-3 rounded-xl border p-3 ${isPaid ? 'border-emerald-200 bg-emerald-50/50' : row.status === 'OVERDUE' ? 'border-red-200 bg-red-50/30' : 'border-gray-200'}`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isPaid ? 'bg-emerald-500 text-white' : isFullPayment ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {isPaid ? <CheckCircle2 size={15} /> : isFullPayment ? <Wallet size={14} /> : row.row_number}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-700">{row.label}</span>
+                            {isFullPayment && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-700">FULL</span>}
+                            {isPaid && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">PAID</span>}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            Due: {fmtDate(row.due_date)}
+                            {row.paid_date && ` · Paid: ${fmtDate(row.paid_date)}`}
+                            {row.remaining_amount > 0 && !isPaid && ` · Remaining: ${fmtINR(row.remaining_amount)}`}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-bold text-gray-900">{fmtINR(row.amount)}</div>
+                          {canPay && (
+                            <button
+                              onClick={() => handlePayInstallment(row)}
+                              disabled={payingRowId === row.id}
+                              className="mt-1 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors ml-auto"
+                            >
+                              {payingRowId === row.id ? <Loader2 size={11} className="animate-spin" /> : <Wallet size={11} />}
+                              {payingRowId === row.id ? 'Paying…' : 'Pay'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
