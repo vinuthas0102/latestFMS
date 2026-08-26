@@ -210,16 +210,16 @@ export const DCCRuleSetupPage: React.FC = () => {
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // Load reference data independently so dropdowns always populate
+    // even if the rules list query fails
+    dccService.listDemandTypes().then(setDemandTypes).catch(() => {});
+    dccService.listObjectOwners().then(setOwners).catch(() => {});
+
     try {
-      const [data, dt, ow] = await Promise.all([
-        payableCriteriaService.listWithSpecs(),
-        dccService.listDemandTypes(),
-        dccService.listObjectOwners(),
-      ]);
+      const data = await payableCriteriaService.listWithSpecs();
       const dccRules = data.filter(r => r.demand_type_id !== null || r.object_type !== null);
       setRecords(dccRules);
-      setDemandTypes(dt);
-      setOwners(ow);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load demand rules');
     } finally {
