@@ -29,4 +29,5 @@ export const ROUTES = {
   QUARTERS_RENT: '/quarters/rent',
   MT_SETUP: '/mt-setup',
   DCC: '/dcc',
+  DCC_RULE_SETUP: '/dcc/rule-setup',
 } as const;

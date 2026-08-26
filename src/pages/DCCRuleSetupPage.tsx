@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   SlidersHorizontal, Plus, Search, Trash2, Save, X, ChevronDown,
   ChevronRight, Percent, IndianRupee, Calendar, AlertCircle, Loader2,
-  CheckCircle2, Clock, Layers, Tag, Building2, MapPin, User,
+  CheckCircle2, Clock, Layers, Tag, Building2, User, ArrowLeft,
 } from 'lucide-react';
 import { payableCriteriaService } from '../services/payableCriteriaService';
+import { dccService } from '../services/dccService';
 import { useAuthStore } from '../stores/authStore';
 import type {
   PayableCriteria,
@@ -15,6 +16,7 @@ import type {
   DiscountSlabRow,
   PayablePenaltySlab,
 } from '../types/payableCriteria';
+import type { DccDemandType, DccObjectOwner } from '../types/dcc';
 import {
   PAYABLE_TRANSACTION_TYPES,
   PAYABLE_TRANSACTION_TYPE_LABELS,
@@ -23,6 +25,8 @@ import {
   ALL_REFERENCE_DATES,
   REFERENCE_DATE_LABELS,
 } from '../types/payableCriteria';
+import { ROUTES } from '../constants/routes';
+import { useNavigate } from 'react-router-dom';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null) =>
@@ -42,12 +46,20 @@ const emptyPenaltySlab = (row: number): PayablePenaltySlab => ({
   late_days: 0,
 });
 
+const OBJECT_TYPES = ['PROPERTY', 'QUARTER', 'CAR', 'LOAN', 'ASSET', 'OTHER'];
+const IMPORT_SOURCES: { value: PayableCriteriaInput['import_source']; label: string }[] = [
+  { value: 'TPA', label: 'Third-Party API (TPA)' },
+  { value: 'EXCEL', label: 'Excel Upload' },
+  { value: 'AUTO', label: 'Auto-Generation' },
+  { value: 'MANUAL', label: 'Manual' },
+];
+
 const emptyInput = (): PayableCriteriaInput => ({
-  dept: '',
+  dept: 'DCC',
   subdept: '',
-  module_id: 'Quarter',
+  module_id: 'DCC',
   location: '',
-  grade_designation: '',
+  grade_designation: 'ALL',
   payable_transaction_type: 'RENT',
   first_btm_run_date: null,
   subsequent_btm_run_day: '1',
@@ -58,7 +70,7 @@ const emptyInput = (): PayableCriteriaInput => ({
   demand_type_id: null,
   object_type: null,
   object_owner_id: null,
-  import_source: null,
+  import_source: 'AUTO',
   full_payment_spec: {
     reference_date: 'allotted_date',
     days_offset: 0,
@@ -107,7 +119,6 @@ const Section: React.FC<{
   );
 };
 
-// ── Field components ───────────────────────────────────────────────────────────
 const Field: React.FC<{
   label: string;
   required?: boolean;
@@ -122,10 +133,11 @@ const Field: React.FC<{
 );
 
 const inputCls =
-  'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 bg-white text-gray-700 transition-colors';
+  'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-export const MTSetupPage: React.FC = () => {
+export const DCCRuleSetupPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [records, setRecords] = useState<PayableCriteria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,38 +150,48 @@ export const MTSetupPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
 
+  // DCC reference data
+  const [demandTypes, setDemandTypes] = useState<DccDemandType[]>([]);
+  const [owners, setOwners] = useState<DccObjectOwner[]>([]);
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await payableCriteriaService.listWithSpecs();
-      setRecords(data);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load payable criteria');
+      const [data, dt, ow] = await Promise.all([
+        payableCriteriaService.listWithSpecs(),
+        dccService.listDemandTypes(),
+        dccService.listObjectOwners(),
+      ]);
+      // Filter to DCC rules only (those with demand_type_id or object_type set)
+      const dccRules = data.filter(r => r.demand_type_id !== null || r.object_type !== null);
+      setRecords(dccRules);
+      setDemandTypes(dt);
+      setOwners(ow);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load demand rules');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadList();
-  }, [loadList]);
+  useEffect(() => { loadList(); }, [loadList]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
       if (filterType !== 'ALL' && r.payable_transaction_type !== filterType) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
+      const ownerName = owners.find(o => o.id === r.object_owner_id)?.name ?? '';
+      const dtLabel = demandTypes.find(d => d.id === r.demand_type_id)?.label ?? '';
       return (
-        r.dept.toLowerCase().includes(q) ||
-        r.subdept.toLowerCase().includes(q) ||
-        r.module_id.toLowerCase().includes(q) ||
-        r.location.toLowerCase().includes(q) ||
-        r.grade_designation.toLowerCase().includes(q) ||
+        (r.object_type ?? '').toLowerCase().includes(q) ||
+        ownerName.toLowerCase().includes(q) ||
+        dtLabel.toLowerCase().includes(q) ||
         r.payable_transaction_type.toLowerCase().includes(q)
       );
     });
-  }, [records, search, filterType]);
+  }, [records, search, filterType, owners, demandTypes]);
 
   const handleSelect = (rec: PayableCriteria) => {
     setSelectedId(rec.id);
@@ -239,15 +261,15 @@ export const MTSetupPage: React.FC = () => {
       setShowNew(false);
       setEditing(null);
       setSelectedId(null);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to save');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this payable criteria? This cannot be undone.')) return;
+    if (!window.confirm('Delete this demand rule? This cannot be undone.')) return;
     try {
       await payableCriteriaService.remove(id);
       if (selectedId === id) {
@@ -255,8 +277,8 @@ export const MTSetupPage: React.FC = () => {
         setEditing(null);
       }
       await loadList();
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to delete');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to delete');
     }
   };
 
@@ -291,18 +313,24 @@ export const MTSetupPage: React.FC = () => {
     <div className="h-full flex flex-col bg-gray-50">
       {/* Page header */}
       <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+        <button
+          onClick={() => navigate(ROUTES.DCC)}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
           <SlidersHorizontal size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold text-gray-900">MT Setup — Payable Criteria</h1>
-          <p className="text-xs text-gray-500">Define and manage payable amount generation rules across all transaction types</p>
+          <h1 className="text-base font-bold text-gray-900">Demand Rule Setup</h1>
+          <p className="text-xs text-gray-500">Define generation and collection rules for each demand type, object type, and owner</p>
         </div>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
         >
-          <Plus size={14} /> New Criteria
+          <Plus size={14} /> New Rule
         </button>
       </div>
 
@@ -322,14 +350,14 @@ export const MTSetupPage: React.FC = () => {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by dept, module, location, grade…"
-                className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                placeholder="Search by demand type, object type, owner…"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/20"
               />
             </div>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/20 bg-white"
+              className="px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/20 bg-white"
             >
               <option value="ALL">All Types</option>
               {PAYABLE_TRANSACTION_TYPES.map((t) => (
@@ -344,49 +372,56 @@ export const MTSetupPage: React.FC = () => {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 size={20} className="animate-spin text-blue-500" />
+                <Loader2 size={20} className="animate-spin text-teal-500" />
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                 <SlidersHorizontal size={28} className="mb-2 opacity-30" />
-                <p className="text-sm font-medium">No payable criteria found</p>
-                <p className="text-xs mt-1">Click "New Criteria" to create one</p>
+                <p className="text-sm font-medium">No demand rules found</p>
+                <p className="text-xs mt-1">Click "New Rule" to create one</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
                 {filtered.map((rec) => {
                   const isActive = selectedId === rec.id;
                   const hasRun = rec.next_run_date !== null;
+                  const dtLabel = demandTypes.find(d => d.id === rec.demand_type_id)?.label ?? '—';
+                  const ownerName = owners.find(o => o.id === rec.object_owner_id)?.name ?? '—';
                   return (
                     <div
                       key={rec.id}
                       onClick={() => handleSelect(rec)}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${isActive ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${isActive ? 'bg-teal-50 border-l-4 border-l-teal-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                             {rec.payable_transaction_type}
                           </span>
-                          <span className="text-sm font-semibold text-gray-900 truncate">{rec.dept}</span>
-                          {rec.subdept && <span className="text-xs text-gray-400 truncate">/ {rec.subdept}</span>}
+                          <span className="text-sm font-semibold text-gray-900 truncate">{dtLabel}</span>
                         </div>
                         <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
-                          <span className="flex items-center gap-1"><Building2 size={11} />{rec.module_id}</span>
-                          <span className="flex items-center gap-1"><MapPin size={11} />{rec.location}</span>
-                          <span className="flex items-center gap-1"><User size={11} />{rec.grade_designation}</span>
+                          <span className="flex items-center gap-1"><Building2 size={11} />{rec.object_type ?? '—'}</span>
+                          <span className="flex items-center gap-1"><User size={11} />{ownerName}</span>
+                          <span className="flex items-center gap-1"><Tag size={11} />{rec.import_source ?? '—'}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-[10px]">
                           <span className={`flex items-center gap-1 ${hasRun ? 'text-emerald-600' : 'text-amber-600'}`}>
                             {hasRun ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                            {hasRun ? `Last run: ${fmtDate(rec.next_run_date)}` : 'No BTM run yet'}
+                            {hasRun ? `Last run: ${fmtDate(rec.next_run_date)}` : 'No run yet'}
                           </span>
                           <span className="text-gray-400">·</span>
-                          <span className="text-gray-500">{rec.available_payment_modes.length} payment mode{rec.available_payment_modes.length !== 1 ? 's' : ''}</span>
+                          <span className="text-gray-500">{rec.available_payment_modes.length} mode{rec.available_payment_modes.length !== 1 ? 's' : ''}</span>
                           {rec.include_gst && (
                             <>
                               <span className="text-gray-400">·</span>
-                              <span className="text-blue-600 font-medium">GST</span>
+                              <span className="text-teal-600 font-medium">GST</span>
+                            </>
+                          )}
+                          {!rec.is_active && (
+                            <>
+                              <span className="text-gray-400">·</span>
+                              <span className="text-red-500 font-medium">Inactive</span>
                             </>
                           )}
                         </div>
@@ -409,8 +444,8 @@ export const MTSetupPage: React.FC = () => {
         {/* Right: Form panel */}
         {showForm && (
           <div className="w-[480px] shrink-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 bg-blue-600 shrink-0">
-              <span className="text-sm font-bold text-white">{editing ? 'Edit Criteria' : 'New Criteria'}</span>
+            <div className="flex items-center gap-2 px-4 py-3 bg-teal-600 shrink-0">
+              <span className="text-sm font-bold text-white">{editing ? 'Edit Rule' : 'New Rule'}</span>
               <button
                 onClick={() => { setShowNew(false); setEditing(null); setSelectedId(null); }}
                 className="ml-auto p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
@@ -420,25 +455,50 @@ export const MTSetupPage: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {/* Basic Info */}
-              <Section title="Basic Info" icon={<Tag size={13} className="text-blue-500" />} defaultOpen>
+              {/* DCC Keying */}
+              <Section title="Demand Key" icon={<Tag size={13} className="text-teal-500" />} defaultOpen>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Department" required>
-                    <input className={inputCls} value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} placeholder="e.g. Estate Dept" />
+                  <Field label="Demand Type" required>
+                    <select
+                      className={inputCls}
+                      value={form.demand_type_id ?? ''}
+                      onChange={(e) => setForm({ ...form, demand_type_id: e.target.value || null })}
+                    >
+                      <option value="">Select…</option>
+                      {demandTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.label}</option>)}
+                    </select>
                   </Field>
-                  <Field label="Sub-Department">
-                    <input className={inputCls} value={form.subdept} onChange={(e) => setForm({ ...form, subdept: e.target.value })} placeholder="e.g. Administration" />
+                  <Field label="Object Type" required>
+                    <select
+                      className={inputCls}
+                      value={form.object_type ?? ''}
+                      onChange={(e) => setForm({ ...form, object_type: e.target.value || null })}
+                    >
+                      <option value="">Select…</option>
+                      {OBJECT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </Field>
-                  <Field label="Module ID" required>
-                    <input className={inputCls} value={form.module_id} onChange={(e) => setForm({ ...form, module_id: e.target.value })} placeholder="e.g. Quarter, Facility" />
+                  <Field label="Object Owner">
+                    <select
+                      className={inputCls}
+                      value={form.object_owner_id ?? ''}
+                      onChange={(e) => setForm({ ...form, object_owner_id: e.target.value || null })}
+                    >
+                      <option value="">All Owners</option>
+                      {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
                   </Field>
-                  <Field label="Location" required>
-                    <input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="e.g. HQ-Campus" />
+                  <Field label="Import Source">
+                    <select
+                      className={inputCls}
+                      value={form.import_source ?? ''}
+                      onChange={(e) => setForm({ ...form, import_source: (e.target.value || null) as PayableCriteriaInput['import_source'] })}
+                    >
+                      <option value="">Select…</option>
+                      {IMPORT_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
                   </Field>
-                  <Field label="Grade / Designation" required>
-                    <input className={inputCls} value={form.grade_designation} onChange={(e) => setForm({ ...form, grade_designation: e.target.value })} placeholder="e.g. Grade-A or TP" />
-                  </Field>
-                  <Field label="Payable Transaction Type" required>
+                  <Field label="Transaction Type" required>
                     <select className={inputCls} value={form.payable_transaction_type} onChange={(e) => setForm({ ...form, payable_transaction_type: e.target.value as PayableTransactionType })}>
                       {PAYABLE_TRANSACTION_TYPES.map((t) => (
                         <option key={t} value={t}>{PAYABLE_TRANSACTION_TYPE_LABELS[t]}</option>
@@ -448,13 +508,13 @@ export const MTSetupPage: React.FC = () => {
                 </div>
               </Section>
 
-              {/* BTM Schedule */}
-              <Section title="BTM Schedule" icon={<Calendar size={13} className="text-amber-500" />}>
+              {/* Generation Schedule */}
+              <Section title="Generation Schedule" icon={<Calendar size={13} className="text-amber-500" />}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="First BTM Run Date">
+                  <Field label="First Run Date">
                     <input type="date" className={inputCls} value={form.first_btm_run_date ?? ''} onChange={(e) => setForm({ ...form, first_btm_run_date: e.target.value || null })} />
                   </Field>
-                  <Field label="Subsequent BTM Run Day">
+                  <Field label="Subsequent Run Day">
                     <select className={inputCls} value={form.subsequent_btm_run_day} onChange={(e) => setForm({ ...form, subsequent_btm_run_day: e.target.value })}>
                       {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                         <option key={d} value={String(d)}>Day {d}</option>
@@ -464,14 +524,14 @@ export const MTSetupPage: React.FC = () => {
                   </Field>
                   <Field label="Next Run Date">
                     <input type="date" className={inputCls} value={form.next_run_date ?? ''} onChange={(e) => setForm({ ...form, next_run_date: e.target.value || null })} />
-                    <p className="text-[10px] text-gray-400 mt-1">Leave empty if no BTM run has been done yet (value = 0)</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Leave empty if no run has been done yet</p>
                   </Field>
                 </div>
               </Section>
 
-              {/* Payment Modes & GST */}
-              <Section title="Payment Modes & GST" icon={<IndianRupee size={13} className="text-emerald-500" />}>
-                <Field label="Available Payment Modes" required>
+              {/* Collection Rules */}
+              <Section title="Collection Rules" icon={<IndianRupee size={13} className="text-emerald-500" />}>
+                <Field label="Allowed Payment Modes" required>
                   <div className="flex flex-wrap gap-2">
                     {ALL_PAYMENT_MODES.map((mode) => {
                       const sel = form.available_payment_modes.includes(mode);
@@ -480,7 +540,7 @@ export const MTSetupPage: React.FC = () => {
                           key={mode}
                           type="button"
                           onClick={() => togglePaymentMode(mode)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${sel ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'}`}
                         >
                           {PAYMENT_MODE_LABELS[mode]}
                         </button>
@@ -490,14 +550,14 @@ export const MTSetupPage: React.FC = () => {
                 </Field>
                 <div className="flex items-center gap-2 pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.include_gst} onChange={(e) => setForm({ ...form, include_gst: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" checked={form.include_gst} onChange={(e) => setForm({ ...form, include_gst: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                     <span className="text-xs font-semibold text-gray-700">Include GST</span>
                   </label>
                 </div>
               </Section>
 
               {/* Full Payment Specs */}
-              <Section title="Full Payment Specs" icon={<CheckCircle2 size={13} className="text-blue-500" />}>
+              <Section title="Full Payment & Discount" icon={<CheckCircle2 size={13} className="text-teal-500" />}>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Reference Date" required>
                     <select className={inputCls} value={form.full_payment_spec.reference_date} onChange={(e) => setForm({ ...form, full_payment_spec: { ...form.full_payment_spec, reference_date: e.target.value as ReferenceDateType } })}>
@@ -506,7 +566,7 @@ export const MTSetupPage: React.FC = () => {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Days Offset (due date = ref + offset)">
+                  <Field label="Days Offset (due = ref + offset)">
                     <input type="number" className={inputCls} value={form.full_payment_spec.days_offset} onChange={(e) => setForm({ ...form, full_payment_spec: { ...form.full_payment_spec, days_offset: Number(e.target.value) } })} />
                   </Field>
                 </div>
@@ -522,7 +582,7 @@ export const MTSetupPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2">Example: Allotted date, 45 days, (15 days, 2%), (30 days, 1%) → full payment within 45 days; 2% discount if paid within 15 days, 1% if within 30 days.</p>
+                  <p className="text-[10px] text-gray-400 mt-2">Example: ref date + 45 days, 2% discount if paid within 15 days, 1% if within 30 days.</p>
                 </div>
               </Section>
 
@@ -609,7 +669,7 @@ export const MTSetupPage: React.FC = () => {
               {/* Active toggle */}
               <div className="flex items-center gap-2 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                   <span className="text-xs font-semibold text-gray-700">Active</span>
                 </label>
               </div>
@@ -619,11 +679,11 @@ export const MTSetupPage: React.FC = () => {
             <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
               <button
                 onClick={handleSave}
-                disabled={saving || !form.dept.trim() || !form.module_id.trim() || !form.location.trim() || !form.grade_designation.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                disabled={saving || !form.demand_type_id || !form.object_type}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {editing ? 'Update' : 'Create'} Criteria
+                {editing ? 'Update' : 'Create'} Rule
               </button>
               <button
                 onClick={() => { setShowNew(false); setEditing(null); setSelectedId(null); }}
@@ -639,4 +699,4 @@ export const MTSetupPage: React.FC = () => {
   );
 };
 
-export default MTSetupPage;
+export default DCCRuleSetupPage;

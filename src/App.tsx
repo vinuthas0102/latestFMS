@@ -33,6 +33,7 @@ const QuarterManagerPage = lazy(() => import('./pages/QuarterManagerPage').then(
 const QuarterRentPage = lazy(() => import('./pages/QuarterRentPage').then(m => ({ default: m.QuarterRentPage })));
 const MTSetupPage = lazy(() => import('./pages/MTSetupPage').then(m => ({ default: m.MTSetupPage })));
 const DCCPage = lazy(() => import('./pages/DCCPage').then(m => ({ default: m.DCCPage })));
+const DCCRuleSetupPage = lazy(() => import('./pages/DCCRuleSetupPage').then(m => ({ default: m.DCCRuleSetupPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 function PageLoader() {
@@ -236,6 +237,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
                     <AppLayout><DCCPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dcc/rule-setup"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><DCCRuleSetupPage /></AppLayout>
                   </ProtectedRoute>
                 }
               />

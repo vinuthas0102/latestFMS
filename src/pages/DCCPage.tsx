@@ -3,9 +3,11 @@ import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp, Search, X,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
-  Wallet, Eye, Users,
+  Wallet, Eye, Users, Sliders,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../constants/routes';
 import type {
   DccTile, DccTrackerSummary, DccDemandFilters,
   DccDemandType, DccObjectOwner, DccObject,
@@ -168,6 +170,7 @@ const DemandTile: React.FC<{
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const DCCPage: React.FC = () => {
+  const navigate = useNavigate();
   const [tiles, setTiles] = useState<DccTile[]>([]);
   const [summary, setSummary] = useState<DccTrackerSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -285,6 +288,12 @@ export const DCCPage: React.FC = () => {
           <h1 className="text-base font-bold text-gray-900">Demand and Collection Center</h1>
           <p className="text-xs text-gray-500">Track all demands and collections across any object type</p>
         </div>
+        <button
+          onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
+        >
+          <Sliders size={14} /> Rule Setup
+        </button>
         <button
           onClick={() => setShowFilters(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"

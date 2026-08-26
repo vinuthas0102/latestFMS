@@ -141,6 +141,11 @@ export interface PayableCriteria {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // DCC keying (Phase 2)
+  demand_type_id: string | null;
+  object_type: string | null;
+  object_owner_id: string | null;
+  import_source: 'TPA' | 'EXCEL' | 'AUTO' | 'MANUAL' | null;
   // Child specs (populated when fetched with joins)
   full_payment_spec?: PayableFullPaymentSpec | null;
   advance_spec?: PayableAdvanceSpec | null;
@@ -162,6 +167,11 @@ export interface PayableCriteriaInput {
   available_payment_modes: PaymentMode[];
   include_gst: boolean;
   is_active: boolean;
+  // DCC keying (Phase 2)
+  demand_type_id: string | null;
+  object_type: string | null;
+  object_owner_id: string | null;
+  import_source: 'TPA' | 'EXCEL' | 'AUTO' | 'MANUAL' | null;
   full_payment_spec: PayableFullPaymentSpec;
   advance_spec: PayableAdvanceSpec;
   installment_spec: PayableInstallmentSpec;
