@@ -40,9 +40,10 @@ const ModuleButton: React.FC<ModuleButtonProps> = ({ tab, isActive, onClick }) =
       {MODULE_ICONS[tab.iconName]}
     </span>
     <span
-      className={`text-[9px] font-bold tracking-widest uppercase leading-none ${
+      className={`text-[10px] font-semibold leading-tight text-center px-0.5 ${
         isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
       }`}
+      style={{ maxWidth: '112px' }}
     >
       {tab.title}
     </span>
@@ -74,7 +75,7 @@ const RailContent: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   };
 
   return (
-    <aside className="w-16 h-full flex flex-col bg-white border-r border-gray-100" style={{ boxShadow: '1px 0 0 0 rgba(0,0,0,0.05)' }}>
+    <aside className="w-20 h-full flex flex-col bg-white border-r border-gray-100" style={{ boxShadow: '1px 0 0 0 rgba(0,0,0,0.05)' }}>
       {/* ── Logo ── */}
       <div className="flex items-center justify-center h-[60px] border-b border-gray-100 flex-shrink-0">
         <button
@@ -143,7 +144,7 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* Desktop: fixed left rail, always visible */}
-      <div className="hidden md:block fixed left-0 top-0 bottom-0 z-40 w-16">
+      <div className="hidden md:block fixed left-0 top-0 bottom-0 z-40 w-20">
         <RailContent />
       </div>
 
@@ -154,7 +155,7 @@ export const Sidebar: React.FC = () => {
             className="fixed inset-0 bg-black/40 z-40 md:hidden"
             onClick={closeMobile}
           />
-          <div className="fixed left-0 top-0 bottom-0 z-50 w-16 md:hidden">
+          <div className="fixed left-0 top-0 bottom-0 z-50 w-20 md:hidden">
             <RailContent onNavigate={closeMobile} />
           </div>
         </>
@@ -187,7 +188,7 @@ const MobileTabBar: React.FC = () => {
             <span className={`flex items-center justify-center w-10 h-10 rounded-2xl transition-all ${active ? 'bg-blue-50' : ''}`}>
               {MODULE_ICONS[tab.iconName]}
             </span>
-            <span className="text-[9px] font-bold tracking-widest uppercase">{tab.title}</span>
+            <span className="text-[10px] font-semibold leading-tight text-center px-0.5" style={{ maxWidth: '112px' }}>{tab.title}</span>
           </button>
         );
       })}
