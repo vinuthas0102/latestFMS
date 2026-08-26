@@ -30,4 +30,5 @@ export const ROUTES = {
   MT_SETUP: '/mt-setup',
   DCC: '/dcc',
   DCC_RULE_SETUP: '/dcc/rule-setup',
+  DCC_GENERATE: '/dcc/generate',
 } as const;

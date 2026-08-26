@@ -34,6 +34,7 @@ const QuarterRentPage = lazy(() => import('./pages/QuarterRentPage').then(m => (
 const MTSetupPage = lazy(() => import('./pages/MTSetupPage').then(m => ({ default: m.MTSetupPage })));
 const DCCPage = lazy(() => import('./pages/DCCPage').then(m => ({ default: m.DCCPage })));
 const DCCRuleSetupPage = lazy(() => import('./pages/DCCRuleSetupPage').then(m => ({ default: m.DCCRuleSetupPage })));
+const DCCDemandGenerationPage = lazy(() => import('./pages/DCCDemandGenerationPage').then(m => ({ default: m.DCCDemandGenerationPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 function PageLoader() {
@@ -245,6 +246,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'manager']}>
                     <AppLayout><DCCRuleSetupPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dcc/generate"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><DCCDemandGenerationPage /></AppLayout>
                   </ProtectedRoute>
                 }
               />

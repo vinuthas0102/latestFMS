@@ -3,7 +3,7 @@ import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp, Search, X,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
-  Wallet, Eye, Users, Sliders,
+  Wallet, Eye, Users, Sliders, Plus,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -293,6 +293,12 @@ export const DCCPage: React.FC = () => {
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
         >
           <Sliders size={14} /> Rule Setup
+        </button>
+        <button
+          onClick={() => navigate(ROUTES.DCC_GENERATE)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+        >
+          <Plus size={14} /> Generate
         </button>
         <button
           onClick={() => setShowFilters(true)}

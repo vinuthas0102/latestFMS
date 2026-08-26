@@ -9,6 +9,7 @@ import type {
   DccTile,
   DccTrackerSummary,
   DccDemandFilters,
+  DccGenerationSource,
 } from '../types/dcc';
 
 const OWNERS = 'dcc_object_owners';
@@ -246,5 +247,154 @@ export const dccService = {
       .order('run_date', { ascending: false });
     if (error) throw error;
     return (data ?? []) as DccDemandRunLog[];
+  },
+
+  // ── Demand generation ──────────────────────────────────────────────────────
+
+  async generateDemands(
+    rows: { object_id: string; owner_id: string; demand_type_id: string; amount: number; due_date: string; run_date: string }[],
+    source: DccGenerationSource,
+    criteriaId?: string | null,
+  ): Promise<{ created: number; totalAmount: number; runLogId: string }> {
+    if (rows.length === 0) return { created: 0, totalAmount: 0, runLogId: '' };
+
+    const demandRows = rows.map((r) => ({
+      object_id: r.object_id,
+      owner_id: r.owner_id,
+      demand_type_id: r.demand_type_id,
+      criteria_id: criteriaId ?? null,
+      demand_run_date: r.run_date,
+      due_date: r.due_date,
+      amount: r.amount,
+      amount_paid: 0,
+      status: 'DUE' as const,
+      generation_source: source,
+    }));
+
+    const { data: inserted, error: insErr } = await supabase
+      .from(DEMANDS)
+      .insert(demandRows)
+      .select('id, amount');
+    if (insErr) throw insErr;
+
+    const created = (inserted ?? []).length;
+    const totalAmount = (inserted ?? []).reduce((s, r: { amount: number }) => s + r.amount, 0);
+    const demandTypeId = rows[0]?.demand_type_id ?? null;
+
+    const { data: logRow, error: logErr } = await supabase
+      .from(RUNLOG)
+      .insert({
+        run_date: rows[0]?.run_date ?? new Date().toISOString().slice(0, 10),
+        source,
+        demand_type_id: demandTypeId,
+        records_created: created,
+        total_amount: totalAmount,
+      })
+      .select('id')
+      .single();
+    if (logErr) throw logErr;
+
+    return { created, totalAmount, runLogId: (logRow as { id: string }).id };
+  },
+
+  async generateFromExcel(
+    rows: { object_ref: string; demand_type_code: string; amount: number; due_date: string; run_date: string }[],
+  ): Promise<{ created: number; totalAmount: number }> {
+    const resolved: { object_id: string; owner_id: string; demand_type_id: string; amount: number; due_date: string; run_date: string }[] = [];
+
+    for (const row of rows) {
+      const obj = await this.findOrCreateObject(row.object_ref);
+      const dt = await this.findDemandTypeByCode(row.demand_type_code);
+      if (!obj || !dt) continue;
+      resolved.push({
+        object_id: obj.id,
+        owner_id: obj.owner_id,
+        demand_type_id: dt.id,
+        amount: row.amount,
+        due_date: row.due_date,
+        run_date: row.run_date,
+      });
+    }
+
+    const result = await this.generateDemands(resolved, 'EXCEL');
+    return { created: result.created, totalAmount: result.totalAmount };
+  },
+
+  async generateFromTPA(
+    payload: { object_ref: string; demand_type_code: string; amount: number; due_date: string; run_date: string }[],
+  ): Promise<{ created: number; totalAmount: number }> {
+    const resolved: { object_id: string; owner_id: string; demand_type_id: string; amount: number; due_date: string; run_date: string }[] = [];
+
+    for (const row of payload) {
+      const obj = await this.findOrCreateObject(row.object_ref);
+      const dt = await this.findDemandTypeByCode(row.demand_type_code);
+      if (!obj || !dt) continue;
+      resolved.push({
+        object_id: obj.id,
+        owner_id: obj.owner_id,
+        demand_type_id: dt.id,
+        amount: row.amount,
+        due_date: row.due_date,
+        run_date: row.run_date,
+      });
+    }
+
+    const result = await this.generateDemands(resolved, 'TPA');
+    return { created: result.created, totalAmount: result.totalAmount };
+  },
+
+  async generateAuto(
+    rules: { criteria_id: string; object_id: string; owner_id: string; demand_type_id: string; amount: number; due_date: string; run_date: string }[],
+  ): Promise<{ created: number; totalAmount: number }> {
+    const rows = rules.map((r) => ({
+      object_id: r.object_id,
+      owner_id: r.owner_id,
+      demand_type_id: r.demand_type_id,
+      amount: r.amount,
+      due_date: r.due_date,
+      run_date: r.run_date,
+    }));
+    const criteriaId = rules[0]?.criteria_id ?? null;
+    const result = await this.generateDemands(rows, 'AUTO', criteriaId);
+    return { created: result.created, totalAmount: result.totalAmount };
+  },
+
+  // ── Helpers for generation ────────────────────────────────────────────────────
+
+  async findOrCreateObject(objectRef: string): Promise<DccObject | null> {
+    const { data: existing } = await supabase
+      .from(OBJECTS)
+      .select('*, owner:owner_id(*)')
+      .eq('object_ref', objectRef)
+      .maybeSingle();
+    if (existing) return existing as DccObject;
+
+    const { data: owner } = await supabase
+      .from(OWNERS)
+      .select('id')
+      .limit(1)
+      .maybeSingle();
+    if (!owner) return null;
+
+    const { data: newObj } = await supabase
+      .from(OBJECTS)
+      .insert({
+        owner_id: (owner as { id: string }).id,
+        object_type: 'OTHER',
+        object_ref: objectRef,
+        description: objectRef,
+      })
+      .select('*, owner:owner_id(*)')
+      .single();
+    return (newObj as DccObject) ?? null;
+  },
+
+  async findDemandTypeByCode(code: string): Promise<DccDemandType | null> {
+    const { data } = await supabase
+      .from(DTYPES)
+      .select('*')
+      .eq('code', code)
+      .maybeSingle();
+    return (data as DccDemandType) ?? null;
   },
 };
