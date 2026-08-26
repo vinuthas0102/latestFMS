@@ -31,4 +31,5 @@ export const ROUTES = {
   DCC: '/dcc',
   DCC_RULE_SETUP: '/dcc/rule-setup',
   DCC_GENERATE: '/dcc/generate',
+  DCC_DEMAND_DETAIL: '/dcc/demand/:demandId',
 } as const;

@@ -244,13 +244,11 @@ export const DCCPage: React.FC = () => {
   }, [tiles, dpFilter, search]);
 
   const handlePay = (tile: DccTile) => {
-    // Phase 5 will implement the full payment popup
-    console.log('Pay', tile.id);
+    navigate(`/dcc/demand/${tile.id}`);
   };
 
   const handleViewDetails = (tile: DccTile) => {
-    // Phase 5 will implement the due payment screen
-    console.log('Details', tile.id);
+    navigate(`/dcc/demand/${tile.id}`);
   };
 
   const handleDownload = (tile: DccTile) => {
