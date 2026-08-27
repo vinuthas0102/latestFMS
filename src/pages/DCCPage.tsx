@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   IndianRupee, Phone, MapPin, AlertTriangle,
-  CheckCircle2, Clock, Receipt, TrendingUp, Search, X,
+  CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Sliders, Plus, FileText,
 } from 'lucide-react';
@@ -464,7 +464,6 @@ export const DCCPage: React.FC = () => {
         </div>
         {mainTab === 'dashboard' && (
           <>
-            <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
             <button
               onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
@@ -476,15 +475,6 @@ export const DCCPage: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
             >
               <Plus size={14} /> Generate
-            </button>
-            <button
-              onClick={() => setShowFilters(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
-            >
-              <SlidersHorizontal size={14} /> Filters
-              {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
-                <span className="w-2 h-2 rounded-full bg-teal-500" />
-              )}
             </button>
           </>
         )}
@@ -564,22 +554,18 @@ export const DCCPage: React.FC = () => {
         </div>
       )}
 
-      {/* Search bar */}
-      <div className="px-5 pb-2 shrink-0">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by object, owner, or demand type…"
-            className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={13} />
-            </button>
+      {/* Controls row — view switcher + filters */}
+      <div className="px-5 pb-2 shrink-0 flex items-center justify-between gap-3">
+        <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
+        <button
+          onClick={() => setShowFilters(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
+        >
+          <SlidersHorizontal size={14} /> Filters
+          {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
           )}
-        </div>
+        </button>
       </div>
 
       {/* Tiles grid / table / list */}
