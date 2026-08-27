@@ -42,6 +42,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [payments, setPayments] = useState<DccPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   // Payment form
@@ -190,7 +191,7 @@ export const DCCDemandDetailPage: React.FC = () => {
     if (!instPctValid) { setError(`Installment percentages must total 100% (currently ${instPctTotal.toFixed(2)}%)`); return; }
     if (!instAmtValid) { setError(`Installment amounts must total ${fmtINR(balancePayment)} (currently ${fmtINR(instAmtTotal)})`); return; }
     setInstLoading(true);
-    setError(null);
+    setActionError(null);
     setInstSuccess(null);
     try {
       const config = {
@@ -220,7 +221,7 @@ export const DCCDemandDetailPage: React.FC = () => {
       await loadInstallments();
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create installment plan');
+      setActionError(e instanceof Error ? e.message : 'Failed to create installment plan');
     } finally {
       setInstLoading(false);
     }
@@ -229,7 +230,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const handlePayInstallment = async (row: DccInstallmentRow) => {
     if (!demandId || !tile) return;
     setPayingRowId(row.id);
-    setError(null);
+    setActionError(null);
     try {
       const payAmt = row.remaining_amount;
       await dccService.payInstallmentRow(row.id, payAmt, new Date().toISOString().slice(0, 10));
@@ -241,7 +242,7 @@ export const DCCDemandDetailPage: React.FC = () => {
       await loadInstallments();
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to pay installment');
+      setActionError(e instanceof Error ? e.message : 'Failed to pay installment');
     } finally {
       setPayingRowId(null);
     }
@@ -252,7 +253,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const handlePay = async () => {
     if (!demandId || !tile || payAmount <= 0) return;
     setPaying(true);
-    setError(null);
+    setActionError(null);
     try {
       await dccService.submitPayment(
         demandId,
@@ -268,7 +269,7 @@ export const DCCDemandDetailPage: React.FC = () => {
       setPayRemarks('');
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Payment failed');
+      setActionError(e instanceof Error ? e.message : 'Payment failed');
     } finally {
       setPaying(false);
     }
@@ -277,12 +278,12 @@ export const DCCDemandDetailPage: React.FC = () => {
   const handleDispute = async () => {
     if (!demandId || !disputeReason.trim()) return;
     setDisputing(true);
-    setError(null);
+    setActionError(null);
     try {
       await dccService.setDispute(demandId, disputeDate, disputeReason, disputeRemarks);
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to set dispute');
+      setActionError(e instanceof Error ? e.message : 'Failed to set dispute');
     } finally {
       setDisputing(false);
     }
@@ -379,9 +380,12 @@ export const DCCDemandDetailPage: React.FC = () => {
         )}
       </div>
 
-      {error && (
+      {actionError && (
         <div className="mx-5 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-          <AlertCircle size={14} className="shrink-0" /> {error}
+          <AlertCircle size={14} className="shrink-0" /> {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto p-0.5 text-red-400 hover:text-red-600 transition-colors shrink-0">
+            <X size={13} />
+          </button>
         </div>
       )}
 

@@ -428,39 +428,15 @@ export const dccService = {
       gst_amount?: number;
     }>,
   ): Promise<{ plan: DccInstallmentPlan; rows: DccInstallmentRow[] }> {
-    // Delete existing plan first (replace flow)
-    await this.deleteInstallmentPlan(demandId);
-
-    const planInsert = {
-      demand_id: demandId,
-      no_of_installments: config.noOfInstallments,
-      installment_start_date: config.installmentStartDate,
-      late_fee: config.lateFee,
-      due_days_with_late_fee: config.dueDaysWithLateFee,
-      interest_pct_pa: config.interestPctPa,
-      discount_full_payment_pct: config.discountFullPaymentPct,
-      gst_pct: config.gstPct,
-      gst_type: config.gstType,
-      balance_payment: config.balancePayment,
-    };
-    const { data: plan, error: planErr } = await supabase
-      .from(IPLANS)
-      .insert(planInsert)
-      .select('*')
-      .single();
-    if (planErr) throw planErr;
-    const planData = plan as DccInstallmentPlan;
-
     // Build rows: either custom rows or auto-generated
-    let rowInserts: Array<{
-      plan_id: string; row_number: number; label: string; percentage: number;
-      amount: number; due_date: string; late_fee?: number;
-      due_date_with_late_fee?: string | null; gst_amount?: number;
+    let rowPayload: Array<{
+      row_number: number; label: string; percentage: number;
+      amount: number; due_date: string; late_fee: number;
+      due_date_with_late_fee: string | null; gst_amount: number;
     }>;
 
     if (customRows && customRows.length > 0) {
-      rowInserts = customRows.map(r => ({
-        plan_id: planData.id,
+      rowPayload = customRows.map(r => ({
         row_number: r.row_number,
         label: r.label,
         percentage: r.percentage,
@@ -477,9 +453,8 @@ export const dccService = {
       const fullPayGst = isExcl ? total * (config.gstPct / 100) : 0;
       const perInstGst = isExcl ? perInstallment * (config.gstPct / 100) : 0;
 
-      rowInserts = [
+      rowPayload = [
         {
-          plan_id: planData.id,
           row_number: 0,
           label: 'Full Payment',
           percentage: 100,
@@ -495,8 +470,7 @@ export const dccService = {
         due.setMonth(due.getMonth() + (i - 1));
         const dueWithLate = new Date(due);
         dueWithLate.setDate(dueWithLate.getDate() + config.dueDaysWithLateFee);
-        rowInserts.push({
-          plan_id: planData.id,
+        rowPayload.push({
           row_number: i,
           label: `Installment ${i}`,
           percentage: config.noOfInstallments > 0 ? 100 / config.noOfInstallments : 0,
@@ -509,17 +483,26 @@ export const dccService = {
       }
     }
 
-    const { data: rows, error: rowErr } = await supabase
-      .from(IROWS)
-      .insert(rowInserts)
-      .select('*')
-      .order('row_number', { ascending: true });
-    if (rowErr) {
-      // Rollback: delete the plan we just created
-      await supabase.from(IPLANS).delete().eq('id', planData.id);
-      throw rowErr;
-    }
-    return { plan: planData, rows: (rows ?? []) as DccInstallmentRow[] };
+    const configPayload = {
+      no_of_installments: config.noOfInstallments,
+      installment_start_date: config.installmentStartDate,
+      late_fee: config.lateFee,
+      due_days_with_late_fee: config.dueDaysWithLateFee,
+      interest_pct_pa: config.interestPctPa,
+      discount_full_payment_pct: config.discountFullPaymentPct,
+      gst_pct: config.gstPct,
+      gst_type: config.gstType,
+      balance_payment: config.balancePayment,
+    };
+
+    const { data, error } = await supabase.rpc('dcc_create_installment_plan', {
+      p_demand_id: demandId,
+      p_config: configPayload,
+      p_rows: rowPayload,
+    });
+    if (error) throw error;
+    const result = data as { plan: DccInstallmentPlan; rows: DccInstallmentRow[] };
+    return { plan: result.plan, rows: result.rows ?? [] };
   },
 
   async payInstallmentRow(

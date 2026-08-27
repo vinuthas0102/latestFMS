@@ -542,7 +542,7 @@ const SubDpCarousel: React.FC<{
         {/* Scrollable row */}
         <div
           ref={scrollRef}
-          className="flex items-center gap-2 overflow-x-auto scroll-smooth snap-x"
+          className="flex items-stretch gap-2.5 overflow-x-auto scroll-smooth snap-x"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {entries.map(([type, data]) => {
@@ -554,27 +554,29 @@ const SubDpCarousel: React.FC<{
               <button
                 key={type}
                 onClick={() => setSubDpFilter(isSelected ? null : type)}
-                className={`group relative flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 transition-all duration-300 overflow-hidden shrink-0 snap-start ${
+                className={`group relative flex flex-col px-3.5 py-2.5 rounded-xl border transition-all duration-300 overflow-hidden shrink-0 snap-start ${
                   isSelected
                     ? `${c.bg} border-current ${c.ring} ring-2 shadow-md`
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
+                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
                 }`}
-                style={{ minWidth: '200px' }}
+                style={{ minWidth: '210px' }}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${isSelected ? c.bg : 'bg-gray-100'}`}>
-                  <Icon size={14} className={isSelected ? c.text : 'text-gray-500'} />
+                {/* Row 1: Icon + Type label */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${isSelected ? 'bg-white/60' : 'bg-gray-100'}`}>
+                    <Icon size={13} className={isSelected ? c.text : 'text-gray-500'} />
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide truncate ${isSelected ? c.text : 'text-gray-500'}`}>{type}</span>
                 </div>
-                <div className="text-left min-w-0 flex-1">
-                  <div className={`text-[11px] font-bold truncate ${isSelected ? c.text : 'text-gray-700'}`}>{type}</div>
-                  <div className="text-[9px] text-gray-400">{data.count} demand{data.count !== 1 ? 's' : ''}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className={`text-[11px] font-bold tabular-nums ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
-                  <div className={`text-[9px] font-semibold ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</div>
-                </div>
-                {/* Progress bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
-                  <div className={`h-full ${c.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                {/* Row 2: Main metric */}
+                <div className={`text-sm font-extrabold mt-1.5 tabular-nums leading-tight ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
+                {/* Row 3: Count + Progress bar */}
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-[9px] text-gray-400 font-medium tabular-nums shrink-0">{data.count} txn{data.count !== 1 ? 's' : ''}</span>
+                  <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                    <div className={`h-full ${c.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className={`text-[9px] font-bold tabular-nums shrink-0 ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</span>
                 </div>
               </button>
             );
@@ -810,23 +812,25 @@ export const DCCPage: React.FC = () => {
             >
               {/* Accent bar */}
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${dp.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
-              <div className="flex items-center justify-between mb-2 mt-1">
+              {/* Row 1: Icon + Label */}
+              <div className="flex items-center justify-between mt-1.5">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-300 group-hover:scale-110`}>
                   <Icon size={16} className="text-white" />
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
               </div>
-              <div className={`text-xl font-extrabold ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left`}>{fmtINR(amount)}</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">{value} transaction{value !== 1 ? 's' : ''}</div>
-              {/* Collection rate mini bar */}
-              <div className="mt-2 flex items-center gap-1.5">
+              {/* Row 2: Main metric */}
+              <div className={`text-xl font-extrabold mt-2 ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left leading-tight`}>{fmtINR(amount)}</div>
+              {/* Row 3: Transaction count + Progress bar */}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-medium tabular-nums shrink-0">{value} txn{value !== 1 ? 's' : ''}</span>
                 <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                   <div
                     className={`h-full ${dp.bar} rounded-full transition-all duration-700 ease-out`}
                     style={{ width: `${displayRate}%` }}
                   />
                 </div>
-                <span className="text-[9px] font-bold tabular-nums text-gray-400">{displayRate}%</span>
+                <span className="text-[9px] font-bold tabular-nums text-gray-400 shrink-0">{displayRate}%</span>
               </div>
             </button>
           );
