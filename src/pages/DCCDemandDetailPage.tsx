@@ -341,7 +341,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const TABS: { key: Tab; label: string; icon: typeof History }[] = [
     { key: 'overview', label: 'Overview', icon: FileText },
     { key: 'payments', label: `Payments (${payments.length})`, icon: Receipt },
-    { key: 'installments', label: `Installments (${instRows.length})`, icon: Layers },
+    { key: 'installments', label: `Installments (${showInstForm ? instNumInstallments : (instPlan?.no_of_installments ?? instRows.filter(r => r.row_number > 0).length)})`, icon: Layers },
     { key: 'dispute', label: hasDispute ? 'Dispute (Active)' : 'Dispute', icon: MessageSquareWarning },
   ];
 

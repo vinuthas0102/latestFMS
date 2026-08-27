@@ -528,7 +528,6 @@ const SubDpCarousel: React.FC<{
   return (
     <div className="px-5 pb-2 shrink-0">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide shrink-0">By Type:</span>
         {/* Left arrow */}
         <button
           onClick={() => scrollBy(-1)}
@@ -554,10 +553,10 @@ const SubDpCarousel: React.FC<{
               <button
                 key={type}
                 onClick={() => setSubDpFilter(isSelected ? null : type)}
-                className={`group relative flex flex-col px-3.5 py-2.5 rounded-xl border transition-all duration-300 overflow-hidden shrink-0 snap-start ${
+                className={`group relative flex flex-col px-3.5 py-2.5 rounded-xl border-2 transition-all duration-300 overflow-hidden shrink-0 snap-start ${
                   isSelected
                     ? `${c.bg} border-current ${c.ring} ring-2 shadow-md`
-                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
+                    : `${c.bg} border-current/30 bg-white hover:border-current/60 hover:shadow-md hover:-translate-y-0.5`
                 }`}
                 style={{ minWidth: '210px' }}
               >
@@ -812,18 +811,19 @@ export const DCCPage: React.FC = () => {
             >
               {/* Accent bar */}
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${dp.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
-              {/* Row 1: Icon + Label */}
+              {/* Row 1: Icon + Label + Txn count */}
               <div className="flex items-center justify-between mt-1.5">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-300 group-hover:scale-110`}>
-                  <Icon size={16} className="text-white" />
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-300 group-hover:scale-110`}>
+                    <Icon size={15} className="text-white" />
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
+                <span className="text-[10px] text-gray-400 font-medium tabular-nums shrink-0">{value} txn{value !== 1 ? 's' : ''}</span>
               </div>
-              {/* Row 2: Main metric */}
-              <div className={`text-xl font-extrabold mt-2 ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left leading-tight`}>{fmtINR(amount)}</div>
-              {/* Row 3: Transaction count + Progress bar */}
+              {/* Row 2: Amount + Progress bar */}
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-[10px] text-gray-500 font-medium tabular-nums shrink-0">{value} txn{value !== 1 ? 's' : ''}</span>
+                <div className={`text-lg font-extrabold ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left leading-tight shrink-0`}>{fmtINR(amount)}</div>
                 <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                   <div
                     className={`h-full ${dp.bar} rounded-full transition-all duration-700 ease-out`}
