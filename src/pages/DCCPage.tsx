@@ -15,6 +15,11 @@ import type {
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
 import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
+import { ViewSwitcher } from '../components/ui/ViewSwitcher';
+import { useViewPreference } from '../hooks/useViewPreference';
+import { DataTable, type Column } from '../components/ui/DataTable';
+import { ListView, ListViewItem } from '../components/ui/ListView';
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtINR = (n: number) =>
@@ -170,6 +175,146 @@ const DemandTile: React.FC<{
   );
 };
 
+// ── Table View ──────────────────────────────────────────────────────────────────
+const DemandTable: React.FC<{
+  tiles: DccTile[];
+  onRowClick: (tile: DccTile) => void;
+  onPay: (tile: DccTile) => void;
+  onDownload: (tile: DccTile) => void;
+}> = ({ tiles, onRowClick, onPay, onDownload }) => {
+  const columns: Column<DccTile>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      width: '90px',
+      render: (t) => {
+        const st = STATUS[t.status];
+        return (
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+            {st.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'object_description',
+      label: 'Object',
+      sortable: true,
+      render: (t) => (
+        <div className="min-w-0">
+          <div className="font-semibold text-gray-900 truncate">{t.object_description || t.object_ref}</div>
+          <div className="text-xs text-gray-400 truncate">{t.object_ref} · {t.object_type}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'owner_name',
+      label: 'Owner',
+      sortable: true,
+      render: (t) => (
+        <div className="min-w-0">
+          <div className="font-medium text-gray-700 truncate">{t.owner_name}</div>
+          <div className="text-xs text-gray-400 truncate">{t.owner_contact || '—'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'demand_type_label',
+      label: 'Type',
+      sortable: true,
+      render: (t) => (
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+          {t.demand_type_label}
+        </span>
+      ),
+    },
+    {
+      key: 'demand_run_date',
+      label: 'Run Date',
+      sortable: true,
+      render: (t) => <span className="text-xs text-gray-600">{fmtDate(t.demand_run_date)}</span>,
+    },
+    {
+      key: 'due_date',
+      label: 'Due Date',
+      sortable: true,
+      render: (t) => (
+        <span className={`text-xs font-medium ${t.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-600'}`}>
+          {fmtDate(t.due_date)}
+        </span>
+      ),
+    },
+    {
+      key: 'total_amount',
+      label: 'Total',
+      sortable: true,
+      render: (t) => <span className="text-xs font-semibold text-gray-700">{fmtINR(t.total_amount)}</span>,
+    },
+    {
+      key: 'amount_paid',
+      label: 'Paid',
+      sortable: true,
+      render: (t) => <span className="text-xs font-semibold text-emerald-600">{fmtINR(t.amount_paid)}</span>,
+    },
+    {
+      key: 'amount_due',
+      label: 'Due Amt',
+      sortable: true,
+      render: (t) => <span className="text-xs font-bold text-gray-900">{fmtINR(t.amount_due)}</span>,
+    },
+    {
+      key: 'overdue_amount',
+      label: 'Overdue',
+      sortable: true,
+      render: (t) => (
+        <span className={`text-xs font-semibold ${t.overdue_amount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+          {t.overdue_amount > 0 ? fmtINR(t.overdue_amount) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      sortable: false,
+      render: (t) => (
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onRowClick(t); }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <Eye size={12} />
+          </button>
+          {(t.status === 'DUE' || t.status === 'OVERDUE') && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPay(t); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+            >
+              <Wallet size={12} />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDownload(t); }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <Download size={12} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      data={tiles}
+      keyExtractor={(t) => t.id}
+      onRowClick={onRowClick}
+      emptyMessage="No demands found"
+    />
+  );
+};
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 type DccMainTab = 'dashboard' | 'reconciliation' | 'reports';
 
@@ -183,6 +328,7 @@ export const DCCPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [dpFilter, setDpFilter] = useState<DpKey>('ALL');
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useViewPreference('dccView', 'card');
 
   // Filter state
   const [filters, setFilters] = useState<DccDemandFilters>({});
@@ -318,6 +464,7 @@ export const DCCPage: React.FC = () => {
         </div>
         {mainTab === 'dashboard' && (
           <>
+            <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
             <button
               onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
@@ -435,7 +582,7 @@ export const DCCPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tiles grid */}
+      {/* Tiles grid / table / list */}
       <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -452,7 +599,7 @@ export const DCCPage: React.FC = () => {
             <div className="text-sm font-medium text-gray-600">No demands found</div>
             <div className="text-xs mt-1">Try adjusting your filters or search.</div>
           </div>
-        ) : (
+        ) : viewMode === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {filteredTiles.map(tile => (
               <DemandTile
@@ -464,6 +611,39 @@ export const DCCPage: React.FC = () => {
               />
             ))}
           </div>
+        ) : viewMode === 'table' ? (
+          <DemandTable
+            tiles={filteredTiles}
+            onRowClick={handleViewDetails}
+            onPay={handlePay}
+            onDownload={handleDownload}
+          />
+        ) : (
+          <ListView emptyMessage="No demands found">
+            {filteredTiles.map(tile => {
+              const st = STATUS[tile.status];
+              return (
+                <ListViewItem
+                  key={tile.id}
+                  icon={<span className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />}
+                  title={tile.object_description || tile.object_ref}
+                  subtitle={`${tile.owner_name} · ${tile.demand_type_label}`}
+                  badge={
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+                      {st.label}
+                    </span>
+                  }
+                  rightContent={
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-gray-900">{fmtINR(tile.amount_due)}</div>
+                      <div className="text-[10px] text-gray-400">due {fmtDate(tile.due_date)}</div>
+                    </div>
+                  }
+                  onClick={() => handleViewDetails(tile)}
+                />
+              );
+            })}
+          </ListView>
         )}
       </div>
 
