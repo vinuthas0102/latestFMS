@@ -87,11 +87,16 @@ export interface DccInstallmentPlan {
   id: string;
   demand_id: string;
   no_of_installments: number;
+  installment_start_date: string | null;
   late_fee: number;
+  due_days_with_late_fee: number;
   interest_pct_pa: number;
   discount_full_payment_pct: number;
   gst_pct: number;
   gst_type: 'inclusive' | 'exclusive';
+  balance_payment: number;
+  installments_paid: number;
+  installments_due: number;
   created_at: string;
   updated_at: string;
 }

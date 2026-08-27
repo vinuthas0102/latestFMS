@@ -708,43 +708,89 @@ export const DCCPage: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-DP chips — shown under the selected DP card */}
-      {dpFilter !== 'ALL' && Object.keys(subDpBreakdown).length > 0 && (
-        <div className="px-5 pb-2 shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">By Type:</span>
-            <button
-              onClick={() => setSubDpFilter(null)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-                subDpFilter === null
-                  ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
-              }`}
-            >
-              All
-            </button>
-            {Object.entries(subDpBreakdown).map(([type, data]) => (
+      {/* Sub-DP summary cards — compact metric cards by transaction type */}
+      {dpFilter !== 'ALL' && Object.keys(subDpBreakdown).length > 0 && (() => {
+        const dpAmt =
+          dpFilter === 'PAID' ? summary?.total_paid ?? 0 :
+          dpFilter === 'DUE' ? summary?.total_due ?? 0 :
+          summary?.total_overdue ?? 0;
+        const subDpIcon = (type: string): typeof Receipt => {
+          const tl = type.toLowerCase();
+          if (tl.includes('rent')) return Building2;
+          if (tl.includes('tax')) return Receipt;
+          if (tl.includes('fee')) return FileText;
+          if (tl.includes('charge')) return IndianRupee;
+          return Receipt;
+        };
+        const subDpColor = (type: string): { bg: string; text: string; bar: string; ring: string } => {
+          const tl = type.toLowerCase();
+          if (tl.includes('rent')) return { bg: 'bg-blue-50', text: 'text-blue-700', bar: 'bg-blue-500', ring: 'ring-blue-400' };
+          if (tl.includes('tax')) return { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-500', ring: 'ring-purple-400' };
+          if (tl.includes('fee')) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500', ring: 'ring-amber-400' };
+          if (tl.includes('charge')) return { bg: 'bg-teal-50', text: 'text-teal-700', bar: 'bg-teal-500', ring: 'ring-teal-400' };
+          return { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-500', ring: 'ring-slate-400' };
+        };
+        return (
+          <div className="px-5 pb-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">By Type:</span>
+              {/* All card */}
               <button
-                key={type}
-                onClick={() => setSubDpFilter(prev => prev === type ? null : type)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-                  subDpFilter === type
-                    ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                onClick={() => setSubDpFilter(null)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all ${
+                  subDpFilter === null
+                    ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-200 shadow-sm'
+                    : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm'
                 }`}
               >
-                <span>{type}</span>
-                <span className={`text-[10px] ${subDpFilter === type ? 'text-teal-100' : 'text-gray-400'}`}>
-                  {fmtINR(data.amount)}
-                </span>
-                <span className={`text-[9px] ${subDpFilter === type ? 'text-teal-200' : 'text-gray-400'}`}>
-                  {data.count}
-                </span>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${subDpFilter === null ? 'bg-teal-100' : 'bg-gray-100'}`}>
+                  <LayoutGrid size={14} className={subDpFilter === null ? 'text-teal-700' : 'text-gray-500'} />
+                </div>
+                <div className="text-left">
+                  <div className={`text-[11px] font-bold ${subDpFilter === null ? 'text-teal-800' : 'text-gray-700'}`}>All Types</div>
+                  <div className="text-[9px] text-gray-400">{fmtINR(dpAmt)}</div>
+                </div>
               </button>
-            ))}
+              {/* Per-type cards */}
+              {Object.entries(subDpBreakdown).map(([type, data]) => {
+                const Icon = subDpIcon(type);
+                const c = subDpColor(type);
+                const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
+                const isSelected = subDpFilter === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSubDpFilter(prev => prev === type ? null : type)}
+                    className={`relative flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all overflow-hidden ${
+                      isSelected
+                        ? `${c.bg} border-current ${c.ring} ring-2 shadow-sm`
+                        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isSelected ? c.bg : 'bg-gray-100'}`}>
+                      <Icon size={14} className={isSelected ? c.text : 'text-gray-500'} />
+                    </div>
+                    <div className="text-left min-w-0">
+                      <div className={`text-[11px] font-bold truncate max-w-[120px] ${isSelected ? c.text : 'text-gray-700'}`}>{type}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] text-gray-400">{data.count} demand{data.count !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-[11px] font-bold tabular-nums ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
+                      <div className={`text-[9px] font-semibold ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl overflow-hidden">
+                      <div className={`h-full ${c.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Controls row — icon-only view toggle + icon-only filters */}
       <div className="px-5 pb-2 shrink-0 flex items-center justify-between gap-3">

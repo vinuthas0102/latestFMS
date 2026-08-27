@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, IndianRupee, Phone, MapPin, Users, Building2,
   Calendar, Clock, AlertTriangle, CheckCircle2, Wallet, Download,
   Loader2, X, Percent, Layers, FileText, AlertCircle, History,
   MessageSquareWarning, ChevronDown, ChevronRight, Receipt,
+  Plus, Save, FileSpreadsheet, Filter,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
@@ -12,6 +13,7 @@ import type { DccTile, DccPayment, DccDemand, DccInstallmentPlan, DccInstallment
 import type { PaymentMode } from '../types/payableCriteria';
 import { ALL_PAYMENT_MODES, PAYMENT_MODE_LABELS } from '../types/payableCriteria';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 
 const fmtINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -62,8 +64,77 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
   const [instLoading, setInstLoading] = useState(false);
   const [showInstForm, setShowInstForm] = useState(false);
-  const [instCount, setInstCount] = useState(2);
   const [payingRowId, setPayingRowId] = useState<string | null>(null);
+
+  // Role-based permissions
+  const { user } = useAuthStore();
+  const canManagePlan = user?.role === 'manager' || user?.role === 'admin';
+
+  // Installment form fields (rent tracker parity)
+  const [instStartDate, setInstStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [instLateFee, setInstLateFee] = useState('0');
+  const [instDueDaysLate, setInstDueDaysLate] = useState('0');
+  const [instInterestPct, setInstInterestPct] = useState('0.00');
+  const [instDiscountFullPct, setInstDiscountFullPct] = useState('0.00');
+  const [instGstPct, setInstGstPct] = useState('0.00');
+  const [instGstType, setInstGstType] = useState<'inclusive' | 'exclusive'>('inclusive');
+  const [instNumInstallments, setInstNumInstallments] = useState(2);
+  const [instRowFilter, setInstRowFilter] = useState('ALL');
+  const [instSuccess, setInstSuccess] = useState<string | null>(null);
+
+  const balancePayment = tile?.amount_due ?? 0;
+
+  // Auto-generated installment schedule for the form table
+  const instSchedule = useMemo(() => {
+    const total = balancePayment;
+    const n = instNumInstallments;
+    if (n <= 0 || total <= 0) return [];
+    const perPct = 100 / n;
+    const perAmt = total / n;
+    const isExcl = instGstType === 'exclusive';
+    const gstRate = parseFloat(instGstPct) || 0;
+    const lateFee = parseFloat(instLateFee) || 0;
+    const dueDays = parseInt(instDueDaysLate) || 0;
+    const discFullPct = parseFloat(instDiscountFullPct) || 0;
+
+    const rows: Array<{
+      row_number: number; label: string; percentage: number; amount: number;
+      discount: number; penalty: number; gst_amount: number; net_payable: number;
+      due_date: string; due_with_late_fee: string | null;
+    }> = [];
+
+    // Full payment row (row 0)
+    const fullDisc = Math.round(total * discFullPct / 100);
+    const fullGst = isExcl ? Math.round((total - fullDisc) * gstRate / 100) : 0;
+    rows.push({
+      row_number: 0, label: 'Full Payment', percentage: 100, amount: total,
+      discount: fullDisc, penalty: 0, gst_amount: fullGst,
+      net_payable: total - fullDisc + fullGst,
+      due_date: instStartDate, due_with_late_fee: null,
+    });
+
+    // Installment rows
+    for (let i = 1; i <= n; i++) {
+      const due = new Date(instStartDate);
+      due.setMonth(due.getMonth() + (i - 1));
+      const dueWithLate = new Date(due);
+      dueWithLate.setDate(dueWithLate.getDate() + dueDays);
+      const instGst = isExcl ? Math.round(perAmt * gstRate / 100) : 0;
+      rows.push({
+        row_number: i, label: `Installment ${i}`, percentage: perPct, amount: perAmt,
+        discount: 0, penalty: lateFee, gst_amount: instGst,
+        net_payable: perAmt + instGst,
+        due_date: due.toISOString().split('T')[0],
+        due_with_late_fee: dueDays > 0 ? dueWithLate.toISOString().split('T')[0] : null,
+      });
+    }
+    return rows;
+  }, [balancePayment, instNumInstallments, instGstType, instGstPct, instLateFee, instDueDaysLate, instDiscountFullPct, instStartDate]);
+
+  const instPctTotal = instSchedule.filter(r => r.row_number > 0).reduce((s, r) => s + r.percentage, 0);
+  const instPctValid = Math.abs(instPctTotal - 100) < 0.01;
+  const instAmtTotal = instSchedule.filter(r => r.row_number > 0).reduce((s, r) => s + r.amount, 0);
+  const instAmtValid = Math.abs(instAmtTotal - balancePayment) < 0.50;
 
   const load = useCallback(async () => {
     if (!demandId) return;
@@ -113,14 +184,41 @@ export const DCCDemandDetailPage: React.FC = () => {
   }, [demandId]);
 
   const handleCreatePlan = async () => {
-    if (!demandId || !tile || instCount < 1) return;
+    if (!demandId || !tile || !canManagePlan) return;
+    if (!instStartDate) { setError('Installment start date is required'); return; }
+    if (instNumInstallments < 1) { setError('Number of installments must be at least 1'); return; }
+    if (!instPctValid) { setError(`Installment percentages must total 100% (currently ${instPctTotal.toFixed(2)}%)`); return; }
+    if (!instAmtValid) { setError(`Installment amounts must total ${fmtINR(balancePayment)} (currently ${fmtINR(instAmtTotal)})`); return; }
     setInstLoading(true);
     setError(null);
+    setInstSuccess(null);
     try {
-      await dccService.deleteInstallmentPlan(demandId);
-      await dccService.createInstallmentPlan(demandId, instCount, tile.total_amount, tile.due_date);
+      const config = {
+        noOfInstallments: instNumInstallments,
+        installmentStartDate: instStartDate,
+        lateFee: parseFloat(instLateFee) || 0,
+        dueDaysWithLateFee: parseInt(instDueDaysLate) || 0,
+        interestPctPa: parseFloat(instInterestPct) || 0,
+        discountFullPaymentPct: parseFloat(instDiscountFullPct) || 0,
+        gstPct: parseFloat(instGstPct) || 0,
+        gstType: instGstType,
+        balancePayment,
+      };
+      const customRows = instSchedule.map(r => ({
+        row_number: r.row_number,
+        label: r.label,
+        percentage: r.percentage,
+        amount: r.amount,
+        due_date: r.due_date,
+        late_fee: r.penalty,
+        due_date_with_late_fee: r.due_with_late_fee,
+        gst_amount: r.gst_amount,
+      }));
+      await dccService.createInstallmentPlan(demandId, config, customRows);
       setShowInstForm(false);
+      setInstSuccess('Installment plan created successfully.');
       await loadInstallments();
+      await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create installment plan');
     } finally {
@@ -480,51 +578,141 @@ export const DCCDemandDetailPage: React.FC = () => {
 
           {activeTab === 'installments' && (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+              {/* Header */}
               <div className="flex items-center gap-2">
                 <Layers size={15} className="text-gray-500" />
                 <h3 className="text-sm font-bold text-gray-900">Installment Plan</h3>
-                {!isPaidOrExempted && !showInstForm && (
+                {canManagePlan && !isPaidOrExempted && !showInstForm && (
                   <button
                     onClick={() => setShowInstForm(true)}
                     className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[11px] font-semibold hover:bg-teal-100 transition-colors"
                   >
-                    <Percent size={12} /> {instPlan ? 'Recreate Plan' : 'Create Plan'}
+                    <Plus size={12} /> {instPlan ? 'Recreate Plan' : 'Create Plan'}
                   </button>
                 )}
               </div>
 
-              {showInstForm && !isPaidOrExempted && (
-                <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-4 space-y-3">
-                  <div className="grid grid-cols-3 gap-3 items-end">
+              {/* Success message */}
+              {instSuccess && (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+                  <CheckCircle2 size={14} className="shrink-0" /> {instSuccess}
+                </div>
+              )}
+
+              {/* Create / Recreate form */}
+              {showInstForm && canManagePlan && !isPaidOrExempted && (
+                <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-4 space-y-4">
+                  {/* Config fields */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">No. of Installments *</label>
-                      <input type="number" min={1} max={12} value={instCount} onChange={e => setInstCount(Math.max(1, Math.min(12, Number(e.target.value))))} className={inputCls} />
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Installment Start Date *</label>
+                      <input type="date" value={instStartDate} onChange={e => setInstStartDate(e.target.value)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Total Amount</label>
-                      <div className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(tile.total_amount)}</div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Late Fee (₹)</label>
+                      <input type="number" min={0} value={instLateFee} onChange={e => setInstLateFee(e.target.value)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Per Installment</label>
-                      <div className="px-3 py-2 text-xs font-bold text-teal-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(instCount > 0 ? tile.total_amount / instCount : 0)}</div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Due Days with Late Fee</label>
+                      <select value={instDueDaysLate} onChange={e => setInstDueDaysLate(e.target.value)} className={inputCls}>
+                        {[0, 5, 7, 10, 15, 20, 30].map(d => <option key={d} value={d}>{d} days</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Interest % p.a.</label>
+                      <input type="number" step="0.01" min={0} value={instInterestPct} onChange={e => setInstInterestPct(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Discount if Full Payment %</label>
+                      <input type="number" step="0.01" min={0} max={100} value={instDiscountFullPct} onChange={e => setInstDiscountFullPct(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">GST %</label>
+                      <input type="number" step="0.01" min={0} max={100} value={instGstPct} onChange={e => setInstGstPct(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">GST Type</label>
+                      <select value={instGstType} onChange={e => setInstGstType(e.target.value as 'inclusive' | 'exclusive')} className={inputCls}>
+                        <option value="inclusive">Inclusive</option>
+                        <option value="exclusive">Exclusive</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Balance Payment</label>
+                      <div className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(balancePayment)}</div>
                     </div>
                   </div>
+
+                  {/* Term selector */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Term (No. of Installments):</label>
+                    <select value={instNumInstallments} onChange={e => setInstNumInstallments(Number(e.target.value))} className={`${inputCls} w-32`}>
+                      {[1, 2, 3, 4, 6, 8, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Schedule table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-600">
+                          <th className="px-2 py-1.5 text-left font-bold">Installment</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Percentage</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Amount</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Discount</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
+                          <th className="px-2 py-1.5 text-right font-bold">GST Amount</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Net Payable</th>
+                          <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {instSchedule.map(r => (
+                          <tr key={r.row_number} className={r.row_number === 0 ? 'bg-teal-50/50' : ''}>
+                            <td className="px-2 py-1.5 font-semibold text-gray-700">{r.label}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">{r.percentage.toFixed(2)}%</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{fmtINR(r.amount)}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums font-bold text-teal-700">{fmtINR(r.net_payable)}</td>
+                            <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(r.due_date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Validation warnings */}
+                  {!instPctValid && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-700">
+                      <AlertTriangle size={12} /> Percentages total {instPctTotal.toFixed(2)}% — must equal 100%.
+                    </div>
+                  )}
+                  {!instAmtValid && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-700">
+                      <AlertTriangle size={12} /> Amounts total {fmtINR(instAmtTotal)} — must equal {fmtINR(balancePayment)}.
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
                   <div className="flex gap-2">
                     <button
                       onClick={handleCreatePlan}
-                      disabled={instLoading || instCount < 1}
+                      disabled={instLoading || !instPctValid || !instAmtValid || !instStartDate}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
                     >
-                      {instLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                      {instLoading ? 'Creating…' : 'Create Plan'}
+                      {instLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {instLoading ? 'Creating…' : instPlan ? 'Recreate Plan' : 'Create Plan'}
                     </button>
-                    <button onClick={() => setShowInstForm(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+                    <button onClick={() => { setShowInstForm(false); setInstSuccess(null); }} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">
                       Cancel
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Read-only plan view */}
               {instLoading && !instPlan ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 size={20} className="animate-spin text-teal-500" />
@@ -533,50 +721,124 @@ export const DCCDemandDetailPage: React.FC = () => {
                 <div className="text-center py-8 text-gray-400">
                   <Layers size={24} className="mx-auto mb-2 opacity-30" />
                   <p className="text-xs">No installment plan created yet.</p>
-                  <p className="text-[10px] mt-1">Click "Create Plan" to split this demand into installments.</p>
+                  {canManagePlan ? (
+                    <p className="text-[10px] mt-1">Click "Create Plan" to split this demand into installments.</p>
+                  ) : (
+                    <p className="text-[10px] mt-1">An Estate Manager has not created a plan for this demand yet.</p>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {instRows.map(row => {
-                    const isPaid = row.status === 'PAID';
-                    const isFullPayment = row.row_number === 0;
-                    const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted;
-                    return (
-                      <div
-                        key={row.id}
-                        className={`flex items-center gap-3 rounded-xl border p-3 ${isPaid ? 'border-emerald-200 bg-emerald-50/50' : row.status === 'OVERDUE' ? 'border-red-200 bg-red-50/30' : 'border-gray-200'}`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isPaid ? 'bg-emerald-500 text-white' : isFullPayment ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {isPaid ? <CheckCircle2 size={15} /> : isFullPayment ? <Wallet size={14} /> : row.row_number}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-700">{row.label}</span>
-                            {isFullPayment && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-700">FULL</span>}
-                            {isPaid && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">PAID</span>}
-                          </div>
-                          <div className="text-[10px] text-gray-400">
-                            Due: {fmtDate(row.due_date)}
-                            {row.paid_date && ` · Paid: ${fmtDate(row.paid_date)}`}
-                            {row.remaining_amount > 0 && !isPaid && ` · Remaining: ${fmtINR(row.remaining_amount)}`}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-xs font-bold text-gray-900">{fmtINR(row.amount)}</div>
-                          {canPay && (
-                            <button
-                              onClick={() => handlePayInstallment(row)}
-                              disabled={payingRowId === row.id}
-                              className="mt-1 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors ml-auto"
-                            >
-                              {payingRowId === row.id ? <Loader2 size={11} className="animate-spin" /> : <Wallet size={11} />}
-                              {payingRowId === row.id ? 'Paying…' : 'Pay'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-3">
+                  {/* Plan config chips */}
+                  {instPlan && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Start: {fmtDate(instPlan.installment_start_date)}</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Late Fee: ₹{instPlan.late_fee}</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Due Days: {instPlan.due_days_with_late_fee}</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Interest: {instPlan.interest_pct_pa}% p.a.</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Full Pay Disc: {instPlan.discount_full_payment_pct}%</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">GST: {instPlan.gst_pct}% ({instPlan.gst_type})</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Balance: {fmtINR(instPlan.balance_payment)}</span>
+                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Installments: {instPlan.no_of_installments}</span>
+                      <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">Paid: {instPlan.installments_paid}</span>
+                      <span className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-700">Due: {instPlan.installments_due}</span>
+                    </div>
+                  )}
+
+                  {/* Filter + Export row */}
+                  <div className="flex items-center gap-2">
+                    <Filter size={13} className="text-gray-400" />
+                    <select value={instRowFilter} onChange={e => setInstRowFilter(e.target.value)} className={`${inputCls} w-40`}>
+                      <option value="ALL">All Installments</option>
+                      {instRows.filter(r => r.row_number > 0).map(r => (
+                        <option key={r.id} value={r.id}>{r.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const csv = ['Action,Installment,Total Amount,Discount,Penalty,GST Amount,Due Date,Due with Late Fee,Paid Date,Paid Amount,Remaining,Status'];
+                        instRows.forEach(r => {
+                          csv.push([r.row_number === 0 ? 'Full Pay' : 'Pay', r.label, r.amount, r.late_fee > 0 ? r.late_fee : '', r.late_fee, r.gst_amount, r.due_date || '', r.due_date_with_late_fee || '', r.paid_date || '', r.paid_amt, r.remaining_amount, r.status].join(','));
+                        });
+                        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = `Installments_${tile?.object_ref ?? 'plan'}.csv`;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                      }}
+                      className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-semibold hover:bg-gray-200 transition-colors"
+                    >
+                      <FileSpreadsheet size={12} /> Export
+                    </button>
+                  </div>
+
+                  {/* Dense installment table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-600">
+                          <th className="px-2 py-1.5 text-left font-bold">Action</th>
+                          <th className="px-2 py-1.5 text-left font-bold">Installment</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Total Amount</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Discount</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
+                          <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
+                          <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
+                          <th className="px-2 py-1.5 text-left font-bold">Due w/ Late Fee</th>
+                          <th className="px-2 py-1.5 text-left font-bold">Paid Date</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Paid Amt</th>
+                          <th className="px-2 py-1.5 text-right font-bold">Remaining</th>
+                          <th className="px-2 py-1.5 text-center font-bold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {instRows
+                          .filter(r => instRowFilter === 'ALL' || r.id === instRowFilter)
+                          .map(row => {
+                            const isPaid = row.status === 'PAID';
+                            const isFullPayment = row.row_number === 0;
+                            const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted;
+                            return (
+                              <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
+                                <td className="px-2 py-1.5">
+                                  {canPay ? (
+                                    <button
+                                      onClick={() => handlePayInstallment(row)}
+                                      disabled={payingRowId === row.id}
+                                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-600 text-white text-[9px] font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                                    >
+                                      {payingRowId === row.id ? <Loader2 size={10} className="animate-spin" /> : <Wallet size={10} />}
+                                      {payingRowId === row.id ? 'Paying…' : 'Pay'}
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1.5 font-semibold text-gray-700">{row.label}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-bold">{fmtINR(row.amount)}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.late_fee > 0 && row.row_number === 0 ? fmtINR(0) : '—'}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.late_fee > 0 && row.row_number > 0 ? fmtINR(row.late_fee) : '—'}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.gst_amount > 0 ? fmtINR(row.gst_amount) : '—'}</td>
+                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.due_date)}</td>
+                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.due_date_with_late_fee)}</td>
+                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.paid_date)}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums text-emerald-600 font-semibold">{row.paid_amt > 0 ? fmtINR(row.paid_amt) : '—'}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-gray-700">{row.remaining_amount > 0 ? fmtINR(row.remaining_amount) : '—'}</td>
+                                <td className="px-2 py-1.5 text-center">
+                                  <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                    isPaid ? 'bg-emerald-100 text-emerald-700' :
+                                    row.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                    row.status === 'DUE' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>{row.status}</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
