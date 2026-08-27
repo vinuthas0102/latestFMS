@@ -195,38 +195,18 @@ export const dccService = {
     referenceNumber?: string,
     remarks?: string,
   ): Promise<DccPayment> {
-    const { data: pay, error: payErr } = await supabase
-      .from(PAYMENTS)
-      .insert({
-        demand_id: demandId,
-        object_id: objectId,
-        amount,
-        payment_mode: mode,
-        payment_date: paymentDate,
-        reference_number: referenceNumber ?? null,
-        remarks: remarks ?? null,
-      })
-      .select('*')
-      .single();
-    if (payErr) throw payErr;
-
-    // Update demand amount_paid + status
-    const { data: demand } = await supabase
-      .from(DEMANDS)
-      .select('amount, amount_paid')
-      .eq('id', demandId)
-      .single();
-    if (demand) {
-      const newPaid = (demand as { amount_paid: number }).amount_paid + amount;
-      const total = (demand as { amount: number }).amount;
-      const status = newPaid >= total ? 'PAID' : 'DUE';
-      await supabase
-        .from(DEMANDS)
-        .update({ amount_paid: newPaid, status, updated_at: new Date().toISOString() })
-        .eq('id', demandId);
-    }
-
-    return pay as DccPayment;
+    const { data, error } = await supabase
+      .rpc('dcc_record_payment', {
+        p_demand_id: demandId,
+        p_object_id: objectId,
+        p_amount: amount,
+        p_payment_mode: mode,
+        p_payment_date: paymentDate,
+        p_reference_number: referenceNumber ?? null,
+        p_remarks: remarks ?? null,
+      });
+    if (error) throw error;
+    return data as DccPayment;
   },
 
   // ── Dispute ──────────────────────────────────────────────────────────────────
@@ -547,28 +527,14 @@ export const dccService = {
     amount: number,
     paymentDate: string,
   ): Promise<DccInstallmentRow> {
-    const { data: row, error: rowErr } = await supabase
-      .from(IROWS)
-      .select('*')
-      .eq('id', rowId)
-      .single();
-    if (rowErr) throw rowErr;
-    const rowData = row as DccInstallmentRow;
-    const newPaidAmt = rowData.paid_amt + amount;
-    const newStatus = newPaidAmt >= rowData.amount ? 'PAID' : 'DUE';
-    const { data: updated, error } = await supabase
-      .from(IROWS)
-      .update({
-        paid_amt: newPaidAmt,
-        paid_date: newStatus === 'PAID' ? paymentDate : rowData.paid_date,
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', rowId)
-      .select('*')
-      .single();
+    const { data, error } = await supabase
+      .rpc('dcc_pay_installment_row', {
+        p_row_id: rowId,
+        p_amount: amount,
+        p_payment_date: paymentDate,
+      });
     if (error) throw error;
-    return updated as DccInstallmentRow;
+    return data as DccInstallmentRow;
   },
 
   async deleteInstallmentPlan(demandId: string): Promise<void> {

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Sliders, Plus, FileText,
   LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -38,13 +39,13 @@ const STATUS: Record<StatusKey, { label: string; bg: string; text: string; borde
 
 // ── DP (Dashboard Panel) types ─────────────────────────────────────────────────
 type DpKey = 'ALL' | 'PAID' | 'DUE' | 'OVERDUE';
-interface DpConfig { key: DpKey; label: string; icon: typeof CheckCircle2; color: string; bg: string; }
+interface DpConfig { key: DpKey; label: string; icon: typeof CheckCircle2; color: string; bg: string; gradient: string; accent: string; bar: string; ring: string; }
 
 const DPS: DpConfig[] = [
-  { key: 'ALL',     label: 'All Demands',     icon: Receipt,      color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200' },
-  { key: 'PAID',    label: 'Total Paid',      icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-  { key: 'DUE',     label: 'Total Due',       icon: Clock,        color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-  { key: 'OVERDUE', label: 'Total Overdue',   icon: AlertTriangle,color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+  { key: 'ALL',     label: 'All Demands',     icon: Receipt,       color: 'text-blue-700',    bg: 'bg-blue-50',      gradient: 'from-blue-500 to-blue-600',     accent: 'bg-blue-500',    bar: 'bg-blue-400',    ring: 'ring-blue-400' },
+  { key: 'PAID',    label: 'Total Paid',      icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50',   gradient: 'from-emerald-500 to-emerald-600', accent: 'bg-emerald-500', bar: 'bg-emerald-400', ring: 'ring-emerald-400' },
+  { key: 'DUE',     label: 'Total Due',       icon: Clock,         color: 'text-amber-700',   bg: 'bg-amber-50',     gradient: 'from-amber-500 to-amber-600',   accent: 'bg-amber-500',   bar: 'bg-amber-400',  ring: 'ring-amber-400' },
+  { key: 'OVERDUE', label: 'Total Overdue',   icon: AlertTriangle, color: 'text-red-700',     bg: 'bg-red-50',       gradient: 'from-red-500 to-red-600',       accent: 'bg-red-500',     bar: 'bg-red-400',    ring: 'ring-red-400' },
 ];
 
 // ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
@@ -484,6 +485,116 @@ const DemandTable: React.FC<{
   );
 };
 
+// ── Sub-DP Carousel ────────────────────────────────────────────────────────────
+const SubDpCarousel: React.FC<{
+  breakdown: Record<string, { count: number; amount: number }>;
+  dpAmt: number;
+  subDpFilter: string | null;
+  setSubDpFilter: (v: string | null) => void;
+  subDpIcon: (type: string) => typeof Receipt;
+  subDpColor: (type: string) => { bg: string; text: string; bar: string; ring: string };
+}> = ({ breakdown, dpAmt, subDpFilter, setSubDpFilter, subDpIcon, subDpColor }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [checkScroll]);
+
+  const scrollBy = (dir: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 220, behavior: 'smooth' });
+  };
+
+  const entries = Object.entries(breakdown);
+
+  return (
+    <div className="px-5 pb-2 shrink-0">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide shrink-0">By Type:</span>
+        {/* Left arrow */}
+        <button
+          onClick={() => scrollBy(-1)}
+          className={`p-1.5 rounded-lg border border-gray-200 bg-white transition-all shrink-0 ${
+            canLeft ? 'text-gray-600 hover:bg-gray-50 hover:shadow-sm' : 'text-gray-200 cursor-not-allowed'
+          }`}
+          disabled={!canLeft}
+        >
+          <ChevronLeft size={14} />
+        </button>
+        {/* Scrollable row */}
+        <div
+          ref={scrollRef}
+          className="flex items-center gap-2 overflow-x-auto scroll-smooth snap-x"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {entries.map(([type, data]) => {
+            const Icon = subDpIcon(type);
+            const c = subDpColor(type);
+            const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
+            const isSelected = subDpFilter === type;
+            return (
+              <button
+                key={type}
+                onClick={() => setSubDpFilter(isSelected ? null : type)}
+                className={`group relative flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 transition-all duration-300 overflow-hidden shrink-0 snap-start ${
+                  isSelected
+                    ? `${c.bg} border-current ${c.ring} ring-2 shadow-md`
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5'
+                }`}
+                style={{ minWidth: '200px' }}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${isSelected ? c.bg : 'bg-gray-100'}`}>
+                  <Icon size={14} className={isSelected ? c.text : 'text-gray-500'} />
+                </div>
+                <div className="text-left min-w-0 flex-1">
+                  <div className={`text-[11px] font-bold truncate ${isSelected ? c.text : 'text-gray-700'}`}>{type}</div>
+                  <div className="text-[9px] text-gray-400">{data.count} demand{data.count !== 1 ? 's' : ''}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={`text-[11px] font-bold tabular-nums ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
+                  <div className={`text-[9px] font-semibold ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</div>
+                </div>
+                {/* Progress bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
+                  <div className={`h-full ${c.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {/* Right arrow */}
+        <button
+          onClick={() => scrollBy(1)}
+          className={`p-1.5 rounded-lg border border-gray-200 bg-white transition-all shrink-0 ${
+            canRight ? 'text-gray-600 hover:bg-gray-50 hover:shadow-sm' : 'text-gray-200 cursor-not-allowed'
+          }`}
+          disabled={!canRight}
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 type DccMainTab = 'dashboard' | 'reconciliation' | 'reports';
 
@@ -663,7 +774,7 @@ export const DCCPage: React.FC = () => {
       {/* Dashboard Tab */}
       {mainTab === 'dashboard' && (
       <>
-      {/* DPs */}
+      {/* DPs — redesigned with gradient, animations, collection rate integrated */}
       <div className="px-5 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
         {DPS.map(dp => {
           const Icon = dp.icon;
@@ -677,38 +788,52 @@ export const DCCPage: React.FC = () => {
             dp.key === 'PAID' ? summary?.total_paid ?? 0 :
             dp.key === 'DUE' ? summary?.total_due ?? 0 :
             summary?.total_overdue ?? 0;
+          const isSelected = dpFilter === dp.key;
+          // Collection rate per card
+          const totalForRate =
+            dp.key === 'ALL' ? (summary?.total_paid ?? 0) + (summary?.total_due ?? 0) :
+            dp.key === 'PAID' ? (summary?.total_paid ?? 0) + (summary?.total_due ?? 0) :
+            (summary?.total_paid ?? 0) + (summary?.total_due ?? 0);
+          const ratePct = totalForRate > 0
+            ? Math.round(((dp.key === 'ALL' || dp.key === 'PAID' ? summary?.total_paid ?? 0 : amount) / totalForRate) * 100)
+            : 0;
+          const displayRate = dp.key === 'OVERDUE' ? 100 - ratePct : ratePct;
           return (
             <button
               key={dp.key}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`text-left rounded-xl border p-3 transition-all ${dp.bg} ${
-                dpFilter === dp.key ? 'ring-2 ring-teal-400' : 'hover:shadow-sm'
+              className={`group relative text-left rounded-2xl border-2 p-4 transition-all duration-300 overflow-hidden ${
+                isSelected
+                  ? `${dp.bg} border-current ${dp.ring} ring-2 shadow-lg`
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5'
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <Icon size={14} className={dp.color} />
+              {/* Accent bar */}
+              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${dp.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
+              <div className="flex items-center justify-between mb-2 mt-1">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-300 group-hover:scale-110`}>
+                  <Icon size={16} className="text-white" />
+                </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
               </div>
-              <div className={`text-xl font-extrabold ${dp.color}`}>{fmtINR(amount)}</div>
+              <div className={`text-xl font-extrabold ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left`}>{fmtINR(amount)}</div>
               <div className="text-[10px] text-gray-500 mt-0.5">{value} transaction{value !== 1 ? 's' : ''}</div>
+              {/* Collection rate mini bar */}
+              <div className="mt-2 flex items-center gap-1.5">
+                <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className={`h-full ${dp.bar} rounded-full transition-all duration-700 ease-out`}
+                    style={{ width: `${displayRate}%` }}
+                  />
+                </div>
+                <span className="text-[9px] font-bold tabular-nums text-gray-400">{displayRate}%</span>
+              </div>
             </button>
           );
         })}
       </div>
 
-      {/* Collection rate banner */}
-      {summary && (
-        <div className="px-5 pb-2 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <TrendingUp size={13} className="text-teal-600" />
-            <span>Collection Rate: <span className="font-bold text-teal-700">{summary.collection_rate}%</span></span>
-            <span className="text-gray-300">·</span>
-            <span>Paid {fmtINR(summary.total_paid)} of {fmtINR(summary.total_paid + summary.total_due)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Sub-DP summary cards — compact metric cards by transaction type */}
+      {/* Sub-DP — single-row carousel with navigation arrows */}
       {dpFilter !== 'ALL' && Object.keys(subDpBreakdown).length > 0 && (() => {
         const dpAmt =
           dpFilter === 'PAID' ? summary?.total_paid ?? 0 :
@@ -731,64 +856,14 @@ export const DCCPage: React.FC = () => {
           return { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-500', ring: 'ring-slate-400' };
         };
         return (
-          <div className="px-5 pb-2 shrink-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">By Type:</span>
-              {/* All card */}
-              <button
-                onClick={() => setSubDpFilter(null)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all ${
-                  subDpFilter === null
-                    ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-200 shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm'
-                }`}
-              >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${subDpFilter === null ? 'bg-teal-100' : 'bg-gray-100'}`}>
-                  <LayoutGrid size={14} className={subDpFilter === null ? 'text-teal-700' : 'text-gray-500'} />
-                </div>
-                <div className="text-left">
-                  <div className={`text-[11px] font-bold ${subDpFilter === null ? 'text-teal-800' : 'text-gray-700'}`}>All Types</div>
-                  <div className="text-[9px] text-gray-400">{fmtINR(dpAmt)}</div>
-                </div>
-              </button>
-              {/* Per-type cards */}
-              {Object.entries(subDpBreakdown).map(([type, data]) => {
-                const Icon = subDpIcon(type);
-                const c = subDpColor(type);
-                const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
-                const isSelected = subDpFilter === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setSubDpFilter(prev => prev === type ? null : type)}
-                    className={`relative flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all overflow-hidden ${
-                      isSelected
-                        ? `${c.bg} border-current ${c.ring} ring-2 shadow-sm`
-                        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isSelected ? c.bg : 'bg-gray-100'}`}>
-                      <Icon size={14} className={isSelected ? c.text : 'text-gray-500'} />
-                    </div>
-                    <div className="text-left min-w-0">
-                      <div className={`text-[11px] font-bold truncate max-w-[120px] ${isSelected ? c.text : 'text-gray-700'}`}>{type}</div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] text-gray-400">{data.count} demand{data.count !== 1 ? 's' : ''}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-[11px] font-bold tabular-nums ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
-                      <div className={`text-[9px] font-semibold ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</div>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl overflow-hidden">
-                      <div className={`h-full ${c.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <SubDpCarousel
+            breakdown={subDpBreakdown}
+            dpAmt={dpAmt}
+            subDpFilter={subDpFilter}
+            setSubDpFilter={setSubDpFilter}
+            subDpIcon={subDpIcon}
+            subDpColor={subDpColor}
+          />
         );
       })()}
 
