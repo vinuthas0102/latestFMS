@@ -5,7 +5,7 @@ import {
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Sliders, Plus, FileText,
   LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
-  ChevronLeft,
+  ChevronLeft, MoreVertical,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -186,31 +186,30 @@ const DemandListCard: React.FC<{
           )}
         </div>
 
-        <div className="mt-3 flex flex-col gap-1.5">
+        <div className="mt-3 flex items-center gap-1.5">
           {(tile.status === 'DUE' || tile.status === 'OVERDUE') && (
             <button
               onClick={(e) => { e.stopPropagation(); onPay(tile); }}
-              className="w-full flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-teal-200"
+              title="Pay Now"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors"
             >
-              <Wallet size={13} /> Pay Now
+              <Wallet size={14} />
             </button>
           )}
-          <div className="flex gap-1.5">
-            <button
-              onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
-              className="flex-1 flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-2 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200"
-            >
-              <Eye size={12} /> Details
-              <ChevronRight size={11} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
-              className="flex items-center justify-center bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300 px-2 py-1.5 rounded-xl text-[11px] transition-all duration-200"
-              title="Download Statement"
-            >
-              <Download size={12} />
-            </button>
-          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+            title="View Details"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
+            title="Download Statement"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 border border-gray-200 transition-colors"
+          >
+            <Download size={14} />
+          </button>
         </div>
       </div>
     </div>
@@ -225,18 +224,20 @@ const DemandTile: React.FC<{
   onDownload: (tile: DccTile) => void;
 }> = ({ tile, onPay, onViewDetails, onDownload }) => {
   const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const st = STATUS[tile.status];
+  const canPay = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
   return (
-    <div className={`bg-white rounded-2xl border ${st.border} shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md`}>
+    <div className={`bg-white rounded-2xl border ${st.border} shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md relative`}>
       {/* Status strip */}
       <div className={`h-1 ${st.dot}`} />
 
-      {/* Basic info */}
+      {/* Row 1: Title + badges + amount */}
       <div className="px-4 pt-3 pb-2">
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
                 {st.label}
               </span>
@@ -244,7 +245,7 @@ const DemandTile: React.FC<{
                 {tile.demand_type_label}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-gray-900 mt-1 truncate">{tile.object_description || tile.object_ref}</h3>
+            <h3 className="text-sm font-bold text-gray-900 truncate">{tile.object_description || tile.object_ref}</h3>
             <p className="text-xs text-gray-500 truncate">{tile.object_ref} · {tile.object_type}</p>
           </div>
           <div className="text-right shrink-0">
@@ -252,94 +253,113 @@ const DemandTile: React.FC<{
             <div className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</div>
           </div>
         </div>
-
-        {/* Owner info */}
-        <div className="flex items-center gap-3 text-xs text-gray-600 mb-2">
-          <span className="flex items-center gap-1 min-w-0">
-            <Users size={11} className="text-gray-400 shrink-0" />
-            <span className="truncate font-medium">{tile.owner_name}</span>
-          </span>
-          <span className="flex items-center gap-1 shrink-0">
-            <Phone size={11} className="text-gray-400" />
-            <span>{tile.owner_contact || '—'}</span>
-          </span>
-        </div>
       </div>
 
-      {/* Demand info grid */}
-      <div className="px-4 pb-2 grid grid-cols-3 gap-2 text-xs">
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Run Date</div>
-          <div className="font-semibold text-gray-700">{fmtDate(tile.demand_run_date)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Due Date</div>
-          <div className={`font-semibold ${tile.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-700'}`}>
-            {fmtDate(tile.due_date)}
-          </div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Overdue</div>
-          <div className={`font-semibold ${tile.overdue_amount > 0 ? 'text-red-600' : 'text-gray-700'}`}>
-            {tile.overdue_amount > 0 ? fmtINR(tile.overdue_amount) : '—'}
-          </div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Last Paid</div>
-          <div className="font-semibold text-emerald-700">{tile.last_paid_date ? fmtINR(tile.last_paid_amount ?? 0) : '—'}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Last Paid Date</div>
-          <div className="font-semibold text-gray-700">{fmtDate(tile.last_paid_date)}</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Avg Overdue Days</div>
-          <div className={`font-semibold ${tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-gray-700'}`}>
-            {tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'}
-          </div>
-        </div>
+      {/* Row 2: Owner + key dates */}
+      <div className="px-4 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+        <span className="flex items-center gap-1 min-w-0">
+          <Users size={11} className="text-gray-400 shrink-0" />
+          <span className="truncate font-medium">{tile.owner_name}</span>
+        </span>
+        <span className="flex items-center gap-1 shrink-0">
+          <Calendar size={11} className="text-gray-400" />
+          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDate(tile.due_date)}</span>
+        </span>
+        {tile.overdue_amount > 0 && (
+          <span className="flex items-center gap-1 shrink-0 text-red-600 font-semibold">
+            <AlertTriangle size={11} /> {fmtINR(tile.overdue_amount)}
+          </span>
+        )}
+        {tile.amount_paid > 0 && (
+          <span className="flex items-center gap-1 shrink-0 text-emerald-600">
+            <CheckCircle2 size={11} /> {fmtINR(tile.amount_paid)} paid
+          </span>
+        )}
       </div>
 
-      {/* Expand/collapse */}
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
-      >
-        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        {expanded ? 'Less' : 'More'}
-      </button>
-
+      {/* Expandable secondary info */}
       {expanded && (
         <div className="px-4 pb-2 text-xs text-gray-600 space-y-1 border-t border-gray-100 pt-2">
-          <div className="flex gap-1"><MapPin size={11} className="text-gray-400 shrink-0 mt-0.5" /><span>{tile.owner_address || '—'}</span></div>
-          {tile.region && <div><span className="text-gray-400">Region:</span> {tile.region}</div>}
-          {tile.group_name && <div><span className="text-gray-400">Group:</span> {tile.group_name}</div>}
-          {tile.subgroup && <div><span className="text-gray-400">Subgroup:</span> {tile.subgroup}</div>}
+          <div className="flex items-center gap-1"><Phone size={11} className="text-gray-400" />{tile.owner_contact || '—'}</div>
+          <div className="flex items-center gap-1"><MapPin size={11} className="text-gray-400" />{tile.owner_address || '—'}</div>
+          <div className="flex gap-3">
+            <span><span className="text-gray-400">Run:</span> {fmtDate(tile.demand_run_date)}</span>
+            {tile.region && <span><span className="text-gray-400">Region:</span> {tile.region}</span>}
+            {tile.group_name && <span><span className="text-gray-400">Group:</span> {tile.group_name}</span>}
+          </div>
+          {tile.avg_overdue_days > 0 && <div><span className="text-gray-400">Avg Overdue:</span> {tile.avg_overdue_days}d</div>}
         </div>
       )}
 
-      {/* Action buttons row */}
-      <div className="flex items-center gap-1.5 px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-        <button
-          onClick={() => onViewDetails(tile)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <Eye size={12} /> Details
-        </button>
-        {(tile.status === 'DUE' || tile.status === 'OVERDUE') && (
+      {/* Action bar — icon-only buttons */}
+      <div className="flex items-center gap-1 px-4 py-2 border-t border-gray-100 bg-gray-50/50">
+        {canPay && (
           <button
             onClick={() => onPay(tile)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+            title="Pay Now"
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors"
           >
-            <Wallet size={12} /> Pay Now
+            <Wallet size={14} />
           </button>
         )}
         <button
-          onClick={() => onDownload(tile)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors ml-auto"
+          onClick={() => onViewDetails(tile)}
+          title="View Details"
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
         >
-          <Download size={12} /> Statement
+          <Eye size={14} />
         </button>
+        <button
+          onClick={() => onDownload(tile)}
+          title="Download Statement"
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <Download size={14} />
+        </button>
+        <button
+          onClick={() => setExpanded(v => !v)}
+          title={expanded ? 'Show Less' : 'Show More'}
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {/* Kebab menu */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setMenuOpen(v => !v)}
+            title="More Actions"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <MoreVertical size={14} />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[160px]">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewDetails(tile); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Eye size={13} /> View Details
+                </button>
+                {canPay && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onPay(tile); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors"
+                  >
+                    <Wallet size={13} /> Pay Now
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDownload(tile); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Download size={13} /> Download Statement
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -492,7 +512,7 @@ const SubDpCarousel: React.FC<{
   subDpFilter: string | null;
   setSubDpFilter: (v: string | null) => void;
   subDpIcon: (type: string) => typeof Receipt;
-  subDpColor: (type: string) => { bg: string; text: string; bar: string; ring: string };
+  subDpColor: (type: string) => { bg: string; text: string; bar: string; ring: string; border: string; gradient: string };
 }> = ({ breakdown, dpAmt, subDpFilter, setSubDpFilter, subDpIcon, subDpColor }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
@@ -555,23 +575,26 @@ const SubDpCarousel: React.FC<{
                 onClick={() => setSubDpFilter(isSelected ? null : type)}
                 className={`group relative flex flex-col px-3.5 py-2.5 rounded-xl border-2 transition-all duration-300 overflow-hidden shrink-0 snap-start ${
                   isSelected
-                    ? `${c.bg} border-current ${c.ring} ring-2 shadow-md`
-                    : `${c.bg} border-current/30 bg-white hover:border-current/60 hover:shadow-md hover:-translate-y-0.5`
+                    ? `${c.bg} ${c.border} ${c.ring} ring-2 shadow-md`
+                    : `bg-white ${c.border} hover:shadow-md hover:-translate-y-0.5`
                 }`}
-                style={{ minWidth: '210px' }}
+                style={{ minWidth: '200px' }}
               >
-                {/* Row 1: Icon + Type label */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${isSelected ? 'bg-white/60' : 'bg-gray-100'}`}>
-                    <Icon size={13} className={isSelected ? c.text : 'text-gray-500'} />
+                {/* Accent bar */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${c.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-50 group-hover:opacity-90'}`} />
+                {/* Row 1: Icon + Type label + Txn count */}
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center bg-gradient-to-br ${c.gradient} shadow-sm shrink-0 transition-transform duration-300 group-hover:scale-110`}>
+                      <Icon size={13} className="text-white" />
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide truncate ${isSelected ? c.text : 'text-gray-600'}`}>{type}</span>
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wide truncate ${isSelected ? c.text : 'text-gray-500'}`}>{type}</span>
-                </div>
-                {/* Row 2: Main metric */}
-                <div className={`text-sm font-extrabold mt-1.5 tabular-nums leading-tight ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</div>
-                {/* Row 3: Count + Progress bar */}
-                <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-[9px] text-gray-400 font-medium tabular-nums shrink-0">{data.count} txn{data.count !== 1 ? 's' : ''}</span>
+                </div>
+                {/* Row 2: Amount + Progress bar + pct */}
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className={`text-sm font-extrabold tabular-nums leading-tight shrink-0 ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</span>
                   <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
                     <div className={`h-full ${c.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
                   </div>
@@ -851,13 +874,13 @@ export const DCCPage: React.FC = () => {
           if (tl.includes('charge')) return IndianRupee;
           return Receipt;
         };
-        const subDpColor = (type: string): { bg: string; text: string; bar: string; ring: string } => {
+        const subDpColor = (type: string): { bg: string; text: string; bar: string; ring: string; border: string; gradient: string } => {
           const tl = type.toLowerCase();
-          if (tl.includes('rent')) return { bg: 'bg-blue-50', text: 'text-blue-700', bar: 'bg-blue-500', ring: 'ring-blue-400' };
-          if (tl.includes('tax')) return { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-500', ring: 'ring-purple-400' };
-          if (tl.includes('fee')) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500', ring: 'ring-amber-400' };
-          if (tl.includes('charge')) return { bg: 'bg-teal-50', text: 'text-teal-700', bar: 'bg-teal-500', ring: 'ring-teal-400' };
-          return { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-500', ring: 'ring-slate-400' };
+          if (tl.includes('rent')) return { bg: 'bg-blue-50', text: 'text-blue-700', bar: 'bg-blue-500', ring: 'ring-blue-400', border: 'border-blue-300', gradient: 'from-blue-500 to-blue-600' };
+          if (tl.includes('tax')) return { bg: 'bg-rose-50', text: 'text-rose-700', bar: 'bg-rose-500', ring: 'ring-rose-400', border: 'border-rose-300', gradient: 'from-rose-500 to-rose-600' };
+          if (tl.includes('fee')) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500', ring: 'ring-amber-400', border: 'border-amber-300', gradient: 'from-amber-500 to-amber-600' };
+          if (tl.includes('charge')) return { bg: 'bg-teal-50', text: 'text-teal-700', bar: 'bg-teal-500', ring: 'ring-teal-400', border: 'border-teal-300', gradient: 'from-teal-500 to-teal-600' };
+          return { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-500', ring: 'ring-slate-400', border: 'border-slate-300', gradient: 'from-slate-500 to-slate-600' };
         };
         return (
           <SubDpCarousel
