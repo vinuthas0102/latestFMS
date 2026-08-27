@@ -4,6 +4,7 @@ import {
   CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Sliders, Plus, FileText,
+  LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -15,10 +16,9 @@ import type {
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
 import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
-import { ViewSwitcher } from '../components/ui/ViewSwitcher';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { DataTable, type Column } from '../components/ui/DataTable';
-import { ListView, ListViewItem } from '../components/ui/ListView';
+import type { ViewMode } from '../components/ui/ViewSwitcher';
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +46,175 @@ const DPS: DpConfig[] = [
   { key: 'DUE',     label: 'Total Due',       icon: Clock,        color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
   { key: 'OVERDUE', label: 'Total Overdue',   icon: AlertTriangle,color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
 ];
+
+// ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
+const IconViewToggle: React.FC<{
+  currentView: ViewMode;
+  onViewChange: (v: ViewMode) => void;
+}> = ({ currentView, onViewChange }) => {
+  const views: { mode: ViewMode; icon: typeof LayoutGrid; label: string }[] = [
+    { mode: 'card', icon: LayoutGrid, label: 'Cards' },
+    { mode: 'list', icon: List, label: 'List' },
+    { mode: 'table', icon: Table2, label: 'Table' },
+  ];
+  return (
+    <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 p-0.5">
+      {views.map(({ mode, icon: Icon, label }) => (
+        <button
+          key={mode}
+          onClick={() => onViewChange(mode)}
+          title={label}
+          className={`p-1.5 rounded-md transition-all ${
+            currentView === mode
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <Icon size={15} />
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ── Rich List Card (quarters-style) ────────────────────────────────────────────
+const DemandListCard: React.FC<{
+  tile: DccTile;
+  onPay: (tile: DccTile) => void;
+  onViewDetails: (tile: DccTile) => void;
+  onDownload: (tile: DccTile) => void;
+}> = ({ tile, onPay, onViewDetails, onDownload }) => {
+  const st = STATUS[tile.status];
+  return (
+    <div
+      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
+      onClick={() => onViewDetails(tile)}
+    >
+      {/* Left: Status icon + type badge */}
+      <div className="relative flex-shrink-0 sm:w-20 flex items-center justify-center py-4 sm:py-0 bg-gradient-to-br from-gray-50 to-gray-100 sm:border-r border-gray-100">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${st.bg} ${st.border} border`}>
+          <Receipt size={20} className={st.text} />
+        </div>
+        <div className={`absolute top-2 left-2 sm:top-2 sm:left-2 w-2.5 h-2.5 rounded-full ${st.dot}`} />
+      </div>
+
+      {/* Centre: Details */}
+      <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+        <div>
+          {/* Title row */}
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <h3 className="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors leading-snug truncate">
+              {tile.object_description || tile.object_ref}
+            </h3>
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+              {st.label}
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-100">
+              {tile.demand_type_label}
+            </span>
+          </div>
+
+          {/* Object ref + type */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
+            <Building2 size={11} className="text-gray-400 shrink-0" />
+            <span className="truncate font-medium">{tile.object_ref}</span>
+            <span className="text-gray-300">·</span>
+            <span>{tile.object_type}</span>
+          </div>
+
+          {/* Owner info */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
+            <span className="flex items-center gap-1 min-w-0">
+              <Users size={12} className="text-gray-400 shrink-0" />
+              <span className="truncate font-medium">{tile.owner_name}</span>
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              <Phone size={11} className="text-gray-400" />
+              <span>{tile.owner_contact || '—'}</span>
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              <Calendar size={11} className="text-gray-400" />
+              <span>Run {fmtDate(tile.demand_run_date)}</span>
+            </span>
+          </div>
+
+          {/* Feature chips */}
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded-full">
+              Due {fmtDate(tile.due_date)}
+            </span>
+            {tile.overdue_amount > 0 && (
+              <span className="text-[10px] font-medium bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded-full">
+                Overdue {fmtINR(tile.overdue_amount)}
+              </span>
+            )}
+            {tile.last_paid_date && (
+              <span className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full">
+                Last paid {fmtINR(tile.last_paid_amount ?? 0)}
+              </span>
+            )}
+            {tile.region && (
+              <span className="text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-100 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                <MapPin size={8} />{tile.region}
+              </span>
+            )}
+            {tile.avg_overdue_days > 0 && (
+              <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                {tile.avg_overdue_days}d avg overdue
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Amount + CTA */}
+      <div
+        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-44 flex-shrink-0 bg-gray-50/40"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col items-end gap-0.5">
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Amount Due</p>
+          <p className="text-xl font-bold text-gray-900 leading-none tracking-tight">
+            {fmtINR(tile.amount_due)}
+          </p>
+          <p className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</p>
+          {tile.amount_paid > 0 && (
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1">
+              <CheckCircle2 size={10} /> {fmtINR(tile.amount_paid)} paid
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1.5">
+          {(tile.status === 'DUE' || tile.status === 'OVERDUE') && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPay(tile); }}
+              className="w-full flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-teal-200"
+            >
+              <Wallet size={13} /> Pay Now
+            </button>
+          )}
+          <div className="flex gap-1.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+              className="flex-1 flex items-center justify-center gap-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 px-2 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200"
+            >
+              <Eye size={12} /> Details
+              <ChevronRight size={11} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
+              className="flex items-center justify-center bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 hover:border-gray-300 px-2 py-1.5 rounded-xl text-[11px] transition-all duration-200"
+              title="Download Statement"
+            >
+              <Download size={12} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ── Tile Component ─────────────────────────────────────────────────────────────
 const DemandTile: React.FC<{
@@ -327,6 +496,7 @@ export const DCCPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [dpFilter, setDpFilter] = useState<DpKey>('ALL');
+  const [subDpFilter, setSubDpFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dccView', 'card');
 
@@ -382,6 +552,10 @@ export const DCCPage: React.FC = () => {
     else if (dpFilter === 'DUE') result = result.filter(t => t.status === 'DUE');
     else if (dpFilter === 'OVERDUE') result = result.filter(t => t.status === 'OVERDUE');
 
+    if (subDpFilter) {
+      result = result.filter(t => (t.demand_type_label || t.demand_type_code) === subDpFilter);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(t =>
@@ -392,7 +566,7 @@ export const DCCPage: React.FC = () => {
       );
     }
     return result;
-  }, [tiles, dpFilter, search]);
+  }, [tiles, dpFilter, subDpFilter, search]);
 
   const handlePay = (tile: DccTile) => {
     navigate(`/dcc/demand/${tile.id}`);
@@ -506,7 +680,7 @@ export const DCCPage: React.FC = () => {
           return (
             <button
               key={dp.key}
-              onClick={() => setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key)}
+              onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
               className={`text-left rounded-xl border p-3 transition-all ${dp.bg} ${
                 dpFilter === dp.key ? 'ring-2 ring-teal-400' : 'hover:shadow-sm'
               }`}
@@ -534,36 +708,55 @@ export const DCCPage: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-DP breakdown — shown when a DP is selected */}
+      {/* Sub-DP chips — shown under the selected DP card */}
       {dpFilter !== 'ALL' && Object.keys(subDpBreakdown).length > 0 && (
         <div className="px-5 pb-2 shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-700">Breakdown by Transaction Type — {DPS.find(d => d.key === dpFilter)?.label}</span>
-            </div>
-            <div className="space-y-1.5">
-              {Object.entries(subDpBreakdown).map(([type, data]) => (
-                <div key={type} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600 font-medium">{type}</span>
-                  <span className="text-gray-900 font-bold">{fmtINR(data.amount)}</span>
-                  <span className="text-gray-400 text-[10px]">{data.count} txn{data.count !== 1 ? 's' : ''}</span>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">By Type:</span>
+            <button
+              onClick={() => setSubDpFilter(null)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                subDpFilter === null
+                  ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+              }`}
+            >
+              All
+            </button>
+            {Object.entries(subDpBreakdown).map(([type, data]) => (
+              <button
+                key={type}
+                onClick={() => setSubDpFilter(prev => prev === type ? null : type)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                  subDpFilter === type
+                    ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                }`}
+              >
+                <span>{type}</span>
+                <span className={`text-[10px] ${subDpFilter === type ? 'text-teal-100' : 'text-gray-400'}`}>
+                  {fmtINR(data.amount)}
+                </span>
+                <span className={`text-[9px] ${subDpFilter === type ? 'text-teal-200' : 'text-gray-400'}`}>
+                  {data.count}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Controls row — view switcher + filters */}
+      {/* Controls row — icon-only view toggle + icon-only filters */}
       <div className="px-5 pb-2 shrink-0 flex items-center justify-between gap-3">
-        <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
+        <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
         <button
           onClick={() => setShowFilters(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
+          title="Filters"
+          className="relative p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
         >
-          <SlidersHorizontal size={14} /> Filters
+          <SlidersHorizontal size={15} />
           {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
-            <span className="w-2 h-2 rounded-full bg-teal-500" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-teal-500 border-2 border-white" />
           )}
         </button>
       </div>
@@ -605,31 +798,17 @@ export const DCCPage: React.FC = () => {
             onDownload={handleDownload}
           />
         ) : (
-          <ListView emptyMessage="No demands found">
-            {filteredTiles.map(tile => {
-              const st = STATUS[tile.status];
-              return (
-                <ListViewItem
-                  key={tile.id}
-                  icon={<span className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />}
-                  title={tile.object_description || tile.object_ref}
-                  subtitle={`${tile.owner_name} · ${tile.demand_type_label}`}
-                  badge={
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
-                      {st.label}
-                    </span>
-                  }
-                  rightContent={
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-gray-900">{fmtINR(tile.amount_due)}</div>
-                      <div className="text-[10px] text-gray-400">due {fmtDate(tile.due_date)}</div>
-                    </div>
-                  }
-                  onClick={() => handleViewDetails(tile)}
-                />
-              );
-            })}
-          </ListView>
+          <div className="flex flex-col gap-3">
+            {filteredTiles.map(tile => (
+              <DemandListCard
+                key={tile.id}
+                tile={tile}
+                onPay={handlePay}
+                onViewDetails={handleViewDetails}
+                onDownload={handleDownload}
+              />
+            ))}
+          </div>
         )}
       </div>
 
