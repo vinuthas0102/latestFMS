@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Building2, Home, IndianRupee, LogOut, Pencil } from 'lucide-react';
+import { Building2, Home, IndianRupee, LogOut, Pencil, Wallet } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -12,6 +12,7 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   Building2:   <Building2 size={22} strokeWidth={1.75} />,
   Home:        <Home size={22} strokeWidth={1.75} />,
   IndianRupee: <IndianRupee size={22} strokeWidth={1.75} />,
+  Wallet:      <Wallet size={22} strokeWidth={1.75} />,
 };
 
 interface ModuleButtonProps {
@@ -54,8 +55,12 @@ function isTabActive(tab: ModuleTab, pathname: string): boolean {
   if (tab.activePrefix === '/dcc') {
     return pathname === '/dcc' || pathname.startsWith('/dcc/');
   }
+  if (tab.activePrefix === '/quarters/rent') {
+    return pathname === '/quarters/rent';
+  }
   if (tab.activePrefix === '/quarters') {
     if (pathname === '/dcc' || pathname.startsWith('/dcc/')) return false;
+    if (pathname === '/quarters/rent') return false;
   }
   return pathname === tab.activePrefix || pathname.startsWith(tab.activePrefix + '/');
 }

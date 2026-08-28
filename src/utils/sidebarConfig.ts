@@ -16,6 +16,13 @@ const RENT_TAB: ModuleTab = {
   activePrefix: '/dcc',
 };
 
+const RENT_TRACKER_TAB: ModuleTab = {
+  title: 'Rent Tracker',
+  iconName: 'Wallet',
+  route: ROUTES.QUARTERS_RENT,
+  activePrefix: '/quarters/rent',
+};
+
 export function getModuleTabs(role: UserRole): ModuleTab[] {
   switch (role) {
     case 'admin':
@@ -33,6 +40,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           activePrefix: '/quarters',
         },
         RENT_TAB,
+        RENT_TRACKER_TAB,
       ];
 
     case 'manager':
@@ -50,6 +58,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           activePrefix: '/quarters',
         },
         RENT_TAB,
+        RENT_TRACKER_TAB,
       ];
 
     case 'govt_official':
@@ -67,6 +76,7 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
           activePrefix: '/quarters',
         },
         RENT_TAB,
+        RENT_TRACKER_TAB,
       ];
 
     case 'dept_user':
