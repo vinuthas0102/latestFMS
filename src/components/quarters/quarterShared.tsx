@@ -108,29 +108,24 @@ export const ChatBubble = ({ chat, isSelf, roleLabel }: {
   roleLabel?: string;
 }) => (
   <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm transition-all ${
-      isSelf ? 'bg-teal-600 text-white rounded-tr-md' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-md'
+    <div className={`max-w-[82%] rounded-xl px-3 py-2 ${
+      isSelf ? 'bg-teal-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm'
     }`}>
       {!isSelf && roleLabel && (
-        <div className="flex items-center gap-1.5 mb-1">
-          <div className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 text-[9px] font-bold flex items-center justify-center shrink-0">
-            {roleLabel.charAt(0)}
-          </div>
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{roleLabel}</div>
-        </div>
+        <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">{roleLabel}</div>
       )}
-      <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{chat.message}</p>
+      <p className="text-[12px] leading-snug whitespace-pre-wrap break-words">{chat.message}</p>
       {chat.document_urls?.length > 0 && (
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 space-y-0.5">
           {chat.document_urls.map((url, i) => (
             <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-              className={`flex items-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1 transition-colors ${isSelf ? 'bg-teal-700/50 text-teal-50 hover:bg-teal-700/70' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
-              <Paperclip size={10} />Attachment {i + 1}
+              className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${isSelf ? 'text-teal-100 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}>
+              <Paperclip size={9} />Attachment {i + 1}
             </a>
           ))}
         </div>
       )}
-      <div className={`text-[10px] mt-1.5 text-right ${isSelf ? 'text-teal-200/80' : 'text-gray-400'}`}>
+      <div className={`text-[9px] mt-1 text-right ${isSelf ? 'text-teal-200/70' : 'text-gray-400'}`}>
         {new Date(chat.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
       </div>
     </div>
@@ -141,25 +136,25 @@ export const CompactQuarterRow = ({ q, accentCls }: { q: Quarter; accentCls: str
   const img = getImage(q, 0);
   const occLabel = q.occupancy_status === 'OCCUPIED' ? 'Occupied' : q.occupancy_status === 'AVAILABLE' ? 'Available' : q.occupancy_status;
   return (
-    <div className="flex items-stretch gap-3 px-4 py-3 border-b border-gray-100 bg-white">
-      <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+    <div className="flex items-stretch gap-2.5 px-3.5 py-2 border-b border-gray-100 bg-white">
+      <div className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 bg-gray-100">
         <img src={img} alt={q.quarter_number} className="w-full h-full object-cover" />
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-gray-900 text-sm">{q.quarter_number}</span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${accentCls}`}>{occLabel}</span>
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-bold text-gray-900 text-xs">{q.quarter_number}</span>
+          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${accentCls}`}>{occLabel}</span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
-          <span className="font-medium text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">{q.bhk_config}</span>
-          <span className="flex items-center gap-0.5"><Ruler size={9} />{q.area_sqft} sq.ft</span>
+        <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-500">
+          <span className="font-medium text-gray-600 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded">{q.bhk_config}</span>
+          <span className="flex items-center gap-0.5"><Ruler size={8} />{q.area_sqft} sq.ft</span>
           {q.furnishing_status && <span className="hidden sm:inline">{q.furnishing_status}</span>}
         </div>
-        <div className="text-[11px] text-gray-500 truncate">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</div>
+        <div className="text-[10px] text-gray-500 truncate">{q.address ?? `Block ${q.block_name}, Fl. ${q.floor_number}`}</div>
       </div>
       <div className="flex flex-col items-end justify-center shrink-0">
-        <span className="text-sm font-bold text-gray-900">{fmtINR(q.monthly_rent)}</span>
-        <span className="text-[10px] text-gray-400 font-normal">/month</span>
+        <span className="text-xs font-bold text-gray-900">{fmtINR(q.monthly_rent)}</span>
+        <span className="text-[9px] text-gray-400 font-normal">/mo</span>
       </div>
     </div>
   );
