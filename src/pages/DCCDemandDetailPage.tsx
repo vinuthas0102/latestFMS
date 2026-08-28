@@ -30,6 +30,34 @@ const STATUS: Record<StatusKey, { label: string; bg: string; text: string; borde
   EXEMPTED: { label: 'Exempted', bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-400' },
 };
 
+type BreakdownColumn = { key: string; label: string };
+type BreakdownConfig = {
+  columns: BreakdownColumn[];
+  cadence: 'monthly' | 'single';
+  primaryColumnKey: string;
+};
+
+const SUB_CHARGE_RATIOS: Record<string, Record<string, number>> = {
+  rent: { rent: 0.75, water: 0.08, electricity: 0.12, maintenance: 0.05 },
+  loan_instalment: { loan_instalment: 0.90, interest: 0.10 },
+};
+
+const getBreakdownConfig = (demandTypeCode: string, objectType: string): BreakdownConfig => {
+  const isProperty = objectType === 'PROPERTY' || objectType === 'QUARTER';
+  const configs: Record<string, BreakdownConfig> = {
+    RENT: isProperty
+      ? { columns: [{ key: 'rent', label: 'Rent' }, { key: 'water', label: 'Water' }, { key: 'electricity', label: 'Electricity' }, { key: 'maintenance', label: 'Maintenance' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'rent' }
+      : { columns: [{ key: 'rent', label: 'Rent' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'rent' },
+    MAINTENANCE: { columns: [{ key: 'maintenance', label: 'Maintenance' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'maintenance' },
+    LOAN: { columns: [{ key: 'loan_instalment', label: 'Loan Instalment' }, { key: 'interest', label: 'Interest' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'loan_instalment' },
+    PROPERTY_TAX: { columns: [{ key: 'property_tax', label: 'Property Tax' }, { key: 'penalty', label: 'Penalty' }], cadence: 'single', primaryColumnKey: 'property_tax' },
+    INSURANCE: { columns: [{ key: 'insurance', label: 'Insurance Premium' }, { key: 'penalty', label: 'Penalty' }], cadence: 'single', primaryColumnKey: 'insurance' },
+    SD: { columns: [{ key: 'security_deposit', label: 'Security Deposit' }], cadence: 'single', primaryColumnKey: 'security_deposit' },
+    ADVANCE: { columns: [{ key: 'advance', label: 'Advance' }], cadence: 'single', primaryColumnKey: 'advance' },
+  };
+  return configs[demandTypeCode] ?? { columns: [{ key: 'amount', label: 'Amount' }], cadence: 'single', primaryColumnKey: 'amount' };
+};
+
 type Tab = 'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute';
 
 const inputCls = 'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
@@ -469,7 +497,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 text-xs">
                   <Calendar size={13} className="text-gray-400" />
                   <div>
@@ -489,6 +517,13 @@ export const DCCDemandDetailPage: React.FC = () => {
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Last Paid</div>
                     <div className="font-semibold text-gray-700">{tile.last_paid_date ? `${fmtINR(tile.last_paid_amount ?? 0)} · ${fmtDate(tile.last_paid_date)}` : '—'}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <AlertTriangle size={13} className="text-gray-400" />
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Pending Since</div>
+                    <div className="font-semibold text-gray-700">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : fmtDate(tile.demand_run_date)}</div>
                   </div>
                 </div>
               </div>
@@ -600,97 +635,83 @@ export const DCCDemandDetailPage: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'due_summary' && (
-            <div className="space-y-4">
-              {/* Summary cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"><AlertTriangle size={14} className="text-red-500" /></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Outstanding</span>
-                  </div>
-                  <div className="text-lg font-extrabold text-red-600">{fmtINR(tile.amount_due)}</div>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center"><CheckCircle2 size={14} className="text-emerald-500" /></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Last Paid</span>
-                  </div>
-                  <div className="text-lg font-extrabold text-emerald-600">{tile.last_paid_date ? fmtINR(tile.last_paid_amount ?? 0) : '—'}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : 'No payments yet'}</div>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center"><Clock size={14} className="text-amber-500" /></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Pending Since</span>
-                  </div>
-                  <div className="text-sm font-bold text-gray-700">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : fmtDate(tile.demand_run_date)}</div>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center"><CalendarDays size={14} className="text-teal-500" /></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Due Date</span>
-                  </div>
-                  <div className={`text-sm font-bold ${tile.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(tile.due_date)}</div>
-                  {tile.status === 'OVERDUE' && <div className="text-[10px] text-red-500 font-semibold mt-0.5">Overdue</div>}
-                </div>
-              </div>
+          {activeTab === 'due_summary' && (() => {
+            const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+            const isMonthly = config.cadence === 'monthly';
+            const penaltyPct = 0.02;
+            const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
 
-              {/* Monthly due breakdown table */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-                  <CalendarDays size={15} className="text-gray-500" />
-                  <h3 className="text-sm font-bold text-gray-900">Monthly Due Breakdown</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-gray-100 text-gray-600">
-                        <th className="px-3 py-2 text-left font-bold">S.No</th>
-                        <th className="px-3 py-2 text-left font-bold">Month</th>
-                        <th className="px-3 py-2 text-right font-bold">Rent</th>
-                        <th className="px-3 py-2 text-right font-bold">Water</th>
-                        <th className="px-3 py-2 text-right font-bold">Electricity</th>
-                        <th className="px-3 py-2 text-right font-bold">Penalty</th>
-                        <th className="px-3 py-2 text-right font-bold">Maintenance</th>
-                        <th className="px-3 py-2 text-right font-bold">Total</th>
-                        <th className="px-3 py-2 text-right font-bold">Due Amount</th>
-                        <th className="px-3 py-2 text-center font-bold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const runDate = new Date(tile.demand_run_date);
-                        const months: Array<{ sno: number; label: string; rent: number; status: typeof tile.status }> = [];
-                        const baseRent = Math.round(tile.total_amount / 12);
-                        for (let i = 0; i < 12; i++) {
-                          const d = new Date(runDate.getFullYear(), runDate.getMonth() + i, 1);
-                          const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
-                          const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
-                          months.push({
-                            sno: i + 1,
-                            label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
-                            rent: baseRent,
-                            status: isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE',
-                          });
-                        }
-                        const waterChg = Math.round(baseRent * 0.08);
-                        const elecChg = Math.round(baseRent * 0.12);
-                        const maintChg = Math.round(baseRent * 0.05);
-                        const penalty = tile.status === 'OVERDUE' ? Math.round(baseRent * 0.02) : 0;
-                        return months.map(m => {
-                          const total = m.rent + waterChg + elecChg + (m.status === 'OVERDUE' ? penalty : 0) + maintChg;
-                          const dueAmt = m.status === 'PAID' ? 0 : total;
+            const rows = isMonthly ? (() => {
+              const runDate = new Date(tile.demand_run_date);
+              const monthlyAmount = Math.round(tile.total_amount / 12);
+              const out: Array<{ sno: number; label: string; charges: Record<string, number>; total: number; status: typeof tile.status }> = [];
+              for (let i = 0; i < 12; i++) {
+                const d = new Date(runDate.getFullYear(), runDate.getMonth() + i, 1);
+                const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
+                const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
+                const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
+                const charges: Record<string, number> = {};
+                for (const col of config.columns) {
+                  if (col.key === 'penalty') {
+                    charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
+                  } else {
+                    charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
+                  }
+                }
+                const total = Object.values(charges).reduce((s, v) => s + v, 0);
+                out.push({ sno: i + 1, label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), charges, total, status });
+              }
+              return out;
+            })() : (() => {
+              const charges: Record<string, number> = {};
+              for (const col of config.columns) {
+                if (col.key === 'penalty') {
+                  charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.total_amount * penaltyPct) : 0;
+                } else {
+                  charges[col.key] = tile.total_amount;
+                }
+              }
+              const total = Object.values(charges).reduce((s, v) => s + v, 0);
+              return [{ sno: 1, label: 'Total', charges, total, status: tile.status }];
+            })();
+
+            const colCount = config.columns.length;
+
+            return (
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+                    <CalendarDays size={15} className="text-gray-500" />
+                    <h3 className="text-sm font-bold text-gray-900">{isMonthly ? 'Monthly Due Breakdown' : 'Demand Summary'}</h3>
+                    <span className="ml-auto text-[10px] text-gray-400 capitalize">{tile.demand_type_label} · {tile.object_type}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-100 text-gray-600">
+                          <th className="px-3 py-2 text-left font-bold">S.No</th>
+                          <th className="px-3 py-2 text-left font-bold">{isMonthly ? 'Month' : 'Period'}</th>
+                          {config.columns.map(col => (
+                            <th key={col.key} className="px-3 py-2 text-right font-bold">{col.label}</th>
+                          ))}
+                          <th className="px-3 py-2 text-right font-bold">Total</th>
+                          <th className="px-3 py-2 text-right font-bold">Due Amount</th>
+                          <th className="px-3 py-2 text-center font-bold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(m => {
+                          const dueAmt = m.status === 'PAID' ? 0 : m.total;
                           return (
                             <tr key={m.sno} className={m.status === 'PAID' ? 'bg-emerald-50/30' : m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
                               <td className="px-3 py-2 text-gray-500">{m.sno}</td>
                               <td className="px-3 py-2 font-semibold text-gray-700">{m.label}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(m.rent)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(waterChg)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(elecChg)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{m.status === 'OVERDUE' ? fmtINR(penalty) : '—'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(maintChg)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums font-bold">{fmtINR(total)}</td>
+                              {config.columns.map(col => (
+                                <td key={col.key} className="px-3 py-2 text-right tabular-nums">
+                                  {m.charges[col.key] > 0 ? fmtINR(m.charges[col.key]) : '—'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-right tabular-nums font-bold">{fmtINR(m.total)}</td>
                               <td className="px-3 py-2 text-right tabular-nums font-bold text-gray-700">{dueAmt > 0 ? fmtINR(dueAmt) : '—'}</td>
                               <td className="px-3 py-2 text-center">
                                 <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -701,21 +722,21 @@ export const DCCDemandDetailPage: React.FC = () => {
                               </td>
                             </tr>
                           );
-                        });
-                      })()}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-gray-50 border-t-2 border-gray-200">
-                        <td colSpan={7} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
-                        <td colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  </table>
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-gray-50 border-t-2 border-gray-200">
+                          <td colSpan={colCount + 3} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
+                          <td colSpan={1} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {activeTab === 'payments' && (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
