@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, IndianRupee, Phone, MapPin, Users, Building2,
@@ -62,10 +62,13 @@ type Tab = 'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute';
 
 const inputCls = 'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
 
-export const DCCDemandDetailPage: React.FC = () => {
-  const { demandId } = useParams<{ demandId: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+interface DCCDemandDetailModalProps {
+  demandId: string;
+  onClose: () => void;
+  initialTab?: Tab;
+}
+
+export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ demandId, onClose, initialTab }) => {
 
   const [demand, setDemand] = useState<DccDemand | null>(null);
   const [tile, setTile] = useState<DccTile | null>(null);
@@ -73,11 +76,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>(() => {
-    const tab = searchParams.get('tab');
-    if (tab === 'due_summary' || tab === 'payments' || tab === 'installments' || tab === 'dispute') return tab;
-    return 'overview';
-  });
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'overview');
 
   // Payment form
   const [showPayForm, setShowPayForm] = useState(false);
@@ -397,20 +396,24 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <Loader2 size={24} className="animate-spin text-teal-500" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-teal-500" />
+        </div>
       </div>
     );
   }
 
   if (error || !tile) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-gray-50 text-gray-500">
-        <AlertTriangle size={28} className="mb-2 text-red-400" />
-        <span className="text-sm font-medium">{error ?? 'Demand not found'}</span>
-        <button onClick={() => navigate(ROUTES.DCC)} className="mt-3 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">
-          Back to DCC
-        </button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center text-center">
+          <AlertTriangle size={28} className="mb-2 text-red-400" />
+          <span className="text-sm font-medium text-gray-600">{error ?? 'Demand not found'}</span>
+          <button onClick={onClose} className="mt-3 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">
+            Close
+          </button>
+        </div>
       </div>
     );
   }
@@ -428,11 +431,12 @@ export const DCCDemandDetailPage: React.FC = () => {
   ];
 
   return (
-    <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-gray-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-slideUp">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-        <button onClick={() => navigate(ROUTES.DCC)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
-          <ArrowLeft size={16} />
+        <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
+          <X size={18} />
         </button>
         <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
           <IndianRupee size={18} className="text-white" />
@@ -479,7 +483,7 @@ export const DCCDemandDetailPage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 bg-gray-50">
         <div className="max-w-4xl mx-auto space-y-4">
           {/* Summary card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -1230,6 +1234,28 @@ export const DCCDemandDetailPage: React.FC = () => {
         </div>
       )}
     </div>
+    </div>
+    </div>
+  );
+};
+
+// Route-based wrapper for direct URL access
+const DCCDemandDetailPage: React.FC = () => {
+  const { demandId } = useParams<{ demandId: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab');
+  const initialTab: Tab | undefined =
+    tab === 'due_summary' || tab === 'payments' || tab === 'installments' || tab === 'dispute' ? tab : undefined;
+
+  if (!demandId) return null;
+
+  return (
+    <DCCDemandDetailModal
+      demandId={demandId}
+      onClose={() => navigate(ROUTES.DCC)}
+      initialTab={initialTab}
+    />
   );
 };
 

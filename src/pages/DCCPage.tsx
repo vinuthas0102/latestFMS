@@ -24,6 +24,7 @@ import { useViewPreference } from '../hooks/useViewPreference';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import type { ViewMode } from '../components/ui/ViewSwitcher';
 import SplitLayout from '../components/ui/SplitLayout';
+import { DCCDemandDetailModal } from './DCCDemandDetailPage';
 import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
 import type { ChatDeliveryMode } from '../types/quarters';
 
@@ -853,6 +854,8 @@ export const DCCPage: React.FC = () => {
 
   // Chat state
   const [chatTileId, setChatTileId] = useState<string | null>(null);
+  const [detailDemandId, setDetailDemandId] = useState<string | null>(null);
+  const [detailInitialTab, setDetailInitialTab] = useState<'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute' | undefined>(undefined);
   const [chatMessages, setChatMessages] = useState<DccDemandChat[]>([]);
   const [chatMsg, setChatMsg] = useState('');
   const [chatSending, setChatSending] = useState(false);
@@ -931,11 +934,13 @@ export const DCCPage: React.FC = () => {
   }, [tiles, dpFilter, subDpFilter, search]);
 
   const handlePay = (tile: DccTile) => {
-    navigate(`/dcc/demand/${tile.id}`);
+    setDetailDemandId(tile.id);
+    setDetailInitialTab(undefined);
   };
 
   const handleViewDetails = (tile: DccTile) => {
-    navigate(`/dcc/demand/${tile.id}`);
+    setDetailDemandId(tile.id);
+    setDetailInitialTab(undefined);
   };
 
   const handleDownload = (tile: DccTile) => {
@@ -963,7 +968,8 @@ export const DCCPage: React.FC = () => {
   };
 
   const handleShowDuePayment = (tile: DccTile) => {
-    navigate(`/dcc/demand/${tile.id}?tab=due_summary`);
+    setDetailDemandId(tile.id);
+    setDetailInitialTab('due_summary');
   };
 
   // ── Chat handlers ────────────────────────────────────────────────────────────
@@ -1358,6 +1364,15 @@ export const DCCPage: React.FC = () => {
           />
         ) : dashboardContent;
       })()}
+
+      {/* Demand Detail Modal */}
+      {detailDemandId && (
+        <DCCDemandDetailModal
+          demandId={detailDemandId}
+          onClose={() => { setDetailDemandId(null); setDetailInitialTab(undefined); }}
+          initialTab={detailInitialTab}
+        />
+      )}
     </div>
   );
 };
