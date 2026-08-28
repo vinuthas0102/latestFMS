@@ -16,6 +16,7 @@ import type {
   DccReconciliationSummary,
   DccReportRow,
   DccOwnerReportRow,
+  DccDemandChat,
   BankStatus,
 } from '../types/dcc';
 
@@ -27,6 +28,7 @@ const PAYMENTS = 'dcc_payments';
 const RUNLOG = 'dcc_demand_run_log';
 const IPLANS = 'dcc_installment_plans';
 const IROWS = 'dcc_installment_rows';
+const CHATS = 'dcc_demand_chats';
 
 export const dccService = {
   // ── Reference data ──────────────────────────────────────────────────────────
@@ -647,5 +649,36 @@ export const dccService = {
     }
 
     return Object.values(groupMap).sort((a, b) => b.total_outstanding - a.total_outstanding);
+  },
+
+  // ── Demand chat ──────────────────────────────────────────────────────────────
+  async listChatMessages(demandId: string): Promise<DccDemandChat[]> {
+    const { data, error } = await supabase
+      .from(CHATS)
+      .select('*')
+      .eq('demand_id', demandId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as DccDemandChat[];
+  },
+
+  async sendChatMessage(
+    demandId: string,
+    senderRole: 'manager' | 'owner',
+    message: string,
+    deliveryMode?: string | null,
+  ): Promise<DccDemandChat> {
+    const { data, error } = await supabase
+      .from(CHATS)
+      .insert({
+        demand_id: demandId,
+        sender_role: senderRole,
+        message,
+        delivery_mode: deliveryMode ?? null,
+      })
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as DccDemandChat;
   },
 };

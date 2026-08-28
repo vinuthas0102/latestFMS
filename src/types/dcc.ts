@@ -236,3 +236,14 @@ export interface DccOwnerReportRow {
   demand_count: number;
   overdue_count: number;
 }
+
+// ── Demand chat ────────────────────────────────────────────────────────────────
+
+export interface DccDemandChat {
+  id: string;
+  demand_id: string;
+  sender_role: 'manager' | 'owner';
+  message: string;
+  delivery_mode: string | null;
+  created_at: string;
+}

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Sliders, Plus, FileText,
   LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
-  ChevronLeft, MoreVertical,
+  ChevronLeft, MoreVertical, MessageSquare, Send, X, Loader2,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
 import type {
   DccTile, DccTrackerSummary, DccDemandFilters,
-  DccDemandType, DccObjectOwner, DccObject,
+  DccDemandType, DccObjectOwner, DccObject, DccDemandChat,
 } from '../types/dcc';
 import { FilterDrawer } from '../components/ui/FilterDrawer';
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
@@ -20,6 +21,11 @@ import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import type { ViewMode } from '../components/ui/ViewSwitcher';
+import SplitLayout from '../components/ui/SplitLayout';
+import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
+import type { ChatDeliveryMode } from '../types/quarters';
+
+type DeliveryModes = ChatDeliveryMode[];
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,137 +84,300 @@ const IconViewToggle: React.FC<{
   );
 };
 
-// ── Rich List Card (quarters-style) ────────────────────────────────────────────
+// ── Compact 2-Row List Card ────────────────────────────────────────────────────
 const DemandListCard: React.FC<{
   tile: DccTile;
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
   onDownload: (tile: DccTile) => void;
-}> = ({ tile, onPay, onViewDetails, onDownload }) => {
+  onChat: (tile: DccTile) => void;
+  isChatActive: boolean;
+}> = ({ tile, onPay, onViewDetails, onDownload, onChat, isChatActive }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
   const st = STATUS[tile.status];
-  return (
-    <div
-      className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
-      onClick={() => onViewDetails(tile)}
-    >
-      {/* Left: Status icon + type badge */}
-      <div className="relative flex-shrink-0 sm:w-20 flex items-center justify-center py-4 sm:py-0 bg-gradient-to-br from-gray-50 to-gray-100 sm:border-r border-gray-100">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${st.bg} ${st.border} border`}>
-          <Receipt size={20} className={st.text} />
-        </div>
-        <div className={`absolute top-2 left-2 sm:top-2 sm:left-2 w-2.5 h-2.5 rounded-full ${st.dot}`} />
-      </div>
+  const canPay = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
-      {/* Centre: Details */}
-      <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-        <div>
-          {/* Title row */}
-          <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <h3 className="text-sm font-bold text-gray-900 group-hover:text-teal-700 transition-colors leading-snug truncate">
-              {tile.object_description || tile.object_ref}
-            </h3>
+  const openMenu = useCallback(() => {
+    if (!menuBtnRef.current) return;
+    const rect = menuBtnRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 180) });
+    setMenuOpen(true);
+  }, []);
+
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md relative flex flex-col">
+      <div className={`h-1 ${st.dot} shrink-0`} />
+
+      {/* Row 1: Title + badges + amount */}
+      <div className="px-4 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
             <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
               {st.label}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-100">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
               {tile.demand_type_label}
             </span>
           </div>
+          <h3 className="text-sm font-bold text-gray-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
+          <p className="text-xs text-gray-500 truncate">{tile.object_ref} · {tile.object_type}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-extrabold text-gray-900 leading-tight">{fmtINR(tile.amount_due)}</div>
+          <div className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</div>
+        </div>
+      </div>
 
-          {/* Object ref + type */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
-            <Building2 size={11} className="text-gray-400 shrink-0" />
-            <span className="truncate font-medium">{tile.object_ref}</span>
-            <span className="text-gray-300">·</span>
-            <span>{tile.object_type}</span>
+      {/* Row 2: Owner + key dates + action icons */}
+      <div className="px-4 pb-2 flex items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+        <span className="flex items-center gap-1 min-w-0">
+          <Users size={11} className="text-gray-400 shrink-0" />
+          <span className="truncate font-medium">{tile.owner_name}</span>
+        </span>
+        <span className="flex items-center gap-1 shrink-0">
+          <Calendar size={11} className="text-gray-400" />
+          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDate(tile.due_date)}</span>
+        </span>
+        {tile.overdue_amount > 0 && (
+          <span className="flex items-center gap-1 shrink-0 text-red-600 font-semibold">
+            <AlertTriangle size={11} /> {fmtINR(tile.overdue_amount)}
+          </span>
+        )}
+        {tile.amount_paid > 0 && (
+          <span className="flex items-center gap-1 shrink-0 text-emerald-600">
+            <CheckCircle2 size={11} /> {fmtINR(tile.amount_paid)} paid
+          </span>
+        )}
+
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onChat(tile); }}
+            title="Chat"
+            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${isChatActive ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+          >
+            <MessageSquare size={13} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+            title={expanded ? 'Show Less' : 'Show More'}
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+          <button
+            ref={menuBtnRef}
+            onClick={(e) => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); }}
+            title="Actions"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <MoreVertical size={13} />
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-2.5 text-xs text-gray-600 space-y-1.5 border-t border-gray-100 pt-2 bg-gray-50/40">
+          <div className="flex items-center gap-1.5">
+            <Phone size={11} className="text-gray-400 shrink-0" />
+            <span>{tile.owner_contact || '—'}</span>
           </div>
-
-          {/* Owner info */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 mb-2">
-            <span className="flex items-center gap-1 min-w-0">
-              <Users size={12} className="text-gray-400 shrink-0" />
-              <span className="truncate font-medium">{tile.owner_name}</span>
-            </span>
-            <span className="flex items-center gap-1 shrink-0">
-              <Phone size={11} className="text-gray-400" />
-              <span>{tile.owner_contact || '—'}</span>
-            </span>
-            <span className="flex items-center gap-1 shrink-0">
-              <Calendar size={11} className="text-gray-400" />
-              <span>Run {fmtDate(tile.demand_run_date)}</span>
-            </span>
+          <div className="flex items-start gap-1.5">
+            <MapPin size={11} className="text-gray-400 shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{tile.owner_address || '—'}</span>
           </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <span><span className="text-gray-400">Run:</span> {fmtDate(tile.demand_run_date)}</span>
+            {tile.region && <span><span className="text-gray-400">Region:</span> {tile.region}</span>}
+            {tile.group_name && <span><span className="text-gray-400">Group:</span> {tile.group_name}</span>}
+            {tile.subgroup && <span><span className="text-gray-400">Subgroup:</span> {tile.subgroup}</span>}
+          </div>
+          {tile.avg_overdue_days > 0 && (
+            <div><span className="text-gray-400">Avg Overdue:</span> {tile.avg_overdue_days}d</div>
+          )}
+          {tile.last_paid_date && (
+            <div><span className="text-gray-400">Last Paid:</span> {fmtINR(tile.last_paid_amount ?? 0)} on {fmtDate(tile.last_paid_date)}</div>
+          )}
+        </div>
+      )}
 
-          {/* Feature chips */}
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded-full">
-              Due {fmtDate(tile.due_date)}
-            </span>
-            {tile.overdue_amount > 0 && (
-              <span className="text-[10px] font-medium bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded-full">
-                Overdue {fmtINR(tile.overdue_amount)}
-              </span>
+      {menuOpen && menuPos && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeMenu} />
+          <div
+            className="fixed z-50 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[180px]"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); closeMenu(); onViewDetails(tile); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Eye size={13} className="text-gray-400" /> View Details
+            </button>
+            {canPay && (
+              <button
+                onClick={(e) => { e.stopPropagation(); closeMenu(); onPay(tile); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors"
+              >
+                <Wallet size={13} className="text-teal-500" /> Pay Now
+              </button>
             )}
-            {tile.last_paid_date && (
-              <span className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full">
-                Last paid {fmtINR(tile.last_paid_amount ?? 0)}
+            <button
+              onClick={(e) => { e.stopPropagation(); closeMenu(); onDownload(tile); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Download size={13} className="text-gray-400" /> Download Statement
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); closeMenu(); onChat(tile); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <MessageSquare size={13} className="text-gray-400" /> Open Chat
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+// ── DCC Chat Panel (split-screen right side) ───────────────────────────────────
+const DccChatPanel: React.FC<{
+  tile: DccTile;
+  messages: DccDemandChat[];
+  chatMsg: string;
+  isSending: boolean;
+  deliveryModes: DeliveryModes;
+  onDeliveryModesChange: (m: DeliveryModes) => void;
+  onChange: (v: string) => void;
+  onSend: () => void;
+}> = ({ tile, messages, chatMsg, isSending, deliveryModes, onDeliveryModesChange, onChange, onSend }) => {
+  const endRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const st = STATUS[tile.status];
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, [tile.id]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (chatMsg.trim() && !isSending) onSend();
+    }
+  };
+
+  const formatTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${st.bg} ${st.border} border`}>
+            <Receipt size={14} className={st.text} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-gray-900 leading-tight truncate max-w-[200px]">
+              {tile.object_description || tile.object_ref}
+            </p>
+            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${st.bg} ${st.text}`}>
+                {st.label}
               </span>
-            )}
-            {tile.region && (
-              <span className="text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-100 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                <MapPin size={8} />{tile.region}
-              </span>
-            )}
-            {tile.avg_overdue_days > 0 && (
-              <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                {tile.avg_overdue_days}d avg overdue
-              </span>
-            )}
+              <span className="text-[9px] font-semibold text-gray-500 truncate">{tile.owner_name}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right: Amount + CTA */}
-      <div
-        className="flex flex-col justify-between p-4 sm:border-l border-gray-100 sm:w-44 flex-shrink-0 bg-gray-50/40"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-col items-end gap-0.5">
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Amount Due</p>
-          <p className="text-xl font-bold text-gray-900 leading-none tracking-tight">
-            {fmtINR(tile.amount_due)}
-          </p>
-          <p className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</p>
-          {tile.amount_paid > 0 && (
-            <div className="mt-1.5 flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1">
-              <CheckCircle2 size={10} /> {fmtINR(tile.amount_paid)} paid
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0 bg-gray-50/30">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
+            <div className="w-12 h-12 rounded-full bg-teal-50 border-2 border-dashed border-teal-200 flex items-center justify-center">
+              <MessageSquare size={20} className="text-teal-300" />
             </div>
-          )}
-        </div>
+            <p className="text-sm text-gray-400 font-medium">No messages yet</p>
+            <p className="text-xs text-gray-300 text-center max-w-[200px]">
+              Start a conversation about this demand
+            </p>
+          </div>
+        ) : (
+          <>
+            {messages.map((msg, i) => {
+              const isMine = msg.sender_role === 'manager';
+              const prevMsg = messages[i - 1];
+              const showDateSep = i === 0 || formatDate(msg.created_at) !== formatDate(prevMsg.created_at);
+              return (
+                <React.Fragment key={msg.id}>
+                  {showDateSep && (
+                    <div className="flex items-center gap-2 my-2">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">
+                        {formatDate(msg.created_at)}
+                      </span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                  )}
+                  <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[82%] space-y-0.5">
+                      {!isMine && (
+                        <p className="text-[9px] font-semibold text-gray-400 px-1">Owner</p>
+                      )}
+                      <div className={`text-[12px] px-3 py-2 rounded-2xl leading-relaxed ${
+                        isMine
+                          ? 'bg-teal-600 text-white rounded-br-sm'
+                          : 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'
+                      }`}>
+                        {msg.message}
+                      </div>
+                      <p className={`text-[9px] px-1 ${isMine ? 'text-right text-gray-400' : 'text-gray-400'}`}>
+                        {formatTime(msg.created_at)}
+                        {msg.delivery_mode && <span className="ml-1.5 text-gray-300">· {msg.delivery_mode}</span>}
+                      </p>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+            <div ref={endRef} />
+          </>
+        )}
+      </div>
 
-        <div className="mt-3 flex items-center gap-1.5">
-          {(tile.status === 'DUE' || tile.status === 'OVERDUE') && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onPay(tile); }}
-              title="Pay Now"
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors"
-            >
-              <Wallet size={14} />
-            </button>
-          )}
+      {/* Input */}
+      <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
+        <div className="mb-2">
+          <ChatDeliveryModePicker value={deliveryModes} onChange={onDeliveryModesChange} />
+        </div>
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={textareaRef}
+            rows={2}
+            placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+            value={chatMsg}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-gray-50 transition-colors placeholder-gray-400"
+          />
           <button
-            onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
-            title="View Details"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+            onClick={onSend}
+            disabled={isSending || !chatMsg.trim()}
+            className="flex items-center justify-center w-8 h-8 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors shrink-0 mb-0.5"
+            title="Send"
           >
-            <Eye size={14} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
-            title="Download Statement"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 border border-gray-200 transition-colors"
-          >
-            <Download size={14} />
+            {isSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
         </div>
       </div>
@@ -635,6 +804,13 @@ export const DCCPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dccView', 'card');
 
+  // Chat state
+  const [chatTileId, setChatTileId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<DccDemandChat[]>([]);
+  const [chatMsg, setChatMsg] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatDeliveryModes, setChatDeliveryModes] = useState<DeliveryModes>(['IN_APP']);
+
   // Filter state
   const [filters, setFilters] = useState<DccDemandFilters>({});
   const [demandTypes, setDemandTypes] = useState<DccDemandType[]>([]);
@@ -735,6 +911,47 @@ export const DCCPage: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  // ── Chat handlers ────────────────────────────────────────────────────────────
+  const chatTile = useMemo(() => tiles.find(t => t.id === chatTileId) ?? null, [tiles, chatTileId]);
+
+  const handleOpenChat = useCallback((tile: DccTile) => {
+    setChatTileId(tile.id);
+    setChatMsg('');
+  }, []);
+
+  const handleCloseChat = useCallback(() => {
+    setChatTileId(null);
+    setChatMessages([]);
+    setChatMsg('');
+  }, []);
+
+  useEffect(() => {
+    if (!chatTileId) { setChatMessages([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const msgs = await dccService.listChatMessages(chatTileId);
+        if (!cancelled) setChatMessages(msgs);
+      } catch { if (!cancelled) setChatMessages([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [chatTileId]);
+
+  const handleSendChat = useCallback(async () => {
+    if (!chatTileId || !chatMsg.trim()) return;
+    setChatSending(true);
+    try {
+      const newMsg = await dccService.sendChatMessage(
+        chatTileId, 'manager', chatMsg.trim(),
+        chatDeliveryModes.length > 0 ? chatDeliveryModes.join(',') : null,
+      );
+      setChatMessages(prev => [...prev, newMsg]);
+      setChatMsg('');
+    } catch { /* ignore */ } finally {
+      setChatSending(false);
+    }
+  }, [chatTileId, chatMsg, chatDeliveryModes]);
+
   const mainTabs: { key: DccMainTab; label: string; icon: typeof Receipt }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: Receipt },
     { key: 'reconciliation', label: 'Reconciliation', icon: TrendingUp },
@@ -796,8 +1013,9 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'reports' && <DCCReportsTab />}
 
       {/* Dashboard Tab */}
-      {mainTab === 'dashboard' && (
-      <>
+      {mainTab === 'dashboard' && (() => {
+        const dashboardContent = (
+      <div className="h-full flex flex-col bg-gray-50">
       {/* DPs — redesigned with gradient, animations, collection rate integrated */}
       <div className="px-5 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
         {DPS.map(dp => {
@@ -954,6 +1172,8 @@ export const DCCPage: React.FC = () => {
                 onPay={handlePay}
                 onViewDetails={handleViewDetails}
                 onDownload={handleDownload}
+                onChat={handleOpenChat}
+                isChatActive={chatTileId === tile.id}
               />
             ))}
           </div>
@@ -1047,8 +1267,37 @@ export const DCCPage: React.FC = () => {
           </div>
         </div>
       </FilterDrawer>
-      </>
-      )}
+      </div>
+    );
+        return chatTile && chatTileId ? (
+          <SplitLayout
+            storageKey="dcc-chat-split"
+            defaultSplit={62}
+            onClose={handleCloseChat}
+            right={
+              <DccChatPanel
+                tile={chatTile}
+                messages={chatMessages}
+                chatMsg={chatMsg}
+                isSending={chatSending}
+                deliveryModes={chatDeliveryModes}
+                onDeliveryModesChange={setChatDeliveryModes}
+                onChange={setChatMsg}
+                onSend={handleSendChat}
+              />
+            }
+            rightHeader={
+              <div className="flex items-center gap-2 min-w-0">
+                <MessageSquare size={13} className="text-teal-600 shrink-0" />
+                <span className="text-xs font-bold text-gray-900 truncate">
+                  {chatTile.object_description || chatTile.object_ref}
+                </span>
+              </div>
+            }
+            left={dashboardContent}
+          />
+        ) : dashboardContent;
+      })()}
     </div>
   );
 };
