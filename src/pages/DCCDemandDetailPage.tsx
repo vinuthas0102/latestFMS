@@ -499,50 +499,52 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden animate-slideUp">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1100px] max-h-[94vh] flex flex-col overflow-hidden animate-slideUp">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-        <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
-          <X size={18} />
+      <div className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-white to-gray-50/80 border-b border-gray-200 shrink-0">
+        <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
+          <ArrowLeft size={18} />
         </button>
-        <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
-          <IndianRupee size={18} className="text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shrink-0 shadow-sm">
+          <IndianRupee size={20} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-gray-900 truncate">{tile.object_ref}</h1>
-            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+            <h1 className="text-lg font-bold text-gray-900 truncate">{tile.object_ref}</h1>
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
               {st.label}
             </span>
           </div>
-          <p className="text-xs text-gray-500 truncate">{tile.demand_type_label} · {tile.object_type}</p>
+          <p className="text-xs text-gray-500 truncate mt-0.5">{tile.demand_type_label} · {tile.object_type} · {tile.owner_name}</p>
         </div>
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
-        >
-          <Download size={14} /> Statement
-        </button>
-        {!isPaidOrExempted && canRecordPayment && (
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => setShowPayForm(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
           >
-            <Wallet size={14} /> Record Payment
+            <Download size={14} /> Statement
           </button>
-        )}
-        {!isPaidOrExempted && isGovtOfficial && (
-          <button
-            onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            <Wallet size={14} /> Pay Now
-          </button>
-        )}
+          {!isPaidOrExempted && canRecordPayment && (
+            <button
+              onClick={() => setShowPayForm(v => !v)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+            >
+              <Wallet size={14} /> Record Payment
+            </button>
+          )}
+          {!isPaidOrExempted && isGovtOfficial && (
+            <button
+              onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+            >
+              <Wallet size={14} /> Pay Now
+            </button>
+          )}
+        </div>
       </div>
 
       {actionError && (
-        <div className="mx-5 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+        <div className="mx-6 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
           <AlertCircle size={14} className="shrink-0" /> {actionError}
           <button onClick={() => setActionError(null)} className="ml-auto p-0.5 text-red-400 hover:text-red-600 transition-colors shrink-0">
             <X size={13} />
@@ -550,56 +552,64 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-5 bg-gray-50">
-        <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50">
+        <div className="space-y-5">
           {/* Summary card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className={`h-1 ${st.dot}`} />
-            <div className="p-5">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`h-1.5 ${st.dot}`} />
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Amount</div>
-                  <div className="text-lg font-extrabold text-gray-900">{fmtINR(tile.total_amount)}</div>
+                  <div className="text-xl font-extrabold text-gray-900 mt-1">{fmtINR(tile.total_amount)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Amount Paid</div>
-                  <div className="text-lg font-extrabold text-emerald-700">{fmtINR(tile.amount_paid)}</div>
+                  <div className="text-xl font-extrabold text-emerald-700 mt-1">{fmtINR(tile.amount_paid)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Amount Due</div>
-                  <div className="text-lg font-extrabold text-teal-700">{fmtINR(tile.amount_due)}</div>
+                  <div className="text-xl font-extrabold text-teal-700 mt-1">{fmtINR(tile.amount_due)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Overdue</div>
-                  <div className={`text-lg font-extrabold ${tile.overdue_amount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                  <div className={`text-xl font-extrabold mt-1 ${tile.overdue_amount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
                     {tile.overdue_amount > 0 ? fmtINR(tile.overdue_amount) : '—'}
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-xs">
-                  <Calendar size={13} className="text-gray-400" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mt-5 pt-5 border-t border-gray-100">
+                <div className="flex items-center gap-2.5 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <Calendar size={14} className="text-gray-400" />
+                  </div>
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Run Date</div>
                     <div className="font-semibold text-gray-700">{fmtDate(tile.demand_run_date)}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Clock size={13} className="text-gray-400" />
+                <div className="flex items-center gap-2.5 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <Clock size={14} className="text-gray-400" />
+                  </div>
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Due Date</div>
                     <div className={`font-semibold ${tile.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(tile.due_date)}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <History size={13} className="text-gray-400" />
+                <div className="flex items-center gap-2.5 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <History size={14} className="text-gray-400" />
+                  </div>
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Last Paid</div>
                     <div className="font-semibold text-gray-700">{tile.last_paid_date ? `${fmtINR(tile.last_paid_amount ?? 0)} · ${fmtDate(tile.last_paid_date)}` : '—'}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <AlertTriangle size={13} className="text-gray-400" />
+                <div className="flex items-center gap-2.5 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <AlertTriangle size={14} className="text-gray-400" />
+                  </div>
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Pending Since</div>
                     <div className="font-semibold text-gray-700">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : fmtDate(tile.demand_run_date)}</div>
@@ -662,7 +672,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           )}
 
           {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-gray-200">
+          <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto scrollbar-thin">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.key;
@@ -670,8 +680,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                    active ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    active ? 'border-teal-600 text-teal-700 bg-teal-50/40' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50/60'
                   }`}
                 >
                   <Icon size={14} /> {tab.label}
@@ -682,33 +692,33 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
           {/* Tab content */}
           {activeTab === 'overview' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
               <div>
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Object Details</h3>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Object Ref:</span><span className="font-semibold text-gray-700">{tile.object_ref}</span></div>
-                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Object Type:</span><span className="font-semibold text-gray-700">{tile.object_type}</span></div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Object Details</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Ref:</span><span className="font-semibold text-gray-700">{tile.object_ref}</span></div>
+                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Type:</span><span className="font-semibold text-gray-700">{tile.object_type}</span></div>
                   <div className="flex items-center gap-2"><MapPin size={13} className="text-gray-400" /><span className="text-gray-500">Region:</span><span className="font-semibold text-gray-700">{tile.region ?? '—'}</span></div>
                   <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Group:</span><span className="font-semibold text-gray-700">{tile.group_name ?? '—'}</span></div>
                 </div>
                 {tile.object_description && tile.object_description !== tile.object_ref && (
-                  <p className="text-xs text-gray-500 mt-2">{tile.object_description}</p>
+                  <p className="text-xs text-gray-500 mt-3">{tile.object_description}</p>
                 )}
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Owner Details</h3>
-                <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="border-t border-gray-100 pt-5">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Owner Details</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                   <div className="flex items-center gap-2"><Users size={13} className="text-gray-400" /><span className="text-gray-500">Name:</span><span className="font-semibold text-gray-700">{tile.owner_name}</span></div>
                   <div className="flex items-center gap-2"><Phone size={13} className="text-gray-400" /><span className="text-gray-500">Contact:</span><span className="font-semibold text-gray-700">{tile.owner_contact || '—'}</span></div>
                   {tile.owner_address && <div className="flex items-center gap-2 col-span-2"><MapPin size={13} className="text-gray-400" /><span className="text-gray-500">Address:</span><span className="font-semibold text-gray-700">{tile.owner_address}</span></div>}
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Demand Info</h3>
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div><span className="text-gray-500">Demand Type:</span> <span className="font-semibold text-gray-700">{tile.demand_type_label}</span></div>
-                  <div><span className="text-gray-500">Generation Source:</span> <span className="font-semibold text-gray-700">{demand?.generation_source ?? '—'}</span></div>
-                  <div><span className="text-gray-500">Avg Overdue Days:</span> <span className={`font-semibold ${tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-gray-700'}`}>{tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'}</span></div>
+              <div className="border-t border-gray-100 pt-5">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Demand Info</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div><span className="text-gray-500">Type:</span> <span className="font-semibold text-gray-700">{tile.demand_type_label}</span></div>
+                  <div><span className="text-gray-500">Source:</span> <span className="font-semibold text-gray-700">{demand?.generation_source ?? '—'}</span></div>
+                  <div><span className="text-gray-500">Avg Overdue:</span> <span className={`font-semibold ${tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-gray-700'}`}>{tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'}</span></div>
                 </div>
               </div>
             </div>
