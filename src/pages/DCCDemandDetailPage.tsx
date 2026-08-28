@@ -346,7 +346,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
         <button onClick={() => navigate(ROUTES.DCC)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
@@ -389,7 +389,7 @@ export const DCCDemandDetailPage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-5">
         <div className="max-w-4xl mx-auto space-y-4">
           {/* Summary card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
