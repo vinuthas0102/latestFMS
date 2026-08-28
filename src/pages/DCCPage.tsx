@@ -802,7 +802,7 @@ export const DCCPage: React.FC = () => {
   const [dpFilter, setDpFilter] = useState<DpKey>('ALL');
   const [subDpFilter, setSubDpFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('dccView', 'card');
+  const [viewMode, setViewMode] = useViewPreference('dccView', 'list');
 
   // Chat state
   const [chatTileId, setChatTileId] = useState<string | null>(null);

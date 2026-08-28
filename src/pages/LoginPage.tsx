@@ -58,6 +58,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password, selectedRole);
+      try { localStorage.removeItem('dccView'); } catch { /* ignore */ }
       addToast('Login successful', 'success');
       if (selectedRole === 'admin') {
         navigate(ROUTES.PROPERTIES);
