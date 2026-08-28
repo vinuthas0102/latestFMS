@@ -133,6 +133,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [instRowFilter, setInstRowFilter] = useState('ALL');
   const [instSuccess, setInstSuccess] = useState<string | null>(null);
 
+  // Bulk select for due summary
+  const [selectedDueRows, setSelectedDueRows] = useState<Set<number>>(new Set());
+  const [bulkPaying, setBulkPaying] = useState(false);
+
   const balancePayment = tile?.amount_due ?? 0;
 
   // Editable installment schedule rows
@@ -355,6 +359,65 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
     }
   };
 
+  const handleBulkPay = async () => {
+    if (!demandId || !tile || selectedDueRows.size === 0) return;
+    const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+    const isMonthly = config.cadence === 'monthly';
+    const penaltyPct = 0.02;
+    const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
+
+    const allRows = isMonthly ? (() => {
+      const runDate = new Date(tile.demand_run_date);
+      const monthlyAmount = Math.round(tile.total_amount / 12);
+      const out: Array<{ sno: number; total: number; status: typeof tile.status }> = [];
+      for (let i = 0; i < 12; i++) {
+        const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
+        const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
+        const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
+        const charges: Record<string, number> = {};
+        for (const col of config.columns) {
+          if (col.key === 'penalty') {
+            charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
+          } else {
+            charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
+          }
+        }
+        out.push({ sno: i + 1, total: Object.values(charges).reduce((s, v) => s + v, 0), status });
+      }
+      return out;
+    })() : [{ sno: 1, total: tile.total_amount, status: tile.status }];
+
+    const selectedTotal = allRows.filter(r => selectedDueRows.has(r.sno) && r.status !== 'PAID').reduce((s, r) => s + r.total, 0);
+    if (selectedTotal <= 0) return;
+
+    if (!canRecordPayment) {
+      setDemoPayAmount(selectedTotal);
+      setDemoPayLabel(`${selectedDueRows.size} selected entries`);
+      setShowDemoPay(true);
+      setDemoPayStep('select');
+      return;
+    }
+    setBulkPaying(true);
+    setActionError(null);
+    try {
+      await dccService.submitPayment(
+        demandId,
+        tile.object_id,
+        selectedTotal,
+        payMode,
+        new Date().toISOString().slice(0, 10),
+        `Bulk payment for ${selectedDueRows.size} entries`,
+        undefined,
+      );
+      setSelectedDueRows(new Set());
+      await load();
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Bulk payment failed');
+    } finally {
+      setBulkPaying(false);
+    }
+  };
+
   const handleDispute = async () => {
     if (!demandId || !disputeReason.trim()) return;
     setDisputing(true);
@@ -432,7 +495,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-slideUp">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden animate-slideUp">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
         <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
@@ -701,6 +764,20 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-gray-100 text-gray-600">
+                          <th className="px-3 py-2 text-center font-bold w-10">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                              checked={rows.filter(r => r.status !== 'PAID').length > 0 && rows.filter(r => r.status !== 'PAID').every(r => selectedDueRows.has(r.sno))}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setSelectedDueRows(new Set(rows.filter(r => r.status !== 'PAID').map(r => r.sno)));
+                                } else {
+                                  setSelectedDueRows(new Set());
+                                }
+                              }}
+                            />
+                          </th>
                           <th className="px-3 py-2 text-left font-bold">S.No</th>
                           <th className="px-3 py-2 text-left font-bold">{isMonthly ? 'Month' : 'Period'}</th>
                           {config.columns.map(col => (
@@ -716,6 +793,23 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                           const dueAmt = m.status === 'PAID' ? 0 : m.total;
                           return (
                             <tr key={m.sno} className={m.status === 'PAID' ? 'bg-emerald-50/30' : m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
+                              <td className="px-3 py-2 text-center">
+                                {m.status !== 'PAID' && (
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                                    checked={selectedDueRows.has(m.sno)}
+                                    onChange={e => {
+                                      setSelectedDueRows(prev => {
+                                        const next = new Set(prev);
+                                        if (e.target.checked) next.add(m.sno);
+                                        else next.delete(m.sno);
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                )}
+                              </td>
                               <td className="px-3 py-2 text-gray-500">{m.sno}</td>
                               <td className="px-3 py-2 font-semibold text-gray-700">{m.label}</td>
                               {config.columns.map(col => (
@@ -738,13 +832,33 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                       </tbody>
                       <tfoot>
                         <tr className="bg-gray-50 border-t-2 border-gray-200">
-                          <td colSpan={colCount + 3} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
+                          <td colSpan={colCount + 4} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
                           <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                           <td colSpan={1} />
                         </tr>
                       </tfoot>
                     </table>
                   </div>
+
+                {/* Bulk Pay Bar */}
+                {selectedDueRows.size > 0 && !isPaidOrExempted && (() => {
+                  const selectedTotal = rows.filter(r => selectedDueRows.has(r.sno)).reduce((s, r) => s + r.total, 0);
+                  return (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-teal-50 border-t border-teal-200">
+                      <span className="text-xs font-semibold text-teal-700">
+                        {selectedDueRows.size} entr{selectedDueRows.size !== 1 ? 'ies' : 'y'} selected · Total: <span className="font-bold">{fmtINR(selectedTotal)}</span>
+                      </span>
+                      <button
+                        onClick={handleBulkPay}
+                        disabled={bulkPaying}
+                        className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                      >
+                        {bulkPaying ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+                        {bulkPaying ? 'Processing…' : 'Pay Selected'}
+                      </button>
+                    </div>
+                  );
+                })()}
                 </div>
               </div>
             );
@@ -1050,12 +1164,11 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                           .map(row => {
                             const isPaid = row.status === 'PAID';
                             const isFullPayment = row.row_number === 0;
-                            const canPayManager = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment;
-
                             const sequentialRows = instRows.filter(r => r.row_number > 0 && r.status !== 'PAID' && r.status !== 'EXEMPTED');
                             const earliestUnpaidRowNumber = sequentialRows.length > 0 ? Math.min(...sequentialRows.map(r => r.row_number)) : null;
+                            const canPayManager = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
                             const canPayGovt = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
-                            const isLocked = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && row.row_number > 0 && earliestUnpaidRowNumber !== null && row.row_number !== earliestUnpaidRowNumber;
+                            const isLocked = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && (canRecordPayment || isGovtOfficial) && row.row_number > 0 && earliestUnpaidRowNumber !== null && row.row_number !== earliestUnpaidRowNumber;
                             const canPayThis = canPayManager || canPayGovt;
 
                             return (
