@@ -540,6 +540,12 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
               <Wallet size={14} /> Pay Now
             </button>
           )}
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors border border-red-200"
+          >
+            <X size={14} /> Close
+          </button>
         </div>
       </div>
 
