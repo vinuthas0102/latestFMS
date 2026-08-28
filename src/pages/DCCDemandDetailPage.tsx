@@ -186,11 +186,10 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   const handleCreatePlan = async () => {
     if (!demandId || !tile || !canManagePlan) return;
-    if (balancePayment <= 0) { setActionError('Cannot create an installment plan — the outstanding balance is zero.'); return; }
-    if (!instStartDate) { setActionError('Please select an installment start date.'); return; }
-    if (instNumInstallments < 1) { setActionError('Number of installments must be at least 1.'); return; }
-    if (!instPctValid) { setActionError(`Installment percentages must total 100% (currently ${instPctTotal.toFixed(2)}%).`); return; }
-    if (!instAmtValid) { setActionError(`Installment amounts must total ${fmtINR(balancePayment)} (currently ${fmtINR(instAmtTotal)}).`); return; }
+    if (!instStartDate) { setError('Installment start date is required'); return; }
+    if (instNumInstallments < 1) { setError('Number of installments must be at least 1'); return; }
+    if (!instPctValid) { setError(`Installment percentages must total 100% (currently ${instPctTotal.toFixed(2)}%)`); return; }
+    if (!instAmtValid) { setError(`Installment amounts must total ${fmtINR(balancePayment)} (currently ${fmtINR(instAmtTotal)})`); return; }
     setInstLoading(true);
     setActionError(null);
     setInstSuccess(null);
@@ -222,16 +221,7 @@ export const DCCDemandDetailPage: React.FC = () => {
       await loadInstallments();
       await load();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('Only Estate Managers') || msg.includes('permission')) {
-        setActionError('Permission denied — only Estate Managers and Administrators can create installment plans. Please sign in again.');
-      } else if (msg.includes('Demand not found')) {
-        setActionError('This demand could not be found. It may have been deleted. Please go back and refresh the list.');
-      } else if (msg.includes('network') || msg.includes('fetch')) {
-        setActionError('Network error — please check your connection and try again.');
-      } else {
-        setActionError(msg || 'Failed to create installment plan. Please try again.');
-      }
+      setActionError(e instanceof Error ? e.message : 'Failed to create installment plan');
     } finally {
       setInstLoading(false);
     }
@@ -713,7 +703,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={handleCreatePlan}
-                      disabled={instLoading || !instPctValid || !instAmtValid || !instStartDate || balancePayment <= 0}
+                      disabled={instLoading || !instPctValid || !instAmtValid || !instStartDate}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
                     >
                       {instLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
