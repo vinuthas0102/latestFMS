@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, IndianRupee, Phone, MapPin, Users, Building2,
   Calendar, Clock, AlertTriangle, CheckCircle2, Wallet, Download,
   Loader2, X, Percent, Layers, FileText, AlertCircle, History,
   MessageSquareWarning, ChevronDown, ChevronRight, Receipt,
-  Plus, Save, FileSpreadsheet, Filter,
+  Plus, Save, FileSpreadsheet, Filter, CalendarDays,
+  CreditCard, Smartphone, Building, Banknote, Lock,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
@@ -29,13 +30,14 @@ const STATUS: Record<StatusKey, { label: string; bg: string; text: string; borde
   EXEMPTED: { label: 'Exempted', bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-400' },
 };
 
-type Tab = 'overview' | 'payments' | 'installments' | 'dispute';
+type Tab = 'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute';
 
 const inputCls = 'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
 
 export const DCCDemandDetailPage: React.FC = () => {
   const { demandId } = useParams<{ demandId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [demand, setDemand] = useState<DccDemand | null>(null);
   const [tile, setTile] = useState<DccTile | null>(null);
@@ -43,7 +45,11 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'due_summary' || tab === 'payments' || tab === 'installments' || tab === 'dispute') return tab;
+    return 'overview';
+  });
 
   // Payment form
   const [showPayForm, setShowPayForm] = useState(false);
@@ -70,6 +76,20 @@ export const DCCDemandDetailPage: React.FC = () => {
   // Role-based permissions
   const { user } = useAuthStore();
   const canManagePlan = user?.role === 'manager' || user?.role === 'admin';
+  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
+  const isGovtOfficial = user?.role === 'govt_official' || user?.role === 'dept_user' || user?.role === 'public';
+
+  // Demo payment modal
+  const [showDemoPay, setShowDemoPay] = useState(false);
+  const [demoPayMode, setDemoPayMode] = useState<string>('UPI');
+  const [demoPayStep, setDemoPayStep] = useState<'select' | 'processing' | 'done'>('select');
+
+  const DEMO_PAY_MODES = [
+    { key: 'UPI', label: 'UPI', icon: Smartphone, desc: 'Pay via UPI ID or QR' },
+    { key: 'NETBANKING', label: 'Net Banking', icon: Building, desc: 'Bank transfer' },
+    { key: 'CARD', label: 'Debit / Credit Card', icon: CreditCard, desc: 'Visa, Mastercard, RuPay' },
+    { key: 'WALLET', label: 'Wallet', icon: Wallet, desc: 'Paytm, PhonePe, etc.' },
+  ] as const;
 
   // Installment form fields (rent tracker parity)
   const [instStartDate, setInstStartDate] = useState(new Date().toISOString().slice(0, 10));
@@ -85,11 +105,17 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   const balancePayment = tile?.amount_due ?? 0;
 
-  // Auto-generated installment schedule for the form table
-  const instSchedule = useMemo(() => {
+  // Editable installment schedule rows
+  const [instEditRows, setInstEditRows] = useState<Array<{
+    row_number: number; label: string; percentage: number; amount: number;
+    discount: number; penalty: number; gst_amount: number; net_payable: number;
+    due_date: string; due_with_late_fee: string | null;
+  }>>([]);
+
+  const regenerateSchedule = useCallback(() => {
     const total = balancePayment;
     const n = instNumInstallments;
-    if (n <= 0 || total <= 0) return [];
+    if (n <= 0 || total <= 0) { setInstEditRows([]); return; }
     const perPct = 100 / n;
     const perAmt = total / n;
     const isExcl = instGstType === 'exclusive';
@@ -98,13 +124,7 @@ export const DCCDemandDetailPage: React.FC = () => {
     const dueDays = parseInt(instDueDaysLate) || 0;
     const discFullPct = parseFloat(instDiscountFullPct) || 0;
 
-    const rows: Array<{
-      row_number: number; label: string; percentage: number; amount: number;
-      discount: number; penalty: number; gst_amount: number; net_payable: number;
-      due_date: string; due_with_late_fee: string | null;
-    }> = [];
-
-    // Full payment row (row 0)
+    const rows: typeof instEditRows = [];
     const fullDisc = Math.round(total * discFullPct / 100);
     const fullGst = isExcl ? Math.round((total - fullDisc) * gstRate / 100) : 0;
     rows.push({
@@ -113,8 +133,6 @@ export const DCCDemandDetailPage: React.FC = () => {
       net_payable: total - fullDisc + fullGst,
       due_date: instStartDate, due_with_late_fee: null,
     });
-
-    // Installment rows
     for (let i = 1; i <= n; i++) {
       const due = new Date(instStartDate);
       due.setMonth(due.getMonth() + (i - 1));
@@ -129,12 +147,34 @@ export const DCCDemandDetailPage: React.FC = () => {
         due_with_late_fee: dueDays > 0 ? dueWithLate.toISOString().split('T')[0] : null,
       });
     }
-    return rows;
+    setInstEditRows(rows);
   }, [balancePayment, instNumInstallments, instGstType, instGstPct, instLateFee, instDueDaysLate, instDiscountFullPct, instStartDate]);
 
-  const instPctTotal = instSchedule.filter(r => r.row_number > 0).reduce((s, r) => s + r.percentage, 0);
+  useEffect(() => { regenerateSchedule(); }, [regenerateSchedule]);
+
+  const updateInstRow = (idx: number, field: 'percentage' | 'amount' | 'due_date', value: string) => {
+    setInstEditRows(prev => {
+      const next = [...prev];
+      if (field === 'due_date') {
+        next[idx] = { ...next[idx], due_date: value };
+      } else {
+        const numVal = parseFloat(value) || 0;
+        next[idx] = { ...next[idx], [field]: numVal };
+        if (field === 'percentage' && next[idx].row_number > 0 && numVal > 0) {
+          next[idx].amount = Math.round((balancePayment * numVal / 100) * 100) / 100;
+        }
+        const isExcl = instGstType === 'exclusive';
+        const gstRate = parseFloat(instGstPct) || 0;
+        next[idx].gst_amount = isExcl ? Math.round(next[idx].amount * gstRate / 100) : 0;
+        next[idx].net_payable = next[idx].amount + next[idx].gst_amount - (next[idx].discount || 0);
+      }
+      return next;
+    });
+  };
+
+  const instPctTotal = instEditRows.filter(r => r.row_number > 0).reduce((s, r) => s + r.percentage, 0);
   const instPctValid = Math.abs(instPctTotal - 100) < 0.01;
-  const instAmtTotal = instSchedule.filter(r => r.row_number > 0).reduce((s, r) => s + r.amount, 0);
+  const instAmtTotal = instEditRows.filter(r => r.row_number > 0).reduce((s, r) => s + r.amount, 0);
   const instAmtValid = Math.abs(instAmtTotal - balancePayment) < 0.50;
 
   const load = useCallback(async () => {
@@ -205,7 +245,7 @@ export const DCCDemandDetailPage: React.FC = () => {
         gstType: instGstType,
         balancePayment,
       };
-      const customRows = instSchedule.map(r => ({
+      const customRows = instEditRows.map(r => ({
         row_number: r.row_number,
         label: r.label,
         percentage: r.percentage,
@@ -229,16 +269,16 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   const handlePayInstallment = async (row: DccInstallmentRow) => {
     if (!demandId || !tile) return;
+    if (!canRecordPayment) {
+      setShowDemoPay(true);
+      setDemoPayStep('select');
+      return;
+    }
     setPayingRowId(row.id);
     setActionError(null);
     try {
       const payAmt = row.remaining_amount;
       await dccService.payInstallmentRow(row.id, payAmt, new Date().toISOString().slice(0, 10));
-      await dccService.submitPayment(
-        demandId, tile.object_id, payAmt, 'EPAY',
-        new Date().toISOString().slice(0, 10),
-        `Installment ${row.row_number}`, undefined,
-      );
       await loadInstallments();
       await load();
     } catch (e: unknown) {
@@ -252,6 +292,11 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   const handlePay = async () => {
     if (!demandId || !tile || payAmount <= 0) return;
+    if (!canRecordPayment) {
+      setShowDemoPay(true);
+      setDemoPayStep('select');
+      return;
+    }
     setPaying(true);
     setActionError(null);
     try {
@@ -340,6 +385,7 @@ export const DCCDemandDetailPage: React.FC = () => {
 
   const TABS: { key: Tab; label: string; icon: typeof History }[] = [
     { key: 'overview', label: 'Overview', icon: FileText },
+    { key: 'due_summary', label: 'Due Summary', icon: CalendarDays },
     { key: 'payments', label: `Payments (${payments.length})`, icon: Receipt },
     { key: 'installments', label: `Installments (${showInstForm ? instNumInstallments : (instPlan?.no_of_installments ?? instRows.filter(r => r.row_number > 0).length)})`, icon: Layers },
     { key: 'dispute', label: hasDispute ? 'Dispute (Active)' : 'Dispute', icon: MessageSquareWarning },
@@ -370,9 +416,17 @@ export const DCCDemandDetailPage: React.FC = () => {
         >
           <Download size={14} /> Statement
         </button>
-        {!isPaidOrExempted && (
+        {!isPaidOrExempted && canRecordPayment && (
           <button
             onClick={() => setShowPayForm(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+          >
+            <Wallet size={14} /> Record Payment
+          </button>
+        )}
+        {!isPaidOrExempted && isGovtOfficial && (
+          <button
+            onClick={() => { setShowDemoPay(true); setDemoPayStep('select'); }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
           >
             <Wallet size={14} /> Pay Now
@@ -546,6 +600,123 @@ export const DCCDemandDetailPage: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'due_summary' && (
+            <div className="space-y-4">
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"><AlertTriangle size={14} className="text-red-500" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Outstanding</span>
+                  </div>
+                  <div className="text-lg font-extrabold text-red-600">{fmtINR(tile.amount_due)}</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center"><CheckCircle2 size={14} className="text-emerald-500" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Last Paid</span>
+                  </div>
+                  <div className="text-lg font-extrabold text-emerald-600">{tile.last_paid_date ? fmtINR(tile.last_paid_amount ?? 0) : '—'}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : 'No payments yet'}</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center"><Clock size={14} className="text-amber-500" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Pending Since</span>
+                  </div>
+                  <div className="text-sm font-bold text-gray-700">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : fmtDate(tile.demand_run_date)}</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center"><CalendarDays size={14} className="text-teal-500" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Due Date</span>
+                  </div>
+                  <div className={`text-sm font-bold ${tile.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(tile.due_date)}</div>
+                  {tile.status === 'OVERDUE' && <div className="text-[10px] text-red-500 font-semibold mt-0.5">Overdue</div>}
+                </div>
+              </div>
+
+              {/* Monthly due breakdown table */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+                  <CalendarDays size={15} className="text-gray-500" />
+                  <h3 className="text-sm font-bold text-gray-900">Monthly Due Breakdown</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-600">
+                        <th className="px-3 py-2 text-left font-bold">S.No</th>
+                        <th className="px-3 py-2 text-left font-bold">Month</th>
+                        <th className="px-3 py-2 text-right font-bold">Rent</th>
+                        <th className="px-3 py-2 text-right font-bold">Water</th>
+                        <th className="px-3 py-2 text-right font-bold">Electricity</th>
+                        <th className="px-3 py-2 text-right font-bold">Penalty</th>
+                        <th className="px-3 py-2 text-right font-bold">Maintenance</th>
+                        <th className="px-3 py-2 text-right font-bold">Total</th>
+                        <th className="px-3 py-2 text-right font-bold">Due Amount</th>
+                        <th className="px-3 py-2 text-center font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const runDate = new Date(tile.demand_run_date);
+                        const months: Array<{ sno: number; label: string; rent: number; status: typeof tile.status }> = [];
+                        const baseRent = Math.round(tile.total_amount / 12);
+                        for (let i = 0; i < 12; i++) {
+                          const d = new Date(runDate.getFullYear(), runDate.getMonth() + i, 1);
+                          const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
+                          const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
+                          months.push({
+                            sno: i + 1,
+                            label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+                            rent: baseRent,
+                            status: isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE',
+                          });
+                        }
+                        const waterChg = Math.round(baseRent * 0.08);
+                        const elecChg = Math.round(baseRent * 0.12);
+                        const maintChg = Math.round(baseRent * 0.05);
+                        const penalty = tile.status === 'OVERDUE' ? Math.round(baseRent * 0.02) : 0;
+                        return months.map(m => {
+                          const total = m.rent + waterChg + elecChg + (m.status === 'OVERDUE' ? penalty : 0) + maintChg;
+                          const dueAmt = m.status === 'PAID' ? 0 : total;
+                          return (
+                            <tr key={m.sno} className={m.status === 'PAID' ? 'bg-emerald-50/30' : m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
+                              <td className="px-3 py-2 text-gray-500">{m.sno}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-700">{m.label}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(m.rent)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(waterChg)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(elecChg)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{m.status === 'OVERDUE' ? fmtINR(penalty) : '—'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmtINR(maintChg)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums font-bold">{fmtINR(total)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums font-bold text-gray-700">{dueAmt > 0 ? fmtINR(dueAmt) : '—'}</td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  m.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                                  m.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                  'bg-amber-100 text-amber-700'
+                                }`}>{m.status}</span>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 border-t-2 border-gray-200">
+                        <td colSpan={7} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'payments' && (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
@@ -671,16 +842,44 @@ export const DCCDemandDetailPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {instSchedule.map(r => (
+                        {instEditRows.map((r, idx) => (
                           <tr key={r.row_number} className={r.row_number === 0 ? 'bg-teal-50/50' : ''}>
                             <td className="px-2 py-1.5 font-semibold text-gray-700">{r.label}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums">{r.percentage.toFixed(2)}%</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{fmtINR(r.amount)}</td>
+                            <td className="px-2 py-1.5 text-right">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={r.percentage}
+                                onChange={e => updateInstRow(idx, 'percentage', e.target.value)}
+                                disabled={r.row_number === 0}
+                                className="w-16 px-1.5 py-1 text-right tabular-nums text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400 disabled:bg-gray-50 disabled:text-gray-400"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5 text-right">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={r.amount}
+                                onChange={e => updateInstRow(idx, 'amount', e.target.value)}
+                                disabled={r.row_number === 0}
+                                className="w-24 px-1.5 py-1 text-right tabular-nums text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400 disabled:bg-gray-50 disabled:text-gray-400"
+                              />
+                            </td>
                             <td className="px-2 py-1.5 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
                             <td className="px-2 py-1.5 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
                             <td className="px-2 py-1.5 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
                             <td className="px-2 py-1.5 text-right tabular-nums font-bold text-teal-700">{fmtINR(r.net_payable)}</td>
-                            <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(r.due_date)}</td>
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="date"
+                                value={r.due_date}
+                                onChange={e => updateInstRow(idx, 'due_date', e.target.value)}
+                                className="w-36 px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -802,7 +1001,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                           .map(row => {
                             const isPaid = row.status === 'PAID';
                             const isFullPayment = row.row_number === 0;
-                            const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted;
+                            const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment;
                             return (
                               <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
                                 <td className="px-2 py-1.5">
@@ -897,6 +1096,79 @@ export const DCCDemandDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Demo Payment Modal for Govt Officials */}
+      {showDemoPay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDemoPay(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            {demoPayStep === 'select' && (
+              <>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Lock size={16} className="text-teal-600" />
+                    <h3 className="text-sm font-bold text-gray-900">Demo Payment Gateway</h3>
+                  </div>
+                  <button onClick={() => setShowDemoPay(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                </div>
+                <div className="px-5 py-4 space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-1.5">
+                    <AlertCircle size={13} className="shrink-0" /> This is a demo payment screen. No real payment will be processed.
+                  </div>
+                  <div className="text-xs text-gray-500 mb-1">Outstanding Amount: <span className="font-bold text-gray-900">{fmtINR(tile.amount_due)}</span></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEMO_PAY_MODES.map(m => {
+                      const Icon = m.icon;
+                      const active = demoPayMode === m.key;
+                      return (
+                        <button
+                          key={m.key}
+                          onClick={() => setDemoPayMode(m.key)}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                            active ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <Icon size={22} className={active ? 'text-teal-600' : 'text-gray-400'} />
+                          <span className="text-xs font-semibold text-gray-700">{m.label}</span>
+                          <span className="text-[10px] text-gray-400">{m.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => { setDemoPayStep('processing'); setTimeout(() => setDemoPayStep('done'), 2000); }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition-colors"
+                  >
+                    Pay {fmtINR(tile.amount_due)} via {DEMO_PAY_MODES.find(m => m.key === demoPayMode)?.label}
+                  </button>
+                </div>
+              </>
+            )}
+            {demoPayStep === 'processing' && (
+              <div className="px-5 py-16 flex flex-col items-center gap-3">
+                <Loader2 size={32} className="animate-spin text-teal-500" />
+                <p className="text-sm font-semibold text-gray-600">Processing {demoPayMode} payment…</p>
+              </div>
+            )}
+            {demoPayStep === 'done' && (
+              <div className="px-5 py-10 flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle2 size={28} className="text-emerald-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-900">Demo Payment Successful</h3>
+                <p className="text-xs text-gray-500 text-center max-w-xs">
+                  This was a simulated payment of {fmtINR(tile.amount_due)} via {demoPayMode}. No actual payment was recorded against this demand.
+                </p>
+                <button
+                  onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }}
+                  className="mt-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

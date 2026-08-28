@@ -7,10 +7,12 @@ import {
   Wallet, Eye, Users, Sliders, Plus, FileText,
   LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
   ChevronLeft, MoreVertical, MessageSquare, Send, X, Loader2,
+  CalendarDays,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
+import { useAuthStore } from '../stores/authStore';
 import type {
   DccTile, DccTrackerSummary, DccDemandFilters,
   DccDemandType, DccObjectOwner, DccObject, DccDemandChat,
@@ -91,14 +93,18 @@ const DemandListCard: React.FC<{
   onViewDetails: (tile: DccTile) => void;
   onDownload: (tile: DccTile) => void;
   onChat: (tile: DccTile) => void;
+  onShowDuePayment: (tile: DccTile) => void;
   isChatActive: boolean;
-}> = ({ tile, onPay, onViewDetails, onDownload, onChat, isChatActive }) => {
+}> = ({ tile, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, isChatActive }) => {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const st = STATUS[tile.status];
-  const canPay = tile.status === 'DUE' || tile.status === 'OVERDUE';
+  const { user } = useAuthStore();
+  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
+  const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
+  const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
   const openMenu = useCallback(() => {
     if (!menuBtnRef.current) return;
@@ -224,6 +230,14 @@ const DemandListCard: React.FC<{
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors"
               >
                 <Wallet size={13} className="text-teal-500" /> Pay Now
+              </button>
+            )}
+            {canShowDue && (
+              <button
+                onClick={(e) => { e.stopPropagation(); closeMenu(); onShowDuePayment(tile); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+              >
+                <CalendarDays size={13} className="text-amber-500" /> Show Due Payment
               </button>
             )}
             <button
@@ -391,11 +405,15 @@ const DemandTile: React.FC<{
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
   onDownload: (tile: DccTile) => void;
-}> = ({ tile, onPay, onViewDetails, onDownload }) => {
+  onShowDuePayment: (tile: DccTile) => void;
+}> = ({ tile, onPay, onViewDetails, onDownload, onShowDuePayment }) => {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const st = STATUS[tile.status];
-  const canPay = tile.status === 'DUE' || tile.status === 'OVERDUE';
+  const { user } = useAuthStore();
+  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
+  const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
+  const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
   return (
     <div className={`bg-white rounded-2xl border ${st.border} shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md relative`}>
@@ -485,6 +503,15 @@ const DemandTile: React.FC<{
         >
           <Download size={14} />
         </button>
+        {canShowDue && (
+          <button
+            onClick={() => onShowDuePayment(tile)}
+            title="Show Due Payment"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
+          >
+            <CalendarDays size={14} />
+          </button>
+        )}
         <button
           onClick={() => setExpanded(v => !v)}
           title={expanded ? 'Show Less' : 'Show More'}
@@ -519,6 +546,14 @@ const DemandTile: React.FC<{
                     <Wallet size={13} /> Pay Now
                   </button>
                 )}
+                {canShowDue && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onShowDuePayment(tile); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+                  >
+                    <CalendarDays size={13} /> Show Due Payment
+                  </button>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDownload(tile); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -540,7 +575,10 @@ const DemandTable: React.FC<{
   onRowClick: (tile: DccTile) => void;
   onPay: (tile: DccTile) => void;
   onDownload: (tile: DccTile) => void;
-}> = ({ tiles, onRowClick, onPay, onDownload }) => {
+  onShowDuePayment: (tile: DccTile) => void;
+}> = ({ tiles, onRowClick, onPay, onDownload, onShowDuePayment }) => {
+  const { user } = useAuthStore();
+  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
   const columns: Column<DccTile>[] = [
     {
       key: 'status',
@@ -644,12 +682,21 @@ const DemandTable: React.FC<{
           >
             <Eye size={12} />
           </button>
-          {(t.status === 'DUE' || t.status === 'OVERDUE') && (
+          {(t.status === 'DUE' || t.status === 'OVERDUE') && canRecordPayment && (
             <button
               onClick={(e) => { e.stopPropagation(); onPay(t); }}
               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
             >
               <Wallet size={12} />
+            </button>
+          )}
+          {(t.status === 'DUE' || t.status === 'OVERDUE') && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onShowDuePayment(t); }}
+              title="Show Due Payment"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+            >
+              <CalendarDays size={12} />
             </button>
           )}
           <button
@@ -817,6 +864,10 @@ export const DCCPage: React.FC = () => {
   const [owners, setOwners] = useState<DccObjectOwner[]>([]);
   const [objects, setObjects] = useState<DccObject[]>([]);
 
+  const { user } = useAuthStore();
+  const isManager = user?.role === 'manager' || user?.role === 'admin';
+  const canRecordPayment = isManager;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -911,6 +962,10 @@ export const DCCPage: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const handleShowDuePayment = (tile: DccTile) => {
+    navigate(`/dcc/demand/${tile.id}?tab=due_summary`);
+  };
+
   // ── Chat handlers ────────────────────────────────────────────────────────────
   const chatTile = useMemo(() => tiles.find(t => t.id === chatTileId) ?? null, [tiles, chatTileId]);
 
@@ -954,8 +1009,10 @@ export const DCCPage: React.FC = () => {
 
   const mainTabs: { key: DccMainTab; label: string; icon: typeof Receipt }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: Receipt },
-    { key: 'reconciliation', label: 'Reconciliation', icon: TrendingUp },
-    { key: 'reports', label: 'Reports', icon: FileText },
+    ...(isManager ? [
+      { key: 'reconciliation' as DccMainTab, label: 'Reconciliation', icon: TrendingUp },
+      { key: 'reports' as DccMainTab, label: 'Reports', icon: FileText },
+    ] : []),
   ];
 
   return (
@@ -988,7 +1045,7 @@ export const DCCPage: React.FC = () => {
             );
           })}
         </div>
-        {mainTab === 'dashboard' && (
+        {mainTab === 'dashboard' && isManager && (
           <>
             <button
               onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
@@ -1153,6 +1210,7 @@ export const DCCPage: React.FC = () => {
                 onPay={handlePay}
                 onViewDetails={handleViewDetails}
                 onDownload={handleDownload}
+                onShowDuePayment={handleShowDuePayment}
               />
             ))}
           </div>
@@ -1162,6 +1220,7 @@ export const DCCPage: React.FC = () => {
             onRowClick={handleViewDetails}
             onPay={handlePay}
             onDownload={handleDownload}
+            onShowDuePayment={handleShowDuePayment}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -1173,6 +1232,7 @@ export const DCCPage: React.FC = () => {
                 onViewDetails={handleViewDetails}
                 onDownload={handleDownload}
                 onChat={handleOpenChat}
+                onShowDuePayment={handleShowDuePayment}
                 isChatActive={chatTileId === tile.id}
               />
             ))}
