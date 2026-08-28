@@ -98,6 +98,7 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [instPlan, setInstPlan] = useState<DccInstallmentPlan | null>(null);
   const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
   const [instLoading, setInstLoading] = useState(false);
+  const [instError, setInstError] = useState<string | null>(null);
   const [showInstForm, setShowInstForm] = useState(false);
   const [payingRowId, setPayingRowId] = useState<string | null>(null);
 
@@ -243,12 +244,13 @@ export const DCCDemandDetailPage: React.FC = () => {
   const loadInstallments = useCallback(async () => {
     if (!demandId) return;
     setInstLoading(true);
+    setInstError(null);
     try {
       const instData = await dccService.getInstallmentPlan(demandId);
       setInstPlan(instData.plan);
       setInstRows(instData.rows);
-    } catch {
-      // silent
+    } catch (e: unknown) {
+      setInstError(e instanceof Error ? e.message : 'Failed to load installment plan');
     } finally {
       setInstLoading(false);
     }
@@ -951,6 +953,17 @@ export const DCCDemandDetailPage: React.FC = () => {
               {instLoading && !instPlan ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 size={20} className="animate-spin text-teal-500" />
+                </div>
+              ) : instError ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <AlertCircle size={24} className="mx-auto mb-2 text-red-400" />
+                  <p className="text-xs font-medium text-red-600">{instError}</p>
+                  <button
+                    onClick={loadInstallments}
+                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[11px] font-semibold hover:bg-teal-100 transition-colors"
+                  >
+                    <Loader2 size={12} /> Retry
+                  </button>
                 </div>
               ) : instRows.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">

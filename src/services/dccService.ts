@@ -391,18 +391,19 @@ export const dccService = {
 
   // ── Installment plans ──────────────────────────────────────────────────────────
   async getInstallmentPlan(demandId: string): Promise<{ plan: DccInstallmentPlan | null; rows: DccInstallmentRow[] }> {
-    const { data: plan } = await supabase
+    const { data: plan, error: planErr } = await supabase
       .from(IPLANS)
       .select('*')
       .eq('demand_id', demandId)
       .maybeSingle();
+    if (planErr) throw planErr;
     if (!plan) return { plan: null, rows: [] };
-    const { data: rows, error } = await supabase
+    const { data: rows, error: rowErr } = await supabase
       .from(IROWS)
       .select('*')
       .eq('plan_id', (plan as DccInstallmentPlan).id)
       .order('row_number', { ascending: true });
-    if (error) throw error;
+    if (rowErr) throw rowErr;
     return { plan: plan as DccInstallmentPlan, rows: (rows ?? []) as DccInstallmentRow[] };
   },
 
