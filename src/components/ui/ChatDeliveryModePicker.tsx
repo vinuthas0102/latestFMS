@@ -26,14 +26,14 @@ export const ChatDeliveryModePicker: React.FC<Props> = ({ value, onChange, class
   };
 
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      <span className="text-[10px] font-medium text-gray-400 mr-1 shrink-0">via</span>
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      <span className="text-[10px] font-semibold text-gray-400 mr-0.5 shrink-0 uppercase tracking-wide">Send via</span>
       {MODES.map(({ mode, label, icon }) => (
         <button
           key={mode}
           type="button"
           onClick={() => toggle(mode)}
-          className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
             value.includes(mode)
               ? 'bg-teal-600 border-teal-600 text-white shadow-sm'
               : 'bg-white border-gray-200 text-gray-500 hover:border-teal-400 hover:text-teal-600'

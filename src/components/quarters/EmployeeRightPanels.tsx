@@ -76,15 +76,15 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
   return (
     <div ref={panelRef} className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-emerald-600 rounded-t-xl shrink-0">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-xl shrink-0">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
           <CheckCircle size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-emerald-100 uppercase tracking-wide">Quarter Allotted</div>
-          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          <div className="text-[11px] font-medium text-emerald-100 uppercase tracking-wide">Quarter Allotted</div>
+          <div className="text-sm font-bold text-white truncate">{selectedRequest.request_number}</div>
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${approvalBadgeColor}`}>
+        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${approvalBadgeColor}`}>
           {allotment.approval_status}
         </span>
         <button
@@ -129,23 +129,23 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
         </div>
       )}
 
-      <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
+      <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50/50 min-h-0">
         {[...chats].reverse().map(chat => (
           <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
         ))}
         {chats.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-2.5">
-              <Send size={16} className="text-emerald-400" />
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mb-3 shadow-sm">
+              <Send size={20} className="text-emerald-400" />
             </div>
-            <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            <div className="text-sm font-semibold text-gray-600">No messages yet</div>
+            <div className="text-xs text-gray-400 mt-1">Start the conversation with the Estate Officer below</div>
           </div>
         )}
       </div>
 
       <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
-        <ChatDeliveryModePicker value={allotmentChatMode} onChange={setAllotmentChatMode} className="mb-2" />
+        <ChatDeliveryModePicker value={allotmentChatMode} onChange={setAllotmentChatMode} className="mb-2.5" />
         {allotmentChatFile && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
             <FileText size={13} className="text-blue-500 shrink-0" />
@@ -159,10 +159,10 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
           <button
             type="button"
             onClick={() => allotmentChatFileRef.current?.click()}
-            className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
+            className="flex-none p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
             title="Attach file"
           >
-            <Paperclip size={15} />
+            <Paperclip size={16} />
           </button>
           <input
             ref={allotmentChatFileRef}
@@ -176,9 +176,9 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
             onChange={e => setAllotmentChatMessage(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat(); } }}
             rows={1}
-            placeholder="Message the Estate Officer… (Enter to send)"
-            className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white leading-relaxed transition-colors"
-            style={{ minHeight: '40px', maxHeight: '80px' }}
+            placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+            className="flex-1 px-4 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-gray-50/50 leading-relaxed transition-colors"
+            style={{ minHeight: '42px', maxHeight: '80px' }}
           />
           <button
             onClick={handleSendAllotmentChat}
@@ -186,7 +186,7 @@ export const RightPanelAllotted: React.FC<RightPanelAllottedProps> = ({
             className="flex-none p-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             title="Send"
           >
-            <Send size={15} />
+            {allotmentChatSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={16} />}
           </button>
         </div>
       </div>
@@ -535,12 +535,12 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
                 <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'EMPLOYEE'} />
               ))}
               {chatsForService.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 bg-white rounded-xl border border-dashed border-gray-200">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2.5">
-                    <Send size={16} className="text-gray-300" />
+                <div className="flex flex-col items-center justify-center py-12 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center mb-2.5 shadow-sm">
+                    <Send size={18} className="text-teal-400" />
                   </div>
-                  <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Start the conversation below</div>
+                  <div className="text-sm font-semibold text-gray-600">No messages yet</div>
+                  <div className="text-xs text-gray-400 mt-1">Start the conversation below</div>
                 </div>
               )}
             </div>
@@ -561,9 +561,9 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
             <button
               type="button"
               onClick={() => chatFileRef.current?.click()}
-              className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors"
+              className="flex-none p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors"
             >
-              <Paperclip size={15} />
+              <Paperclip size={16} />
             </button>
             <input
               ref={chatFileRef}
@@ -577,16 +577,16 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
               onChange={e => setChatMessage(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && chatMessage.trim()) { e.preventDefault(); handleSendChat(); } }}
               rows={1}
-              placeholder="Type a message… (Enter to send)"
-              className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white leading-relaxed transition-colors"
-              style={{ minHeight: '40px', maxHeight: '80px' }}
+              placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+              className="flex-1 px-4 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-gray-50/50 leading-relaxed transition-colors"
+              style={{ minHeight: '42px', maxHeight: '80px' }}
             />
             <button
               onClick={handleSendChat}
               disabled={!chatMessage.trim() || chatSubmitting}
               className="flex-none p-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              <Send size={15} />
+              {chatSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={16} />}
             </button>
           </div>
         </div>
@@ -596,15 +596,15 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4 py-3 bg-teal-600 rounded-t-xl sticky top-0 z-10 shrink-0">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 rounded-t-xl sticky top-0 z-10 shrink-0">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
           <ThumbsUp size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-teal-100 uppercase tracking-wide">Currently Occupied</div>
-          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          <div className="text-[11px] font-medium text-teal-100 uppercase tracking-wide">Currently Occupied</div>
+          <div className="text-sm font-bold text-white truncate">{selectedRequest.request_number}</div>
         </div>
-        <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
+        <span className="text-[10px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
           Since {fmtDate(allotment.acknowledged_at ?? allotment.allotment_date)}
         </span>
         {panelControls}
@@ -613,12 +613,12 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
       {q && <CompactQuarterRow q={q} accentCls="bg-teal-50 text-teal-700 border-teal-200" />}
 
       {/* Tab switcher */}
-      <div className="flex border-b border-gray-200 shrink-0">
+      <div className="flex border-b border-gray-200 shrink-0 bg-white">
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'chat' ? 'text-teal-700 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${activeTab === 'chat' ? 'text-teal-700 border-b-2 border-teal-600 bg-teal-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
         >
-          <Send size={12} /> Chat
+          <Send size={13} /> Chat
         </button>
       </div>
 
@@ -627,22 +627,22 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
         const chats = allotmentChats[allotment.id] ?? [];
         return (
           <>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 min-h-0">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50/50 min-h-0">
               {[...chats].reverse().map(chat => (
                 <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
               ))}
               {chats.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center mb-2.5">
-                    <Send size={16} className="text-teal-400" />
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="w-14 h-14 rounded-2xl bg-teal-100 flex items-center justify-center mb-3 shadow-sm">
+                    <Send size={20} className="text-teal-400" />
                   </div>
-                  <div className="text-[13px] font-semibold text-gray-500">No messages yet</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Message the Estate Officer below</div>
+                  <div className="text-sm font-semibold text-gray-600">No messages yet</div>
+                  <div className="text-xs text-gray-400 mt-1">Message the Estate Officer below</div>
                 </div>
               )}
             </div>
             <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
-              <ChatDeliveryModePicker value={allotmentChatMode} onChange={v => setAllotmentChatMode?.(v)} className="mb-2" />
+              <ChatDeliveryModePicker value={allotmentChatMode} onChange={v => setAllotmentChatMode?.(v)} className="mb-2.5" />
               {allotmentChatFile && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg mb-2">
                   <FileText size={13} className="text-blue-500 shrink-0" />
@@ -652,20 +652,20 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
               )}
               <div className="flex items-end gap-2">
                 <button type="button" onClick={() => allotmentChatFileRef.current?.click()}
-                  className="flex-none p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors">
-                  <Paperclip size={15} />
+                  className="flex-none p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 transition-colors">
+                  <Paperclip size={16} />
                 </button>
                 <input ref={allotmentChatFileRef} type="file" accept="application/pdf,image/*" className="hidden"
                   onChange={e => { const f = e.target.files?.[0] ?? null; setAllotmentChatFile?.(f); e.target.value = ''; }} />
                 <textarea value={allotmentChatMessage}
                   onChange={e => setAllotmentChatMessage?.(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && allotmentChatMessage.trim()) { e.preventDefault(); handleSendAllotmentChat?.(); } }}
-                  rows={1} placeholder="Message the Estate Officer… (Enter to send)"
-                  className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white leading-relaxed transition-colors"
-                  style={{ minHeight: '40px', maxHeight: '80px' }} />
+                  rows={1} placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+                  className="flex-1 px-4 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-gray-50/50 leading-relaxed transition-colors"
+                  style={{ minHeight: '42px', maxHeight: '80px' }} />
                 <button onClick={() => handleSendAllotmentChat?.()} disabled={!allotmentChatMessage.trim() || allotmentChatSubmitting}
                   className="flex-none p-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
-                  <Send size={15} />
+                  {allotmentChatSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={16} />}
                 </button>
               </div>
             </div>
@@ -778,15 +778,15 @@ export const RightPanelDraft: React.FC<{
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3 bg-amber-500 rounded-t-xl sticky top-0 z-10">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
           <FileText size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-amber-100 uppercase tracking-wide">Draft Request</div>
-          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          <div className="text-[11px] font-medium text-amber-100 uppercase tracking-wide">Draft Request</div>
+          <div className="text-sm font-bold text-white truncate">{selectedRequest.request_number}</div>
         </div>
-        <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">Draft</span>
+        <span className="text-[10px] font-bold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">Draft</span>
         {panelControls}
       </div>
 
@@ -798,15 +798,17 @@ export const RightPanelDraft: React.FC<{
             <span className="bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{(allotmentChats[selectedRequest.id] ?? []).length}</span>
           )}
         </div>
-        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+        <div className="px-4 pb-3 space-y-3 max-h-56 overflow-y-auto bg-gray-50/50 mx-4 rounded-xl border border-gray-100">
           {[...(allotmentChats[selectedRequest.id] ?? [])].reverse().map(chat => (
             <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
           ))}
           {(allotmentChats[selectedRequest.id] ?? []).length === 0 && (
-            <div className="flex flex-col items-center justify-center py-6">
-              <Send size={16} className="text-amber-300 mb-1.5" />
-              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
-              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-2.5 shadow-sm">
+                <Send size={18} className="text-amber-400" />
+              </div>
+              <div className="text-sm font-semibold text-gray-500">No messages yet</div>
+              <div className="text-xs text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
             </div>
           )}
         </div>
@@ -1010,15 +1012,15 @@ export const RightPanelSubmitted: React.FC<{
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-t-xl sticky top-0 z-10">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl sticky top-0 z-10">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
           <Send size={16} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
-          <div className="text-sm font-semibold text-white">{selectedRequest.request_number}</div>
+          <div className="text-[11px] font-medium text-blue-100 uppercase tracking-wide">Awaiting EO Review</div>
+          <div className="text-sm font-bold text-white truncate">{selectedRequest.request_number}</div>
         </div>
-        <span className="text-xs font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
+        <span className="text-[10px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full shrink-0">
           Submitted {fmtDate(selectedRequest.created_at)}
         </span>
         {panelControls}
@@ -1042,15 +1044,17 @@ export const RightPanelSubmitted: React.FC<{
             <span className="bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 text-[10px] font-bold">{chats.length}</span>
           )}
         </div>
-        <div className="px-4 pb-3 space-y-3 max-h-48 overflow-y-auto bg-gray-50 mx-4 rounded-xl border border-gray-100">
+        <div className="px-4 pb-3 space-y-3 max-h-56 overflow-y-auto bg-gray-50/50 mx-4 rounded-xl border border-gray-100">
           {[...chats].reverse().map(chat => (
             <ChatBubble key={chat.id} chat={chat} isSelf={chat.author_role === 'employee'} roleLabel={chat.author_role === 'eo' ? 'Estate Officer' : undefined} />
           ))}
           {chats.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-6">
-              <Send size={16} className="text-blue-300 mb-1.5" />
-              <div className="text-[12px] font-semibold text-gray-400">No messages yet</div>
-              <div className="text-[10px] text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center mb-2.5 shadow-sm">
+                <Send size={18} className="text-blue-400" />
+              </div>
+              <div className="text-sm font-semibold text-gray-500">No messages yet</div>
+              <div className="text-xs text-gray-400 mt-0.5">Ask the Estate Officer a question below</div>
             </div>
           )}
         </div>
