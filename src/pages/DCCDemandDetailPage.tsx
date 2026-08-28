@@ -111,6 +111,8 @@ export const DCCDemandDetailPage: React.FC = () => {
   const [showDemoPay, setShowDemoPay] = useState(false);
   const [demoPayMode, setDemoPayMode] = useState<string>('UPI');
   const [demoPayStep, setDemoPayStep] = useState<'select' | 'processing' | 'done'>('select');
+  const [demoPayAmount, setDemoPayAmount] = useState(0);
+  const [demoPayLabel, setDemoPayLabel] = useState<string>('');
 
   const DEMO_PAY_MODES = [
     { key: 'UPI', label: 'UPI', icon: Smartphone, desc: 'Pay via UPI ID or QR' },
@@ -298,6 +300,8 @@ export const DCCDemandDetailPage: React.FC = () => {
   const handlePayInstallment = async (row: DccInstallmentRow) => {
     if (!demandId || !tile) return;
     if (!canRecordPayment) {
+      setDemoPayAmount(row.remaining_amount);
+      setDemoPayLabel(row.label);
       setShowDemoPay(true);
       setDemoPayStep('select');
       return;
@@ -321,6 +325,8 @@ export const DCCDemandDetailPage: React.FC = () => {
   const handlePay = async () => {
     if (!demandId || !tile || payAmount <= 0) return;
     if (!canRecordPayment) {
+      setDemoPayAmount(payAmount);
+      setDemoPayLabel('Full Payment');
       setShowDemoPay(true);
       setDemoPayStep('select');
       return;
@@ -454,7 +460,7 @@ export const DCCDemandDetailPage: React.FC = () => {
         )}
         {!isPaidOrExempted && isGovtOfficial && (
           <button
-            onClick={() => { setShowDemoPay(true); setDemoPayStep('select'); }}
+            onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
           >
             <Wallet size={14} /> Pay Now
@@ -1022,11 +1028,18 @@ export const DCCDemandDetailPage: React.FC = () => {
                           .map(row => {
                             const isPaid = row.status === 'PAID';
                             const isFullPayment = row.row_number === 0;
-                            const canPay = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment;
+                            const canPayManager = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment;
+
+                            const sequentialRows = instRows.filter(r => r.row_number > 0 && r.status !== 'PAID' && r.status !== 'EXEMPTED');
+                            const earliestUnpaidRowNumber = sequentialRows.length > 0 ? Math.min(...sequentialRows.map(r => r.row_number)) : null;
+                            const canPayGovt = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
+                            const isLocked = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && row.row_number > 0 && earliestUnpaidRowNumber !== null && row.row_number !== earliestUnpaidRowNumber;
+                            const canPayThis = canPayManager || canPayGovt;
+
                             return (
                               <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
                                 <td className="px-2 py-1.5">
-                                  {canPay ? (
+                                  {canPayThis ? (
                                     <button
                                       onClick={() => handlePayInstallment(row)}
                                       disabled={payingRowId === row.id}
@@ -1035,6 +1048,10 @@ export const DCCDemandDetailPage: React.FC = () => {
                                       {payingRowId === row.id ? <Loader2 size={10} className="animate-spin" /> : <Wallet size={10} />}
                                       {payingRowId === row.id ? 'Paying…' : 'Pay'}
                                     </button>
+                                  ) : isLocked ? (
+                                    <span className="inline-flex items-center gap-0.5 text-gray-400 text-[9px]" title="Pay the previous installment first">
+                                      <Lock size={10} /> Locked
+                                    </span>
                                   ) : (
                                     <span className="text-gray-300">—</span>
                                   )}
@@ -1135,7 +1152,10 @@ export const DCCDemandDetailPage: React.FC = () => {
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-1.5">
                     <AlertCircle size={13} className="shrink-0" /> This is a demo payment screen. No real payment will be processed.
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">Outstanding Amount: <span className="font-bold text-gray-900">{fmtINR(tile.amount_due)}</span></div>
+                  <div className="text-xs text-gray-500 mb-1">Outstanding Amount: <span className="font-bold text-gray-900">{fmtINR(demoPayAmount || tile.amount_due)}</span></div>
+                  {demoPayLabel && (
+                    <div className="text-xs text-gray-500 mb-2">Paying: <span className="font-semibold text-teal-700">{demoPayLabel}</span></div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     {DEMO_PAY_MODES.map(m => {
                       const Icon = m.icon;
@@ -1159,7 +1179,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                     onClick={() => { setDemoPayStep('processing'); setTimeout(() => setDemoPayStep('done'), 2000); }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition-colors"
                   >
-                    Pay {fmtINR(tile.amount_due)} via {DEMO_PAY_MODES.find(m => m.key === demoPayMode)?.label}
+                    Pay {fmtINR(demoPayAmount || tile.amount_due)} via {DEMO_PAY_MODES.find(m => m.key === demoPayMode)?.label}
                   </button>
                 </div>
               </>
@@ -1177,7 +1197,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-gray-900">Demo Payment Successful</h3>
                 <p className="text-xs text-gray-500 text-center max-w-xs">
-                  This was a simulated payment of {fmtINR(tile.amount_due)} via {demoPayMode}. No actual payment was recorded against this demand.
+                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded against this demand.
                 </p>
                 <button
                   onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }}
