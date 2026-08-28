@@ -15,6 +15,7 @@ import type { PaymentMode } from '../types/payableCriteria';
 import { ALL_PAYMENT_MODES, PAYMENT_MODE_LABELS } from '../types/payableCriteria';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
+import { generatePaymentReceipt, receiptNumber } from '../utils/dccReceipt';
 
 const fmtINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -136,6 +137,9 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   // Bulk select for due summary
   const [selectedDueRows, setSelectedDueRows] = useState<Set<number>>(new Set());
   const [bulkPaying, setBulkPaying] = useState(false);
+
+  // Receipt download
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
 
   const balancePayment = tile?.amount_due ?? 0;
 
@@ -869,7 +873,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
               <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
                 <Receipt size={15} className="text-gray-500" />
                 <h3 className="text-sm font-bold text-gray-900">Payment History</h3>
-                <span className="ml-auto text-[10px] text-gray-400">{payments.length} payment{payments.length !== 1 ? 's' : ''}</span>
+                <span className="ml-auto text-[10px] text-gray-400">
+                  {payments.length} payment{payments.length !== 1 ? 's' : ''}
+                  {payments.length > 0 && ` · Total: ${fmtINR(payments.reduce((s, p) => s + p.amount, 0))}`}
+                </span>
               </div>
               {payments.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
@@ -877,22 +884,67 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   <p className="text-xs">No payments recorded yet</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50">
-                  {payments.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                        <CheckCircle2 size={15} className="text-emerald-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-900">{fmtINR(p.amount)}</div>
-                        <div className="text-[10px] text-gray-500">
-                          {PAYMENT_MODE_LABELS[p.payment_mode as PaymentMode] ?? p.payment_mode} · {fmtDate(p.payment_date)}
-                          {p.reference_number && ` · Ref: ${p.reference_number}`}
-                        </div>
-                        {p.remarks && <div className="text-[10px] text-gray-400 mt-0.5">{p.remarks}</div>}
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-600">
+                        <th className="px-3 py-2 text-left font-bold">Receipt No</th>
+                        <th className="px-3 py-2 text-left font-bold">Date</th>
+                        <th className="px-3 py-2 text-left font-bold">Mode</th>
+                        <th className="px-3 py-2 text-left font-bold">Reference</th>
+                        <th className="px-3 py-2 text-right font-bold">Amount</th>
+                        <th className="px-3 py-2 text-left font-bold">Remarks</th>
+                        <th className="px-3 py-2 text-center font-bold">Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map(p => (
+                        <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5">
+                            <span className="font-bold text-teal-700">{receiptNumber(p.id)}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-gray-600">{fmtDate(p.payment_date)}</td>
+                          <td className="px-3 py-2.5">
+                            <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-semibold">
+                              {PAYMENT_MODE_LABELS[p.payment_mode as PaymentMode] ?? p.payment_mode}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-gray-500">{p.reference_number || '—'}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-700">{fmtINR(p.amount)}</td>
+                          <td className="px-3 py-2.5 text-gray-400 max-w-[160px] truncate" title={p.remarks ?? ''}>{p.remarks || '—'}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            <button
+                              onClick={() => {
+                                if (!tile) return;
+                                setDownloadingReceiptId(p.id);
+                                try {
+                                  generatePaymentReceipt({ payment: p, tile, demand });
+                                } catch {
+                                  setActionError('Failed to generate receipt');
+                                } finally {
+                                  setDownloadingReceiptId(null);
+                                }
+                              }}
+                              disabled={downloadingReceiptId === p.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[10px] font-semibold hover:bg-teal-100 disabled:opacity-40 transition-colors"
+                            >
+                              {downloadingReceiptId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                              {downloadingReceiptId === p.id ? 'Generating…' : 'Download'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 border-t-2 border-gray-200">
+                        <td colSpan={4} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Collected:</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-emerald-700">
+                          {fmtINR(payments.reduce((s, p) => s + p.amount, 0))}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               )}
             </div>
