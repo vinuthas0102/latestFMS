@@ -1235,7 +1235,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
       )}
     </div>
     </div>
-    </div>
   );
 };
 
