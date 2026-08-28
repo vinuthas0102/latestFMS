@@ -784,6 +784,11 @@ export const DCCDemandDetailPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Layers size={15} className="text-gray-500" />
                 <h3 className="text-sm font-bold text-gray-900">Installment Plan</h3>
+                {isPaidOrExempted && instRows.length > 0 && (
+                  <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide">
+                    <History size={11} /> Read-Only History
+                  </span>
+                )}
                 {canManagePlan && !isPaidOrExempted && !showInstForm && (
                   <button
                     onClick={() => setShowInstForm(true)}
@@ -1069,6 +1074,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                                 <td className="px-2 py-1.5 text-center">
                                   <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                     isPaid ? 'bg-emerald-100 text-emerald-700' :
+                                    row.status === 'EXEMPTED' ? 'bg-slate-200 text-slate-600' :
                                     row.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
                                     row.status === 'DUE' ? 'bg-amber-100 text-amber-700' :
                                     'bg-gray-100 text-gray-500'
@@ -1197,7 +1203,7 @@ export const DCCDemandDetailPage: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-gray-900">Demo Payment Successful</h3>
                 <p className="text-xs text-gray-500 text-center max-w-xs">
-                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded against this demand.
+                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded — demand and installment balances remain unchanged.
                 </p>
                 <button
                   onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }}

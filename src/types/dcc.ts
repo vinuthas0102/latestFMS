@@ -81,7 +81,7 @@ export interface DccPayment {
   created_at: string;
 }
 
-export type DccInstallmentRowStatus = 'PAID' | 'DUE' | 'PENDING' | 'OVERDUE';
+export type DccInstallmentRowStatus = 'PAID' | 'DUE' | 'PENDING' | 'OVERDUE' | 'EXEMPTED';
 
 export interface DccInstallmentPlan {
   id: string;
