@@ -792,7 +792,13 @@ export const DCCPage: React.FC = () => {
   // Sub-DP breakdown by demand type
   const subDpBreakdown = useMemo(() => {
     const map: Record<string, { count: number; amount: number }> = {};
-    for (const t of tiles) {
+    const dpTiles = tiles.filter(t =>
+      dpFilter === 'ALL' ? true :
+      dpFilter === 'PAID' ? t.status === 'PAID' :
+      dpFilter === 'DUE' ? t.status === 'DUE' :
+      t.status === 'OVERDUE'
+    );
+    for (const t of dpTiles) {
       const key = t.demand_type_label || t.demand_type_code;
       if (!map[key]) map[key] = { count: 0, amount: 0 };
       map[key].count++;
