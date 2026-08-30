@@ -653,7 +653,6 @@ const DemandTable: React.FC<{
 
 // ── Sub-DP Drilldown Ribbon ─────────────────────────────────────────────────────
 const SUB_DP_ACCENTS = ['border-l-amber-500', 'border-l-rose-500', 'border-l-rose-700', 'border-l-blue-500', 'border-l-emerald-500', 'border-l-slate-600', 'border-l-amber-600'];
-const SUB_DP_TINTS  = ['bg-amber-50/20', 'bg-rose-50/20', 'bg-rose-100/30', 'bg-blue-50/20', 'bg-emerald-50/20', 'bg-slate-50/30', 'bg-amber-50/30'];
 const SUB_DP_DOTS   = ['bg-amber-500', 'bg-rose-500', 'bg-rose-700', 'bg-blue-500', 'bg-emerald-500', 'bg-slate-600', 'bg-amber-600'];
 
 const SubDpRibbon: React.FC<{
@@ -693,7 +692,6 @@ const SubDpRibbon: React.FC<{
               {entries.map(([type, data], idx) => {
                 const isSelected = subDpFilter === type;
                 const accent = SUB_DP_ACCENTS[idx % SUB_DP_ACCENTS.length];
-                const tint = SUB_DP_TINTS[idx % SUB_DP_TINTS.length];
                 const dot = SUB_DP_DOTS[idx % SUB_DP_DOTS.length];
                 return (
                   <motion.button
@@ -702,11 +700,20 @@ const SubDpRibbon: React.FC<{
                     whileTap={{ scale: 0.97 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     onClick={() => setSubDpFilter(isSelected ? null : type)}
-                    className={`relative flex flex-col px-3 py-2 rounded-lg border-l-[4px] ${accent} ${tint} border border-slate-200/90 overflow-hidden shrink-0 cursor-pointer min-w-[150px] shadow-sm hover:shadow-md transition-all ${
-                      isSelected ? 'ring-2 ring-slate-900 border-slate-900 bg-white shadow-md' : 'bg-white hover:border-slate-400'
+                    className={`relative flex flex-col px-3 py-2 rounded-lg border-l-[4px] ${accent} overflow-hidden shrink-0 cursor-pointer min-w-[150px] transition-all ${
+                      isSelected
+                        ? 'border-2 border-teal-500 ring-2 ring-teal-500/20 bg-white shadow-md'
+                        : 'bg-slate-50/70 border border-slate-200/80 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider truncate">{type}</span>
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeSubDpHighlight"
+                        className="absolute inset-0 rounded-lg ring-2 ring-teal-500/20 pointer-events-none"
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                    <span className="text-[10px] font-extrabold text-slate-900 uppercase tracking-wider truncate">{type}</span>
                     <div className="mt-0.5 flex items-center gap-1">
                       <span className={`w-1.5 h-1.5 rounded-full ${dot} shrink-0`} />
                       <span className="text-xs font-black text-slate-900 tabular-nums leading-tight">{data.count}</span>
