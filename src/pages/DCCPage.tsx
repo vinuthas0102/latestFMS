@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  IndianRupee, Phone, MapPin, AlertTriangle,
-  CheckCircle2, Clock, Receipt, TrendingUp,
+  Phone, MapPin, AlertTriangle,
+  CheckCircle2, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Plus, FileText,
-  LayoutGrid, List, Table2, Calendar, Building2,
+  LayoutGrid, List, Table2, Calendar,
   MessageSquare, Send, X, Loader2,
-  CalendarDays, Landmark, Gauge, ShieldCheck,
+  CalendarDays, Landmark, Gauge,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +35,7 @@ import { DCCDemandDetailModal } from './DCCDemandDetailPage';
 import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
 import type { ChatDeliveryMode } from '../types/quarters';
 import {
-  DCC_STATUS, DCC_KPIS,
+  DCC_STATUS,
   fmtINR, fmtINRShort, fmtDate, fmtDateShort,
 } from '../constants/dccTheme';
 
@@ -44,16 +44,12 @@ type DeliveryModes = ChatDeliveryMode[];
 type StatusKey = DccTile['status'];
 type DpKey = 'ALL' | 'PAID' | 'DUE' | 'OVERDUE';
 
-// ── KPI config with icons ──────────────────────────────────────────────────────
-const KPI_ICONS: Record<string, typeof Receipt> = {
-  Receipt, CheckCircle2, Clock, AlertTriangle, TrendingUp,
-};
-
-const KPI_CONFIG: { key: DpKey; label: string; icon: typeof Receipt; accent: string; iconBg: string; bar: string; glow: string }[] = [
-  { key: 'ALL',     label: 'Total Demands',   icon: Receipt,       accent: 'border-t-slate-500',   iconBg: 'bg-slate-600',     bar: 'bg-slate-500',   glow: 'shadow-slate-300/50' },
-  { key: 'PAID',    label: 'Total Paid',       icon: CheckCircle2,  accent: 'border-t-emerald-500', iconBg: 'bg-emerald-600',   bar: 'bg-emerald-500', glow: 'shadow-emerald-300/50' },
-  { key: 'DUE',     label: 'Total Due',        icon: Clock,         accent: 'border-t-amber-500',   iconBg: 'bg-amber-500',     bar: 'bg-amber-500',   glow: 'shadow-amber-300/50' },
-  { key: 'OVERDUE', label: 'Total Overdue',    icon: AlertTriangle, accent: 'border-t-red-500',     iconBg: 'bg-red-500',       bar: 'bg-red-500',     glow: 'shadow-red-300/50' },
+// ── KPI config ─────────────────────────────────────────────────────────────────
+const KPI_CONFIG: { key: DpKey; label: string; accent: string }[] = [
+  { key: 'ALL',     label: 'Total Demands',   accent: 'border-t-slate-600' },
+  { key: 'PAID',    label: 'Total Paid',       accent: 'border-t-emerald-600' },
+  { key: 'DUE',     label: 'Total Due',        accent: 'border-t-amber-500' },
+  { key: 'OVERDUE', label: 'Total Overdue',    accent: 'border-t-rose-600' },
 ];
 
 // ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
@@ -672,45 +668,39 @@ const SubDpRibbon: React.FC<{
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="overflow-hidden shrink-0"
       >
-        <div className="px-4 py-1.5">
-          <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-1.5">
-            <div className="flex items-stretch gap-1.5 overflow-x-auto scroll-smooth snap-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {entries.map(([type, data]) => {
-                const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
-                const isSelected = subDpFilter === type;
-                return (
-                  <motion.button
-                    key={type}
-                    whileHover={{ y: -1, scale: 1.01 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    onClick={() => setSubDpFilter(isSelected ? null : type)}
-                    className={`group relative flex flex-col px-2.5 py-1.5 rounded-md border overflow-hidden shrink-0 snap-start ${
-                      isSelected
-                        ? 'border-slate-400 shadow-sm'
-                        : 'border-transparent hover:bg-white hover:border-slate-200'
-                    }`}
-                    style={{ minWidth: '160px' }}
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="activeSubDpBackground"
-                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                        className="absolute inset-0 bg-white rounded-md"
-                      />
-                    )}
-                    <div className="relative flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">{type}</span>
-                      <span className="text-[9px] font-medium tabular-nums text-slate-400 shrink-0">{data.count} txn</span>
-                    </div>
-                    <div className="relative mt-0.5 text-sm font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(data.amount)}</div>
-                    <div className="relative mt-1 h-0.5 rounded-full bg-slate-200 overflow-hidden">
-                      <div className={`h-full ${isSelected ? 'bg-slate-700' : 'bg-slate-400'} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
+        <div className="px-4 my-1.5">
+          <div className="bg-slate-100/90 border border-slate-200 rounded-lg p-1.5 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {entries.map(([type, data]) => {
+              const isSelected = subDpFilter === type;
+              return (
+                <motion.button
+                  key={type}
+                  whileHover={{ y: -1, scale: 1.01 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  onClick={() => setSubDpFilter(isSelected ? null : type)}
+                  className={`relative flex flex-col px-3 py-1.5 rounded-md border overflow-hidden shrink-0 cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'border-slate-900 shadow-md'
+                      : 'bg-white border-slate-200 hover:border-slate-400 hover:shadow-sm'
+                  }`}
+                  style={{ minWidth: '140px' }}
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="activeSubDpBg"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      className="absolute inset-0 bg-slate-900 rounded-md"
+                    />
+                  )}
+                  <div className="relative flex items-center justify-between gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>{type}</span>
+                    <span className={`text-[9px] px-1 rounded font-semibold tabular-nums shrink-0 ${isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'}`}>{data.count} txn</span>
+                  </div>
+                  <div className={`relative mt-0.5 text-xs font-bold tabular-nums leading-tight ${isSelected ? 'text-white font-extrabold' : 'text-slate-900'}`}>{fmtINR(data.amount)}</div>
+                </motion.button>
+              );
+            })}
           </div>
         </div>
       </motion.div>
@@ -970,10 +960,9 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
       <div className="h-full flex flex-col bg-slate-50">
-      {/* KPI Cards — high-density fintech dashboard */}
-      <div className="px-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-2 shrink-0">
+      {/* KPI Cards — strict 1-row, max-height 68px */}
+      <div className="px-4 pt-2 grid grid-cols-5 gap-2.5 mb-2 shrink-0">
         {KPI_CONFIG.map(dp => {
-          const Icon = dp.icon;
           const value =
             dp.key === 'ALL' ? tiles.length :
             dp.key === 'PAID' ? summary?.paid_count ?? 0 :
@@ -997,53 +986,30 @@ export const DCCPage: React.FC = () => {
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`group relative text-left rounded-lg bg-white border border-slate-200 border-t-2 ${dp.accent} shadow-sm p-2.5 overflow-hidden ${
-                isSelected ? `border-2 ${dp.glow} shadow-md` : 'hover:shadow-md hover:border-slate-300'
+              className={`relative text-left rounded-lg bg-white border border-slate-200 border-t-[3px] ${dp.accent} shadow-sm px-2.5 py-1.5 overflow-hidden ${
+                isSelected ? 'ring-2 ring-slate-300 shadow-md' : 'hover:shadow-md hover:border-slate-300'
               }`}
             >
-              {isSelected && (
-                <motion.div
-                  layoutId="activeDpRing"
-                  className="absolute inset-0 rounded-lg ring-2 ring-slate-200 pointer-events-none"
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                />
-              )}
               <div className="flex items-center justify-between">
-                <div className={`w-7 h-7 rounded-md flex items-center justify-center ${dp.iconBg} shadow-sm transition-transform duration-150 group-hover:scale-110`}>
-                  <Icon size={13} className="text-white" />
-                </div>
-                <span className="text-[10px] text-slate-600 font-medium tabular-nums bg-slate-100 px-2 py-0.5 rounded shrink-0">{value} txn</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase truncate">{dp.label}</span>
+                <span className="text-[10px] text-slate-700 font-medium tabular-nums bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{value} txn</span>
               </div>
-              <div className="mt-2">
-                <div className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(amount)}</div>
-                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{dp.label}</div>
-              </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className={`h-full ${dp.bar} rounded-full transition-all duration-500`} style={{ width: `${displayRate}%` }} />
-                </div>
-                <span className="text-[9px] font-bold tabular-nums text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{displayRate}%</span>
+              <div className="mt-1 flex items-baseline justify-between gap-1">
+                <span className="text-lg font-extrabold text-slate-900 tabular-nums leading-tight truncate">{fmtINR(amount)}</span>
+                <span className="text-[10px] font-bold tabular-nums text-slate-500 shrink-0">{displayRate}%</span>
               </div>
             </motion.button>
           );
         })}
 
         {/* Collection Rate KPI */}
-        <div className="relative text-left rounded-lg bg-white border border-slate-200 border-t-2 border-t-teal-500 shadow-sm p-2.5 overflow-hidden">
+        <div className="relative text-left rounded-lg bg-white border border-slate-200 border-t-[3px] border-t-teal-600 shadow-sm px-2.5 py-1.5 overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-teal-600 shadow-sm">
-              <TrendingUp size={13} className="text-white" />
-            </div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase truncate">Collection Rate</span>
           </div>
-          <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">{collectionRate}%</div>
-            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Collection Rate</div>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5">
-            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${collectionRate}%` }} />
-            </div>
-            <span className="text-[9px] font-bold tabular-nums text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded shrink-0">{collectionRate}%</span>
+          <div className="mt-1 flex items-baseline justify-between gap-1">
+            <span className="text-lg font-extrabold text-slate-900 tabular-nums leading-tight">{collectionRate}%</span>
+            <span className="text-[10px] font-bold tabular-nums text-teal-600 shrink-0">{collectionRate}%</span>
           </div>
         </div>
       </div>
@@ -1064,8 +1030,8 @@ export const DCCPage: React.FC = () => {
         );
       })()}
 
-      {/* Compact toolbar — view toggle + filter button on the right */}
-      <div className="px-4 py-1.5 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white">
+      {/* Compact toolbar */}
+      <div className="px-4 py-1 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white">
         <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
         <button
           onClick={() => setShowFilters(true)}
