@@ -6,8 +6,8 @@ import {
   CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Plus, FileText,
-  LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
-  ChevronLeft, MessageSquare, Send, X, Loader2,
+  LayoutGrid, List, Table2, Calendar, Building2,
+  MessageSquare, Send, X, Loader2,
   CalendarDays, Landmark, Gauge, ShieldCheck,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
@@ -49,11 +49,11 @@ const KPI_ICONS: Record<string, typeof Receipt> = {
   Receipt, CheckCircle2, Clock, AlertTriangle, TrendingUp,
 };
 
-const KPI_CONFIG: { key: DpKey; label: string; icon: typeof Receipt; color: string; bg: string; border: string; gradient: string; bar: string; ring: string }[] = [
-  { key: 'ALL',     label: 'Total Demands',   icon: Receipt,       color: 'text-slate-700',    bg: 'bg-slate-50',     border: 'border-slate-300',    gradient: 'from-slate-700 to-slate-900',      bar: 'bg-slate-400',    ring: 'ring-slate-400' },
-  { key: 'PAID',    label: 'Total Paid',       icon: CheckCircle2,  color: 'text-emerald-700',  bg: 'bg-emerald-50',   border: 'border-emerald-300',  gradient: 'from-emerald-600 to-emerald-700',  bar: 'bg-emerald-400', ring: 'ring-emerald-400' },
-  { key: 'DUE',     label: 'Total Due',        icon: Clock,         color: 'text-amber-700',    bg: 'bg-amber-50',     border: 'border-amber-300',    gradient: 'from-amber-500 to-amber-600',      bar: 'bg-amber-400',   ring: 'ring-amber-400' },
-  { key: 'OVERDUE', label: 'Total Overdue',    icon: AlertTriangle, color: 'text-red-700',      bg: 'bg-red-50',       border: 'border-red-300',      gradient: 'from-red-500 to-red-600',          bar: 'bg-red-400',     ring: 'ring-red-400' },
+const KPI_CONFIG: { key: DpKey; label: string; icon: typeof Receipt; accent: string; iconBg: string; bar: string; glow: string }[] = [
+  { key: 'ALL',     label: 'Total Demands',   icon: Receipt,       accent: 'border-t-slate-500',   iconBg: 'bg-slate-600',     bar: 'bg-slate-500',   glow: 'shadow-slate-300/50' },
+  { key: 'PAID',    label: 'Total Paid',       icon: CheckCircle2,  accent: 'border-t-emerald-500', iconBg: 'bg-emerald-600',   bar: 'bg-emerald-500', glow: 'shadow-emerald-300/50' },
+  { key: 'DUE',     label: 'Total Due',        icon: Clock,         accent: 'border-t-amber-500',   iconBg: 'bg-amber-500',     bar: 'bg-amber-500',   glow: 'shadow-amber-300/50' },
+  { key: 'OVERDUE', label: 'Total Overdue',    icon: AlertTriangle, accent: 'border-t-red-500',     iconBg: 'bg-red-500',       bar: 'bg-red-500',     glow: 'shadow-red-300/50' },
 ];
 
 // ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
@@ -662,62 +662,19 @@ const SubDpRibbon: React.FC<{
   subDpFilter: string | null;
   setSubDpFilter: (v: string | null) => void;
 }> = ({ breakdown, dpAmt, subDpFilter, setSubDpFilter }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
-
-  const checkScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    checkScroll();
-    const el = scrollRef.current;
-    if (!el) return;
-    el.addEventListener('scroll', checkScroll, { passive: true });
-    window.addEventListener('resize', checkScroll);
-    return () => {
-      el.removeEventListener('scroll', checkScroll);
-      window.removeEventListener('resize', checkScroll);
-    };
-  }, [checkScroll]);
-
-  const scrollBy = (dir: number) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * 200, behavior: 'smooth' });
-  };
-
   const entries = Object.entries(breakdown);
-
   return (
     <AnimatePresence>
       <motion.div
         initial={{ height: 0, opacity: 0 }}
         animate={{ height: 'auto', opacity: 1 }}
         exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.25 }}
+        transition={{ duration: 0.2 }}
         className="overflow-hidden shrink-0"
       >
-        <div className="px-5 pb-2 pt-1">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => scrollBy(-1)}
-              className={`p-1 rounded border border-slate-200 bg-white transition-all shrink-0 ${
-                canLeft ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'
-              }`}
-              disabled={!canLeft}
-            >
-              <ChevronLeft size={13} />
-            </button>
-            <div
-              ref={scrollRef}
-              className="flex items-stretch gap-2 overflow-x-auto scroll-smooth snap-x"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
+        <div className="px-4 py-1.5">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-lg p-1.5">
+            <div className="flex items-stretch gap-1.5 overflow-x-auto scroll-smooth snap-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {entries.map(([type, data]) => {
                 const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
                 const isSelected = subDpFilter === type;
@@ -725,38 +682,25 @@ const SubDpRibbon: React.FC<{
                   <button
                     key={type}
                     onClick={() => setSubDpFilter(isSelected ? null : type)}
-                    className={`group relative flex flex-col px-3 py-2 rounded-lg border transition-all duration-200 overflow-hidden shrink-0 snap-start ${
+                    className={`group flex flex-col px-2.5 py-1.5 rounded-md border transition-all duration-150 overflow-hidden shrink-0 snap-start ${
                       isSelected
-                        ? 'bg-slate-800 border-slate-800 shadow-md'
-                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                        ? 'bg-white border-slate-400 shadow-sm'
+                        : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
                     }`}
-                    style={{ minWidth: '180px' }}
+                    style={{ minWidth: '160px' }}
                   >
-                    <div className={`absolute top-0 left-0 right-0 h-0.5 ${isSelected ? 'bg-emerald-400' : 'bg-slate-300 group-hover:bg-slate-400'} transition-opacity`} />
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <span className={`text-[9px] font-bold uppercase tracking-wide truncate ${isSelected ? 'text-white' : 'text-slate-600'}`}>{type}</span>
-                      <span className={`text-[8px] font-medium tabular-nums shrink-0 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{data.count} txn</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">{type}</span>
+                      <span className="text-[9px] font-medium tabular-nums text-slate-400 shrink-0">{data.count} txn</span>
                     </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className={`text-sm font-extrabold tabular-nums leading-tight shrink-0 ${isSelected ? 'text-white' : 'text-slate-800'}`}>{fmtINR(data.amount)}</span>
-                      <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
-                        <div className={`h-full ${isSelected ? 'bg-emerald-400' : 'bg-slate-400'} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className={`text-[8px] font-bold tabular-nums shrink-0 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{pct}%</span>
+                    <div className="mt-0.5 text-sm font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(data.amount)}</div>
+                    <div className="mt-1 h-0.5 rounded-full bg-slate-200 overflow-hidden">
+                      <div className={`h-full ${isSelected ? 'bg-slate-700' : 'bg-slate-400'} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
                     </div>
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => scrollBy(1)}
-              className={`p-1 rounded border border-slate-200 bg-white transition-all shrink-0 ${
-                canRight ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'
-              }`}
-              disabled={!canRight}
-            >
-              <ChevronRight size={13} />
-            </button>
           </div>
         </div>
       </motion.div>
@@ -1016,8 +960,8 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
       <div className="h-full flex flex-col bg-slate-50">
-      {/* KPI Cards — glassmorphism / border-highlighted */}
-      <div className="px-4 pt-3 grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
+      {/* KPI Cards — high-density fintech dashboard */}
+      <div className="px-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-2 shrink-0">
         {KPI_CONFIG.map(dp => {
           const Icon = dp.icon;
           const value =
@@ -1039,51 +983,48 @@ export const DCCPage: React.FC = () => {
           return (
             <motion.button
               key={dp.key}
-              whileHover={{ y: -2 }}
+              whileHover={{ y: -1 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`group relative text-left rounded-lg border-2 p-2.5 transition-all duration-200 overflow-hidden ${
-                isSelected
-                  ? `${dp.bg} ${dp.border} ring-2 ${dp.ring} shadow-md`
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
+              className={`group relative text-left rounded-lg bg-white border border-slate-200 border-t-2 ${dp.accent} shadow-sm p-2.5 transition-all duration-150 overflow-hidden ${
+                isSelected ? `border-2 ${dp.glow} shadow-md ring-1 ring-slate-200` : 'hover:shadow-md hover:border-slate-300'
               }`}
             >
-              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${dp.gradient} transition-opacity ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
-              <div className="flex items-center justify-between mt-1">
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-200 group-hover:scale-110`}>
-                    <Icon size={13} className="text-white" />
-                  </div>
-                  <span className={`text-[9px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
+              <div className="flex items-center justify-between">
+                <div className={`w-7 h-7 rounded-md flex items-center justify-center ${dp.iconBg} shadow-sm transition-transform duration-150 group-hover:scale-110`}>
+                  <Icon size={13} className="text-white" />
                 </div>
-                <span className="text-[9px] text-slate-400 font-medium tabular-nums shrink-0">{value} txn</span>
+                <span className="text-[10px] text-slate-600 font-medium tabular-nums bg-slate-100 px-2 py-0.5 rounded shrink-0">{value} txn</span>
               </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className={`text-sm font-extrabold ${dp.color} transition-transform duration-200 group-hover:scale-105 origin-left leading-tight shrink-0`}>{fmtINR(amount)}</div>
-                <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+              <div className="mt-2">
+                <div className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(amount)}</div>
+                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{dp.label}</div>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                   <div className={`h-full ${dp.bar} rounded-full transition-all duration-500`} style={{ width: `${displayRate}%` }} />
                 </div>
-                <span className="text-[8px] font-bold tabular-nums text-slate-400 shrink-0">{displayRate}%</span>
+                <span className="text-[9px] font-bold tabular-nums text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{displayRate}%</span>
               </div>
             </motion.button>
           );
         })}
 
         {/* Collection Rate KPI */}
-        <div className="relative text-left rounded-lg border-2 border-teal-300 bg-teal-50 p-2.5 overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-teal-600 to-teal-700" />
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 shadow-sm">
-                <TrendingUp size={13} className="text-white" />
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wide text-teal-700">Collection Rate</span>
+        <div className="relative text-left rounded-lg bg-white border border-slate-200 border-t-2 border-t-teal-500 shadow-sm p-2.5 overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-teal-600 shadow-sm">
+              <TrendingUp size={13} className="text-white" />
             </div>
           </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="text-sm font-extrabold text-teal-700 leading-tight">{collectionRate}%</div>
-            <div className="flex-1 h-1 rounded-full bg-teal-100 overflow-hidden">
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">{collectionRate}%</div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">Collection Rate</div>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${collectionRate}%` }} />
             </div>
+            <span className="text-[9px] font-bold tabular-nums text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded shrink-0">{collectionRate}%</span>
           </div>
         </div>
       </div>
@@ -1105,7 +1046,7 @@ export const DCCPage: React.FC = () => {
       })()}
 
       {/* Compact toolbar — view toggle + filter button on the right */}
-      <div className="px-4 py-2 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white">
+      <div className="px-4 py-1.5 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white">
         <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
         <button
           onClick={() => setShowFilters(true)}
