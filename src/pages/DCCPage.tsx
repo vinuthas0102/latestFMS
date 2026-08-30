@@ -666,10 +666,10 @@ const SubDpRibbon: React.FC<{
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: 'auto', opacity: 1 }}
-        exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        initial={{ opacity: 0, height: 0, y: -5 }}
+        animate={{ opacity: 1, height: 'auto', y: 0 }}
+        exit={{ opacity: 0, height: 0, y: -5 }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="overflow-hidden shrink-0"
       >
         <div className="px-4 py-1.5">
@@ -679,25 +679,35 @@ const SubDpRibbon: React.FC<{
                 const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
                 const isSelected = subDpFilter === type;
                 return (
-                  <button
+                  <motion.button
                     key={type}
+                    whileHover={{ y: -1, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                     onClick={() => setSubDpFilter(isSelected ? null : type)}
-                    className={`group flex flex-col px-2.5 py-1.5 rounded-md border transition-all duration-150 overflow-hidden shrink-0 snap-start ${
+                    className={`group relative flex flex-col px-2.5 py-1.5 rounded-md border overflow-hidden shrink-0 snap-start ${
                       isSelected
-                        ? 'bg-white border-slate-400 shadow-sm'
-                        : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
+                        ? 'border-slate-400 shadow-sm'
+                        : 'border-transparent hover:bg-white hover:border-slate-200'
                     }`}
                     style={{ minWidth: '160px' }}
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeSubDpBackground"
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        className="absolute inset-0 bg-white rounded-md"
+                      />
+                    )}
+                    <div className="relative flex items-center justify-between gap-2">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">{type}</span>
                       <span className="text-[9px] font-medium tabular-nums text-slate-400 shrink-0">{data.count} txn</span>
                     </div>
-                    <div className="mt-0.5 text-sm font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(data.amount)}</div>
-                    <div className="mt-1 h-0.5 rounded-full bg-slate-200 overflow-hidden">
+                    <div className="relative mt-0.5 text-sm font-bold text-slate-900 tabular-nums leading-tight">{fmtINR(data.amount)}</div>
+                    <div className="relative mt-1 h-0.5 rounded-full bg-slate-200 overflow-hidden">
                       <div className={`h-full ${isSelected ? 'bg-slate-700' : 'bg-slate-400'} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
                     </div>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -983,12 +993,21 @@ export const DCCPage: React.FC = () => {
           return (
             <motion.button
               key={dp.key}
-              whileHover={{ y: -1 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`group relative text-left rounded-lg bg-white border border-slate-200 border-t-2 ${dp.accent} shadow-sm p-2.5 transition-all duration-150 overflow-hidden ${
-                isSelected ? `border-2 ${dp.glow} shadow-md ring-1 ring-slate-200` : 'hover:shadow-md hover:border-slate-300'
+              className={`group relative text-left rounded-lg bg-white border border-slate-200 border-t-2 ${dp.accent} shadow-sm p-2.5 overflow-hidden ${
+                isSelected ? `border-2 ${dp.glow} shadow-md` : 'hover:shadow-md hover:border-slate-300'
               }`}
             >
+              {isSelected && (
+                <motion.div
+                  layoutId="activeDpRing"
+                  className="absolute inset-0 rounded-lg ring-2 ring-slate-200 pointer-events-none"
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                />
+              )}
               <div className="flex items-center justify-between">
                 <div className={`w-7 h-7 rounded-md flex items-center justify-center ${dp.iconBg} shadow-sm transition-transform duration-150 group-hover:scale-110`}>
                   <Icon size={13} className="text-white" />
