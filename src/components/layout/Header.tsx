@@ -11,6 +11,7 @@ import { Button } from '../ui/Button';
 import { ROLE_LABELS } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
 import { downloadPageAsHtml } from '../../utils/downloadHtml';
+import { supabase } from '../../lib/supabase';
 
 interface NavItem {
   route: string;
@@ -33,6 +34,23 @@ export const Header: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [designationName, setDesignationName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.designationId) { setDesignationName(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('designation_master')
+          .select('designation_name')
+          .eq('id', user.designationId!)
+          .maybeSingle();
+        if (!cancelled) setDesignationName(data?.designation_name ?? null);
+      } catch { if (!cancelled) setDesignationName(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.designationId]);
 
   const handleLogout = async () => {
     await logout();
@@ -202,12 +220,18 @@ export const Header: React.FC = () => {
                       </div>
                     </div>
                     {/* Identity fields */}
-                    <div className="hidden sm:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                    <div className="hidden lg:flex items-center gap-px ml-1 border-l border-gray-200 pl-3">
+                      <ChipField label="Designation" value={designationName} />
+                      <div className="w-px h-6 bg-gray-200 mx-2" />
+                      <ChipField label="Dept" value={user.govtDepartment} />
+                      <div className="w-px h-6 bg-gray-200 mx-2" />
                       <ChipField label="EMP ID" value={user.govtEmployeeId} />
                       <div className="w-px h-6 bg-gray-200 mx-2" />
                       <ChipField label="Location" value={user.projectLocation} />
                       <div className="w-px h-6 bg-gray-200 mx-2" />
                       <ChipField label="SAP ID" value={user.sapId} />
+                      <div className="w-px h-6 bg-gray-200 mx-2" />
+                      <ChipField label="Phone" value={user.phone} />
                     </div>
                   </div>
 
