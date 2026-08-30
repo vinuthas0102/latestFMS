@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   IndianRupee, Phone, MapPin, AlertTriangle,
   CheckCircle2, Clock, Receipt, TrendingUp,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
-  Wallet, Eye, Users, Sliders, Plus, FileText,
+  Wallet, Eye, Users, Plus, FileText,
   LayoutGrid, List, Table2, Calendar, Building2, ChevronRight,
-  ChevronLeft, MoreVertical, MessageSquare, Send, X, Loader2,
-  CalendarDays,
+  ChevronLeft, MessageSquare, Send, X, Loader2,
+  CalendarDays, Landmark, Gauge, ShieldCheck,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
@@ -27,34 +28,26 @@ import SplitLayout from '../components/ui/SplitLayout';
 import { DCCDemandDetailModal } from './DCCDemandDetailPage';
 import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
 import type { ChatDeliveryMode } from '../types/quarters';
+import {
+  DCC_STATUS, DCC_KPIS, DCC_INPUT_CLS, DCC_LABEL_CLS,
+  fmtINR, fmtINRShort, fmtDate, fmtDateShort,
+} from '../constants/dccTheme';
 
 type DeliveryModes = ChatDeliveryMode[];
 
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtINR = (n: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
-
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-
 type StatusKey = DccTile['status'];
-const STATUS: Record<StatusKey, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  DUE:      { label: 'Due',      bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400' },
-  OVERDUE:  { label: 'Overdue',  bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     dot: 'bg-red-500' },
-  PAID:     { label: 'Paid',     bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  EXEMPTED: { label: 'Exempted', bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-400' },
+type DpKey = 'ALL' | 'PAID' | 'DUE' | 'OVERDUE';
+
+// ── KPI config with icons ──────────────────────────────────────────────────────
+const KPI_ICONS: Record<string, typeof Receipt> = {
+  Receipt, CheckCircle2, Clock, AlertTriangle, TrendingUp,
 };
 
-// ── DP (Dashboard Panel) types ─────────────────────────────────────────────────
-type DpKey = 'ALL' | 'PAID' | 'DUE' | 'OVERDUE';
-interface DpConfig { key: DpKey; label: string; icon: typeof CheckCircle2; color: string; bg: string; gradient: string; accent: string; bar: string; ring: string; }
-
-const DPS: DpConfig[] = [
-  { key: 'ALL',     label: 'All Demands',     icon: Receipt,       color: 'text-blue-700',    bg: 'bg-blue-50',      gradient: 'from-blue-500 to-blue-600',     accent: 'bg-blue-500',    bar: 'bg-blue-400',    ring: 'ring-blue-400' },
-  { key: 'PAID',    label: 'Total Paid',      icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50',   gradient: 'from-emerald-500 to-emerald-600', accent: 'bg-emerald-500', bar: 'bg-emerald-400', ring: 'ring-emerald-400' },
-  { key: 'DUE',     label: 'Total Due',       icon: Clock,         color: 'text-amber-700',   bg: 'bg-amber-50',     gradient: 'from-amber-500 to-amber-600',   accent: 'bg-amber-500',   bar: 'bg-amber-400',  ring: 'ring-amber-400' },
-  { key: 'OVERDUE', label: 'Total Overdue',   icon: AlertTriangle, color: 'text-red-700',     bg: 'bg-red-50',       gradient: 'from-red-500 to-red-600',       accent: 'bg-red-500',     bar: 'bg-red-400',    ring: 'ring-red-400' },
+const KPI_CONFIG: { key: DpKey; label: string; icon: typeof Receipt; color: string; bg: string; border: string; gradient: string; bar: string; ring: string }[] = [
+  { key: 'ALL',     label: 'Total Demands',   icon: Receipt,       color: 'text-slate-700',    bg: 'bg-slate-50',     border: 'border-slate-300',    gradient: 'from-slate-700 to-slate-900',      bar: 'bg-slate-400',    ring: 'ring-slate-400' },
+  { key: 'PAID',    label: 'Total Paid',       icon: CheckCircle2,  color: 'text-emerald-700',  bg: 'bg-emerald-50',   border: 'border-emerald-300',  gradient: 'from-emerald-600 to-emerald-700',  bar: 'bg-emerald-400', ring: 'ring-emerald-400' },
+  { key: 'DUE',     label: 'Total Due',        icon: Clock,         color: 'text-amber-700',    bg: 'bg-amber-50',     border: 'border-amber-300',    gradient: 'from-amber-500 to-amber-600',      bar: 'bg-amber-400',   ring: 'ring-amber-400' },
+  { key: 'OVERDUE', label: 'Total Overdue',    icon: AlertTriangle, color: 'text-red-700',      bg: 'bg-red-50',       border: 'border-red-300',      gradient: 'from-red-500 to-red-600',          bar: 'bg-red-400',     ring: 'ring-red-400' },
 ];
 
 // ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
@@ -68,22 +61,170 @@ const IconViewToggle: React.FC<{
     { mode: 'table', icon: Table2, label: 'Table' },
   ];
   return (
-    <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 p-0.5">
+    <div className="inline-flex items-center bg-white rounded-md border border-slate-300 p-0.5">
       {views.map(({ mode, icon: Icon, label }) => (
         <button
           key={mode}
           onClick={() => onViewChange(mode)}
           title={label}
-          className={`p-1.5 rounded-md transition-all ${
+          className={`p-1.5 rounded transition-all ${
             currentView === mode
-              ? 'bg-teal-600 text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              ? 'bg-slate-800 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
-          <Icon size={15} />
+          <Icon size={14} />
         </button>
       ))}
     </div>
+  );
+};
+
+// ── High-Density Demand Tile (card view) ───────────────────────────────────────
+const DemandTile: React.FC<{
+  tile: DccTile;
+  onPay: (tile: DccTile) => void;
+  onViewDetails: (tile: DccTile) => void;
+  onDownload: (tile: DccTile) => void;
+  onChat: (tile: DccTile) => void;
+  onShowDuePayment: (tile: DccTile) => void;
+  isChatActive: boolean;
+}> = ({ tile, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, isChatActive }) => {
+  const [expanded, setExpanded] = useState(false);
+  const st = DCC_STATUS[tile.status];
+  const { user } = useAuthStore();
+  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
+  const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
+  const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      whileHover={{ y: -2 }}
+      className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col"
+    >
+      {/* Status strip */}
+      <div className={`h-0.5 ${st.dot} shrink-0`} />
+
+      {/* Header: Status badge + Demand type tag + Object ID + Total due */}
+      <div className="px-3 pt-2 pb-1.5 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
+              {st.label}
+            </span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+              {tile.demand_type_label}
+            </span>
+          </div>
+          <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
+          <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-base font-extrabold text-slate-900 leading-tight">{fmtINR(tile.amount_due)}</div>
+          <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
+        </div>
+      </div>
+
+      {/* Owner & demand info */}
+      <div className="px-3 pb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-600">
+        <span className="flex items-center gap-0.5 min-w-0">
+          <Users size={10} className="text-slate-400 shrink-0" />
+          <span className="truncate font-medium">{tile.owner_name}</span>
+        </span>
+        <span className="flex items-center gap-0.5 shrink-0">
+          <Calendar size={10} className="text-slate-400" />
+          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDateShort(tile.due_date)}</span>
+        </span>
+        {tile.overdue_amount > 0 && (
+          <span className="flex items-center gap-0.5 shrink-0 text-red-600 font-semibold">
+            <AlertTriangle size={10} /> {fmtINRShort(tile.overdue_amount)}
+          </span>
+        )}
+        {tile.amount_paid > 0 && (
+          <span className="flex items-center gap-0.5 shrink-0 text-emerald-600">
+            <CheckCircle2 size={10} /> {fmtINRShort(tile.amount_paid)} pd
+          </span>
+        )}
+      </div>
+
+      {/* Collapsible detail panel */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-2 text-[10px] text-slate-600 space-y-1 border-t border-slate-100 pt-1.5 bg-slate-50/40">
+              <div className="flex items-center gap-1"><Phone size={10} className="text-slate-400" />{tile.owner_contact || '—'}</div>
+              <div className="flex items-start gap-1"><MapPin size={10} className="text-slate-400 mt-0.5" />{tile.owner_address || '—'}</div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                <span><span className="text-slate-400">Run:</span> {fmtDateShort(tile.demand_run_date)}</span>
+                {tile.region && <span><span className="text-slate-400">Region:</span> {tile.region}</span>}
+                {tile.group_name && <span><span className="text-slate-400">Grp:</span> {tile.group_name}</span>}
+                {tile.subgroup && <span><span className="text-slate-400">Sub:</span> {tile.subgroup}</span>}
+              </div>
+              {tile.avg_overdue_days > 0 && <div><span className="text-slate-400">Avg OD:</span> {tile.avg_overdue_days}d</div>}
+              {tile.last_paid_date && <div><span className="text-slate-400">Last pd:</span> {fmtINRShort(tile.last_paid_amount ?? 0)} on {fmtDateShort(tile.last_paid_date)}</div>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Tile Action Bar — explicit buttons, no 3-dot menu */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-slate-200 bg-slate-50/50">
+        <button
+          onClick={() => onViewDetails(tile)}
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+        >
+          <Eye size={11} /> View Details
+        </button>
+        {canPay && (
+          <button
+            onClick={() => onPay(tile)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+          >
+            <Wallet size={11} /> Pay Now
+          </button>
+        )}
+        {canShowDue && !canPay && (
+          <button
+            onClick={() => onShowDuePayment(tile)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+          >
+            <CalendarDays size={11} /> Due Pmt
+          </button>
+        )}
+        <button
+          onClick={() => onDownload(tile)}
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+        >
+          <Download size={11} /> Statement
+        </button>
+        <button
+          onClick={() => onChat(tile)}
+          className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
+            isChatActive
+              ? 'text-white bg-slate-800'
+              : 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          <MessageSquare size={11} /> Chat
+        </button>
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="flex items-center justify-center w-6 h-6 rounded text-slate-500 hover:bg-slate-100 transition-colors ml-auto"
+          title={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+      </div>
+    </motion.div>
   );
 };
 
@@ -98,170 +239,139 @@ const DemandListCard: React.FC<{
   isChatActive: boolean;
 }> = ({ tile, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, isChatActive }) => {
   const [expanded, setExpanded] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const st = STATUS[tile.status];
+  const st = DCC_STATUS[tile.status];
   const { user } = useAuthStore();
   const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
   const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
   const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
-  const openMenu = useCallback(() => {
-    if (!menuBtnRef.current) return;
-    const rect = menuBtnRef.current.getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 180) });
-    setMenuOpen(true);
-  }, []);
-
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
-
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md relative flex flex-col">
-      <div className={`h-1 ${st.dot} shrink-0`} />
+    <motion.div
+      whileHover={{ y: -1 }}
+      className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden relative flex flex-col"
+    >
+      <div className={`h-0.5 ${st.dot} shrink-0`} />
 
       {/* Row 1: Title + badges + amount */}
-      <div className="px-4 pt-2.5 pb-1.5 flex items-start justify-between gap-2">
+      <div className="px-3 pt-2 pb-1 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
               {st.label}
             </span>
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">
               {tile.demand_type_label}
             </span>
           </div>
-          <h3 className="text-sm font-bold text-gray-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
-          <p className="text-xs text-gray-500 truncate">{tile.object_ref} · {tile.object_type}</p>
+          <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
+          <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-lg font-extrabold text-gray-900 leading-tight">{fmtINR(tile.amount_due)}</div>
-          <div className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</div>
+          <div className="text-base font-extrabold text-slate-900 leading-tight">{fmtINR(tile.amount_due)}</div>
+          <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
         </div>
       </div>
 
-      {/* Row 2: Owner + key dates + action icons */}
-      <div className="px-4 pb-2 flex items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-        <span className="flex items-center gap-1 min-w-0">
-          <Users size={11} className="text-gray-400 shrink-0" />
+      {/* Row 2: Owner + key dates + action buttons */}
+      <div className="px-3 pb-1.5 flex items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-600">
+        <span className="flex items-center gap-0.5 min-w-0">
+          <Users size={10} className="text-slate-400 shrink-0" />
           <span className="truncate font-medium">{tile.owner_name}</span>
         </span>
-        <span className="flex items-center gap-1 shrink-0">
-          <Calendar size={11} className="text-gray-400" />
-          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDate(tile.due_date)}</span>
+        <span className="flex items-center gap-0.5 shrink-0">
+          <Calendar size={10} className="text-slate-400" />
+          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDateShort(tile.due_date)}</span>
         </span>
         {tile.overdue_amount > 0 && (
-          <span className="flex items-center gap-1 shrink-0 text-red-600 font-semibold">
-            <AlertTriangle size={11} /> {fmtINR(tile.overdue_amount)}
+          <span className="flex items-center gap-0.5 shrink-0 text-red-600 font-semibold">
+            <AlertTriangle size={10} /> {fmtINRShort(tile.overdue_amount)}
           </span>
         )}
         {tile.amount_paid > 0 && (
-          <span className="flex items-center gap-1 shrink-0 text-emerald-600">
-            <CheckCircle2 size={11} /> {fmtINR(tile.amount_paid)} paid
+          <span className="flex items-center gap-0.5 shrink-0 text-emerald-600">
+            <CheckCircle2 size={10} /> {fmtINRShort(tile.amount_paid)} pd
           </span>
         )}
 
+        {/* Explicit action buttons */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
           <button
-            onClick={(e) => { e.stopPropagation(); onChat(tile); }}
-            title="Chat"
-            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${isChatActive ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+            onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
           >
-            <MessageSquare size={13} />
+            <Eye size={10} /> Details
+          </button>
+          {canPay && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPay(tile); }}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+            >
+              <Wallet size={10} /> Pay
+            </button>
+          )}
+          {canShowDue && !canPay && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+            >
+              <CalendarDays size={10} /> Due
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
+            className="flex items-center justify-center w-6 h-6 rounded text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+            title="Download Statement"
+          >
+            <Download size={10} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onChat(tile); }}
+            className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+              isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Open Chat"
+          >
+            <MessageSquare size={10} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+            className="flex items-center justify-center w-6 h-6 rounded text-slate-500 hover:bg-slate-100 transition-colors"
             title={expanded ? 'Show Less' : 'Show More'}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
-            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </button>
-          <button
-            ref={menuBtnRef}
-            onClick={(e) => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); }}
-            title="Actions"
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <MoreVertical size={13} />
+            {expanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
         </div>
       </div>
 
-      {expanded && (
-        <div className="px-4 pb-2.5 text-xs text-gray-600 space-y-1.5 border-t border-gray-100 pt-2 bg-gray-50/40">
-          <div className="flex items-center gap-1.5">
-            <Phone size={11} className="text-gray-400 shrink-0" />
-            <span>{tile.owner_contact || '—'}</span>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <MapPin size={11} className="text-gray-400 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{tile.owner_address || '—'}</span>
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <span><span className="text-gray-400">Run:</span> {fmtDate(tile.demand_run_date)}</span>
-            {tile.region && <span><span className="text-gray-400">Region:</span> {tile.region}</span>}
-            {tile.group_name && <span><span className="text-gray-400">Group:</span> {tile.group_name}</span>}
-            {tile.subgroup && <span><span className="text-gray-400">Subgroup:</span> {tile.subgroup}</span>}
-          </div>
-          {tile.avg_overdue_days > 0 && (
-            <div><span className="text-gray-400">Avg Overdue:</span> {tile.avg_overdue_days}d</div>
-          )}
-          {tile.last_paid_date && (
-            <div><span className="text-gray-400">Last Paid:</span> {fmtINR(tile.last_paid_amount ?? 0)} on {fmtDate(tile.last_paid_date)}</div>
-          )}
-        </div>
-      )}
-
-      {menuOpen && menuPos && createPortal(
-        <>
-          <div className="fixed inset-0 z-40" onClick={closeMenu} />
-          <div
-            className="fixed z-50 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[180px]"
-            style={{ top: menuPos.top, left: menuPos.left }}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
           >
-            <button
-              onClick={(e) => { e.stopPropagation(); closeMenu(); onViewDetails(tile); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Eye size={13} className="text-gray-400" /> View Details
-            </button>
-            {canPay && (
-              <button
-                onClick={(e) => { e.stopPropagation(); closeMenu(); onPay(tile); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors"
-              >
-                <Wallet size={13} className="text-teal-500" /> Pay Now
-              </button>
-            )}
-            {canShowDue && (
-              <button
-                onClick={(e) => { e.stopPropagation(); closeMenu(); onShowDuePayment(tile); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
-              >
-                <CalendarDays size={13} className="text-amber-500" /> Show Due Payment
-              </button>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); closeMenu(); onDownload(tile); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Download size={13} className="text-gray-400" /> Download Statement
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); closeMenu(); onChat(tile); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <MessageSquare size={13} className="text-gray-400" /> Open Chat
-            </button>
-          </div>
-        </>,
-        document.body
-      )}
-    </div>
+            <div className="px-3 pb-2 text-[10px] text-slate-600 space-y-1 border-t border-slate-100 pt-1.5 bg-slate-50/40">
+              <div className="flex items-center gap-1"><Phone size={10} className="text-slate-400" />{tile.owner_contact || '—'}</div>
+              <div className="flex items-start gap-1"><MapPin size={10} className="text-slate-400 mt-0.5" />{tile.owner_address || '—'}</div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                <span><span className="text-slate-400">Run:</span> {fmtDateShort(tile.demand_run_date)}</span>
+                {tile.region && <span><span className="text-slate-400">Region:</span> {tile.region}</span>}
+                {tile.group_name && <span><span className="text-slate-400">Grp:</span> {tile.group_name}</span>}
+                {tile.subgroup && <span><span className="text-slate-400">Sub:</span> {tile.subgroup}</span>}
+              </div>
+              {tile.avg_overdue_days > 0 && <div><span className="text-slate-400">Avg OD:</span> {tile.avg_overdue_days}d</div>}
+              {tile.last_paid_date && <div><span className="text-slate-400">Last pd:</span> {fmtINRShort(tile.last_paid_amount ?? 0)} on {fmtDateShort(tile.last_paid_date)}</div>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
-// ── DCC Chat Panel (split-screen right side) ───────────────────────────────────
+// ── DCC Chat Panel ─────────────────────────────────────────────────────────────
 const DccChatPanel: React.FC<{
   tile: DccTile;
   messages: DccDemandChat[];
@@ -274,7 +384,7 @@ const DccChatPanel: React.FC<{
 }> = ({ tile, messages, chatMsg, isSending, deliveryModes, onDeliveryModesChange, onChange, onSend }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const st = STATUS[tile.status];
+  const st = DCC_STATUS[tile.status];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -296,37 +406,31 @@ const DccChatPanel: React.FC<{
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${st.bg} ${st.border} border`}>
-            <Receipt size={14} className={st.text} />
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-white shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${st.bg} border ${st.border}`}>
+            <Receipt size={13} className={st.text} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-900 leading-tight truncate max-w-[200px]">
+            <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[200px]">
               {tile.object_description || tile.object_ref}
             </p>
             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${st.bg} ${st.text}`}>
-                {st.label}
-              </span>
-              <span className="text-[9px] font-semibold text-gray-500 truncate">{tile.owner_name}</span>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${st.bg} ${st.text}`}>{st.label}</span>
+              <span className="text-[9px] font-semibold text-slate-500 truncate">{tile.owner_name}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0 bg-gray-50/30">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 min-h-0 bg-slate-50/30">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
-            <div className="w-12 h-12 rounded-full bg-teal-50 border-2 border-dashed border-teal-200 flex items-center justify-center">
-              <MessageSquare size={20} className="text-teal-300" />
+          <div className="flex flex-col items-center justify-center h-full gap-2 py-12">
+            <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center">
+              <MessageSquare size={18} className="text-slate-300" />
             </div>
-            <p className="text-sm text-gray-400 font-medium">No messages yet</p>
-            <p className="text-xs text-gray-300 text-center max-w-[200px]">
-              Start a conversation about this demand
-            </p>
+            <p className="text-xs text-slate-400 font-medium">No messages yet</p>
+            <p className="text-[10px] text-slate-300 text-center max-w-[200px]">Start a conversation about this demand</p>
           </div>
         ) : (
           <>
@@ -337,29 +441,25 @@ const DccChatPanel: React.FC<{
               return (
                 <React.Fragment key={msg.id}>
                   {showDateSep && (
-                    <div className="flex items-center gap-2 my-2">
-                      <div className="flex-1 h-px bg-gray-200" />
-                      <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">
-                        {formatDate(msg.created_at)}
-                      </span>
-                      <div className="flex-1 h-px bg-gray-200" />
+                    <div className="flex items-center gap-2 my-1">
+                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">{formatDate(msg.created_at)}</span>
+                      <div className="flex-1 h-px bg-slate-200" />
                     </div>
                   )}
                   <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                     <div className="max-w-[82%] space-y-0.5">
-                      {!isMine && (
-                        <p className="text-[9px] font-semibold text-gray-400 px-1">Owner</p>
-                      )}
-                      <div className={`text-[12px] px-3 py-2 rounded-2xl leading-relaxed ${
+                      {!isMine && <p className="text-[9px] font-semibold text-slate-400 px-1">Owner</p>}
+                      <div className={`text-[11px] px-2.5 py-1.5 rounded-xl leading-relaxed ${
                         isMine
-                          ? 'bg-teal-600 text-white rounded-br-sm'
-                          : 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'
+                          ? 'bg-slate-800 text-white rounded-br-sm'
+                          : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
                       }`}>
                         {msg.message}
                       </div>
-                      <p className={`text-[9px] px-1 ${isMine ? 'text-right text-gray-400' : 'text-gray-400'}`}>
+                      <p className={`text-[9px] px-1 ${isMine ? 'text-right text-slate-400' : 'text-slate-400'}`}>
                         {formatTime(msg.created_at)}
-                        {msg.delivery_mode && <span className="ml-1.5 text-gray-300">· {msg.delivery_mode}</span>}
+                        {msg.delivery_mode && <span className="ml-1.5 text-slate-300">· {msg.delivery_mode}</span>}
                       </p>
                     </div>
                   </div>
@@ -371,9 +471,8 @@ const DccChatPanel: React.FC<{
         )}
       </div>
 
-      {/* Input */}
-      <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
-        <div className="mb-2">
+      <div className="shrink-0 border-t border-slate-100 bg-white px-3 py-2">
+        <div className="mb-1.5">
           <ChatDeliveryModePicker value={deliveryModes} onChange={onDeliveryModesChange} />
         </div>
         <div className="flex gap-2 items-end">
@@ -384,186 +483,16 @@ const DccChatPanel: React.FC<{
             value={chatMsg}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-gray-50 transition-colors placeholder-gray-400"
+            className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-slate-400/30 focus:border-slate-500 bg-slate-50 transition-colors placeholder-slate-400"
           />
           <button
             onClick={onSend}
             disabled={isSending || !chatMsg.trim()}
-            className="flex items-center justify-center w-8 h-8 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors shrink-0 mb-0.5"
+            className="flex items-center justify-center w-8 h-8 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors shrink-0 mb-0.5"
             title="Send"
           >
             {isSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Tile Component ─────────────────────────────────────────────────────────────
-const DemandTile: React.FC<{
-  tile: DccTile;
-  onPay: (tile: DccTile) => void;
-  onViewDetails: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
-  onShowDuePayment: (tile: DccTile) => void;
-}> = ({ tile, onPay, onViewDetails, onDownload, onShowDuePayment }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const st = STATUS[tile.status];
-  const { user } = useAuthStore();
-  const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
-  const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
-  const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
-
-  return (
-    <div className={`bg-white rounded-2xl border ${st.border} shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md relative`}>
-      {/* Status strip */}
-      <div className={`h-1 ${st.dot}`} />
-
-      {/* Row 1: Title + badges + amount */}
-      <div className="px-4 pt-3 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
-                {st.label}
-              </span>
-              <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                {tile.demand_type_label}
-              </span>
-            </div>
-            <h3 className="text-sm font-bold text-gray-900 truncate">{tile.object_description || tile.object_ref}</h3>
-            <p className="text-xs text-gray-500 truncate">{tile.object_ref} · {tile.object_type}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-lg font-extrabold text-gray-900 leading-tight">{fmtINR(tile.amount_due)}</div>
-            <div className="text-[10px] text-gray-400">of {fmtINR(tile.total_amount)}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: Owner + key dates */}
-      <div className="px-4 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-        <span className="flex items-center gap-1 min-w-0">
-          <Users size={11} className="text-gray-400 shrink-0" />
-          <span className="truncate font-medium">{tile.owner_name}</span>
-        </span>
-        <span className="flex items-center gap-1 shrink-0">
-          <Calendar size={11} className="text-gray-400" />
-          <span className={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}>Due {fmtDate(tile.due_date)}</span>
-        </span>
-        {tile.overdue_amount > 0 && (
-          <span className="flex items-center gap-1 shrink-0 text-red-600 font-semibold">
-            <AlertTriangle size={11} /> {fmtINR(tile.overdue_amount)}
-          </span>
-        )}
-        {tile.amount_paid > 0 && (
-          <span className="flex items-center gap-1 shrink-0 text-emerald-600">
-            <CheckCircle2 size={11} /> {fmtINR(tile.amount_paid)} paid
-          </span>
-        )}
-      </div>
-
-      {/* Expandable secondary info */}
-      {expanded && (
-        <div className="px-4 pb-2 text-xs text-gray-600 space-y-1 border-t border-gray-100 pt-2">
-          <div className="flex items-center gap-1"><Phone size={11} className="text-gray-400" />{tile.owner_contact || '—'}</div>
-          <div className="flex items-center gap-1"><MapPin size={11} className="text-gray-400" />{tile.owner_address || '—'}</div>
-          <div className="flex gap-3">
-            <span><span className="text-gray-400">Run:</span> {fmtDate(tile.demand_run_date)}</span>
-            {tile.region && <span><span className="text-gray-400">Region:</span> {tile.region}</span>}
-            {tile.group_name && <span><span className="text-gray-400">Group:</span> {tile.group_name}</span>}
-          </div>
-          {tile.avg_overdue_days > 0 && <div><span className="text-gray-400">Avg Overdue:</span> {tile.avg_overdue_days}d</div>}
-        </div>
-      )}
-
-      {/* Action bar — icon-only buttons */}
-      <div className="flex items-center gap-1 px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-        {canPay && (
-          <button
-            onClick={() => onPay(tile)}
-            title="Pay Now"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors"
-          >
-            <Wallet size={14} />
-          </button>
-        )}
-        <button
-          onClick={() => onViewDetails(tile)}
-          title="View Details"
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-        >
-          <Eye size={14} />
-        </button>
-        <button
-          onClick={() => onDownload(tile)}
-          title="Download Statement"
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          <Download size={14} />
-        </button>
-        {canShowDue && (
-          <button
-            onClick={() => onShowDuePayment(tile)}
-            title="Show Due Payment"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
-          >
-            <CalendarDays size={14} />
-          </button>
-        )}
-        <button
-          onClick={() => setExpanded(v => !v)}
-          title={expanded ? 'Show Less' : 'Show More'}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-        {/* Kebab menu */}
-        <div className="relative ml-auto">
-          <button
-            onClick={() => setMenuOpen(v => !v)}
-            title="More Actions"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <MoreVertical size={14} />
-          </button>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[160px]">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewDetails(tile); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <Eye size={13} /> View Details
-                </button>
-                {canPay && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onPay(tile); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors"
-                  >
-                    <Wallet size={13} /> Pay Now
-                  </button>
-                )}
-                {canShowDue && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onShowDuePayment(tile); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
-                  >
-                    <CalendarDays size={13} /> Show Due Payment
-                  </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDownload(tile); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <Download size={13} /> Download Statement
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>
@@ -585,11 +514,11 @@ const DemandTable: React.FC<{
       key: 'status',
       label: 'Status',
       sortable: true,
-      width: '90px',
+      width: '80px',
       render: (t) => {
-        const st = STATUS[t.status];
+        const st = DCC_STATUS[t.status];
         return (
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
             {st.label}
           </span>
         );
@@ -601,8 +530,8 @@ const DemandTable: React.FC<{
       sortable: true,
       render: (t) => (
         <div className="min-w-0">
-          <div className="font-semibold text-gray-900 truncate">{t.object_description || t.object_ref}</div>
-          <div className="text-xs text-gray-400 truncate">{t.object_ref} · {t.object_type}</div>
+          <div className="font-semibold text-slate-900 truncate text-xs">{t.object_description || t.object_ref}</div>
+          <div className="text-[10px] text-slate-400 truncate">{t.object_ref} · {t.object_type}</div>
         </div>
       ),
     },
@@ -612,8 +541,8 @@ const DemandTable: React.FC<{
       sortable: true,
       render: (t) => (
         <div className="min-w-0">
-          <div className="font-medium text-gray-700 truncate">{t.owner_name}</div>
-          <div className="text-xs text-gray-400 truncate">{t.owner_contact || '—'}</div>
+          <div className="font-medium text-slate-700 truncate text-xs">{t.owner_name}</div>
+          <div className="text-[10px] text-slate-400 truncate">{t.owner_contact || '—'}</div>
         </div>
       ),
     },
@@ -622,24 +551,22 @@ const DemandTable: React.FC<{
       label: 'Type',
       sortable: true,
       render: (t) => (
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-          {t.demand_type_label}
-        </span>
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t.demand_type_label}</span>
       ),
     },
     {
       key: 'demand_run_date',
       label: 'Run Date',
       sortable: true,
-      render: (t) => <span className="text-xs text-gray-600">{fmtDate(t.demand_run_date)}</span>,
+      render: (t) => <span className="text-[10px] text-slate-600">{fmtDateShort(t.demand_run_date)}</span>,
     },
     {
       key: 'due_date',
       label: 'Due Date',
       sortable: true,
       render: (t) => (
-        <span className={`text-xs font-medium ${t.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-600'}`}>
-          {fmtDate(t.due_date)}
+        <span className={`text-[10px] font-medium ${t.status === 'OVERDUE' ? 'text-red-600' : 'text-slate-600'}`}>
+          {fmtDateShort(t.due_date)}
         </span>
       ),
     },
@@ -647,26 +574,26 @@ const DemandTable: React.FC<{
       key: 'total_amount',
       label: 'Total',
       sortable: true,
-      render: (t) => <span className="text-xs font-semibold text-gray-700">{fmtINR(t.total_amount)}</span>,
+      render: (t) => <span className="text-[10px] font-semibold text-slate-700">{fmtINR(t.total_amount)}</span>,
     },
     {
       key: 'amount_paid',
       label: 'Paid',
       sortable: true,
-      render: (t) => <span className="text-xs font-semibold text-emerald-600">{fmtINR(t.amount_paid)}</span>,
+      render: (t) => <span className="text-[10px] font-semibold text-emerald-600">{fmtINR(t.amount_paid)}</span>,
     },
     {
       key: 'amount_due',
       label: 'Due Amt',
       sortable: true,
-      render: (t) => <span className="text-xs font-bold text-gray-900">{fmtINR(t.amount_due)}</span>,
+      render: (t) => <span className="text-xs font-bold text-slate-900">{fmtINR(t.amount_due)}</span>,
     },
     {
       key: 'overdue_amount',
       label: 'Overdue',
       sortable: true,
       render: (t) => (
-        <span className={`text-xs font-semibold ${t.overdue_amount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+        <span className={`text-[10px] font-semibold ${t.overdue_amount > 0 ? 'text-red-600' : 'text-slate-400'}`}>
           {t.overdue_amount > 0 ? fmtINR(t.overdue_amount) : '—'}
         </span>
       ),
@@ -676,35 +603,35 @@ const DemandTable: React.FC<{
       label: '',
       sortable: false,
       render: (t) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); onRowClick(t); }}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
           >
-            <Eye size={12} />
+            <Eye size={11} />
           </button>
           {(t.status === 'DUE' || t.status === 'OVERDUE') && canRecordPayment && (
             <button
               onClick={(e) => { e.stopPropagation(); onPay(t); }}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
             >
-              <Wallet size={12} />
+              <Wallet size={11} />
             </button>
           )}
           {(t.status === 'DUE' || t.status === 'OVERDUE') && (
             <button
               onClick={(e) => { e.stopPropagation(); onShowDuePayment(t); }}
               title="Show Due Payment"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
             >
-              <CalendarDays size={12} />
+              <CalendarDays size={11} />
             </button>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onDownload(t); }}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
           >
-            <Download size={12} />
+            <Download size={11} />
           </button>
         </div>
       ),
@@ -722,15 +649,13 @@ const DemandTable: React.FC<{
   );
 };
 
-// ── Sub-DP Carousel ────────────────────────────────────────────────────────────
-const SubDpCarousel: React.FC<{
+// ── Sub-DP Drilldown Ribbon ─────────────────────────────────────────────────────
+const SubDpRibbon: React.FC<{
   breakdown: Record<string, { count: number; amount: number }>;
   dpAmt: number;
   subDpFilter: string | null;
   setSubDpFilter: (v: string | null) => void;
-  subDpIcon: (type: string) => typeof Receipt;
-  subDpColor: (type: string) => { bg: string; text: string; bar: string; ring: string; border: string; gradient: string };
-}> = ({ breakdown, dpAmt, subDpFilter, setSubDpFilter, subDpIcon, subDpColor }) => {
+}> = ({ breakdown, dpAmt, subDpFilter, setSubDpFilter }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -757,82 +682,79 @@ const SubDpCarousel: React.FC<{
   const scrollBy = (dir: number) => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: dir * 220, behavior: 'smooth' });
+    el.scrollBy({ left: dir * 200, behavior: 'smooth' });
   };
 
   const entries = Object.entries(breakdown);
 
   return (
-    <div className="px-5 pb-2 shrink-0">
-      <div className="flex items-center gap-2">
-        {/* Left arrow */}
-        <button
-          onClick={() => scrollBy(-1)}
-          className={`p-1.5 rounded-lg border border-gray-200 bg-white transition-all shrink-0 ${
-            canLeft ? 'text-gray-600 hover:bg-gray-50 hover:shadow-sm' : 'text-gray-200 cursor-not-allowed'
-          }`}
-          disabled={!canLeft}
-        >
-          <ChevronLeft size={14} />
-        </button>
-        {/* Scrollable row */}
-        <div
-          ref={scrollRef}
-          className="flex items-stretch gap-2.5 overflow-x-auto scroll-smooth snap-x"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {entries.map(([type, data]) => {
-            const Icon = subDpIcon(type);
-            const c = subDpColor(type);
-            const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
-            const isSelected = subDpFilter === type;
-            return (
-              <button
-                key={type}
-                onClick={() => setSubDpFilter(isSelected ? null : type)}
-                className={`group relative flex flex-col px-3.5 py-2.5 rounded-xl border-2 transition-all duration-300 overflow-hidden shrink-0 snap-start ${
-                  isSelected
-                    ? `${c.bg} ${c.border} ${c.ring} ring-2 shadow-md`
-                    : `bg-white ${c.border} hover:shadow-md hover:-translate-y-0.5`
-                }`}
-                style={{ minWidth: '200px' }}
-              >
-                {/* Accent bar */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${c.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-50 group-hover:opacity-90'}`} />
-                {/* Row 1: Icon + Type label + Txn count */}
-                <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center bg-gradient-to-br ${c.gradient} shadow-sm shrink-0 transition-transform duration-300 group-hover:scale-110`}>
-                      <Icon size={13} className="text-white" />
+    <AnimatePresence>
+      <motion.div
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: 'auto', opacity: 1 }}
+        exit={{ height: 0, opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        className="overflow-hidden shrink-0"
+      >
+        <div className="px-5 pb-2 pt-1">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => scrollBy(-1)}
+              className={`p-1 rounded border border-slate-200 bg-white transition-all shrink-0 ${
+                canLeft ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'
+              }`}
+              disabled={!canLeft}
+            >
+              <ChevronLeft size={13} />
+            </button>
+            <div
+              ref={scrollRef}
+              className="flex items-stretch gap-2 overflow-x-auto scroll-smooth snap-x"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {entries.map(([type, data]) => {
+                const pct = dpAmt > 0 ? Math.min(100, Math.round((data.amount / dpAmt) * 100)) : 0;
+                const isSelected = subDpFilter === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSubDpFilter(isSelected ? null : type)}
+                    className={`group relative flex flex-col px-3 py-2 rounded-lg border transition-all duration-200 overflow-hidden shrink-0 snap-start ${
+                      isSelected
+                        ? 'bg-slate-800 border-slate-800 shadow-md'
+                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                    }`}
+                    style={{ minWidth: '180px' }}
+                  >
+                    <div className={`absolute top-0 left-0 right-0 h-0.5 ${isSelected ? 'bg-emerald-400' : 'bg-slate-300 group-hover:bg-slate-400'} transition-opacity`} />
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <span className={`text-[9px] font-bold uppercase tracking-wide truncate ${isSelected ? 'text-white' : 'text-slate-600'}`}>{type}</span>
+                      <span className={`text-[8px] font-medium tabular-nums shrink-0 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{data.count} txn</span>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-wide truncate ${isSelected ? c.text : 'text-gray-600'}`}>{type}</span>
-                  </div>
-                  <span className="text-[9px] text-gray-400 font-medium tabular-nums shrink-0">{data.count} txn{data.count !== 1 ? 's' : ''}</span>
-                </div>
-                {/* Row 2: Amount + Progress bar + pct */}
-                <div className="mt-1.5 flex items-center gap-2">
-                  <span className={`text-sm font-extrabold tabular-nums leading-tight shrink-0 ${isSelected ? c.text : 'text-gray-800'}`}>{fmtINR(data.amount)}</span>
-                  <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
-                    <div className={`h-full ${c.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className={`text-[9px] font-bold tabular-nums shrink-0 ${isSelected ? c.text : 'text-gray-400'}`}>{pct}%</span>
-                </div>
-              </button>
-            );
-          })}
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className={`text-sm font-extrabold tabular-nums leading-tight shrink-0 ${isSelected ? 'text-white' : 'text-slate-800'}`}>{fmtINR(data.amount)}</span>
+                      <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                        <div className={`h-full ${isSelected ? 'bg-emerald-400' : 'bg-slate-400'} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className={`text-[8px] font-bold tabular-nums shrink-0 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{pct}%</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => scrollBy(1)}
+              className={`p-1 rounded border border-slate-200 bg-white transition-all shrink-0 ${
+                canRight ? 'text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'
+              }`}
+              disabled={!canRight}
+            >
+              <ChevronRight size={13} />
+            </button>
+          </div>
         </div>
-        {/* Right arrow */}
-        <button
-          onClick={() => scrollBy(1)}
-          className={`p-1.5 rounded-lg border border-gray-200 bg-white transition-all shrink-0 ${
-            canRight ? 'text-gray-600 hover:bg-gray-50 hover:shadow-sm' : 'text-gray-200 cursor-not-allowed'
-          }`}
-          disabled={!canRight}
-        >
-          <ChevronRight size={14} />
-        </button>
-      </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
@@ -896,7 +818,7 @@ export const DCCPage: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // Sub-DP breakdown by transaction type
+  // Sub-DP breakdown by demand type
   const subDpBreakdown = useMemo(() => {
     const map: Record<string, { count: number; amount: number }> = {};
     for (const t of tiles) {
@@ -927,6 +849,7 @@ export const DCCPage: React.FC = () => {
         t.object_ref.toLowerCase().includes(q) ||
         t.object_description.toLowerCase().includes(q) ||
         t.owner_name.toLowerCase().includes(q) ||
+        t.owner_contact.toLowerCase().includes(q) ||
         t.demand_type_label.toLowerCase().includes(q)
       );
     }
@@ -945,7 +868,7 @@ export const DCCPage: React.FC = () => {
 
   const handleDownload = (tile: DccTile) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demand Statement — ${tile.object_ref}</title>
-    <style>body{font-family:sans-serif;font-size:13px;color:#1f2937;margin:32px}h2{margin:0 0 4px}p{margin:2px 0;color:#6b7280;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#0f766e;color:#fff;padding:8px 10px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #f3f4f6}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
+    <style>body{font-family:sans-serif;font-size:13px;color:#1e293b;margin:32px}h2{margin:0 0 4px;color:#1e293b}p{margin:2px 0;color:#64748b;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#1e293b;color:#fff;padding:8px 10px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
     <body><h2>Demand Statement — ${tile.object_ref}</h2>
     <p>Owner: ${tile.owner_name} · ${tile.owner_contact}</p>
     <p>Type: ${tile.demand_type_label} · Run Date: ${fmtDate(tile.demand_run_date)}</p>
@@ -1017,36 +940,40 @@ export const DCCPage: React.FC = () => {
     { key: 'dashboard', label: 'Dashboard', icon: Receipt },
     ...(isManager ? [
       { key: 'reconciliation' as DccMainTab, label: 'Reconciliation', icon: TrendingUp },
-      { key: 'reports' as DccMainTab, label: 'Reports', icon: FileText },
+      { key: 'reports' as DccMainTab, label: 'Reports / MIS', icon: FileText },
     ] : []),
   ];
 
+  // Collection rate calculation
+  const totalAmount = tiles.reduce((s, t) => s + t.total_amount, 0);
+  const collectionRate = totalAmount > 0 ? Math.round(((summary?.total_paid ?? 0) / totalAmount) * 100) : 0;
+
   return (
-    <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-gray-50">
-      {/* Page header */}
-      <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
-          <IndianRupee size={18} className="text-white" />
+    <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-slate-50">
+      {/* Page header — Deep Slate Navy */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+          <Landmark size={16} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold text-gray-900">Demand and Collection Center</h1>
-          <p className="text-xs text-gray-500">Track all demands and collections across any object type</p>
+          <h1 className="text-sm font-bold text-white">Demand & Collection Center</h1>
+          <p className="text-[10px] text-slate-400">Enterprise demand tracking and collection management</p>
         </div>
         {/* Tab bar */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg p-0.5">
           {mainTabs.map((t) => {
             const Icon = t.icon;
             return (
               <button
                 key={t.key}
                 onClick={() => setMainTab(t.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
                   mainTab === t.key
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-slate-700 text-emerald-400 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Icon size={13} /> {t.label}
+                <Icon size={12} /> {t.label}
               </button>
             );
           })}
@@ -1055,15 +982,15 @@ export const DCCPage: React.FC = () => {
           <>
             <button
               onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-semibold hover:bg-teal-100 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[11px] font-semibold hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
             >
-              <Sliders size={14} /> Rule Setup
+              <Gauge size={13} /> Rule Setup
             </button>
             <button
               onClick={() => navigate(ROUTES.DCC_GENERATE)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
             >
-              <Plus size={14} /> Generate
+              <Plus size={13} /> Generate Demand
             </button>
           </>
         )}
@@ -1078,10 +1005,10 @@ export const DCCPage: React.FC = () => {
       {/* Dashboard Tab */}
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
-      <div className="h-full flex flex-col bg-gray-50">
-      {/* DPs — redesigned with gradient, animations, collection rate integrated */}
-      <div className="px-5 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-        {DPS.map(dp => {
+      <div className="h-full flex flex-col bg-slate-50">
+      {/* KPI Cards — glassmorphism / border-highlighted */}
+      <div className="px-4 pt-3 grid grid-cols-2 md:grid-cols-5 gap-2.5 shrink-0">
+        {KPI_CONFIG.map(dp => {
           const Icon = dp.icon;
           const value =
             dp.key === 'ALL' ? tiles.length :
@@ -1089,112 +1016,113 @@ export const DCCPage: React.FC = () => {
             dp.key === 'DUE' ? summary?.due_count ?? 0 :
             summary?.overdue_count ?? 0;
           const amount =
-            dp.key === 'ALL' ? tiles.reduce((s, t) => s + t.total_amount, 0) :
+            dp.key === 'ALL' ? totalAmount :
             dp.key === 'PAID' ? summary?.total_paid ?? 0 :
             dp.key === 'DUE' ? summary?.total_due ?? 0 :
             summary?.total_overdue ?? 0;
           const isSelected = dpFilter === dp.key;
-          // Collection rate per card
-          const totalForRate =
-            dp.key === 'ALL' ? (summary?.total_paid ?? 0) + (summary?.total_due ?? 0) :
-            dp.key === 'PAID' ? (summary?.total_paid ?? 0) + (summary?.total_due ?? 0) :
-            (summary?.total_paid ?? 0) + (summary?.total_due ?? 0);
+          const totalForRate = (summary?.total_paid ?? 0) + (summary?.total_due ?? 0) + (summary?.total_overdue ?? 0);
           const ratePct = totalForRate > 0
             ? Math.round(((dp.key === 'ALL' || dp.key === 'PAID' ? summary?.total_paid ?? 0 : amount) / totalForRate) * 100)
             : 0;
           const displayRate = dp.key === 'OVERDUE' ? 100 - ratePct : ratePct;
           return (
-            <button
+            <motion.button
               key={dp.key}
+              whileHover={{ y: -2 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`group relative text-left rounded-2xl border-2 p-4 transition-all duration-300 overflow-hidden ${
+              className={`group relative text-left rounded-lg border-2 p-2.5 transition-all duration-200 overflow-hidden ${
                 isSelected
-                  ? `${dp.bg} border-current ${dp.ring} ring-2 shadow-lg`
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5'
+                  ? `${dp.bg} ${dp.border} ring-2 ${dp.ring} shadow-md`
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
               }`}
             >
-              {/* Accent bar */}
-              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${dp.gradient} transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
-              {/* Row 1: Icon + Label + Txn count */}
-              <div className="flex items-center justify-between mt-1.5">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-300 group-hover:scale-110`}>
-                    <Icon size={15} className="text-white" />
+              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${dp.gradient} transition-opacity ${isSelected ? 'opacity-100' : 'opacity-40 group-hover:opacity-80'}`} />
+              <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center bg-gradient-to-br ${dp.gradient} shadow-sm transition-transform duration-200 group-hover:scale-110`}>
+                    <Icon size={13} className="text-white" />
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wide ${dp.color}`}>{dp.label}</span>
                 </div>
-                <span className="text-[10px] text-gray-400 font-medium tabular-nums shrink-0">{value} txn{value !== 1 ? 's' : ''}</span>
+                <span className="text-[9px] text-slate-400 font-medium tabular-nums shrink-0">{value} txn</span>
               </div>
-              {/* Row 2: Amount + Progress bar */}
-              <div className="mt-2 flex items-center gap-2">
-                <div className={`text-lg font-extrabold ${dp.color} transition-transform duration-300 group-hover:scale-105 origin-left leading-tight shrink-0`}>{fmtINR(amount)}</div>
-                <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className={`h-full ${dp.bar} rounded-full transition-all duration-700 ease-out`}
-                    style={{ width: `${displayRate}%` }}
-                  />
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className={`text-sm font-extrabold ${dp.color} transition-transform duration-200 group-hover:scale-105 origin-left leading-tight shrink-0`}>{fmtINR(amount)}</div>
+                <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full ${dp.bar} rounded-full transition-all duration-500`} style={{ width: `${displayRate}%` }} />
                 </div>
-                <span className="text-[9px] font-bold tabular-nums text-gray-400 shrink-0">{displayRate}%</span>
+                <span className="text-[8px] font-bold tabular-nums text-slate-400 shrink-0">{displayRate}%</span>
               </div>
-            </button>
+            </motion.button>
           );
         })}
+
+        {/* Collection Rate KPI */}
+        <div className="relative text-left rounded-lg border-2 border-teal-300 bg-teal-50 p-2.5 overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-teal-600 to-teal-700" />
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-1.5">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 shadow-sm">
+                <TrendingUp size={13} className="text-white" />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wide text-teal-700">Collection Rate</span>
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="text-sm font-extrabold text-teal-700 leading-tight">{collectionRate}%</div>
+            <div className="flex-1 h-1 rounded-full bg-teal-100 overflow-hidden">
+              <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${collectionRate}%` }} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Sub-DP — single-row carousel with navigation arrows */}
+      {/* Sub-DP Drilldown Ribbon */}
       {dpFilter !== 'ALL' && Object.keys(subDpBreakdown).length > 0 && (() => {
         const dpAmt =
           dpFilter === 'PAID' ? summary?.total_paid ?? 0 :
           dpFilter === 'DUE' ? summary?.total_due ?? 0 :
           summary?.total_overdue ?? 0;
-        const subDpIcon = (type: string): typeof Receipt => {
-          const tl = type.toLowerCase();
-          if (tl.includes('rent')) return Building2;
-          if (tl.includes('tax')) return Receipt;
-          if (tl.includes('fee')) return FileText;
-          if (tl.includes('charge')) return IndianRupee;
-          return Receipt;
-        };
-        const subDpColor = (type: string): { bg: string; text: string; bar: string; ring: string; border: string; gradient: string } => {
-          const tl = type.toLowerCase();
-          if (tl.includes('rent')) return { bg: 'bg-blue-50', text: 'text-blue-700', bar: 'bg-blue-500', ring: 'ring-blue-400', border: 'border-blue-300', gradient: 'from-blue-500 to-blue-600' };
-          if (tl.includes('tax')) return { bg: 'bg-rose-50', text: 'text-rose-700', bar: 'bg-rose-500', ring: 'ring-rose-400', border: 'border-rose-300', gradient: 'from-rose-500 to-rose-600' };
-          if (tl.includes('fee')) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500', ring: 'ring-amber-400', border: 'border-amber-300', gradient: 'from-amber-500 to-amber-600' };
-          if (tl.includes('charge')) return { bg: 'bg-teal-50', text: 'text-teal-700', bar: 'bg-teal-500', ring: 'ring-teal-400', border: 'border-teal-300', gradient: 'from-teal-500 to-teal-600' };
-          return { bg: 'bg-slate-50', text: 'text-slate-700', bar: 'bg-slate-500', ring: 'ring-slate-400', border: 'border-slate-300', gradient: 'from-slate-500 to-slate-600' };
-        };
         return (
-          <SubDpCarousel
+          <SubDpRibbon
             breakdown={subDpBreakdown}
             dpAmt={dpAmt}
             subDpFilter={subDpFilter}
             setSubDpFilter={setSubDpFilter}
-            subDpIcon={subDpIcon}
-            subDpColor={subDpColor}
           />
         );
       })()}
 
-      {/* Controls row — icon-only view toggle + icon-only filters */}
-      <div className="px-5 pb-2 shrink-0 flex items-center justify-between gap-3">
+      {/* Global Filter Bar — high-density */}
+      <div className="px-4 py-2 shrink-0 flex items-center gap-2 border-b border-slate-200 bg-white">
+        <div className="relative flex-1 max-w-md">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by Object ID, Owner Name, Contact, or Demand Type…"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-500 bg-slate-50 transition-colors placeholder-slate-400"
+          />
+          <Eye size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        </div>
         <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
         <button
           onClick={() => setShowFilters(true)}
           title="Filters"
-          className="relative p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+          className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors text-xs font-semibold"
         >
-          <SlidersHorizontal size={15} />
+          <SlidersHorizontal size={13} /> Filters
           {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-teal-500 border-2 border-white" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
           )}
         </button>
       </div>
 
       {/* Tiles grid / table / list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 pt-2">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <span className="w-6 h-6 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+            <span className="w-6 h-6 border-2 border-slate-200 border-t-emerald-600 rounded-full animate-spin" />
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 text-red-500">
@@ -1202,13 +1130,13 @@ export const DCCPage: React.FC = () => {
             <span className="text-sm font-medium">{error}</span>
           </div>
         ) : filteredTiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-            <div className="text-sm font-medium text-gray-600">No demands found</div>
+            <div className="text-sm font-medium text-slate-600">No demands found</div>
             <div className="text-xs mt-1">Try adjusting your filters or search.</div>
           </div>
         ) : viewMode === 'card' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
             {filteredTiles.map(tile => (
               <DemandTile
                 key={tile.id}
@@ -1216,7 +1144,9 @@ export const DCCPage: React.FC = () => {
                 onPay={handlePay}
                 onViewDetails={handleViewDetails}
                 onDownload={handleDownload}
+                onChat={handleOpenChat}
                 onShowDuePayment={handleShowDuePayment}
+                isChatActive={chatTileId === tile.id}
               />
             ))}
           </div>
@@ -1229,7 +1159,7 @@ export const DCCPage: React.FC = () => {
             onShowDuePayment={handleShowDuePayment}
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {filteredTiles.map(tile => (
               <DemandListCard
                 key={tile.id}
@@ -1253,50 +1183,46 @@ export const DCCPage: React.FC = () => {
         onClearAll={() => { setFilters({}); }}
         activeFilterCount={Object.values(filters).filter(v => v !== null && v !== undefined && v !== '').length}
       >
-        <div className="space-y-4">
-          {/* Demand Type */}
+        <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Demand Type</label>
+            <label className={DCC_LABEL_CLS}>Demand Type</label>
             <select
               value={filters.demand_type_code ?? ''}
               onChange={e => setFilters(f => ({ ...f, demand_type_code: e.target.value || null }))}
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+              className={DCC_INPUT_CLS}
             >
               <option value="">All Types</option>
               {demandTypes.map(dt => <option key={dt.id} value={dt.code}>{dt.label}</option>)}
             </select>
           </div>
-          {/* Object Owner */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Object Owner</label>
+            <label className={DCC_LABEL_CLS}>Object Owner</label>
             <select
               value={filters.owner_id ?? ''}
               onChange={e => setFilters(f => ({ ...f, owner_id: e.target.value || null }))}
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+              className={DCC_INPUT_CLS}
             >
               <option value="">All Owners</option>
               {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
-          {/* Object */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Object</label>
+            <label className={DCC_LABEL_CLS}>Object</label>
             <select
               value={filters.object_id ?? ''}
               onChange={e => setFilters(f => ({ ...f, object_id: e.target.value || null }))}
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+              className={DCC_INPUT_CLS}
             >
               <option value="">All Objects</option>
               {objects.map(o => <option key={o.id} value={o.id}>{o.object_ref} — {o.description}</option>)}
             </select>
           </div>
-          {/* Status */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</label>
+            <label className={DCC_LABEL_CLS}>Status</label>
             <select
               value={filters.status ?? ''}
               onChange={e => setFilters(f => ({ ...f, status: (e.target.value || null) as DccDemandFilters['status'] }))}
-              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+              className={DCC_INPUT_CLS}
             >
               <option value="">All Statuses</option>
               <option value="DUE">Due</option>
@@ -1305,30 +1231,28 @@ export const DCCPage: React.FC = () => {
               <option value="EXEMPTED">Exempted</option>
             </select>
           </div>
-          {/* Run date range */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Run Date From</label>
-              <input type="date" value={filters.run_date_from ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_from: e.target.value || null }))} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white" />
+              <label className={DCC_LABEL_CLS}>Run Date From</label>
+              <input type="date" value={filters.run_date_from ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_from: e.target.value || null }))} className={DCC_INPUT_CLS} />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Run Date To</label>
-              <input type="date" value={filters.run_date_to ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_to: e.target.value || null }))} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white" />
+              <label className={DCC_LABEL_CLS}>Run Date To</label>
+              <input type="date" value={filters.run_date_to ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_to: e.target.value || null }))} className={DCC_INPUT_CLS} />
             </div>
           </div>
-          {/* Region / Group / Subgroup */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Region</label>
-            <input value={filters.region ?? ''} onChange={e => setFilters(f => ({ ...f, region: e.target.value || null }))} placeholder="Region" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white" />
+            <label className={DCC_LABEL_CLS}>Region</label>
+            <input value={filters.region ?? ''} onChange={e => setFilters(f => ({ ...f, region: e.target.value || null }))} placeholder="Region" className={DCC_INPUT_CLS} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</label>
-              <input value={filters.group_name ?? ''} onChange={e => setFilters(f => ({ ...f, group_name: e.target.value || null }))} placeholder="Group" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white" />
+              <label className={DCC_LABEL_CLS}>Group</label>
+              <input value={filters.group_name ?? ''} onChange={e => setFilters(f => ({ ...f, group_name: e.target.value || null }))} placeholder="Group" className={DCC_INPUT_CLS} />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Subgroup</label>
-              <input value={filters.subgroup ?? ''} onChange={e => setFilters(f => ({ ...f, subgroup: e.target.value || null }))} placeholder="Subgroup" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white" />
+              <label className={DCC_LABEL_CLS}>Subgroup</label>
+              <input value={filters.subgroup ?? ''} onChange={e => setFilters(f => ({ ...f, subgroup: e.target.value || null }))} placeholder="Subgroup" className={DCC_INPUT_CLS} />
             </div>
           </div>
         </div>
@@ -1354,8 +1278,8 @@ export const DCCPage: React.FC = () => {
             }
             rightHeader={
               <div className="flex items-center gap-2 min-w-0">
-                <MessageSquare size={13} className="text-teal-600 shrink-0" />
-                <span className="text-xs font-bold text-gray-900 truncate">
+                <MessageSquare size={13} className="text-emerald-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-900 truncate">
                   {chatTile.object_description || chatTile.object_ref}
                 </span>
               </div>

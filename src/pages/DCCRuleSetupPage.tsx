@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   SlidersHorizontal, Plus, Search, Trash2, Save, X, ChevronDown,
   ChevronRight, Percent, IndianRupee, Calendar, AlertCircle, Loader2,
@@ -158,17 +159,29 @@ const Section: React.FC<{
 }> = ({ title, icon, defaultOpen = false, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
       >
-        {open ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+        {open ? <ChevronDown size={13} className="text-slate-400" /> : <ChevronRight size={13} className="text-slate-400" />}
         {icon}
-        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{title}</span>
+        <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">{title}</span>
       </button>
-      {open && <div className="p-4 space-y-3">{children}</div>}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="p-3 space-y-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -187,7 +200,7 @@ const Field: React.FC<{
 );
 
 const inputCls =
-  'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
+  'w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-500 bg-white text-slate-700 transition-colors';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const DCCRuleSetupPage: React.FC = () => {
@@ -488,54 +501,54 @@ export const DCCRuleSetupPage: React.FC = () => {
   const showFixedDate = isFixedDateCode(form.generation_frequency_code);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Page header */}
-      <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
+    <div className="h-full flex flex-col bg-slate-50">
+      {/* Page header — Deep Slate Navy */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
         <button
           onClick={() => navigate(ROUTES.DCC)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+          className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
         >
           <ArrowLeft size={16} />
         </button>
-        <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
-          <SlidersHorizontal size={18} className="text-white" />
+        <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+          <SlidersHorizontal size={16} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold text-gray-900">Demand Rule Setup</h1>
-          <p className="text-xs text-gray-500">Define generation and collection rules for each demand type, object type, and owner</p>
+          <h1 className="text-sm font-bold text-white">Demand Rule Setup</h1>
+          <p className="text-[10px] text-slate-400">Master rule engine for demand generation and collection</p>
         </div>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
         >
-          <Plus size={14} /> New Rule
+          <Plus size={13} /> New Rule
         </button>
       </div>
 
       {error && (
-        <div className="mx-5 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-          <AlertCircle size={14} className="shrink-0" /> {error}
+        <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md text-[11px] text-red-700">
+          <AlertCircle size={13} className="shrink-0" /> {error}
         </div>
       )}
 
-      <div className="flex-1 flex gap-3 p-4 min-h-0">
+      <div className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Left: List */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden min-w-0">
           {/* Filters */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 shrink-0">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by demand type, object type, owner…"
-                className="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/20"
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-500"
               />
             </div>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/20 bg-white"
+              className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-500 bg-white"
             >
               <option value="ALL">All Types</option>
               {PAYABLE_TRANSACTION_TYPES.map((t) => (
@@ -549,17 +562,17 @@ export const DCCRuleSetupPage: React.FC = () => {
           {/* List body */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 size={20} className="animate-spin text-teal-500" />
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={20} className="animate-spin text-emerald-500" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <SlidersHorizontal size={28} className="mb-2 opacity-30" />
                 <p className="text-sm font-medium">No demand rules found</p>
                 <p className="text-xs mt-1">Click "New Rule" to create one</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-slate-50">
                 {filtered.map((rec) => {
                   const isActive = selectedId === rec.id;
                   const hasRun = rec.next_run_date !== null;
@@ -569,49 +582,49 @@ export const DCCRuleSetupPage: React.FC = () => {
                     <div
                       key={rec.id}
                       onClick={() => handleSelect(rec)}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${isActive ? 'bg-teal-50 border-l-4 border-l-teal-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
+                      className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer transition-colors ${isActive ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-slate-50 border-l-4 border-l-transparent'}`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isActive ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                             {rec.payable_transaction_type}
                           </span>
-                          <span className="text-sm font-semibold text-gray-900 truncate">{dtLabel}</span>
+                          <span className="text-xs font-semibold text-slate-900 truncate">{dtLabel}</span>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
-                          <span className="flex items-center gap-1"><Building2 size={11} />{rec.object_type ?? '—'}</span>
-                          <span className="flex items-center gap-1"><User size={11} />{ownerName}</span>
-                          <span className="flex items-center gap-1"><Tag size={11} />{rec.import_source ?? '—'}</span>
-                          <span className="flex items-center gap-1 text-teal-600"><Zap size={11} />{frequencyCodeLabel(rec.generation_frequency_code ?? 1)}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+                          <span className="flex items-center gap-0.5"><Building2 size={10} />{rec.object_type ?? '—'}</span>
+                          <span className="flex items-center gap-0.5"><User size={10} />{ownerName}</span>
+                          <span className="flex items-center gap-0.5"><Tag size={10} />{rec.import_source ?? '—'}</span>
+                          <span className="flex items-center gap-0.5 text-emerald-600"><Zap size={10} />{frequencyCodeLabel(rec.generation_frequency_code ?? 1)}</span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-[10px]">
-                          <span className={`flex items-center gap-1 ${hasRun ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        <div className="flex items-center gap-2 mt-1 text-[10px]">
+                          <span className={`flex items-center gap-0.5 ${hasRun ? 'text-emerald-600' : 'text-amber-600'}`}>
                             {hasRun ? <CheckCircle2 size={10} /> : <Clock size={10} />}
                             {hasRun ? `Next run: ${fmtDate(rec.next_run_date)}` : 'No run yet'}
                           </span>
                           {rec.last_run_date && (
                             <>
-                              <span className="text-gray-400">·</span>
-                              <span className="text-gray-500">Last: {fmtDate(rec.last_run_date)}</span>
+                              <span className="text-slate-400">·</span>
+                              <span className="text-slate-500">Last: {fmtDate(rec.last_run_date)}</span>
                             </>
                           )}
                           {rec.next_instalment_seq != null && (
                             <>
-                              <span className="text-gray-400">·</span>
+                              <span className="text-slate-400">·</span>
                               <span className="text-sky-600 font-medium">Inst #{rec.next_instalment_seq}</span>
                             </>
                           )}
-                          <span className="text-gray-400">·</span>
-                          <span className="text-gray-500">{rec.available_payment_modes.length} mode{rec.available_payment_modes.length !== 1 ? 's' : ''}</span>
+                          <span className="text-slate-400">·</span>
+                          <span className="text-slate-500">{rec.available_payment_modes.length} mode{rec.available_payment_modes.length !== 1 ? 's' : ''}</span>
                           {rec.include_gst && (
                             <>
-                              <span className="text-gray-400">·</span>
-                              <span className="text-teal-600 font-medium">GST</span>
+                              <span className="text-slate-400">·</span>
+                              <span className="text-emerald-600 font-medium">GST</span>
                             </>
                           )}
                           {!rec.is_active && (
                             <>
-                              <span className="text-gray-400">·</span>
+                              <span className="text-slate-400">·</span>
                               <span className="text-red-500 font-medium">Inactive</span>
                             </>
                           )}
@@ -619,7 +632,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(rec.id); }}
-                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                        className="p-1.5 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
                         title="Delete"
                       >
                         <Trash2 size={13} />
@@ -634,20 +647,20 @@ export const DCCRuleSetupPage: React.FC = () => {
 
         {/* Right: Form panel */}
         {showForm && (
-          <div className="w-[520px] shrink-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 bg-teal-600 shrink-0">
-              <span className="text-sm font-bold text-white">{editing ? 'Edit Rule' : 'New Rule'}</span>
+          <div className="w-[520px] shrink-0 flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-900 shrink-0">
+              <span className="text-xs font-bold text-white">{editing ? 'Edit Rule' : 'New Rule'}</span>
               <button
                 onClick={() => { setShowNew(false); setEditing(null); setSelectedId(null); }}
-                className="ml-auto p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
+                className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
               >
-                <X size={15} />
+                <X size={14} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {/* DCC Keying */}
-              <Section title="Demand Key" icon={<Tag size={13} className="text-teal-500" />} defaultOpen>
+              <Section title="Demand Key" icon={<Tag size={13} className="text-emerald-500" />} defaultOpen>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Demand Type" required>
                     <select
@@ -787,14 +800,14 @@ export const DCCRuleSetupPage: React.FC = () => {
                   </Field>
                 </div>
                 {form.due_date_reference && (
-                  <div className="px-3 py-2 bg-teal-50 rounded-lg text-[11px] text-teal-700 font-medium">
+                  <div className="px-3 py-2 bg-emerald-50 rounded-md text-[11px] text-emerald-700 font-medium">
                     Due date = {form.due_date_reference} date + {form.grace_period_days} days
                   </div>
                 )}
               </Section>
 
               {/* Demand Increase */}
-              <Section title="Demand Increase" icon={<TrendingUp size={13} className="text-teal-500" />}>
+              <Section title="Demand Increase" icon={<TrendingUp size={13} className="text-emerald-500" />}>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Increase After (months)">
                     <input
@@ -838,7 +851,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                     placeholder="e.g. HOOK_DEMAND_INCREASE_ALERT"
                   />
                 </Field>
-                <p className="text-[10px] text-gray-400">
+                <p className="text-[10px] text-slate-400">
                   After {form.increase_spec.increase_after_months} months, {form.increase_spec.increase_pct}% increase applied to last demand.
                   Repeats every {form.increase_spec.increase_after_months} months thereafter (compounded).
                 </p>
@@ -851,11 +864,11 @@ export const DCCRuleSetupPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={addGridRow}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-700 text-[11px] font-semibold hover:bg-sky-100 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-sky-50 text-sky-700 text-[11px] font-semibold hover:bg-sky-100 transition-colors"
                     >
                       <Plus size={12} /> Add Row
                     </button>
-                    <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-[11px] font-semibold hover:bg-gray-100 transition-colors cursor-pointer">
+                    <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-50 text-slate-600 text-[11px] font-semibold hover:bg-slate-100 transition-colors cursor-pointer">
                       <Upload size={12} /> Upload CSV
                       <input type="file" accept=".csv" className="hidden" onChange={handleGridExcelUpload} />
                     </label>
@@ -870,7 +883,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                   </div>
                   <div className="space-y-1.5">
                     {form.instalment_grid.length === 0 ? (
-                      <p className="text-[11px] text-gray-400 py-2">No instalment rows defined. Add rows manually or upload a CSV (seq,date,amount).</p>
+                      <p className="text-[11px] text-slate-400 py-2">No instalment rows defined. Add rows manually or upload a CSV (seq,date,amount).</p>
                     ) : (
                       form.instalment_grid.map((row, idx) => (
                         <div key={idx} className="grid grid-cols-12 gap-1.5 items-center">
@@ -897,7 +910,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                           />
                           <button
                             onClick={() => removeGridRow(idx)}
-                            className="col-span-2 flex items-center justify-center p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            className="col-span-2 flex items-center justify-center p-1.5 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -909,7 +922,7 @@ export const DCCRuleSetupPage: React.FC = () => {
               )}
 
               {/* Collection Rules */}
-              <Section title="Collection Rules" icon={<IndianRupee size={13} className="text-emerald-500" />}>
+              <Section title="Collection Controls & Allowed Modes" icon={<IndianRupee size={13} className="text-emerald-500" />}>
                 <Field label="Allowed Payment Modes" required>
                   <div className="flex flex-wrap gap-2">
                     {ALL_PAYMENT_MODES.map((mode) => {
@@ -919,7 +932,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                           key={mode}
                           type="button"
                           onClick={() => togglePaymentMode(mode)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${sel ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'}`}
+                          className={`px-2.5 py-1.5 rounded-md text-xs font-semibold border transition-colors ${sel ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'}`}
                         >
                           {PAYMENT_MODE_LABELS[mode]}
                         </button>
@@ -929,14 +942,14 @@ export const DCCRuleSetupPage: React.FC = () => {
                 </Field>
                 <div className="flex items-center gap-2 pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.include_gst} onChange={(e) => setForm({ ...form, include_gst: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
-                    <span className="text-xs font-semibold text-gray-700">Include GST</span>
+                    <input type="checkbox" checked={form.include_gst} onChange={(e) => setForm({ ...form, include_gst: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                    <span className="text-xs font-semibold text-slate-700">Include GST</span>
                   </label>
                 </div>
               </Section>
 
               {/* Full Payment Specs */}
-              <Section title="Full Payment & Discount" icon={<CheckCircle2 size={13} className="text-teal-500" />}>
+              <Section title="Full Payment & Discount Grid" icon={<CheckCircle2 size={13} className="text-emerald-500" />}>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Reference Date" required>
                     <select className={inputCls} value={form.full_payment_spec.reference_date} onChange={(e) => setForm({ ...form, full_payment_spec: { ...form.full_payment_spec, reference_date: e.target.value as ReferenceDateType } })}>
@@ -950,7 +963,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                   </Field>
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Discount Slabs (up to 5 rows)</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Discount Slabs (up to 5 rows)</div>
                   <div className="space-y-1.5">
                     {form.full_payment_spec.discount_slabs.map((slab, idx) => (
                       <div key={idx} className="grid grid-cols-4 gap-1.5">
@@ -961,7 +974,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2">Example: ref date + 45 days, 2% discount if paid within 15 days, 1% if within 30 days.</p>
+                  <p className="text-[10px] text-slate-400 mt-2">Example: ref date + 45 days, 2% discount if paid within 15 days, 1% if within 30 days.</p>
                 </div>
               </Section>
 
@@ -1013,15 +1026,15 @@ export const DCCRuleSetupPage: React.FC = () => {
                     ))}
                   </select>
                 </Field>
-                <p className="text-[10px] text-gray-400"># of instalments is auto-calculated: (payable amount - advance) / instalment amount</p>
+                <p className="text-[10px] text-slate-400"># of instalments is auto-calculated: (payable amount - advance) / instalment amount</p>
               </Section>
 
               {/* Penalty Slabs */}
-              <Section title="Penalty Slabs" icon={<Percent size={13} className="text-red-500" />}>
+              <Section title="Penalty Slabs Grid" icon={<Percent size={13} className="text-red-500" />}>
                 <div className="space-y-1.5">
                   {form.penalty_slabs.map((slab, idx) => (
                     <div key={idx} className="grid grid-cols-4 gap-1.5 items-center">
-                      <span className="text-[10px] font-bold text-gray-400">Row {slab.slab_row}</span>
+                      <span className="text-[10px] font-bold text-slate-400">Row {slab.slab_row}</span>
                       <select className={inputCls} value={slab.penalty_type} onChange={(e) => updatePenaltySlab(idx, 'penalty_type', e.target.value)}>
                         <option value="PERCENTAGE">Percentage</option>
                         <option value="AMOUNT">Amount</option>
@@ -1034,7 +1047,7 @@ export const DCCRuleSetupPage: React.FC = () => {
               </Section>
 
               {/* Alert Criteria */}
-              <Section title="Alert Criteria" icon={<AlertCircle size={13} className="text-amber-500" />}>
+              <Section title="Alert Criteria & Exception Grid" icon={<AlertCircle size={13} className="text-amber-500" />}>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Days Before Due Date">
                     <input type="number" className={inputCls} value={form.alert_spec.days_before_due} onChange={(e) => setForm({ ...form, alert_spec: { ...form.alert_spec, days_before_due: Number(e.target.value) } })} />
@@ -1046,27 +1059,27 @@ export const DCCRuleSetupPage: React.FC = () => {
               </Section>
 
               {/* Collection Exception Grid */}
-              <Section title="Collection Exception Grid" icon={<SlidersHorizontal size={13} className="text-violet-500" />}>
+              <Section title="Collection Exception Grid" icon={<SlidersHorizontal size={13} className="text-slate-500" />}>
                 <div className="flex items-center gap-2 mb-2">
                   {COLLECTION_EXCEPTION_TYPES.map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => addException(type)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-[11px] font-semibold hover:bg-gray-100 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-50 text-slate-600 text-[11px] font-semibold hover:bg-slate-100 transition-colors"
                     >
                       <Plus size={12} /> {COLLECTION_EXCEPTION_TYPE_LABELS[type]}
                     </button>
                   ))}
                 </div>
                 {form.collection_exceptions.length === 0 ? (
-                  <p className="text-[11px] text-gray-400 py-2">
+                  <p className="text-[11px] text-slate-400 py-2">
                     No exception rules defined. Add Instalment, Discount, Penalty, or Alert rules with demand slabs and offset days.
                   </p>
                 ) : (
                   <div className="space-y-1.5">
                     {/* Header */}
-                    <div className="grid grid-cols-12 gap-1.5 px-2 text-[9px] font-bold uppercase text-gray-400">
+                    <div className="grid grid-cols-12 gap-1.5 px-2 text-[9px] font-bold uppercase text-slate-400">
                       <span className="col-span-2">Type</span>
                       <span className="col-span-1">Slab Min</span>
                       <span className="col-span-1">Slab Max</span>
@@ -1099,7 +1112,7 @@ export const DCCRuleSetupPage: React.FC = () => {
                     ))}
                   </div>
                 )}
-                <p className="text-[10px] text-gray-400 mt-2">
+                <p className="text-[10px] text-slate-400 mt-2">
                   Define demand slabs, offset days, and applicable % for instalment, discount, penalty, and alert exceptions.
                   Actual amount overrules % based amount when specified.
                 </p>
@@ -1108,25 +1121,25 @@ export const DCCRuleSetupPage: React.FC = () => {
               {/* Active toggle */}
               <div className="flex items-center gap-2 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
-                  <span className="text-xs font-semibold text-gray-700">Active</span>
+                  <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-700">Active</span>
                 </label>
               </div>
             </div>
 
             {/* Save bar */}
-            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-100 bg-slate-50 shrink-0">
               <button
                 onClick={handleSave}
                 disabled={saving || !form.demand_type_id || !form.object_type}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {editing ? 'Update' : 'Create'} Rule
               </button>
               <button
                 onClick={() => { setShowNew(false); setEditing(null); setSelectedId(null); }}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                className="px-3 py-1.5 rounded-md border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>

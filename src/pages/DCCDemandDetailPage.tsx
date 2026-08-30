@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, IndianRupee, Phone, MapPin, Users, Building2,
+  ArrowLeft, Phone, MapPin, Users, Building2,
   Calendar, Clock, AlertTriangle, CheckCircle2, Wallet, Download,
-  Loader2, X, Percent, Layers, FileText, AlertCircle, History,
-  MessageSquareWarning, ChevronDown, ChevronRight, Receipt,
+  Loader2, X, Layers, FileText, AlertCircle, History,
+  MessageSquareWarning, ChevronDown, Receipt,
   Plus, Save, FileSpreadsheet, Filter, CalendarDays,
-  CreditCard, Smartphone, Building, Banknote, Lock,
+  CreditCard, Smartphone, Building, Banknote, Lock, Eye,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
@@ -16,20 +17,12 @@ import { ALL_PAYMENT_MODES, PAYMENT_MODE_LABELS } from '../types/payableCriteria
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { generatePaymentReceipt, receiptNumber } from '../utils/dccReceipt';
-
-const fmtINR = (n: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
-
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+import {
+  DCC_STATUS, DCC_INPUT_CLS, DCC_LABEL_CLS,
+  fmtINR, fmtINRShort, fmtDate, fmtDateShort,
+} from '../constants/dccTheme';
 
 type StatusKey = DccTile['status'];
-const STATUS: Record<StatusKey, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  DUE:      { label: 'Due',      bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400' },
-  OVERDUE:  { label: 'Overdue',  bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     dot: 'bg-red-500' },
-  PAID:     { label: 'Paid',     bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  EXEMPTED: { label: 'Exempted', bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   dot: 'bg-slate-400' },
-};
 
 type BreakdownColumn = { key: string; label: string };
 type BreakdownConfig = {
@@ -59,9 +52,8 @@ const getBreakdownConfig = (demandTypeCode: string, objectType: string): Breakdo
   return configs[demandTypeCode] ?? { columns: [{ key: 'amount', label: 'Amount' }], cadence: 'single', primaryColumnKey: 'amount' };
 };
 
-type Tab = 'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute';
-
-const inputCls = 'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 focus:border-teal-400 bg-white text-gray-700 transition-colors';
+// Context-driven tabs: Demand Due OR Instalment (mutually exclusive), plus Paid History and Dispute Log
+type Tab = 'demand_due' | 'installments' | 'paid_history' | 'dispute';
 
 interface DCCDemandDetailModalProps {
   demandId: string;
@@ -77,7 +69,16 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'overview');
+
+  // Determine if this demand has an installment plan to decide which tab to show first
+  const [instPlan, setInstPlan] = useState<DccInstallmentPlan | null>(null);
+  const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
+  const [instLoading, setInstLoading] = useState(false);
+  const [instError, setInstError] = useState<string | null>(null);
+  const hasInstalmentPlan = !!instPlan || instRows.length > 0;
+
+  // Default tab: installments if plan exists, otherwise demand_due
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? (hasInstalmentPlan ? 'installments' : 'demand_due'));
 
   // Payment form
   const [showPayForm, setShowPayForm] = useState(false);
@@ -94,11 +95,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [disputeRemarks, setDisputeRemarks] = useState('');
   const [disputing, setDisputing] = useState(false);
 
-  // Installment plan
-  const [instPlan, setInstPlan] = useState<DccInstallmentPlan | null>(null);
-  const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
-  const [instLoading, setInstLoading] = useState(false);
-  const [instError, setInstError] = useState<string | null>(null);
+  // Installment plan form
   const [showInstForm, setShowInstForm] = useState(false);
   const [payingRowId, setPayingRowId] = useState<string | null>(null);
 
@@ -122,7 +119,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
     { key: 'WALLET', label: 'Wallet', icon: Wallet, desc: 'Paytm, PhonePe, etc.' },
   ] as const;
 
-  // Installment form fields (rent tracker parity)
+  // Installment form fields
   const [instStartDate, setInstStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [instLateFee, setInstLateFee] = useState('0');
   const [instDueDaysLate, setInstDueDaysLate] = useState('0');
@@ -131,12 +128,15 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [instGstPct, setInstGstPct] = useState('0.00');
   const [instGstType, setInstGstType] = useState<'inclusive' | 'exclusive'>('inclusive');
   const [instNumInstallments, setInstNumInstallments] = useState(2);
-  const [instRowFilter, setInstRowFilter] = useState('ALL');
+  const [instRowFilter, setInstRowFilter] = useState<'ALL' | 'PENDING'>('ALL');
   const [instSuccess, setInstSuccess] = useState<string | null>(null);
 
-  // Bulk select for due summary
+  // Bulk select for demand due
   const [selectedDueRows, setSelectedDueRows] = useState<Set<number>>(new Set());
   const [bulkPaying, setBulkPaying] = useState(false);
+
+  // Demand Details popover
+  const [popoverSno, setPopoverSno] = useState<number | null>(null);
 
   // Receipt download
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
@@ -439,7 +439,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const handleDownload = () => {
     if (!tile) return;
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demand Statement — ${tile.object_ref}</title>
-    <style>body{font-family:sans-serif;font-size:13px;color:#1f2937;margin:32px}h2{margin:0 0 4px}p{margin:2px 0;color:#6b7280;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#0f766e;color:#fff;padding:8px 10px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #f3f4f6}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
+    <style>body{font-family:sans-serif;font-size:13px;color:#1e293b;margin:32px}h2{margin:0 0 4px;color:#1e293b}p{margin:2px 0;color:#64748b;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#1e293b;color:#fff;padding:8px 10px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
     <body><h2>Demand Statement — ${tile.object_ref}</h2>
     <p>Owner: ${tile.owner_name} · ${tile.owner_contact}</p>
     <p>Type: ${tile.demand_type_label} · Run Date: ${fmtDate(tile.demand_run_date)}</p>
@@ -464,8 +464,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex items-center justify-center">
-          <Loader2 size={24} className="animate-spin text-teal-500" />
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-emerald-500" />
         </div>
       </div>
     );
@@ -474,10 +474,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   if (error || !tile) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col items-center text-center">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 flex flex-col items-center text-center">
           <AlertTriangle size={28} className="mb-2 text-red-400" />
-          <span className="text-sm font-medium text-gray-600">{error ?? 'Demand not found'}</span>
-          <button onClick={onClose} className="mt-3 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700">
+          <span className="text-sm font-medium text-slate-600">{error ?? 'Demand not found'}</span>
+          <button onClick={onClose} className="mt-3 px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700">
             Close
           </button>
         </div>
@@ -485,928 +485,999 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
     );
   }
 
-  const st = STATUS[tile.status];
+  const st = DCC_STATUS[tile.status];
   const isPaidOrExempted = tile.status === 'PAID' || tile.status === 'EXEMPTED';
   const hasDispute = !!(demand?.dispute_date);
 
+  // Context-driven tabs: Demand Due OR Instalment (mutually exclusive)
+  const showInstalmentTab = hasInstalmentPlan;
+  const showDemandDueTab = !hasInstalmentPlan;
+
   const TABS: { key: Tab; label: string; icon: typeof History }[] = [
-    { key: 'overview', label: 'Overview', icon: FileText },
-    { key: 'due_summary', label: 'Due Summary', icon: CalendarDays },
-    { key: 'payments', label: `Payments (${payments.length})`, icon: Receipt },
-    { key: 'installments', label: `Installments (${showInstForm ? instNumInstallments : (instPlan?.no_of_installments ?? instRows.filter(r => r.row_number > 0).length)})`, icon: Layers },
-    { key: 'dispute', label: hasDispute ? 'Dispute (Active)' : 'Dispute', icon: MessageSquareWarning },
+    ...(showDemandDueTab ? [{ key: 'demand_due' as Tab, label: 'Demand Due', icon: CalendarDays }] : []),
+    ...(showInstalmentTab ? [{ key: 'installments' as Tab, label: 'Instalment', icon: Layers }] : []),
+    { key: 'paid_history', label: `Demand Paid History (${payments.length})`, icon: History },
+    { key: 'dispute', label: hasDispute ? 'Dispute Log (Active)' : 'Dispute Log', icon: MessageSquareWarning },
   ];
+
+  // Ensure active tab is valid
+  const effectiveTab = TABS.some(t => t.key === activeTab) ? activeTab : TABS[0]?.key ?? 'demand_due';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[1100px] max-h-[94vh] flex flex-col overflow-hidden animate-slideUp">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-white to-gray-50/80 border-b border-gray-200 shrink-0">
-        <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shrink-0 shadow-sm">
-          <IndianRupee size={20} className="text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-gray-900 truncate">{tile.object_ref}</h1>
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
-              {st.label}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
+      className="bg-white rounded-lg shadow-2xl w-full max-w-[1100px] max-h-[94vh] flex flex-col overflow-hidden"
+    >
+      {/* ── Dense 2-Line Header ─────────────────────────────────────────────────── */}
+      <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
+        {/* Line 1: Object Name & ID | Owner Name | Status */}
+        <div className="flex items-center gap-2 mb-1">
+          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0">
+            <ArrowLeft size={16} />
+          </button>
+          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
+            {st.label}
+          </span>
+          <h1 className="text-sm font-bold text-white truncate">{tile.object_description || tile.object_ref}</h1>
+          <span className="text-[10px] text-slate-400 shrink-0">· {tile.object_ref}</span>
+          <span className="text-[10px] text-slate-500 shrink-0">· {tile.demand_type_label}</span>
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <span className="flex items-center gap-1 text-[10px] text-slate-300">
+              <Users size={11} /> {tile.owner_name}
             </span>
           </div>
-          <p className="text-xs text-gray-500 truncate mt-0.5">{tile.demand_type_label} · {tile.object_type} · {tile.owner_name}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors"
-          >
-            <Download size={14} /> Statement
-          </button>
-          {!isPaidOrExempted && canRecordPayment && (
-            <button
-              onClick={() => setShowPayForm(v => !v)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
-            >
-              <Wallet size={14} /> Record Payment
-            </button>
+        {/* Line 2: Total Outstanding | Last Paid | Pending Since | Next Due Date + Pay Now */}
+        <div className="flex items-center gap-4 text-[10px] text-slate-400 pl-7">
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Outstanding:</span>
+            <span className="font-bold text-amber-400 text-xs">{fmtINR(tile.amount_due)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Last Paid:</span>
+            <span className="text-slate-300">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Pending Since:</span>
+            <span className="text-slate-300">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Next Due:</span>
+            <span className={`font-medium ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-slate-300'}`}>{fmtDateShort(tile.due_date)}</span>
+          </div>
+          {!isPaidOrExempted && (
+            <div className="ml-auto flex items-center gap-1.5">
+              {canRecordPayment && (
+                <button
+                  onClick={() => setShowPayForm(v => !v)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
+                >
+                  <Wallet size={12} /> Pay Now
+                </button>
+              )}
+              {isGovtOfficial && (
+                <button
+                  onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
+                >
+                  <Wallet size={12} /> Pay Now
+                </button>
+              )}
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-semibold hover:bg-slate-700 transition-colors border border-slate-700"
+              >
+                <Download size={11} /> Statement
+              </button>
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/50 text-red-300 text-[10px] font-semibold hover:bg-red-900 transition-colors border border-red-800"
+              >
+                <X size={11} /> Close
+              </button>
+            </div>
           )}
-          {!isPaidOrExempted && isGovtOfficial && (
-            <button
-              onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
-            >
-              <Wallet size={14} /> Pay Now
-            </button>
+          {isPaidOrExempted && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-semibold hover:bg-slate-700 transition-colors border border-slate-700"
+              >
+                <Download size={11} /> Statement
+              </button>
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/50 text-red-300 text-[10px] font-semibold hover:bg-red-900 transition-colors border border-red-800"
+              >
+                <X size={11} /> Close
+              </button>
+            </div>
           )}
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors border border-red-200"
-          >
-            <X size={14} /> Close
-          </button>
         </div>
       </div>
 
       {actionError && (
-        <div className="mx-6 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-          <AlertCircle size={14} className="shrink-0" /> {actionError}
+        <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md text-[11px] text-red-700">
+          <AlertCircle size={13} className="shrink-0" /> {actionError}
           <button onClick={() => setActionError(null)} className="ml-auto p-0.5 text-red-400 hover:text-red-600 transition-colors shrink-0">
-            <X size={13} />
+            <X size={12} />
           </button>
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50">
-        <div className="space-y-5">
-          {/* Summary card */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className={`h-1.5 ${st.dot}`} />
-            <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Amount</div>
-                  <div className="text-xl font-extrabold text-gray-900 mt-1">{fmtINR(tile.total_amount)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Amount Paid</div>
-                  <div className="text-xl font-extrabold text-emerald-700 mt-1">{fmtINR(tile.amount_paid)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Amount Due</div>
-                  <div className="text-xl font-extrabold text-teal-700 mt-1">{fmtINR(tile.amount_due)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Overdue</div>
-                  <div className={`text-xl font-extrabold mt-1 ${tile.overdue_amount > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                    {tile.overdue_amount > 0 ? fmtINR(tile.overdue_amount) : '—'}
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mt-5 pt-5 border-t border-gray-100">
-                <div className="flex items-center gap-2.5 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                    <Calendar size={14} className="text-gray-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Run Date</div>
-                    <div className="font-semibold text-gray-700">{fmtDate(tile.demand_run_date)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                    <Clock size={14} className="text-gray-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Due Date</div>
-                    <div className={`font-semibold ${tile.status === 'OVERDUE' ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(tile.due_date)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                    <History size={14} className="text-gray-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Last Paid</div>
-                    <div className="font-semibold text-gray-700">{tile.last_paid_date ? `${fmtINR(tile.last_paid_amount ?? 0)} · ${fmtDate(tile.last_paid_date)}` : '—'}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                    <AlertTriangle size={14} className="text-gray-400" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Pending Since</div>
-                    <div className="font-semibold text-gray-700">{tile.last_paid_date ? fmtDate(tile.last_paid_date) : fmtDate(tile.demand_run_date)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Payment form */}
-          {showPayForm && !isPaidOrExempted && (
-            <div className="bg-white rounded-2xl border border-teal-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 bg-teal-600">
-                <Wallet size={15} className="text-white" />
-                <span className="text-sm font-bold text-white">Record Payment</span>
-                <button onClick={() => setShowPayForm(false)} className="ml-auto p-1 text-white/70 hover:text-white">
-                  <X size={15} />
+      {/* Payment form (collapsible) */}
+      <AnimatePresence>
+        {showPayForm && !isPaidOrExempted && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mx-4 mt-2 bg-emerald-50 border border-emerald-200 rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-600">
+                <Wallet size={14} className="text-white" />
+                <span className="text-xs font-bold text-white">Record Payment</span>
+                <button onClick={() => setShowPayForm(false)} className="ml-auto p-0.5 text-white/70 hover:text-white">
+                  <X size={14} />
                 </button>
               </div>
-              <div className="p-4 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3 space-y-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Amount *</label>
-                    <input type="number" value={payAmount} onChange={e => setPayAmount(Number(e.target.value))} className={inputCls} />
+                    <label className={DCC_LABEL_CLS}>Amount *</label>
+                    <input type="number" value={payAmount} onChange={e => setPayAmount(Number(e.target.value))} className={DCC_INPUT_CLS} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Payment Mode *</label>
-                    <select value={payMode} onChange={e => setPayMode(e.target.value)} className={inputCls}>
+                    <label className={DCC_LABEL_CLS}>Payment Mode *</label>
+                    <select value={payMode} onChange={e => setPayMode(e.target.value)} className={DCC_INPUT_CLS}>
                       {ALL_PAYMENT_MODES.map(m => <option key={m} value={m}>{PAYMENT_MODE_LABELS[m]}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Payment Date *</label>
-                    <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className={inputCls} />
+                    <label className={DCC_LABEL_CLS}>Payment Date *</label>
+                    <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className={DCC_INPUT_CLS} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Reference #</label>
-                    <input value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Optional" className={inputCls} />
+                    <label className={DCC_LABEL_CLS}>Reference #</label>
+                    <input value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Optional" className={DCC_INPUT_CLS} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Remarks</label>
-                  <input value={payRemarks} onChange={e => setPayRemarks(e.target.value)} placeholder="Optional notes" className={inputCls} />
+                  <label className={DCC_LABEL_CLS}>Remarks</label>
+                  <input value={payRemarks} onChange={e => setPayRemarks(e.target.value)} placeholder="Optional notes" className={DCC_INPUT_CLS} />
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={handlePay}
                     disabled={paying || payAmount <= 0}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors"
                   >
-                    {paying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    {paying ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                     {paying ? 'Recording…' : 'Record Payment'}
                   </button>
-                  <button onClick={() => setShowPayForm(false)} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+                  <button onClick={() => setShowPayForm(false)} className="px-3 py-1.5 rounded-md border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
                     Cancel
                   </button>
                 </div>
               </div>
             </div>
-          )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto scrollbar-thin">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                    active ? 'border-teal-600 text-teal-700 bg-teal-50/40' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50/60'
-                  }`}
-                >
-                  <Icon size={14} /> {tab.label}
-                </button>
-              );
-            })}
-          </div>
+      {/* ── Context-Driven Tabs ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-0.5 px-4 border-b border-slate-200 bg-slate-50 overflow-x-auto shrink-0">
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          const active = effectiveTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                active ? 'border-emerald-600 text-emerald-700 bg-emerald-50/40' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100/60'
+              }`}
+            >
+              <Icon size={13} /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-          {/* Tab content */}
-          {activeTab === 'overview' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-              <div>
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Object Details</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Ref:</span><span className="font-semibold text-gray-700">{tile.object_ref}</span></div>
-                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Type:</span><span className="font-semibold text-gray-700">{tile.object_type}</span></div>
-                  <div className="flex items-center gap-2"><MapPin size={13} className="text-gray-400" /><span className="text-gray-500">Region:</span><span className="font-semibold text-gray-700">{tile.region ?? '—'}</span></div>
-                  <div className="flex items-center gap-2"><Building2 size={13} className="text-gray-400" /><span className="text-gray-500">Group:</span><span className="font-semibold text-gray-700">{tile.group_name ?? '—'}</span></div>
-                </div>
-                {tile.object_description && tile.object_description !== tile.object_ref && (
-                  <p className="text-xs text-gray-500 mt-3">{tile.object_description}</p>
-                )}
-              </div>
-              <div className="border-t border-gray-100 pt-5">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Owner Details</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                  <div className="flex items-center gap-2"><Users size={13} className="text-gray-400" /><span className="text-gray-500">Name:</span><span className="font-semibold text-gray-700">{tile.owner_name}</span></div>
-                  <div className="flex items-center gap-2"><Phone size={13} className="text-gray-400" /><span className="text-gray-500">Contact:</span><span className="font-semibold text-gray-700">{tile.owner_contact || '—'}</span></div>
-                  {tile.owner_address && <div className="flex items-center gap-2 col-span-2"><MapPin size={13} className="text-gray-400" /><span className="text-gray-500">Address:</span><span className="font-semibold text-gray-700">{tile.owner_address}</span></div>}
-                </div>
-              </div>
-              <div className="border-t border-gray-100 pt-5">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Demand Info</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                  <div><span className="text-gray-500">Type:</span> <span className="font-semibold text-gray-700">{tile.demand_type_label}</span></div>
-                  <div><span className="text-gray-500">Source:</span> <span className="font-semibold text-gray-700">{demand?.generation_source ?? '—'}</span></div>
-                  <div><span className="text-gray-500">Avg Overdue:</span> <span className={`font-semibold ${tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-gray-700'}`}>{tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'}</span></div>
-                </div>
-              </div>
-            </div>
-          )}
+      {/* ── Tab Content ────────────────────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-slate-50">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={effectiveTab}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.15 }}
+          >
+        {/* ═══ Tab 1: Demand Due ═══════════════════════════════════════════════════ */}
+        {effectiveTab === 'demand_due' && (() => {
+          const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+          const isMonthly = config.cadence === 'monthly';
+          const penaltyPct = 0.02;
+          const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
 
-          {activeTab === 'due_summary' && (() => {
-            const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
-            const isMonthly = config.cadence === 'monthly';
-            const penaltyPct = 0.02;
-            const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
-
-            const rows = isMonthly ? (() => {
-              const runDate = new Date(tile.demand_run_date);
-              const monthlyAmount = Math.round(tile.total_amount / 12);
-              const out: Array<{ sno: number; label: string; charges: Record<string, number>; total: number; status: typeof tile.status }> = [];
-              for (let i = 0; i < 12; i++) {
-                const d = new Date(runDate.getFullYear(), runDate.getMonth() + i, 1);
-                const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
-                const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
-                const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
-                const charges: Record<string, number> = {};
-                for (const col of config.columns) {
-                  if (col.key === 'penalty') {
-                    charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
-                  } else {
-                    charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
-                  }
-                }
-                const total = Object.values(charges).reduce((s, v) => s + v, 0);
-                out.push({ sno: i + 1, label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), charges, total, status });
-              }
-              return out;
-            })() : (() => {
+          const rows = isMonthly ? (() => {
+            const runDate = new Date(tile.demand_run_date);
+            const monthlyAmount = Math.round(tile.total_amount / 12);
+            const out: Array<{ sno: number; label: string; charges: Record<string, number>; total: number; status: typeof tile.status }> = [];
+            for (let i = 0; i < 12; i++) {
+              const d = new Date(runDate.getFullYear(), runDate.getMonth() + i, 1);
+              const isPaid = i < Math.floor((tile.amount_paid / tile.total_amount) * 12);
+              const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
+              const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
               const charges: Record<string, number> = {};
               for (const col of config.columns) {
                 if (col.key === 'penalty') {
-                  charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.total_amount * penaltyPct) : 0;
+                  charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
                 } else {
-                  charges[col.key] = tile.total_amount;
+                  charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
                 }
               }
               const total = Object.values(charges).reduce((s, v) => s + v, 0);
-              return [{ sno: 1, label: 'Total', charges, total, status: tile.status }];
-            })();
+              out.push({ sno: i + 1, label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), charges, total, status });
+            }
+            return out;
+          })() : (() => {
+            const charges: Record<string, number> = {};
+            for (const col of config.columns) {
+              if (col.key === 'penalty') {
+                charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.total_amount * penaltyPct) : 0;
+              } else {
+                charges[col.key] = tile.total_amount;
+              }
+            }
+            const total = Object.values(charges).reduce((s, v) => s + v, 0);
+            return [{ sno: 1, label: 'Total', charges, total, status: tile.status }];
+          })();
 
-            const colCount = config.columns.length;
+          // Only show OPEN (non-paid) rows
+          const openRows = rows.filter(r => r.status !== 'PAID');
+          const allOpenCount = openRows.length;
+          const isSingleOpen = allOpenCount === 1;
 
-            return (
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-                    <CalendarDays size={15} className="text-gray-500" />
-                    <h3 className="text-sm font-bold text-gray-900">{isMonthly ? 'Monthly Due Breakdown' : 'Demand Summary'}</h3>
-                    <span className="ml-auto text-[10px] text-gray-400 capitalize">{tile.demand_type_label} · {tile.object_type}</span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-gray-100 text-gray-600">
-                          <th className="px-3 py-2 text-center font-bold w-10">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                              checked={rows.filter(r => r.status !== 'PAID').length > 0 && rows.filter(r => r.status !== 'PAID').every(r => selectedDueRows.has(r.sno))}
-                              onChange={e => {
-                                if (e.target.checked) {
-                                  setSelectedDueRows(new Set(rows.filter(r => r.status !== 'PAID').map(r => r.sno)));
-                                } else {
-                                  setSelectedDueRows(new Set());
-                                }
-                              }}
-                            />
-                          </th>
-                          <th className="px-3 py-2 text-left font-bold">S.No</th>
-                          <th className="px-3 py-2 text-left font-bold">{isMonthly ? 'Month' : 'Period'}</th>
-                          {config.columns.map(col => (
-                            <th key={col.key} className="px-3 py-2 text-right font-bold">{col.label}</th>
-                          ))}
-                          <th className="px-3 py-2 text-right font-bold">Total</th>
-                          <th className="px-3 py-2 text-right font-bold">Due Amount</th>
-                          <th className="px-3 py-2 text-center font-bold">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map(m => {
-                          const dueAmt = m.status === 'PAID' ? 0 : m.total;
-                          return (
-                            <tr key={m.sno} className={m.status === 'PAID' ? 'bg-emerald-50/30' : m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
-                              <td className="px-3 py-2 text-center">
-                                {m.status !== 'PAID' && (
-                                  <input
-                                    type="checkbox"
-                                    className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                                    checked={selectedDueRows.has(m.sno)}
-                                    onChange={e => {
-                                      setSelectedDueRows(prev => {
-                                        const next = new Set(prev);
-                                        if (e.target.checked) next.add(m.sno);
-                                        else next.delete(m.sno);
-                                        return next;
-                                      });
-                                    }}
-                                  />
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500">{m.sno}</td>
-                              <td className="px-3 py-2 font-semibold text-gray-700">{m.label}</td>
-                              {config.columns.map(col => (
-                                <td key={col.key} className="px-3 py-2 text-right tabular-nums">
-                                  {m.charges[col.key] > 0 ? fmtINR(m.charges[col.key]) : '—'}
-                                </td>
-                              ))}
-                              <td className="px-3 py-2 text-right tabular-nums font-bold">{fmtINR(m.total)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums font-bold text-gray-700">{dueAmt > 0 ? fmtINR(dueAmt) : '—'}</td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  m.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
-                                  m.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>{m.status}</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-50 border-t-2 border-gray-200">
-                          <td colSpan={colCount + 4} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Outstanding:</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
-                          <td colSpan={1} />
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-
-                {/* Bulk Pay Bar */}
-                {selectedDueRows.size > 0 && !isPaidOrExempted && (() => {
-                  const selectedTotal = rows.filter(r => selectedDueRows.has(r.sno)).reduce((s, r) => s + r.total, 0);
-                  return (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-teal-50 border-t border-teal-200">
-                      <span className="text-xs font-semibold text-teal-700">
-                        {selectedDueRows.size} entr{selectedDueRows.size !== 1 ? 'ies' : 'y'} selected · Total: <span className="font-bold">{fmtINR(selectedTotal)}</span>
-                      </span>
-                      <button
-                        onClick={handleBulkPay}
-                        disabled={bulkPaying}
-                        className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
-                      >
-                        {bulkPaying ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
-                        {bulkPaying ? 'Processing…' : 'Pay Selected'}
-                      </button>
-                    </div>
-                  );
-                })()}
+          return (
+            <div className="space-y-3">
+              {/* Consolidated Pay bar */}
+              {!isPaidOrExempted && allOpenCount > 1 && (
+                <div className="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded-lg">
+                  <span className="text-[11px] font-semibold text-slate-300">
+                    {allOpenCount} open demand lines · Total Outstanding: <span className="font-bold text-amber-400">{fmtINR(tile.amount_due)}</span>
+                  </span>
+                  <button
+                    onClick={() => { setPayAmount(tile.amount_due); setShowPayForm(true); }}
+                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors"
+                  >
+                    <Wallet size={12} /> Consolidated Pay Now
+                  </button>
                 </div>
-              </div>
-            );
-          })()}
+              )}
 
-          {activeTab === 'payments' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-                <Receipt size={15} className="text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-900">Payment History</h3>
-                <span className="ml-auto text-[10px] text-gray-400">
-                  {payments.length} payment{payments.length !== 1 ? 's' : ''}
-                  {payments.length > 0 && ` · Total: ${fmtINR(payments.reduce((s, p) => s + p.amount, 0))}`}
-                </span>
-              </div>
-              {payments.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Receipt size={24} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">No payments recorded yet</p>
-                </div>
-              ) : (
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-[10px]">
                     <thead>
-                      <tr className="bg-gray-100 text-gray-600">
-                        <th className="px-3 py-2 text-left font-bold">Receipt No</th>
-                        <th className="px-3 py-2 text-left font-bold">Date</th>
-                        <th className="px-3 py-2 text-left font-bold">Mode</th>
-                        <th className="px-3 py-2 text-left font-bold">Reference</th>
-                        <th className="px-3 py-2 text-right font-bold">Amount</th>
-                        <th className="px-3 py-2 text-left font-bold">Remarks</th>
-                        <th className="px-3 py-2 text-center font-bold">Receipt</th>
+                      <tr className="bg-slate-100 text-slate-600">
+                        <th className="px-2 py-1.5 text-center font-bold w-8">
+                          <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            checked={openRows.length > 0 && openRows.every(r => selectedDueRows.has(r.sno))}
+                            onChange={e => {
+                              if (e.target.checked) setSelectedDueRows(new Set(openRows.map(r => r.sno)));
+                              else setSelectedDueRows(new Set());
+                            }}
+                          />
+                        </th>
+                        <th className="px-2 py-1.5 text-left font-bold">Sl No</th>
+                        <th className="px-2 py-1.5 text-left font-bold">Month/Period</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Demand Amt</th>
+                        {config.columns.filter(c => c.key !== 'penalty').map(col => (
+                          <th key={col.key} className="px-2 py-1.5 text-right font-bold">{col.label}</th>
+                        ))}
+                        <th className="px-2 py-1.5 text-right font-bold">Late Fee</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Total Due</th>
+                        <th className="px-2 py-1.5 text-center font-bold">Dispute</th>
+                        <th className="px-2 py-1.5 text-center font-bold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {payments.map(p => (
-                        <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                          <td className="px-3 py-2.5">
-                            <span className="font-bold text-teal-700">{receiptNumber(p.id)}</span>
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-600">{fmtDate(p.payment_date)}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-semibold">
-                              {PAYMENT_MODE_LABELS[p.payment_mode as PaymentMode] ?? p.payment_mode}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-gray-500">{p.reference_number || '—'}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-700">{fmtINR(p.amount)}</td>
-                          <td className="px-3 py-2.5 text-gray-400 max-w-[160px] truncate" title={p.remarks ?? ''}>{p.remarks || '—'}</td>
-                          <td className="px-3 py-2.5 text-center">
-                            <button
-                              onClick={() => {
-                                if (!tile) return;
-                                setDownloadingReceiptId(p.id);
-                                try {
-                                  generatePaymentReceipt({ payment: p, tile, demand });
-                                } catch {
-                                  setActionError('Failed to generate receipt');
-                                } finally {
-                                  setDownloadingReceiptId(null);
-                                }
-                              }}
-                              disabled={downloadingReceiptId === p.id}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[10px] font-semibold hover:bg-teal-100 disabled:opacity-40 transition-colors"
-                            >
-                              {downloadingReceiptId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
-                              {downloadingReceiptId === p.id ? 'Generating…' : 'Download'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {openRows.map(m => {
+                        const demandAmt = config.columns.filter(c => c.key !== 'penalty').reduce((s, c) => s + (m.charges[c.key] ?? 0), 0);
+                        const lateFee = m.charges['penalty'] ?? 0;
+                        const rst = DCC_STATUS[m.status];
+                        return (
+                          <tr key={m.sno} className={m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
+                            <td className="px-2 py-1.5 text-center">
+                              <input
+                                type="checkbox"
+                                className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                checked={selectedDueRows.has(m.sno)}
+                                onChange={e => {
+                                  setSelectedDueRows(prev => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) next.add(m.sno);
+                                    else next.delete(m.sno);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
+                            <td className="px-2 py-1.5 text-slate-500">{m.sno}</td>
+                            <td className="px-2 py-1.5 font-semibold text-slate-700">{m.label}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">{fmtINR(demandAmt)}</td>
+                            {config.columns.filter(c => c.key !== 'penalty').map(col => (
+                              <td key={col.key} className="px-2 py-1.5 text-right tabular-nums text-slate-500">
+                                {m.charges[col.key] > 0 ? fmtINRShort(m.charges[col.key]) : '—'}
+                              </td>
+                            ))}
+                            <td className="px-2 py-1.5 text-right tabular-nums text-red-600">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums font-bold text-slate-900">{fmtINR(m.total)}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              {hasDispute ? (
+                                <span className="inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-100 text-orange-700" title={`${demand?.dispute_reason ?? ''} — ${demand?.dispute_remarks ?? ''}`}>
+                                  {fmtDateShort(demand?.dispute_date ?? null)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <button
+                                onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
+                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+                              >
+                                <Eye size={10} /> Details
+                              </button>
+                              {isSingleOpen && !isPaidOrExempted && (
+                                <button
+                                  onClick={() => { setPayAmount(m.total); setShowPayForm(true); }}
+                                  className="ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                                >
+                                  <Wallet size={10} /> Pay
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-gray-50 border-t-2 border-gray-200">
-                        <td colSpan={4} className="px-3 py-2.5 text-right font-bold text-gray-700">Total Collected:</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-extrabold text-emerald-700">
-                          {fmtINR(payments.reduce((s, p) => s + p.amount, 0))}
-                        </td>
+                      <tr className="bg-slate-50 border-t-2 border-slate-200">
+                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 5} className="px-2 py-2 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td className="px-2 py-2 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
                     </tfoot>
                   </table>
                 </div>
+
+                {/* Demand Details Popover */}
+                <AnimatePresence>
+                  {popoverSno !== null && (() => {
+                    const row = rows.find(r => r.sno === popoverSno);
+                    if (!row) return null;
+                    const config2 = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+                    return (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-t border-slate-200"
+                      >
+                        <div className="p-3 bg-slate-50 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FileText size={13} className="text-slate-500" />
+                            <span className="text-xs font-bold text-slate-700">Demand Details — {row.label}</span>
+                            <button onClick={() => setPopoverSno(null)} className="ml-auto p-0.5 text-slate-400 hover:text-slate-600">
+                              <X size={12} />
+                            </button>
+                          </div>
+                          {/* Itemized breakdown */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {config2.columns.map(col => (
+                              <span key={col.key} className="px-2 py-1 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-slate-600">
+                                {col.label}: {row.charges[col.key] > 0 ? fmtINR(row.charges[col.key]) : '—'}
+                              </span>
+                            ))}
+                            <span className="px-2 py-1 rounded-md bg-slate-800 text-[10px] font-bold text-white">
+                              Total: {fmtINR(row.total)}
+                            </span>
+                          </div>
+                          {/* Discount grid rule evaluation */}
+                          {instPlan?.discount_full_payment_pct && instPlan.discount_full_payment_pct > 0 ? (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md">
+                              <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                              <span className="text-[11px] text-emerald-700">
+                                Pay on or before <span className="font-bold">{fmtDateShort(tile.due_date)}</span> to get <span className="font-bold">{instPlan.discount_full_payment_pct}%</span> off. You Pay: <span className="font-bold">{fmtINR(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100)))}</span>
+                              </span>
+                              {isSingleOpen && !isPaidOrExempted && (
+                                <button
+                                  onClick={() => { setPayAmount(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100))); setShowPayForm(true); setPopoverSno(null); }}
+                                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
+                                >
+                                  <Wallet size={11} /> Pay Now
+                                </button>
+                              )}
+                            </div>
+                          ) : null}
+                          {/* Dispute trigger for admins */}
+                          {canRecordPayment && !hasDispute && (
+                            <div className="flex items-end gap-2 pt-1 border-t border-slate-200">
+                              <div className="flex-1">
+                                <label className={DCC_LABEL_CLS}>Dispute Reason</label>
+                                <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className={DCC_INPUT_CLS}>
+                                  <option value="">Select reason…</option>
+                                  <option value="Wrong amount">Wrong amount</option>
+                                  <option value="Already paid">Already paid</option>
+                                  <option value="Invalid demand">Invalid demand</option>
+                                  <option value="Calculation error">Calculation error</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              </div>
+                              <div className="flex-1">
+                                <label className={DCC_LABEL_CLS}>Dispute Remarks</label>
+                                <input value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={DCC_INPUT_CLS} />
+                              </div>
+                              <button
+                                onClick={handleDispute}
+                                disabled={disputing || !disputeReason.trim()}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-600 text-white text-[10px] font-semibold hover:bg-orange-700 disabled:opacity-40 transition-colors"
+                              >
+                                {disputing ? <Loader2 size={11} className="animate-spin" /> : <MessageSquareWarning size={11} />}
+                                Mark Disputed
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+                </AnimatePresence>
+
+                {/* Bulk Pay Bar */}
+                {selectedDueRows.size > 0 && !isPaidOrExempted && (() => {
+                  const selectedTotal = openRows.filter(r => selectedDueRows.has(r.sno)).reduce((s, r) => s + r.total, 0);
+                  return (
+                    <div className="flex items-center gap-3 px-3 py-2 bg-emerald-50 border-t border-emerald-200">
+                      <span className="text-[11px] font-semibold text-emerald-700">
+                        {selectedDueRows.size} entr{selectedDueRows.size !== 1 ? 'ies' : 'y'} selected · Total: <span className="font-bold">{fmtINR(selectedTotal)}</span>
+                      </span>
+                      <button
+                        onClick={handleBulkPay}
+                        disabled={bulkPaying}
+                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+                      >
+                        {bulkPaying ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={13} />}
+                        {bulkPaying ? 'Processing…' : 'Pay Selected'}
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ═══ Tab 2: Instalment ══════════════════════════════════════════════════ */}
+        {effectiveTab === 'installments' && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-3">
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <Layers size={14} className="text-slate-500" />
+              <h3 className="text-xs font-bold text-slate-900">Instalment Plan</h3>
+              {isPaidOrExempted && instRows.length > 0 && (
+                <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide">
+                  <History size={11} /> Read-Only
+                </span>
+              )}
+              {canManagePlan && !isPaidOrExempted && !showInstForm && (
+                <button
+                  onClick={() => setShowInstForm(true)}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold hover:bg-emerald-100 transition-colors"
+                >
+                  <Plus size={12} /> {instPlan ? 'Recreate Plan' : 'Create Plan'}
+                </button>
               )}
             </div>
-          )}
 
-          {activeTab === 'installments' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-              {/* Header */}
-              <div className="flex items-center gap-2">
-                <Layers size={15} className="text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-900">Installment Plan</h3>
-                {isPaidOrExempted && instRows.length > 0 && (
-                  <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide">
-                    <History size={11} /> Read-Only History
-                  </span>
-                )}
-                {canManagePlan && !isPaidOrExempted && !showInstForm && (
-                  <button
-                    onClick={() => setShowInstForm(true)}
-                    className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[11px] font-semibold hover:bg-teal-100 transition-colors"
-                  >
-                    <Plus size={12} /> {instPlan ? 'Recreate Plan' : 'Create Plan'}
-                  </button>
-                )}
+            {instSuccess && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md text-[11px] text-emerald-700">
+                <CheckCircle2 size={13} className="shrink-0" /> {instSuccess}
               </div>
+            )}
 
-              {/* Success message */}
-              {instSuccess && (
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
-                  <CheckCircle2 size={14} className="shrink-0" /> {instSuccess}
-                </div>
-              )}
-
-              {/* Create / Recreate form */}
+            {/* Create / Recreate form */}
+            <AnimatePresence>
               {showInstForm && canManagePlan && !isPaidOrExempted && (
-                <div className="bg-teal-50/50 border border-teal-200 rounded-xl p-4 space-y-4">
-                  {/* Config fields */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Installment Start Date *</label>
-                      <input type="date" value={instStartDate} onChange={e => setInstStartDate(e.target.value)} className={inputCls} />
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-emerald-50/50 border border-emerald-200 rounded-lg p-3 space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Start Date *</label>
+                        <input type="date" value={instStartDate} onChange={e => setInstStartDate(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Late Fee (₹)</label>
+                        <input type="number" min={0} value={instLateFee} onChange={e => setInstLateFee(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Due Days Late Fee</label>
+                        <select value={instDueDaysLate} onChange={e => setInstDueDaysLate(e.target.value)} className={DCC_INPUT_CLS}>
+                          {[0, 5, 7, 10, 15, 20, 30].map(d => <option key={d} value={d}>{d} days</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Interest % p.a.</label>
+                        <input type="number" step="0.01" min={0} value={instInterestPct} onChange={e => setInstInterestPct(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Full Pay Disc %</label>
+                        <input type="number" step="0.01" min={0} max={100} value={instDiscountFullPct} onChange={e => setInstDiscountFullPct(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>GST %</label>
+                        <input type="number" step="0.01" min={0} max={100} value={instGstPct} onChange={e => setInstGstPct(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>GST Type</label>
+                        <select value={instGstType} onChange={e => setInstGstType(e.target.value as 'inclusive' | 'exclusive')} className={DCC_INPUT_CLS}>
+                          <option value="inclusive">Inclusive</option>
+                          <option value="exclusive">Exclusive</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Balance Payment</label>
+                        <div className="px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 rounded-md border border-slate-200">{fmtINR(balancePayment)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Late Fee (₹)</label>
-                      <input type="number" min={0} value={instLateFee} onChange={e => setInstLateFee(e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Due Days with Late Fee</label>
-                      <select value={instDueDaysLate} onChange={e => setInstDueDaysLate(e.target.value)} className={inputCls}>
-                        {[0, 5, 7, 10, 15, 20, 30].map(d => <option key={d} value={d}>{d} days</option>)}
+
+                    <div className="flex items-center gap-2">
+                      <label className={DCC_LABEL_CLS}>Term:</label>
+                      <select value={instNumInstallments} onChange={e => setInstNumInstallments(Number(e.target.value))} className={`${DCC_INPUT_CLS} w-28`}>
+                        {[1, 2, 3, 4, 6, 8, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Interest % p.a.</label>
-                      <input type="number" step="0.01" min={0} value={instInterestPct} onChange={e => setInstInterestPct(e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Discount if Full Payment %</label>
-                      <input type="number" step="0.01" min={0} max={100} value={instDiscountFullPct} onChange={e => setInstDiscountFullPct(e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">GST %</label>
-                      <input type="number" step="0.01" min={0} max={100} value={instGstPct} onChange={e => setInstGstPct(e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">GST Type</label>
-                      <select value={instGstType} onChange={e => setInstGstType(e.target.value as 'inclusive' | 'exclusive')} className={inputCls}>
-                        <option value="inclusive">Inclusive</option>
-                        <option value="exclusive">Exclusive</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Balance Payment</label>
-                      <div className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 rounded-lg border border-gray-200">{fmtINR(balancePayment)}</div>
-                    </div>
-                  </div>
 
-                  {/* Term selector */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Term (No. of Installments):</label>
-                    <select value={instNumInstallments} onChange={e => setInstNumInstallments(Number(e.target.value))} className={`${inputCls} w-32`}>
-                      {[1, 2, 3, 4, 6, 8, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Schedule table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[10px]">
-                      <thead>
-                        <tr className="bg-gray-100 text-gray-600">
-                          <th className="px-2 py-1.5 text-left font-bold">Installment</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Percentage</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Amount</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Discount</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
-                          <th className="px-2 py-1.5 text-right font-bold">GST Amount</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Net Payable</th>
-                          <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {instEditRows.map((r, idx) => (
-                          <tr key={r.row_number} className={r.row_number === 0 ? 'bg-teal-50/50' : ''}>
-                            <td className="px-2 py-1.5 font-semibold text-gray-700">{r.label}</td>
-                            <td className="px-2 py-1.5 text-right">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={r.percentage}
-                                onChange={e => updateInstRow(idx, 'percentage', e.target.value)}
-                                disabled={r.row_number === 0}
-                                className="w-16 px-1.5 py-1 text-right tabular-nums text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400 disabled:bg-gray-50 disabled:text-gray-400"
-                              />
-                            </td>
-                            <td className="px-2 py-1.5 text-right">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={r.amount}
-                                onChange={e => updateInstRow(idx, 'amount', e.target.value)}
-                                disabled={r.row_number === 0}
-                                className="w-24 px-1.5 py-1 text-right tabular-nums text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400 disabled:bg-gray-50 disabled:text-gray-400"
-                              />
-                            </td>
-                            <td className="px-2 py-1.5 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums font-bold text-teal-700">{fmtINR(r.net_payable)}</td>
-                            <td className="px-2 py-1.5">
-                              <input
-                                type="date"
-                                value={r.due_date}
-                                onChange={e => updateInstRow(idx, 'due_date', e.target.value)}
-                                className="w-36 px-1.5 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
-                              />
-                            </td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-600">
+                            <th className="px-2 py-1.5 text-left font-bold">Instalment</th>
+                            <th className="px-2 py-1.5 text-right font-bold">Percentage</th>
+                            <th className="px-2 py-1.5 text-right font-bold">Amount</th>
+                            <th className="px-2 py-1.5 text-right font-bold">Discount</th>
+                            <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
+                            <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
+                            <th className="px-2 py-1.5 text-right font-bold">Net Payable</th>
+                            <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Validation warnings */}
-                  {!instPctValid && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-700">
-                      <AlertTriangle size={12} /> Percentages total {instPctTotal.toFixed(2)}% — must equal 100%.
+                        </thead>
+                        <tbody>
+                          {instEditRows.map((r, idx) => (
+                            <tr key={r.row_number} className={r.row_number === 0 ? 'bg-emerald-50/50' : ''}>
+                              <td className="px-2 py-1.5 font-semibold text-slate-700">{r.label}</td>
+                              <td className="px-2 py-1.5 text-right">
+                                <input type="number" step="0.01" min="0" max="100" value={r.percentage} onChange={e => updateInstRow(idx, 'percentage', e.target.value)} disabled={r.row_number === 0} className="w-14 px-1.5 py-1 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
+                              </td>
+                              <td className="px-2 py-1.5 text-right">
+                                <input type="number" step="0.01" min="0" value={r.amount} onChange={e => updateInstRow(idx, 'amount', e.target.value)} disabled={r.row_number === 0} className="w-20 px-1.5 py-1 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
+                              </td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums font-bold text-emerald-700">{fmtINR(r.net_payable)}</td>
+                              <td className="px-2 py-1.5">
+                                <input type="date" value={r.due_date} onChange={e => updateInstRow(idx, 'due_date', e.target.value)} className="w-32 px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
-                  {!instAmtValid && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-700">
-                      <AlertTriangle size={12} /> Amounts total {fmtINR(instAmtTotal)} — must equal {fmtINR(balancePayment)}.
-                    </div>
-                  )}
 
-                  {/* Action buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCreatePlan}
-                      disabled={instLoading || !instPctValid || !instAmtValid || !instStartDate}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
-                    >
-                      {instLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                      {instLoading ? 'Creating…' : instPlan ? 'Recreate Plan' : 'Create Plan'}
-                    </button>
-                    <button onClick={() => { setShowInstForm(false); setInstSuccess(null); }} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">
-                      Cancel
-                    </button>
+                    {!instPctValid && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-[10px] text-amber-700">
+                        <AlertTriangle size={12} /> Percentages total {instPctTotal.toFixed(2)}% — must equal 100%.
+                      </div>
+                    )}
+                    {!instAmtValid && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-[10px] text-amber-700">
+                        <AlertTriangle size={12} /> Amounts total {fmtINR(instAmtTotal)} — must equal {fmtINR(balancePayment)}.
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button onClick={handleCreatePlan} disabled={instLoading || !instPctValid || !instAmtValid || !instStartDate} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+                        {instLoading ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                        {instLoading ? 'Creating…' : instPlan ? 'Recreate Plan' : 'Create Plan'}
+                      </button>
+                      <button onClick={() => { setShowInstForm(false); setInstSuccess(null); }} className="px-3 py-1.5 rounded-md border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
               )}
+            </AnimatePresence>
 
-              {/* Read-only plan view */}
-              {instLoading && !instPlan ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 size={20} className="animate-spin text-teal-500" />
-                </div>
-              ) : instError ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <AlertCircle size={24} className="mx-auto mb-2 text-red-400" />
-                  <p className="text-xs font-medium text-red-600">{instError}</p>
+            {/* Read-only plan view */}
+            {instLoading && !instPlan ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={20} className="animate-spin text-emerald-500" />
+              </div>
+            ) : instError ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertCircle size={24} className="mx-auto mb-2 text-red-400" />
+                <p className="text-xs font-medium text-red-600">{instError}</p>
+                <button onClick={loadInstallments} className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold hover:bg-emerald-100 transition-colors">
+                  <Loader2 size={12} /> Retry
+                </button>
+              </div>
+            ) : instRows.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Layers size={24} className="mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No instalment plan created yet.</p>
+                {canManagePlan ? (
+                  <p className="text-[10px] mt-1">Click "Create Plan" to split this demand into instalments.</p>
+                ) : (
+                  <p className="text-[10px] mt-1">An Estate Manager has not created a plan for this demand yet.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Summary Banner */}
+                {instPlan && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Start: {fmtDateShort(instPlan.installment_start_date)}</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Late Fee: ₹{instPlan.late_fee}</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Grace: {instPlan.due_days_with_late_fee}d</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Interest: {instPlan.interest_pct_pa}% p.a.</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Full Disc: {instPlan.discount_full_payment_pct}%</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">GST: {instPlan.gst_pct}% ({instPlan.gst_type})</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Balance: {fmtINR(instPlan.balance_payment)}</span>
+                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Instalments: {instPlan.no_of_installments}</span>
+                    <span className="px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">Paid: {instPlan.installments_paid}</span>
+                    <span className="px-2 py-1 rounded-md bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-700">Due: {instPlan.installments_due}</span>
+                  </div>
+                )}
+
+                {/* Toggle: All vs Pending Only */}
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex bg-slate-100 rounded-md p-0.5">
+                    <button
+                      onClick={() => setInstRowFilter('ALL')}
+                      className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${instRowFilter === 'ALL' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      All Instalments
+                    </button>
+                    <button
+                      onClick={() => setInstRowFilter('PENDING')}
+                      className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${instRowFilter === 'PENDING' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Pending Only
+                    </button>
+                  </div>
                   <button
-                    onClick={loadInstallments}
-                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 text-[11px] font-semibold hover:bg-teal-100 transition-colors"
+                    onClick={() => {
+                      const csv = ['Action,Instalment,Total Amount,Discount,Penalty,GST Amount,Due Date,Due w/ Late Fee,Paid Date,Paid Amount,Remaining,Status'];
+                      instRows.forEach(r => {
+                        csv.push([r.row_number === 0 ? 'Full Pay' : 'Pay', r.label, r.amount, r.late_fee > 0 ? r.late_fee : '', r.late_fee, r.gst_amount, r.due_date || '', r.due_date_with_late_fee || '', r.paid_date || '', r.paid_amt, r.remaining_amount, r.status].join(','));
+                      });
+                      const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = `Instalments_${tile?.object_ref ?? 'plan'}.csv`;
+                      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }}
+                    className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold hover:bg-slate-200 transition-colors"
                   >
-                    <Loader2 size={12} /> Retry
+                    <FileSpreadsheet size={11} /> Export
                   </button>
                 </div>
-              ) : instRows.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Layers size={24} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">No installment plan created yet.</p>
-                  {canManagePlan ? (
-                    <p className="text-[10px] mt-1">Click "Create Plan" to split this demand into installments.</p>
-                  ) : (
-                    <p className="text-[10px] mt-1">An Estate Manager has not created a plan for this demand yet.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* Plan config chips */}
-                  {instPlan && (
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Start: {fmtDate(instPlan.installment_start_date)}</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Late Fee: ₹{instPlan.late_fee}</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Due Days: {instPlan.due_days_with_late_fee}</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Interest: {instPlan.interest_pct_pa}% p.a.</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Full Pay Disc: {instPlan.discount_full_payment_pct}%</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">GST: {instPlan.gst_pct}% ({instPlan.gst_type})</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Balance: {fmtINR(instPlan.balance_payment)}</span>
-                      <span className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-[10px] font-semibold text-gray-600">Installments: {instPlan.no_of_installments}</span>
-                      <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">Paid: {instPlan.installments_paid}</span>
-                      <span className="px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-700">Due: {instPlan.installments_due}</span>
-                    </div>
-                  )}
 
-                  {/* Filter + Export row */}
-                  <div className="flex items-center gap-2">
-                    <Filter size={13} className="text-gray-400" />
-                    <select value={instRowFilter} onChange={e => setInstRowFilter(e.target.value)} className={`${inputCls} w-40`}>
-                      <option value="ALL">All Installments</option>
-                      {instRows.filter(r => r.row_number > 0).map(r => (
-                        <option key={r.id} value={r.id}>{r.label}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => {
-                        const csv = ['Action,Installment,Total Amount,Discount,Penalty,GST Amount,Due Date,Due with Late Fee,Paid Date,Paid Amount,Remaining,Status'];
-                        instRows.forEach(r => {
-                          csv.push([r.row_number === 0 ? 'Full Pay' : 'Pay', r.label, r.amount, r.late_fee > 0 ? r.late_fee : '', r.late_fee, r.gst_amount, r.due_date || '', r.due_date_with_late_fee || '', r.paid_date || '', r.paid_amt, r.remaining_amount, r.status].join(','));
-                        });
-                        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url; a.download = `Installments_${tile?.object_ref ?? 'plan'}.csv`;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        setTimeout(() => URL.revokeObjectURL(url), 1000);
-                      }}
-                      className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-semibold hover:bg-gray-200 transition-colors"
-                    >
-                      <FileSpreadsheet size={12} /> Export
+                {/* Dense instalment table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-600">
+                        <th className="px-2 py-1.5 text-left font-bold">Action</th>
+                        <th className="px-2 py-1.5 text-left font-bold">Seq</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Total Amt</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Discount</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
+                        <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
+                        <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
+                        <th className="px-2 py-1.5 text-left font-bold">Due w/ Late</th>
+                        <th className="px-2 py-1.5 text-left font-bold">Paid Date</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Paid Amt</th>
+                        <th className="px-2 py-1.5 text-right font-bold">Remaining</th>
+                        <th className="px-2 py-1.5 text-center font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {instRows
+                        .filter(r => {
+                          if (instRowFilter === 'PENDING') return r.status !== 'PAID' && r.status !== 'EXEMPTED';
+                          return true;
+                        })
+                        .map(row => {
+                          const isPaid = row.status === 'PAID';
+                          const isFullPayment = row.row_number === 0;
+                          const sequentialRows = instRows.filter(r => r.row_number > 0 && r.status !== 'PAID' && r.status !== 'EXEMPTED');
+                          const earliestUnpaidRowNumber = sequentialRows.length > 0 ? Math.min(...sequentialRows.map(r => r.row_number)) : null;
+                          const canPayManager = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
+                          const canPayGovt = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
+                          const isLocked = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && (canRecordPayment || isGovtOfficial) && row.row_number > 0 && earliestUnpaidRowNumber !== null && row.row_number !== earliestUnpaidRowNumber;
+                          const canPayThis = canPayManager || canPayGovt;
+
+                          return (
+                            <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : isFullPayment ? 'bg-emerald-50/20' : ''}>
+                              <td className="px-2 py-1.5">
+                                {canPayThis ? (
+                                  <button onClick={() => handlePayInstallment(row)} disabled={payingRowId === row.id} className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-600 text-white text-[9px] font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+                                    {payingRowId === row.id ? <Loader2 size={10} className="animate-spin" /> : <Wallet size={10} />}
+                                    {payingRowId === row.id ? 'Paying…' : 'Pay'}
+                                  </button>
+                                ) : isLocked ? (
+                                  <span className="inline-flex items-center gap-0.5 text-slate-400 text-[9px]" title="Pay the previous instalment first">
+                                    <Lock size={10} /> Locked
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-1.5 font-semibold text-slate-700">{row.label}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums font-bold">{fmtINR(row.amount)}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number === 0 ? fmtINR(0) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number > 0 ? fmtINR(row.late_fee) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.gst_amount > 0 ? fmtINR(row.gst_amount) : '—'}</td>
+                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.due_date)}</td>
+                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.due_date_with_late_fee)}</td>
+                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.paid_date)}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums text-emerald-600 font-semibold">{row.paid_amt > 0 ? fmtINR(row.paid_amt) : '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-slate-700">{row.remaining_amount > 0 ? fmtINR(row.remaining_amount) : '—'}</td>
+                              <td className="px-2 py-1.5 text-center">
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                  isPaid ? 'bg-emerald-100 text-emerald-700' :
+                                  row.status === 'EXEMPTED' ? 'bg-slate-200 text-slate-600' :
+                                  row.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                  row.status === 'DUE' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-slate-100 text-slate-500'
+                                }`}>{row.status}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Tab 3: Demand Paid History ══════════════════════════════════════════ */}
+        {effectiveTab === 'paid_history' && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
+              <History size={14} className="text-slate-500" />
+              <h3 className="text-xs font-bold text-slate-900">Demand Paid History</h3>
+              <span className="ml-auto text-[10px] text-slate-400">
+                {payments.length} payment{payments.length !== 1 ? 's' : ''}
+                {payments.length > 0 && ` · Total: ${fmtINR(payments.reduce((s, p) => s + p.amount, 0))}`}
+              </span>
+            </div>
+            {payments.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Receipt size={24} className="mx-auto mb-2 opacity-30" />
+                <p className="text-xs">No payments recorded yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-600">
+                      <th className="px-2 py-1.5 text-left font-bold">Receipt No</th>
+                      <th className="px-2 py-1.5 text-left font-bold">Date</th>
+                      <th className="px-2 py-1.5 text-left font-bold">Mode</th>
+                      <th className="px-2 py-1.5 text-left font-bold">Reference</th>
+                      <th className="px-2 py-1.5 text-right font-bold">Amount</th>
+                      <th className="px-2 py-1.5 text-left font-bold">Remarks</th>
+                      <th className="px-2 py-1.5 text-center font-bold">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...payments].reverse().map(p => (
+                      <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-2 py-2"><span className="font-bold text-emerald-700">{receiptNumber(p.id)}</span></td>
+                        <td className="px-2 py-2 text-slate-600">{fmtDate(p.payment_date)}</td>
+                        <td className="px-2 py-2">
+                          <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-semibold">
+                            {PAYMENT_MODE_LABELS[p.payment_mode as PaymentMode] ?? p.payment_mode}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-slate-500">{p.reference_number || '—'}</td>
+                        <td className="px-2 py-2 text-right tabular-nums font-bold text-emerald-700">{fmtINR(p.amount)}</td>
+                        <td className="px-2 py-2 text-slate-400 max-w-[160px] truncate" title={p.remarks ?? ''}>{p.remarks || '—'}</td>
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            onClick={() => {
+                              if (!tile) return;
+                              setDownloadingReceiptId(p.id);
+                              try { generatePaymentReceipt({ payment: p, tile, demand }); } catch { setActionError('Failed to generate receipt'); } finally { setDownloadingReceiptId(null); }
+                            }}
+                            disabled={downloadingReceiptId === p.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-semibold hover:bg-emerald-100 disabled:opacity-40 transition-colors"
+                          >
+                            {downloadingReceiptId === p.id ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />}
+                            {downloadingReceiptId === p.id ? 'Gen…' : 'Download'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t-2 border-slate-200">
+                      <td colSpan={4} className="px-2 py-2 text-right font-bold text-slate-700">Total Collected:</td>
+                      <td className="px-2 py-2 text-right tabular-nums font-extrabold text-emerald-700">{fmtINR(payments.reduce((s, p) => s + p.amount, 0))}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ Tab 4: Dispute Log ══════════════════════════════════════════════════ */}
+        {effectiveTab === 'dispute' && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquareWarning size={14} className="text-slate-500" />
+              <h3 className="text-xs font-bold text-slate-900">Dispute Log</h3>
+            </div>
+            {hasDispute ? (
+              <div className="space-y-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <AlertTriangle size={13} className="text-orange-600" />
+                    <span className="font-bold text-orange-700">Active Dispute</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 space-y-1">
+                    <div><span className="text-slate-400">Dispute Date:</span> {fmtDate(demand?.dispute_date ?? null)}</div>
+                    <div><span className="text-slate-400">Reason:</span> {demand?.dispute_reason}</div>
+                    {demand?.dispute_remarks && <div><span className="text-slate-400">Remarks:</span> {demand.dispute_remarks}</div>}
+                  </div>
+                </div>
+                {canRecordPayment && (
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="text-[10px] text-slate-500 mb-2">Update dispute details:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Dispute Date *</label>
+                        <input type="date" value={disputeDate} onChange={e => setDisputeDate(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Reason *</label>
+                        <input value={disputeReason} onChange={e => setDisputeReason(e.target.value)} placeholder="e.g. Wrong amount" className={DCC_INPUT_CLS} />
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <label className={DCC_LABEL_CLS}>Remarks</label>
+                      <textarea value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={DCC_INPUT_CLS + ' h-16 resize-none'} />
+                    </div>
+                    <button onClick={handleDispute} disabled={disputing || !disputeReason.trim()} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 disabled:opacity-40 transition-colors">
+                      {disputing ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                      {disputing ? 'Saving…' : 'Update Dispute'}
                     </button>
                   </div>
-
-                  {/* Dense installment table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[10px]">
-                      <thead>
-                        <tr className="bg-gray-100 text-gray-600">
-                          <th className="px-2 py-1.5 text-left font-bold">Action</th>
-                          <th className="px-2 py-1.5 text-left font-bold">Installment</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Total Amount</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Discount</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
-                          <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
-                          <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
-                          <th className="px-2 py-1.5 text-left font-bold">Due w/ Late Fee</th>
-                          <th className="px-2 py-1.5 text-left font-bold">Paid Date</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Paid Amt</th>
-                          <th className="px-2 py-1.5 text-right font-bold">Remaining</th>
-                          <th className="px-2 py-1.5 text-center font-bold">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {instRows
-                          .filter(r => instRowFilter === 'ALL' || r.id === instRowFilter)
-                          .map(row => {
-                            const isPaid = row.status === 'PAID';
-                            const isFullPayment = row.row_number === 0;
-                            const sequentialRows = instRows.filter(r => r.row_number > 0 && r.status !== 'PAID' && r.status !== 'EXEMPTED');
-                            const earliestUnpaidRowNumber = sequentialRows.length > 0 ? Math.min(...sequentialRows.map(r => r.row_number)) : null;
-                            const canPayManager = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && canRecordPayment && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
-                            const canPayGovt = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && isGovtOfficial && (isFullPayment || row.row_number === earliestUnpaidRowNumber);
-                            const isLocked = !isPaid && row.remaining_amount > 0 && !isPaidOrExempted && (canRecordPayment || isGovtOfficial) && row.row_number > 0 && earliestUnpaidRowNumber !== null && row.row_number !== earliestUnpaidRowNumber;
-                            const canPayThis = canPayManager || canPayGovt;
-
-                            return (
-                              <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
-                                <td className="px-2 py-1.5">
-                                  {canPayThis ? (
-                                    <button
-                                      onClick={() => handlePayInstallment(row)}
-                                      disabled={payingRowId === row.id}
-                                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-600 text-white text-[9px] font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors"
-                                    >
-                                      {payingRowId === row.id ? <Loader2 size={10} className="animate-spin" /> : <Wallet size={10} />}
-                                      {payingRowId === row.id ? 'Paying…' : 'Pay'}
-                                    </button>
-                                  ) : isLocked ? (
-                                    <span className="inline-flex items-center gap-0.5 text-gray-400 text-[9px]" title="Pay the previous installment first">
-                                      <Lock size={10} /> Locked
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-300">—</span>
-                                  )}
-                                </td>
-                                <td className="px-2 py-1.5 font-semibold text-gray-700">{row.label}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums font-bold">{fmtINR(row.amount)}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.late_fee > 0 && row.row_number === 0 ? fmtINR(0) : '—'}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.late_fee > 0 && row.row_number > 0 ? fmtINR(row.late_fee) : '—'}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums text-gray-400">{row.gst_amount > 0 ? fmtINR(row.gst_amount) : '—'}</td>
-                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.due_date)}</td>
-                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.due_date_with_late_fee)}</td>
-                                <td className="px-2 py-1.5 text-left text-gray-500">{fmtDate(row.paid_date)}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums text-emerald-600 font-semibold">{row.paid_amt > 0 ? fmtINR(row.paid_amt) : '—'}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-gray-700">{row.remaining_amount > 0 ? fmtINR(row.remaining_amount) : '—'}</td>
-                                <td className="px-2 py-1.5 text-center">
-                                  <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                    isPaid ? 'bg-emerald-100 text-emerald-700' :
-                                    row.status === 'EXEMPTED' ? 'bg-slate-200 text-slate-600' :
-                                    row.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                    row.status === 'DUE' ? 'bg-amber-100 text-amber-700' :
-                                    'bg-gray-100 text-gray-500'
-                                  }`}>{row.status}</span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'dispute' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <MessageSquareWarning size={15} className="text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-900">Dispute</h3>
+                )}
               </div>
-              {hasDispute ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <AlertTriangle size={13} className="text-amber-600" />
-                    <span className="font-bold text-amber-700">This demand is disputed</span>
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    <div><span className="text-gray-400">Dispute Date:</span> {fmtDate(demand?.dispute_date ?? null)}</div>
-                    <div className="mt-1"><span className="text-gray-400">Reason:</span> {demand?.dispute_reason}</div>
-                    {demand?.dispute_remarks && <div className="mt-1"><span className="text-gray-400">Remarks:</span> {demand.dispute_remarks}</div>}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <p className="text-xs text-gray-500">Mark this demand as disputed if the owner contests the amount or validity.</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Dispute Date *</label>
-                      <input type="date" value={disputeDate} onChange={e => setDisputeDate(e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Reason *</label>
-                      <input value={disputeReason} onChange={e => setDisputeReason(e.target.value)} placeholder="e.g. Wrong amount" className={inputCls} />
-                    </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-[11px] text-slate-500">Mark this demand as disputed if the owner contests the amount or validity.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={DCC_LABEL_CLS}>Dispute Date *</label>
+                    <input type="date" value={disputeDate} onChange={e => setDisputeDate(e.target.value)} className={DCC_INPUT_CLS} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Remarks</label>
-                    <textarea value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={inputCls + ' h-20 resize-none'} />
+                    <label className={DCC_LABEL_CLS}>Reason *</label>
+                    <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className={DCC_INPUT_CLS}>
+                      <option value="">Select reason…</option>
+                      <option value="Wrong amount">Wrong amount</option>
+                      <option value="Already paid">Already paid</option>
+                      <option value="Invalid demand">Invalid demand</option>
+                      <option value="Calculation error">Calculation error</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
-                  <button
-                    onClick={handleDispute}
-                    disabled={disputing || !disputeReason.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 disabled:opacity-40 transition-colors"
-                  >
-                    {disputing ? <Loader2 size={14} className="animate-spin" /> : <MessageSquareWarning size={14} />}
-                    {disputing ? 'Saving…' : 'Mark as Disputed'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+                </div>
+                <div>
+                  <label className={DCC_LABEL_CLS}>Remarks</label>
+                  <textarea value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={DCC_INPUT_CLS + ' h-16 resize-none'} />
+                </div>
+                <button onClick={handleDispute} disabled={disputing || !disputeReason.trim()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 disabled:opacity-40 transition-colors">
+                  {disputing ? <Loader2 size={13} className="animate-spin" /> : <MessageSquareWarning size={13} />}
+                  {disputing ? 'Saving…' : 'Mark as Disputed'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Demo Payment Modal for Govt Officials */}
       {showDemoPay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDemoPay(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             {demoPayStep === 'select' && (
               <>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <Lock size={16} className="text-teal-600" />
-                    <h3 className="text-sm font-bold text-gray-900">Demo Payment Gateway</h3>
+                    <Lock size={16} className="text-emerald-600" />
+                    <h3 className="text-sm font-bold text-slate-900">Demo Payment Gateway</h3>
                   </div>
-                  <button onClick={() => setShowDemoPay(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                  <button onClick={() => setShowDemoPay(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
-                <div className="px-5 py-4 space-y-3">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-1.5">
+                <div className="px-4 py-3 space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-[11px] text-amber-700 flex items-center gap-1.5">
                     <AlertCircle size={13} className="shrink-0" /> This is a demo payment screen. No real payment will be processed.
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">Outstanding Amount: <span className="font-bold text-gray-900">{fmtINR(demoPayAmount || tile.amount_due)}</span></div>
-                  {demoPayLabel && (
-                    <div className="text-xs text-gray-500 mb-2">Paying: <span className="font-semibold text-teal-700">{demoPayLabel}</span></div>
-                  )}
+                  <div className="text-xs text-slate-500 mb-1">Outstanding Amount: <span className="font-bold text-slate-900">{fmtINR(demoPayAmount || tile.amount_due)}</span></div>
+                  {demoPayLabel && <div className="text-xs text-slate-500 mb-2">Paying: <span className="font-semibold text-emerald-700">{demoPayLabel}</span></div>}
                   <div className="grid grid-cols-2 gap-2">
                     {DEMO_PAY_MODES.map(m => {
                       const Icon = m.icon;
                       const active = demoPayMode === m.key;
                       return (
-                        <button
-                          key={m.key}
-                          onClick={() => setDemoPayMode(m.key)}
-                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
-                            active ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <Icon size={22} className={active ? 'text-teal-600' : 'text-gray-400'} />
-                          <span className="text-xs font-semibold text-gray-700">{m.label}</span>
-                          <span className="text-[10px] text-gray-400">{m.desc}</span>
+                        <button key={m.key} onClick={() => setDemoPayMode(m.key)} className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${active ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                          <Icon size={22} className={active ? 'text-emerald-600' : 'text-slate-400'} />
+                          <span className="text-xs font-semibold text-slate-700">{m.label}</span>
+                          <span className="text-[10px] text-slate-400">{m.desc}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <button
-                    onClick={() => { setDemoPayStep('processing'); setTimeout(() => setDemoPayStep('done'), 2000); }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition-colors"
-                  >
+                  <button onClick={() => { setDemoPayStep('processing'); setTimeout(() => setDemoPayStep('done'), 2000); }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors">
                     Pay {fmtINR(demoPayAmount || tile.amount_due)} via {DEMO_PAY_MODES.find(m => m.key === demoPayMode)?.label}
                   </button>
                 </div>
               </>
             )}
             {demoPayStep === 'processing' && (
-              <div className="px-5 py-16 flex flex-col items-center gap-3">
-                <Loader2 size={32} className="animate-spin text-teal-500" />
-                <p className="text-sm font-semibold text-gray-600">Processing {demoPayMode} payment…</p>
+              <div className="px-4 py-16 flex flex-col items-center gap-3">
+                <Loader2 size={32} className="animate-spin text-emerald-500" />
+                <p className="text-sm font-semibold text-slate-600">Processing {demoPayMode} payment…</p>
               </div>
             )}
             {demoPayStep === 'done' && (
-              <div className="px-5 py-10 flex flex-col items-center gap-3">
+              <div className="px-4 py-10 flex flex-col items-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
                   <CheckCircle2 size={28} className="text-emerald-600" />
                 </div>
-                <h3 className="text-sm font-bold text-gray-900">Demo Payment Successful</h3>
-                <p className="text-xs text-gray-500 text-center max-w-xs">
-                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded — demand and installment balances remain unchanged.
+                <h3 className="text-sm font-bold text-slate-900">Demo Payment Successful</h3>
+                <p className="text-xs text-slate-500 text-center max-w-xs">
+                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded — demand and instalment balances remain unchanged.
                 </p>
-                <button
-                  onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }}
-                  className="mt-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
-                >
+                <button onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }} className="mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
                   Close
                 </button>
               </div>
@@ -1414,7 +1485,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
     </div>
   );
 };
@@ -1425,8 +1496,8 @@ const DCCDemandDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab');
-  const initialTab: Tab | undefined =
-    tab === 'due_summary' || tab === 'payments' || tab === 'installments' || tab === 'dispute' ? tab : undefined;
+  const validTabs: Tab[] = ['demand_due', 'installments', 'paid_history', 'dispute'];
+  const initialTab: Tab | undefined = tab && validTabs.includes(tab as Tab) ? (tab as Tab) : undefined;
 
   if (!demandId) return null;
 

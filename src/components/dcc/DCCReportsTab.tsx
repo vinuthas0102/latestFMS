@@ -84,7 +84,7 @@ export const DCCReportsTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={20} className="animate-spin text-teal-500" />
+        <Loader2 size={20} className="animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -107,58 +107,58 @@ export const DCCReportsTab: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Report sub-tabs */}
-      <div className="px-5 py-3 flex items-center gap-2 shrink-0">
+      <div className="px-4 py-2.5 flex items-center gap-2 shrink-0">
         {tabs.map((t) => {
           const Icon = t.icon;
           return (
             <button
               key={t.key}
               onClick={() => setReportTab(t.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
                 reportTab === t.key
-                  ? 'bg-teal-600 text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
               }`}
             >
-              <Icon size={13} /> {t.label}
+              <Icon size={12} /> {t.label}
             </button>
           );
         })}
         <button
           onClick={handleExport}
-          className="ml-auto flex items-center gap-1 px-3 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
+          className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors"
         >
-          <Download size={13} /> Export
+          <Download size={12} /> Export
         </button>
       </div>
 
       {/* Report body */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
         {reportTab === 'by_type' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Demand Type</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Count</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Total Demand</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Collected</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Outstanding</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Overdue</th>
-                  <th className="px-4 py-2.5 text-center text-[10px] font-bold uppercase text-gray-500">Rate</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Demand Type</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Count</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Total Demand</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Collected</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Outstanding</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Overdue</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-bold uppercase text-slate-500">Rate</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-50">
                 {byType.map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-900">{r.demand_type_label}</td>
-                    <td className="px-4 py-2.5 text-xs text-right text-gray-600">{r.demand_count}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-gray-900">{fmtINR(r.total_demand)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-3 py-2 text-xs font-semibold text-slate-900">{r.demand_type_label}</td>
+                    <td className="px-3 py-2 text-xs text-right text-slate-600">{r.demand_count}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-slate-900">{fmtINR(r.total_demand)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${
                         r.collection_rate >= 75 ? 'bg-emerald-50 text-emerald-700' :
                         r.collection_rate >= 50 ? 'bg-amber-50 text-amber-700' :
                         'bg-red-50 text-red-700'
@@ -174,27 +174,27 @@ export const DCCReportsTab: React.FC = () => {
         )}
 
         {reportTab === 'by_owner' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Owner</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Demands</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Total Demand</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Collected</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Outstanding</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Overdue</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Owner</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Demands</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Total Demand</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Collected</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Outstanding</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Overdue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-50">
                 {byOwner.map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-900">{r.owner_name}</td>
-                    <td className="px-4 py-2.5 text-xs text-right text-gray-600">{r.demand_count}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-gray-900">{fmtINR(r.total_demand)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-3 py-2 text-xs font-semibold text-slate-900">{r.owner_name}</td>
+                    <td className="px-3 py-2 text-xs text-right text-slate-600">{r.demand_count}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-slate-900">{fmtINR(r.total_demand)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
+                    <td className="px-3 py-2 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -203,35 +203,35 @@ export const DCCReportsTab: React.FC = () => {
         )}
 
         {reportTab === 'overdue' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Owner</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Demands</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Total Demand</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Collected</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Outstanding</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Overdue</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Owner</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Demands</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Total Demand</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Collected</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Outstanding</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Overdue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-50">
                 {byOwner.filter((r) => r.overdue_count > 0).length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={6} className="px-3 py-12 text-center text-slate-400">
                       <CheckCircle2 size={28} className="mx-auto mb-2 text-emerald-400" />
                       <span className="text-sm">No overdue demands found</span>
                     </td>
                   </tr>
                 ) : (
                   byOwner.filter((r) => r.overdue_count > 0).map((r, i) => (
-                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-2.5 text-xs font-semibold text-gray-900">{r.owner_name}</td>
-                      <td className="px-4 py-2.5 text-xs text-right text-gray-600">{r.demand_count}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-gray-900">{fmtINR(r.total_demand)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-900">{r.owner_name}</td>
+                      <td className="px-3 py-2 text-xs text-right text-slate-600">{r.demand_count}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-slate-900">{fmtINR(r.total_demand)}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-red-700">{fmtINR(r.overdue_amount)}</td>
                     </tr>
                   ))
                 )}

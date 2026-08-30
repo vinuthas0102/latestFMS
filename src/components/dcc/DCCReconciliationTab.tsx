@@ -71,7 +71,7 @@ export const DCCReconciliationTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={20} className="animate-spin text-teal-500" />
+        <Loader2 size={20} className="animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -88,46 +88,46 @@ export const DCCReconciliationTab: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Summary cards */}
-      <div className="px-5 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <FileText size={14} className="text-blue-700" />
-            <span className="text-[10px] font-bold uppercase text-blue-700">Total Demand</span>
+      <div className="px-4 py-2.5 grid grid-cols-2 md:grid-cols-4 gap-2.5 shrink-0">
+        <div className="rounded-lg border border-slate-300 bg-slate-50 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <FileText size={13} className="text-slate-700" />
+            <span className="text-[9px] font-bold uppercase text-slate-600">Total Demand</span>
           </div>
-          <div className="text-xl font-extrabold text-blue-700">{fmtINR(summary?.total_demand ?? 0)}</div>
+          <div className="text-base font-extrabold text-slate-800">{fmtINR(summary?.total_demand ?? 0)}</div>
         </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 size={14} className="text-emerald-700" />
-            <span className="text-[10px] font-bold uppercase text-emerald-700">Collected</span>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <CheckCircle2 size={13} className="text-emerald-700" />
+            <span className="text-[9px] font-bold uppercase text-emerald-700">Collected</span>
           </div>
-          <div className="text-xl font-extrabold text-emerald-700">{fmtINR(summary?.total_collected ?? 0)}</div>
+          <div className="text-base font-extrabold text-emerald-700">{fmtINR(summary?.total_collected ?? 0)}</div>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock size={14} className="text-amber-700" />
-            <span className="text-[10px] font-bold uppercase text-amber-700">Outstanding</span>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Clock size={13} className="text-amber-700" />
+            <span className="text-[9px] font-bold uppercase text-amber-700">Outstanding</span>
           </div>
-          <div className="text-xl font-extrabold text-amber-700">{fmtINR(summary?.total_outstanding ?? 0)}</div>
+          <div className="text-base font-extrabold text-amber-700">{fmtINR(summary?.total_outstanding ?? 0)}</div>
         </div>
-        <div className="rounded-xl border border-teal-200 bg-teal-50 p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={14} className="text-teal-700" />
-            <span className="text-[10px] font-bold uppercase text-teal-700">Recon Rate</span>
+        <div className="rounded-lg border border-teal-200 bg-teal-50 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp size={13} className="text-teal-700" />
+            <span className="text-[9px] font-bold uppercase text-teal-700">Recon Rate</span>
           </div>
-          <div className="text-xl font-extrabold text-teal-700">{summary?.reconciliation_rate ?? 0}%</div>
+          <div className="text-base font-extrabold text-teal-700">{summary?.reconciliation_rate ?? 0}%</div>
         </div>
       </div>
 
       {/* Bank status counts */}
-      <div className="px-5 pb-2 shrink-0">
-        <div className="flex items-center gap-4 text-xs text-gray-600">
+      <div className="px-4 pb-2 shrink-0">
+        <div className="flex items-center gap-3 text-[11px] text-slate-600">
           <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-500" /> {summary?.matched_count ?? 0} Matched</span>
           <span className="flex items-center gap-1"><AlertTriangle size={12} className="text-amber-500" /> {summary?.unmatched_count ?? 0} Unmatched</span>
           <span className="flex items-center gap-1"><Clock size={12} className="text-slate-400" /> {summary?.pending_count ?? 0} Pending</span>
           <button
             onClick={handleExport}
-            className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors"
+            className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors"
           >
             <Download size={12} /> Export
           </button>
@@ -135,49 +135,49 @@ export const DCCReconciliationTab: React.FC = () => {
       </div>
 
       {/* Search */}
-      <div className="px-5 pb-2 shrink-0">
+      <div className="px-4 pb-2 shrink-0">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by object, owner, or demand type..."
-          className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/20 focus:border-emerald-500 bg-white"
         />
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-            <div className="text-sm font-medium text-gray-600">No reconciliation records</div>
+            <div className="text-sm font-medium text-slate-600">No reconciliation records</div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Object</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Owner</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase text-gray-500">Type</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Demand</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Collected</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase text-gray-500">Outstanding</th>
-                  <th className="px-4 py-2.5 text-center text-[10px] font-bold uppercase text-gray-500">Bank Status</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Object</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Owner</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-bold uppercase text-slate-500">Type</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Demand</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Collected</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-bold uppercase text-slate-500">Outstanding</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-bold uppercase text-slate-500">Bank Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-50">
                 {filtered.map((r, i) => {
                   const st = BANK_STATUS_STYLE[r.bank_status] ?? BANK_STATUS_STYLE.Pending;
                   return (
-                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-2.5 text-xs font-semibold text-gray-900">{r.object_ref}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{r.owner_name}</td>
-                      <td className="px-4 py-2.5 text-xs text-gray-600">{r.demand_type_label}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-gray-900">{fmtINR(r.total_demand)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${st.bg} ${st.text}`}>
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-900">{r.object_ref}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600">{r.owner_name}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600">{r.demand_type_label}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-slate-900">{fmtINR(r.total_demand)}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-emerald-700">{fmtINR(r.total_collected)}</td>
+                      <td className="px-3 py-2 text-xs text-right font-semibold text-amber-700">{fmtINR(r.total_outstanding)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${st.bg} ${st.text}`}>
                           {st.label}
                         </span>
                       </td>

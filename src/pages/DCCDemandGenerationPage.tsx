@@ -275,29 +275,29 @@ export const DCCDemandGenerationPage: React.FC = () => {
     });
   };
 
-  const inputCls = 'w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 bg-white text-gray-700 transition-colors';
+  const inputCls = 'w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-500 bg-white text-slate-700 transition-colors';
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-        <button onClick={() => step === 'select' ? navigate(ROUTES.DCC) : reset()} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0">
+    <div className="h-full flex flex-col bg-slate-50">
+      {/* Header — Deep Slate Navy */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
+        <button onClick={() => step === 'select' ? navigate(ROUTES.DCC) : reset()} className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0">
           <ArrowLeft size={16} />
         </button>
-        <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
-          <Zap size={18} className="text-white" />
+        <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+          <Zap size={16} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold text-gray-900">Demand Generation</h1>
-          <p className="text-xs text-gray-500">Create demands from TPA import, Excel upload, or auto-generation rules</p>
+          <h1 className="text-sm font-bold text-white">Demand Generation</h1>
+          <p className="text-[10px] text-slate-400">Create demands from TPA import, Excel upload, or auto-generation rules</p>
         </div>
-        <button onClick={loadHistory} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors">
-          <RefreshCw size={14} /> Refresh
+        <button onClick={loadHistory} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-semibold hover:bg-slate-700 hover:text-white transition-colors border border-slate-700">
+          <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
       {error && (
-        <div className="mx-5 mt-3 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+        <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md text-[11px] text-red-700">
           <AlertCircle size={14} className="shrink-0" /> {error}
         </div>
       )}
@@ -314,11 +314,11 @@ export const DCCDemandGenerationPage: React.FC = () => {
                   onClick={() => handleSelectSource(cfg.key)}
                   className={`text-left rounded-2xl border-2 ${cfg.border} ${cfg.bg} p-5 hover:shadow-md transition-all duration-200 group`}
                 >
-                  <div className={`w-12 h-12 rounded-xl ${cfg.color} bg-white flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                  <div className={`w-12 h-12 rounded-lg ${cfg.color} bg-white flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                     <Icon size={24} />
                   </div>
                   <h3 className={`text-sm font-bold ${cfg.color} mb-1`}>{cfg.label}</h3>
-                  <p className="text-xs text-gray-500">{cfg.desc}</p>
+                  <p className="text-xs text-slate-500">{cfg.desc}</p>
                 </button>
               );
             })}
@@ -327,52 +327,52 @@ export const DCCDemandGenerationPage: React.FC = () => {
 
         {/* ── TPA input ── */}
         {step === 'input' && source === 'TPA' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-gray-900 mb-1">Import from Third-Party API</h2>
-            <p className="text-xs text-gray-500 mb-4">Paste the JSON array returned by the TPA endpoint. Each row needs: object_ref, demand_type_code, amount, due_date, run_date.</p>
+          <div className="max-w-2xl mx-auto bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-900 mb-1">Import from Third-Party API</h2>
+            <p className="text-xs text-slate-500 mb-4">Paste the JSON array returned by the TPA endpoint. Each row needs: object_ref, demand_type_code, amount, due_date, run_date.</p>
             <textarea
               value={tpaJson}
               onChange={e => setTpaJson(e.target.value)}
               placeholder={`[\n  {\n    "object_ref": "MH12-AB-1234",\n    "demand_type_code": "PROPERTY_TAX",\n    "amount": 5000,\n    "due_date": "2026-09-15",\n    "run_date": "2026-09-01"\n  }\n]`}
-              className="w-full h-48 px-3 py-2 text-xs font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30 bg-gray-50 text-gray-700"
+              className="w-full h-48 px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400/30 bg-slate-50 text-slate-700"
             />
             <div className="flex gap-2 mt-4">
-              <button onClick={handleTpaPreview} disabled={!tpaJson.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors">
+              <button onClick={handleTpaPreview} disabled={!tpaJson.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
                 <Play size={14} /> Preview
               </button>
-              <button onClick={reset} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
         {/* ── Excel input ── */}
         {step === 'input' && source === 'EXCEL' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-gray-900 mb-1">Upload Excel / CSV Sheet</h2>
-            <p className="text-xs text-gray-500 mb-4">Upload a CSV file with columns: object_ref, demand_type_code, amount, due_date, run_date.</p>
-            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-12 cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
-              <Upload size={28} className="text-gray-400" />
-              <span className="text-xs font-semibold text-gray-600">{excelFileName || 'Click to select a CSV file'}</span>
-              <span className="text-[10px] text-gray-400">Accepts .csv files</span>
+          <div className="max-w-2xl mx-auto bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-900 mb-1">Upload Excel / CSV Sheet</h2>
+            <p className="text-xs text-slate-500 mb-4">Upload a CSV file with columns: object_ref, demand_type_code, amount, due_date, run_date.</p>
+            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg py-12 cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors">
+              <Upload size={28} className="text-slate-400" />
+              <span className="text-xs font-semibold text-slate-600">{excelFileName || 'Click to select a CSV file'}</span>
+              <span className="text-[10px] text-slate-400">Accepts .csv files</span>
               <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
             </label>
             <div className="flex gap-2 mt-4">
-              <button onClick={reset} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
         {/* ── Auto input ── */}
         {step === 'input' && source === 'AUTO' && (
-          <div className="max-w-3xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-gray-900 mb-1">Auto-Generate from Rules</h2>
-            <p className="text-xs text-gray-500 mb-4">Select active demand rules to generate demands for matching objects.</p>
+          <div className="max-w-3xl mx-auto bg-white rounded-lg border border-slate-200 shadow-sm p-5">
+            <h2 className="text-sm font-bold text-slate-900 mb-1">Auto-Generate from Rules</h2>
+            <p className="text-xs text-slate-500 mb-4">Select active demand rules to generate demands for matching objects.</p>
             <div className="mb-4">
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Run Date</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Run Date</label>
               <input type="date" value={autoRunDate} onChange={e => setAutoRunDate(e.target.value)} className={inputCls + ' max-w-48'} />
             </div>
             {rules.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-slate-400">
                 <Zap size={28} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm font-medium">No active DCC rules found</p>
                 <p className="text-xs mt-1">Create rules in Rule Setup first</p>
@@ -384,25 +384,25 @@ export const DCCDemandGenerationPage: React.FC = () => {
                   const matchingCount = objects.filter(o => o.object_type === rule.object_type).length;
                   const selected = selectedRuleIds.has(rule.id);
                   return (
-                    <div key={rule.id} className={`rounded-xl border ${selected ? 'border-teal-300 bg-teal-50/50' : 'border-gray-200'} p-3 transition-colors`}>
+                    <div key={rule.id} className={`rounded-lg border ${selected ? 'border-teal-300 bg-teal-50/50' : 'border-slate-200'} p-3 transition-colors`}>
                       <div className="flex items-center gap-3">
                         <input type="checkbox" checked={selected} onChange={() => toggleRule(rule.id)} className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-900">{dtLabel}</span>
-                            <span className="text-[10px] text-gray-400">·</span>
-                            <span className="text-[10px] text-gray-500">{rule.object_type}</span>
-                            <span className="text-[10px] text-gray-400">·</span>
-                            <span className="text-[10px] text-gray-500">{matchingCount} object{matchingCount !== 1 ? 's' : ''}</span>
+                            <span className="text-xs font-bold text-slate-900">{dtLabel}</span>
+                            <span className="text-[10px] text-slate-400">·</span>
+                            <span className="text-[10px] text-slate-500">{rule.object_type}</span>
+                            <span className="text-[10px] text-slate-400">·</span>
+                            <span className="text-[10px] text-slate-500">{matchingCount} object{matchingCount !== 1 ? 's' : ''}</span>
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">Run day: {rule.subsequent_btm_run_day} · Offset: {rule.full_payment_spec?.days_offset ?? 0} days</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Run day: {rule.subsequent_btm_run_day} · Offset: {rule.full_payment_spec?.days_offset ?? 0} days</p>
                         </div>
                         {selected && (
                           <input
                             type="number"
                             value={autoAmount[rule.id] ?? 1000}
                             onChange={e => setAutoAmount(prev => ({ ...prev, [rule.id]: Number(e.target.value) }))}
-                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400/30"
+                            className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
                             placeholder="Amount"
                           />
                         )}
@@ -413,19 +413,19 @@ export const DCCDemandGenerationPage: React.FC = () => {
               </div>
             )}
             <div className="flex gap-2 mt-4">
-              <button onClick={handleAutoGenerate} disabled={selectedRuleIds.size === 0 || generating} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors">
+              <button onClick={handleAutoGenerate} disabled={selectedRuleIds.size === 0 || generating} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
                 {generating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                 {generating ? 'Generating…' : `Generate (${selectedRuleIds.size} rule${selectedRuleIds.size !== 1 ? 's' : ''})`}
               </button>
-              <button onClick={reset} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
             </div>
           </div>
         )}
 
         {/* ── Preview ── */}
         {step === 'preview' && (source === 'TPA' || source === 'EXCEL') && (
-          <div className="max-w-4xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 bg-teal-600">
+          <div className="max-w-4xl mx-auto bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 bg-emerald-600">
               <FileText size={16} className="text-white" />
               <span className="text-sm font-bold text-white">Preview — {previewRows.length} rows</span>
               <span className="ml-auto text-[10px] text-white/70">{previewRows.filter(r => r.valid).length} valid · {previewRows.filter(r => !r.valid).length} invalid</span>
@@ -433,7 +433,7 @@ export const DCCDemandGenerationPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                  <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     <th className="px-3 py-2 text-left">Object Ref</th>
                     <th className="px-3 py-2 text-left">Demand Type</th>
                     <th className="px-3 py-2 text-right">Amount</th>
@@ -445,11 +445,11 @@ export const DCCDemandGenerationPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-50">
                   {previewRows.map((row, idx) => (
                     <tr key={idx} className={row.valid ? '' : 'bg-red-50/50'}>
-                      <td className="px-3 py-2 text-gray-700">{row.object_ref || '—'}</td>
-                      <td className="px-3 py-2 text-gray-700">{row.demand_type_code || '—'}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-gray-900">{fmtINR(row.amount)}</td>
-                      <td className="px-3 py-2 text-gray-600">{row.due_date || '—'}</td>
-                      <td className="px-3 py-2 text-gray-600">{row.run_date || '—'}</td>
+                      <td className="px-3 py-2 text-slate-700">{row.object_ref || '—'}</td>
+                      <td className="px-3 py-2 text-slate-700">{row.demand_type_code || '—'}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-slate-900">{fmtINR(row.amount)}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.due_date || '—'}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.run_date || '—'}</td>
                       <td className="px-3 py-2 text-center">
                         {row.valid
                           ? <CheckCircle2 size={14} className="inline text-emerald-500" />
@@ -460,56 +460,56 @@ export const DCCDemandGenerationPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div className="flex gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50">
-              <button onClick={handleGenerate} disabled={generating || previewRows.filter(r => r.valid).length === 0} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 transition-colors">
+            <div className="flex gap-2 px-5 py-3 border-t border-gray-100 bg-slate-50">
+              <button onClick={handleGenerate} disabled={generating || previewRows.filter(r => r.valid).length === 0} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
                 {generating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 {generating ? 'Generating…' : `Generate ${previewRows.filter(r => r.valid).length} Demands`}
               </button>
-              <button onClick={reset} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Back</button>
+              <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Back</button>
             </div>
           </div>
         )}
 
         {/* ── Result ── */}
         {step === 'result' && result && (
-          <div className="max-w-md mx-auto bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
+          <div className="max-w-md mx-auto bg-white rounded-lg border border-slate-200 shadow-sm p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 size={32} className="text-emerald-600" />
             </div>
-            <h2 className="text-base font-bold text-gray-900 mb-1">Generation Complete</h2>
-            <p className="text-xs text-gray-500 mb-4">Successfully created demands from {source}</p>
+            <h2 className="text-base font-bold text-slate-900 mb-1">Generation Complete</h2>
+            <p className="text-xs text-slate-500 mb-4">Successfully created demands from {source}</p>
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-gray-50 rounded-xl p-3">
+              <div className="bg-slate-50 rounded-lg p-3">
                 <div className="text-2xl font-extrabold text-teal-700">{result.created}</div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Demands Created</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Demands Created</div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
+              <div className="bg-slate-50 rounded-lg p-3">
                 <div className="text-2xl font-extrabold text-teal-700">{fmtINR(result.totalAmount)}</div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Total Amount</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Total Amount</div>
               </div>
             </div>
             <div className="flex gap-2 justify-center">
-              <button onClick={() => navigate(ROUTES.DCC)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors">
+              <button onClick={() => navigate(ROUTES.DCC)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
                 View DCC Summary
               </button>
-              <button onClick={reset} className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">Generate More</button>
+              <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">Generate More</button>
             </div>
           </div>
         )}
 
         {/* ── Run History ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-            <History size={15} className="text-gray-500" />
-            <h2 className="text-sm font-bold text-gray-900">Generation Run History</h2>
-            <span className="ml-auto text-[10px] text-gray-400">{runLog.length} run{runLog.length !== 1 ? 's' : ''}</span>
+            <History size={15} className="text-slate-500" />
+            <h2 className="text-sm font-bold text-slate-900">Generation Run History</h2>
+            <span className="ml-auto text-[10px] text-slate-400">{runLog.length} run{runLog.length !== 1 ? 's' : ''}</span>
           </div>
           {loadingHistory ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 size={18} className="animate-spin text-teal-500" />
             </div>
           ) : runLog.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-slate-400">
               <History size={24} className="mx-auto mb-2 opacity-30" />
               <p className="text-xs">No generation runs yet</p>
             </div>
@@ -521,16 +521,16 @@ export const DCCDemandGenerationPage: React.FC = () => {
                   <div key={log.id}>
                     <button
                       onClick={() => setExpandedRun(expanded ? null : log.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
                     >
-                      {expanded ? <ChevronDown size={13} className="text-gray-400" /> : <ChevronRight size={13} className="text-gray-400" />}
+                      {expanded ? <ChevronDown size={13} className="text-slate-400" /> : <ChevronRight size={13} className="text-slate-400" />}
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${log.source === 'TPA' ? 'bg-blue-100 text-blue-700' : log.source === 'EXCEL' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                         {log.source}
                       </span>
-                      <span className="text-xs font-semibold text-gray-700">{log.demand_type?.label ?? '—'}</span>
-                      <span className="text-[10px] text-gray-400">·</span>
-                      <span className="text-[10px] text-gray-500">{fmtDate(log.run_date)}</span>
-                      <span className="ml-auto text-xs font-bold text-gray-900">{log.records_created} rows · {fmtINR(log.total_amount)}</span>
+                      <span className="text-xs font-semibold text-slate-700">{log.demand_type?.label ?? '—'}</span>
+                      <span className="text-[10px] text-slate-400">·</span>
+                      <span className="text-[10px] text-slate-500">{fmtDate(log.run_date)}</span>
+                      <span className="ml-auto text-xs font-bold text-slate-900">{log.records_created} rows · {fmtINR(log.total_amount)}</span>
                     </button>
                   </div>
                 );
