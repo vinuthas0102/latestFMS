@@ -958,8 +958,8 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
       <div className="h-full flex flex-col bg-slate-50">
-      {/* KPI Cards — soft tint containers with left accent bars */}
-      <div className="px-4 pt-2 grid grid-cols-5 gap-2.5 shrink-0">
+      {/* KPI Cards — soft tint containers with left accent bars, 2 rows */}
+      <div className="px-4 pt-2 grid grid-cols-3 gap-2.5 shrink-0">
         {KPI_CONFIG.map(dp => {
           const Icon = dp.icon;
           const value =
