@@ -7,7 +7,7 @@ import {
   Loader2, X, Layers, FileText, AlertCircle, History,
   MessageSquareWarning, ChevronDown, Receipt, Info,
   Plus, Save, FileSpreadsheet, Filter, CalendarDays,
-  CreditCard, Smartphone, Building, Banknote, Lock, Eye,
+  CreditCard, Smartphone, Building, Banknote, Lock, Eye, Tag,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
@@ -55,6 +55,23 @@ const getBreakdownConfig = (demandTypeCode: string, objectType: string): Breakdo
     ADVANCE: { columns: [{ key: 'advance', label: 'Advance' }], cadence: 'single', primaryColumnKey: 'advance' },
   };
   return configs[demandTypeCode] ?? { columns: [{ key: 'amount', label: 'Amount' }], cadence: 'single', primaryColumnKey: 'amount' };
+};
+
+// Early-payment discount matrix: >=15 days early = 5%, >=7 days early = 2.5%
+const computeEarlyPayDiscount = (dueDate: string, paymentDate: string, grossAmount: number): { pct: number; discount: number; adjusted: number; daysEarly: number } => {
+  const due = new Date(dueDate);
+  const paid = new Date(paymentDate);
+  const diffMs = due.getTime() - paid.getTime();
+  const daysEarly = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (daysEarly >= 15) {
+    const disc = Math.round(grossAmount * 0.05);
+    return { pct: 5, discount: disc, adjusted: grossAmount - disc, daysEarly };
+  }
+  if (daysEarly >= 7) {
+    const disc = Math.round(grossAmount * 0.025);
+    return { pct: 2.5, discount: disc, adjusted: grossAmount - disc, daysEarly };
+  }
+  return { pct: 0, discount: 0, adjusted: grossAmount, daysEarly };
 };
 
 // Context-driven tabs: Demand Due OR Instalment (mutually exclusive), plus Paid History and Dispute Log
@@ -554,20 +571,20 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
         {/* Line 2: Flat metric text blocks */}
         <div className="flex items-end gap-6 pl-7">
           <div className="flex flex-col">
-            <span className="text-[10px] font-normal text-slate-400">Outstanding</span>
-            <span className="text-sm font-semibold text-amber-400 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Outstanding</span>
+            <span className="text-amber-400 text-xs font-semibold tabular-nums leading-tight">{fmtINR(tile.amount_due)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-normal text-slate-400">Last Paid</span>
-            <span className="text-sm font-semibold text-white tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Last Paid</span>
+            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-normal text-slate-400">Pending Since</span>
-            <span className="text-sm font-semibold text-white tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Pending Since</span>
+            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-normal text-slate-400">Next Due</span>
-            <span className={`text-sm font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-white'}`}>{fmtDateShort(tile.due_date)}</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Next Due</span>
+            <span className={`text-xs font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-white'}`}>{fmtDateShort(tile.due_date)}</span>
           </div>
         </div>
       </div>
@@ -717,43 +734,62 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           const allOpenCount = openRows.length;
           const isSingleOpen = allOpenCount === 1;
 
+          // Standard column keys for the 11-column table
+          const chargeCols = config.columns.filter(c => c.key !== 'penalty');
+          const colCount = chargeCols.length;
+
           return (
             <div className="space-y-3">
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[10px]">
+                  <table className="w-full text-xs">
                     <thead>
-                      <tr className="bg-slate-100 text-slate-600">
-                        <th className="px-1.5 py-1 text-left font-bold">Sl No</th>
-                        <th className="px-1.5 py-1 text-left font-bold">Month/Period</th>
-                        <th className="px-1.5 py-1 text-right font-bold">Demand Amt</th>
-                        {config.columns.filter(c => c.key !== 'penalty').map(col => (
-                          <th key={col.key} className="px-1.5 py-1 text-right font-bold">{col.label}</th>
-                        ))}
-                        <th className="px-1.5 py-1 text-right font-bold">Late Fee</th>
-                        <th className="px-1.5 py-1 text-right font-bold">Total Due</th>
-                        <th className="px-1.5 py-1 text-center font-bold">Dispute?</th>
-                        <th className="px-1.5 py-1 text-center font-bold">Action</th>
+                      <tr className="bg-slate-100/90 text-xs font-bold text-slate-700 py-2 px-3 border-b border-slate-200">
+                        <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Sl No</th>
+                        <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Month/Period</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Gross Demand</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Rent</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Water</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Electricity</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Maintenance</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Taxes</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Total Line Due</th>
+                        <th className="py-2 px-3 text-center font-bold text-slate-700 border-b border-slate-200">Dispute?</th>
+                        <th className="py-2 px-3 text-center font-bold text-slate-700 border-b border-slate-200">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {openRows.map(m => {
-                        const demandAmt = config.columns.filter(c => c.key !== 'penalty').reduce((s, c) => s + (m.charges[c.key] ?? 0), 0);
+                        const demandAmt = chargeCols.reduce((s, c) => s + (m.charges[c.key] ?? 0), 0);
                         const lateFee = m.charges['penalty'] ?? 0;
-                        const rst = DCC_STATUS[m.status];
+                        const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), m.total);
+                        const hasDisc = earlyDisc.pct > 0;
+                        const rentVal = m.charges['rent'] ?? m.charges['amount'] ?? 0;
+                        const waterVal = m.charges['water'] ?? 0;
+                        const elecVal = m.charges['electricity'] ?? 0;
+                        const maintVal = m.charges['maintenance'] ?? 0;
+                        const taxesVal = m.charges['taxes'] ?? m.charges['penalty'] ?? 0;
                         return (
-                          <tr key={m.sno} className={`border-b border-slate-50 ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
-                            <td className="px-2 py-1 text-slate-500">{m.sno}</td>
-                            <td className="px-2 py-1 font-semibold text-slate-700">{m.label}</td>
-                            <td className="px-2 py-1 text-right tabular-nums">{fmtINR(demandAmt)}</td>
-                            {config.columns.filter(c => c.key !== 'penalty').map(col => (
-                              <td key={col.key} className="px-2 py-1 text-right tabular-nums text-slate-500">
-                                {m.charges[col.key] > 0 ? fmtINRShort(m.charges[col.key]) : '—'}
-                              </td>
-                            ))}
-                            <td className="px-2 py-1 text-right tabular-nums text-red-600">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
-                            <td className="px-2 py-1 text-right tabular-nums font-bold text-slate-900">{fmtINR(m.total)}</td>
-                            <td className="px-2 py-1 text-center">
+                          <tr key={m.sno} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
+                            <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.sno}</td>
+                            <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.label}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{fmtINR(demandAmt)}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{rentVal > 0 ? fmtINRShort(rentVal) : '—'}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{waterVal > 0 ? fmtINRShort(waterVal) : '—'}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{elecVal > 0 ? fmtINRShort(elecVal) : '—'}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{maintVal > 0 ? fmtINRShort(maintVal) : '—'}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
+                            <td className="py-1.5 px-3 text-right">
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
+                                {hasDisc && isSingleOpen && (
+                                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-200">
+                                    {fmtINR(earlyDisc.adjusted)} ({earlyDisc.pct}% off)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-1.5 px-3 text-center">
                               {hasDispute ? (
                                 <div className="relative inline-block group">
                                   <span className="inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-100 text-orange-700 cursor-help">
@@ -783,7 +819,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                 <span className="text-slate-300">—</span>
                               )}
                             </td>
-                            <td className="px-2 py-1 text-center">
+                            <td className="py-1.5 px-3 text-center">
                               <button
                                 onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
                                 className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-semibold border transition-colors ${popoverSno === m.sno ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-100'}`}
@@ -797,8 +833,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 4} className="px-2 py-1.5 text-right font-bold text-slate-700">Total Outstanding:</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
+                        <td colSpan={8} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td className="py-1.5 px-3 text-right font-mono font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
                     </tfoot>
@@ -811,6 +847,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     const row = rows.find(r => r.sno === popoverSno);
                     if (!row) return null;
                     const config2 = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+                    const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), row.total);
+                    const hasDisc = earlyDisc.pct > 0;
                     return (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
@@ -826,58 +864,76 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                               <X size={12} />
                             </button>
                           </div>
-                          {/* Clean itemized breakdown */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-                              {config2.columns.filter(c => c.key !== 'penalty').map(col => (
-                                <span key={col.key} className="text-slate-500">
-                                  {col.label}: <span className="font-semibold text-slate-700">{row.charges[col.key] > 0 ? fmtINR(row.charges[col.key]) : '—'}</span>
-                                </span>
-                              ))}
-                              <span className="text-slate-500">
-                                Taxes: <span className="font-semibold text-slate-700">{(row.charges['penalty'] ?? 0) > 0 ? fmtINR(row.charges['penalty']) : '₹0'}</span>
-                              </span>
-                              <span className="text-slate-700 font-bold">
-                                Total Line Due: {fmtINR(row.total)}
-                              </span>
+                          {/* Structured key-value grid */}
+                          <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-md text-xs grid grid-cols-5 gap-2">
+                            {config2.columns.filter(c => c.key !== 'penalty').map(col => (
+                              <div key={col.key} className="flex flex-col">
+                                <span className="text-slate-400 text-[10px] font-semibold">{col.label}</span>
+                                <span className="font-mono font-bold text-slate-800">{row.charges[col.key] > 0 ? fmtINR(row.charges[col.key]) : '—'}</span>
+                              </div>
+                            ))}
+                            <div className="flex flex-col">
+                              <span className="text-slate-400 text-[10px] font-semibold">Taxes</span>
+                              <span className="font-mono font-bold text-slate-800">{(row.charges['penalty'] ?? 0) > 0 ? fmtINR(row.charges['penalty']) : '₹0'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-slate-400 text-[10px] font-semibold">Total Line Due</span>
+                              <span className="font-mono font-extrabold text-slate-900">{fmtINR(row.total)}</span>
                             </div>
                           </div>
-                          {/* Discount notice */}
-                          {instPlan?.discount_full_payment_pct && instPlan.discount_full_payment_pct > 0 ? (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
-                              <Info size={13} className="text-blue-600 shrink-0" />
-                              <span className="text-[11px] text-blue-800">
-                                Pay on or before <span className="font-bold">{fmtDateShort(tile.due_date)}</span> to get <span className="font-bold">{instPlan.discount_full_payment_pct}%</span> off. You Pay: <span className="font-bold">{fmtINR(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100)))}</span>
-                              </span>
-                              {!isPaidOrExempted && (
+                          {/* Single-line: Discount Calculation Card + line-level Pay */}
+                          {isSingleOpen && !isPaidOrExempted && (() => {
+                            const payAmt = hasDisc ? earlyDisc.adjusted : row.total;
+                            return (
+                              <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 my-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                    <Tag size={10} /> Early Payment Discount Applied
+                                  </span>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="text-xs flex justify-between">
+                                    <span className="text-slate-500">Gross Line Due:</span>
+                                    <span className="font-mono font-bold text-slate-800">{fmtINR(row.total)}</span>
+                                  </div>
+                                  {hasDisc ? (
+                                    <div className="text-xs flex justify-between">
+                                      <span className="text-slate-500">Early Payment Discount ({earlyDisc.pct}%):</span>
+                                      <span className="font-mono font-bold text-emerald-700">-{fmtINR(earlyDisc.discount)}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs flex justify-between">
+                                      <span className="text-slate-500">Early Payment Discount:</span>
+                                      <span className="font-mono text-slate-400">Not eligible ({earlyDisc.daysEarly}d early)</span>
+                                    </div>
+                                  )}
+                                  <div className="text-sm flex justify-between pt-1 border-t border-emerald-200">
+                                    <span className="font-bold text-slate-700">Adjusted Payable Amount:</span>
+                                    <span className="font-mono font-black text-slate-900">{fmtINR(payAmt)}</span>
+                                  </div>
+                                </div>
                                 <button
-                                  onClick={() => { setPayAmount(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100))); setShowPayForm(true); setPopoverSno(null); }}
-                                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
+                                  onClick={() => { setPayAmount(payAmt); setShowPayForm(true); setPopoverSno(null); }}
+                                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors"
                                 >
-                                  <Wallet size={11} /> Pay Now
+                                  <Wallet size={13} /> Pay Adjusted Amount: {fmtINR(payAmt)}
                                 </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md">
-                              <Info size={13} className="text-slate-400 shrink-0" />
-                              <span className="text-[11px] text-slate-500">
-                                No early-payment discount available for this line. Full amount: <span className="font-bold text-slate-700">{fmtINR(row.total)}</span>
+                              </div>
+                            );
+                          })()}
+                          {/* Multi-line: no line-level Pay button, just info */}
+                          {!isSingleOpen && !isPaidOrExempted && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-md">
+                              <Info size={13} className="text-slate-500 shrink-0" />
+                              <span className="text-[11px] text-slate-600">
+                                Multi-line open demand — use the <span className="font-bold">Pay Now against Total Outstanding</span> bar below to settle all lines together. Individual line payments are disabled for bulk accumulations.
                               </span>
-                              {!isPaidOrExempted && (
-                                <button
-                                  onClick={() => { setPayAmount(row.total); setShowPayForm(true); setPopoverSno(null); }}
-                                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
-                                >
-                                  <Wallet size={11} /> Pay Now
-                                </button>
-                              )}
                             </div>
                           )}
                           {/* Dispute trigger for admins */}
                           {canRecordPayment && !hasDispute && (
                             <div className="pt-2 border-t border-slate-200">
-                              <div className="grid grid-cols-2 gap-2 mb-2">
+                              <div className="grid grid-cols-2 gap-3 mb-2">
                                 <div>
                                   <label className={DCC_LABEL_CLS}>Dispute Reason</label>
                                   <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5`}>
@@ -914,28 +970,30 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
               </div>
 
-              {/* Sticky Consolidated Pay Bar */}
-              <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between rounded-b-lg">
-                <span className="text-slate-800 text-sm font-bold">
-                  Total Outstanding Amount: <span className="text-red-600">{fmtINR(tile.amount_due)}</span>
-                </span>
-                {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
-                  <button
-                    onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); })() : undefined)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 active:scale-95 transition-all shadow-sm"
-                  >
-                    <Wallet size={14} /> Pay Now against Total Outstanding
-                  </button>
-                )}
-                {isPaidOrExempted && (
-                  <button
-                    disabled
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-700/40 text-xs font-bold cursor-not-allowed"
-                  >
-                    <Wallet size={14} /> Pay Now against Total Outstanding
-                  </button>
-                )}
-              </div>
+              {/* Sticky Consolidated Pay Bar — only for multi-line open demands */}
+              {!isSingleOpen && (
+                <div className="bg-slate-900 text-white p-3 px-6 rounded-b-lg flex items-center justify-between sticky bottom-0 z-20 shadow-xl">
+                  <span className="text-sm font-bold text-amber-400">
+                    Total Outstanding Amount: {fmtINR(tile.amount_due)}
+                  </span>
+                  {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
+                    <button
+                      onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); })() : undefined)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-md shadow-sm transition-colors"
+                    >
+                      Pay Now against Total Outstanding
+                    </button>
+                  )}
+                  {isPaidOrExempted && (
+                    <button
+                      disabled
+                      className="bg-emerald-600/20 text-emerald-700/40 font-bold px-5 py-2 rounded-md cursor-not-allowed"
+                    >
+                      Pay Now against Total Outstanding
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
