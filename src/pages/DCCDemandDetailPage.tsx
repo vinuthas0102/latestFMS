@@ -5,7 +5,7 @@ import {
   ArrowLeft, Phone, MapPin, Users, Building2,
   Calendar, Clock, AlertTriangle, CheckCircle2, Wallet, Download,
   Loader2, X, Layers, FileText, AlertCircle, History,
-  MessageSquareWarning, ChevronDown, Receipt,
+  MessageSquareWarning, ChevronDown, Receipt, Info,
   Plus, Save, FileSpreadsheet, Filter, CalendarDays,
   CreditCard, Smartphone, Building, Banknote, Lock, Eye,
 } from 'lucide-react';
@@ -530,72 +530,77 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
             </span>
           </div>
         </div>
-        {/* Line 2: Total Outstanding | Last Paid | Pending Since | Next Due Date + Pay Now */}
-        <div className="flex items-center gap-4 text-[10px] text-slate-400 pl-7">
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">Outstanding:</span>
-            <span className="font-bold text-amber-400 text-xs">{fmtINR(tile.amount_due)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">Last Paid:</span>
-            <span className="text-slate-300">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">Pending Since:</span>
-            <span className="text-slate-300">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500">Next Due:</span>
-            <span className={`font-medium ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-slate-300'}`}>{fmtDateShort(tile.due_date)}</span>
-          </div>
-          {!isPaidOrExempted && (
-            <div className="ml-auto flex items-center gap-1.5">
-              {canRecordPayment && (
-                <button
-                  onClick={() => setShowPayForm(v => !v)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
-                >
-                  <Wallet size={12} /> Pay Now
-                </button>
-              )}
-              {isGovtOfficial && (
-                <button
-                  onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
-                >
-                  <Wallet size={12} /> Pay Now
-                </button>
-              )}
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-semibold hover:bg-slate-700 transition-colors border border-slate-700"
-              >
-                <Download size={11} /> Statement
-              </button>
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/50 text-red-300 text-[10px] font-semibold hover:bg-red-900 transition-colors border border-red-800"
-              >
-                <X size={11} /> Close
-              </button>
+        {/* Line 2: Distinct metric blocks + Pay Now adjacent to Outstanding */}
+        <div className="flex items-center gap-2.5 pl-7">
+          {/* Outstanding metric block + Pay Now button */}
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col px-2.5 py-1 rounded-md bg-slate-800/60 border border-slate-700">
+              <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Outstanding</span>
+              <span className="text-sm font-bold text-amber-400 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</span>
             </div>
-          )}
-          {isPaidOrExempted && (
-            <div className="ml-auto flex items-center gap-1.5">
+            {canRecordPayment && !isPaidOrExempted && (
               <button
-                onClick={handleDownload}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-semibold hover:bg-slate-700 transition-colors border border-slate-700"
+                onClick={() => setShowPayForm(v => !v)}
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-500 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
               >
-                <Download size={11} /> Statement
+                <Wallet size={13} /> Pay Now
               </button>
+            )}
+            {canRecordPayment && isPaidOrExempted && (
               <button
-                onClick={onClose}
-                className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/50 text-red-300 text-[10px] font-semibold hover:bg-red-900 transition-colors border border-red-800"
+                disabled
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-emerald-600/30 text-emerald-200/40 text-[11px] font-bold cursor-not-allowed"
               >
-                <X size={11} /> Close
+                <Wallet size={13} /> Pay Now
               </button>
-            </div>
-          )}
+            )}
+            {isGovtOfficial && !isPaidOrExempted && (
+              <button
+                onClick={() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); }}
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-500 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
+              >
+                <Wallet size={13} /> Pay Now
+              </button>
+            )}
+            {isGovtOfficial && isPaidOrExempted && (
+              <button
+                disabled
+                className="flex items-center gap-1 px-3 py-2 rounded-md bg-emerald-600/30 text-emerald-200/40 text-[11px] font-bold cursor-not-allowed"
+              >
+                <Wallet size={13} /> Pay Now
+              </button>
+            )}
+          </div>
+          {/* Last Paid metric block */}
+          <div className="flex flex-col px-2.5 py-1 rounded-md bg-slate-800/60 border border-slate-700">
+            <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Last Paid</span>
+            <span className="text-[11px] font-semibold text-slate-200 tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
+          </div>
+          {/* Pending Since metric block */}
+          <div className="flex flex-col px-2.5 py-1 rounded-md bg-slate-800/60 border border-slate-700">
+            <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Pending Since</span>
+            <span className="text-[11px] font-semibold text-slate-200 tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+          </div>
+          {/* Next Due metric block */}
+          <div className="flex flex-col px-2.5 py-1 rounded-md bg-slate-800/60 border border-slate-700">
+            <span className="text-[8px] font-semibold uppercase tracking-wider text-slate-500">Next Due</span>
+            <span className={`text-[11px] font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-slate-200'}`}>{fmtDateShort(tile.due_date)}</span>
+          </div>
+          {/* Right-aligned utility buttons */}
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-[10px] font-semibold hover:bg-slate-700 transition-colors border border-slate-700"
+            >
+              <Download size={11} /> Statement
+            </button>
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/50 text-red-300 text-[10px] font-semibold hover:bg-red-900 transition-colors border border-red-800"
+            >
+              <X size={11} /> Close
+            </button>
+          </div>
         </div>
       </div>
 
@@ -766,7 +771,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   <table className="w-full text-[10px]">
                     <thead>
                       <tr className="bg-slate-100 text-slate-600">
-                        <th className="px-2 py-1.5 text-center font-bold w-8">
+                        <th className="px-1.5 py-1 text-center font-bold w-8">
                           <input
                             type="checkbox"
                             className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
@@ -777,16 +782,16 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                             }}
                           />
                         </th>
-                        <th className="px-2 py-1.5 text-left font-bold">Sl No</th>
-                        <th className="px-2 py-1.5 text-left font-bold">Month/Period</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Demand Amt</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Sl No</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Month/Period</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Demand Amt</th>
                         {config.columns.filter(c => c.key !== 'penalty').map(col => (
-                          <th key={col.key} className="px-2 py-1.5 text-right font-bold">{col.label}</th>
+                          <th key={col.key} className="px-1.5 py-1 text-right font-bold">{col.label}</th>
                         ))}
-                        <th className="px-2 py-1.5 text-right font-bold">Late Fee</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Total Due</th>
-                        <th className="px-2 py-1.5 text-center font-bold">Dispute</th>
-                        <th className="px-2 py-1.5 text-center font-bold">Actions</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Late Fee</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Total Due</th>
+                        <th className="px-1.5 py-1 text-center font-bold">Dispute?</th>
+                        <th className="px-1.5 py-1 text-center font-bold">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -795,8 +800,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                         const lateFee = m.charges['penalty'] ?? 0;
                         const rst = DCC_STATUS[m.status];
                         return (
-                          <tr key={m.sno} className={m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}>
-                            <td className="px-2 py-1.5 text-center">
+                          <tr key={m.sno} className={`border-b border-slate-50 ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
+                            <td className="px-1.5 py-1 text-center">
                               <input
                                 type="checkbox"
                                 className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
@@ -811,40 +816,63 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                 }}
                               />
                             </td>
-                            <td className="px-2 py-1.5 text-slate-500">{m.sno}</td>
-                            <td className="px-2 py-1.5 font-semibold text-slate-700">{m.label}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums">{fmtINR(demandAmt)}</td>
+                            <td className="px-1.5 py-1 text-slate-500">{m.sno}</td>
+                            <td className="px-1.5 py-1 font-semibold text-slate-700">{m.label}</td>
+                            <td className="px-1.5 py-1 text-right tabular-nums">{fmtINR(demandAmt)}</td>
                             {config.columns.filter(c => c.key !== 'penalty').map(col => (
-                              <td key={col.key} className="px-2 py-1.5 text-right tabular-nums text-slate-500">
+                              <td key={col.key} className="px-1.5 py-1 text-right tabular-nums text-slate-500">
                                 {m.charges[col.key] > 0 ? fmtINRShort(m.charges[col.key]) : '—'}
                               </td>
                             ))}
-                            <td className="px-2 py-1.5 text-right tabular-nums text-red-600">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums font-bold text-slate-900">{fmtINR(m.total)}</td>
-                            <td className="px-2 py-1.5 text-center">
+                            <td className="px-1.5 py-1 text-right tabular-nums text-red-600">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
+                            <td className="px-1.5 py-1 text-right tabular-nums font-bold text-slate-900">{fmtINR(m.total)}</td>
+                            <td className="px-1.5 py-1 text-center">
                               {hasDispute ? (
-                                <span className="inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-100 text-orange-700" title={`${demand?.dispute_reason ?? ''} — ${demand?.dispute_remarks ?? ''}`}>
-                                  {fmtDateShort(demand?.dispute_date ?? null)}
-                                </span>
+                                <div className="relative inline-block group">
+                                  <span className="inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-100 text-orange-700 cursor-help">
+                                    {fmtDateShort(demand?.dispute_date ?? null)}
+                                  </span>
+                                  <AnimatePresence>
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                                      exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                                      transition={{ duration: 0.15 }}
+                                      className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 w-56 p-2.5 rounded-lg bg-slate-900 border border-slate-700 shadow-xl pointer-events-none"
+                                    >
+                                      <div className="text-[10px] font-bold text-orange-300 mb-1">Dispute Reason</div>
+                                      <div className="text-[10px] text-slate-200 mb-1.5">{demand?.dispute_reason ?? '—'}</div>
+                                      {demand?.dispute_remarks && (
+                                        <>
+                                          <div className="text-[9px] font-bold text-slate-400 mb-0.5">Remarks</div>
+                                          <div className="text-[10px] text-slate-300">{demand.dispute_remarks}</div>
+                                        </>
+                                      )}
+                                      <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-900 border-l border-t border-slate-700 rotate-45" />
+                                    </motion.div>
+                                  </AnimatePresence>
+                                </div>
                               ) : (
                                 <span className="text-slate-300">—</span>
                               )}
                             </td>
-                            <td className="px-2 py-1.5 text-center">
-                              <button
-                                onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
-                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
-                              >
-                                <Eye size={10} /> Details
-                              </button>
-                              {isSingleOpen && !isPaidOrExempted && (
+                            <td className="px-1.5 py-1 text-center">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
-                                  onClick={() => { setPayAmount(m.total); setShowPayForm(true); }}
-                                  className="ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                                  onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
+                                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
                                 >
-                                  <Wallet size={10} /> Pay
+                                  <Eye size={10} /> Details
                                 </button>
-                              )}
+                                {(m.status === 'DUE' || m.status === 'OVERDUE') && !isPaidOrExempted && (
+                                  <button
+                                    onClick={() => { setPayAmount(m.total); setShowPayForm(true); setPopoverSno(m.sno); }}
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                                  >
+                                    <Wallet size={10} /> Pay
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -852,8 +880,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 5} className="px-2 py-2 text-right font-bold text-slate-700">Total Outstanding:</td>
-                        <td className="px-2 py-2 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
+                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 5} className="px-1.5 py-1.5 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td className="px-1.5 py-1.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
                     </tfoot>
@@ -892,14 +920,14 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                               Total: {fmtINR(row.total)}
                             </span>
                           </div>
-                          {/* Discount grid rule evaluation */}
+                          {/* Discount grid rule evaluation popover */}
                           {instPlan?.discount_full_payment_pct && instPlan.discount_full_payment_pct > 0 ? (
                             <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md">
                               <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
                               <span className="text-[11px] text-emerald-700">
                                 Pay on or before <span className="font-bold">{fmtDateShort(tile.due_date)}</span> to get <span className="font-bold">{instPlan.discount_full_payment_pct}%</span> off. You Pay: <span className="font-bold">{fmtINR(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100)))}</span>
                               </span>
-                              {isSingleOpen && !isPaidOrExempted && (
+                              {!isPaidOrExempted && (
                                 <button
                                   onClick={() => { setPayAmount(Math.round(row.total * (1 - instPlan.discount_full_payment_pct / 100))); setShowPayForm(true); setPopoverSno(null); }}
                                   className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
@@ -908,7 +936,22 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                 </button>
                               )}
                             </div>
-                          ) : null}
+                          ) : (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md">
+                              <Info size={13} className="text-slate-400 shrink-0" />
+                              <span className="text-[11px] text-slate-500">
+                                No early-payment discount available for this line. Full amount: <span className="font-bold text-slate-700">{fmtINR(row.total)}</span>
+                              </span>
+                              {!isPaidOrExempted && (
+                                <button
+                                  onClick={() => { setPayAmount(row.total); setShowPayForm(true); setPopoverSno(null); }}
+                                  className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition-colors"
+                                >
+                                  <Wallet size={11} /> Pay Now
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {/* Dispute trigger for admins */}
                           {canRecordPayment && !hasDispute && (
                             <div className="flex items-end gap-2 pt-1 border-t border-slate-200">
@@ -1056,32 +1099,32 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                       <table className="w-full text-[10px]">
                         <thead>
                           <tr className="bg-slate-100 text-slate-600">
-                            <th className="px-2 py-1.5 text-left font-bold">Instalment</th>
-                            <th className="px-2 py-1.5 text-right font-bold">Percentage</th>
-                            <th className="px-2 py-1.5 text-right font-bold">Amount</th>
-                            <th className="px-2 py-1.5 text-right font-bold">Discount</th>
-                            <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
-                            <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
-                            <th className="px-2 py-1.5 text-right font-bold">Net Payable</th>
-                            <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
+                            <th className="px-1.5 py-1 text-left font-bold">Instalment</th>
+                            <th className="px-1.5 py-1 text-right font-bold">Percentage</th>
+                            <th className="px-1.5 py-1 text-right font-bold">Amount</th>
+                            <th className="px-1.5 py-1 text-right font-bold">Discount</th>
+                            <th className="px-1.5 py-1 text-right font-bold">Penalty</th>
+                            <th className="px-1.5 py-1 text-right font-bold">GST Amt</th>
+                            <th className="px-1.5 py-1 text-right font-bold">Net Payable</th>
+                            <th className="px-1.5 py-1 text-left font-bold">Due Date</th>
                           </tr>
                         </thead>
                         <tbody>
                           {instEditRows.map((r, idx) => (
                             <tr key={r.row_number} className={r.row_number === 0 ? 'bg-emerald-50/50' : ''}>
-                              <td className="px-2 py-1.5 font-semibold text-slate-700">{r.label}</td>
-                              <td className="px-2 py-1.5 text-right">
-                                <input type="number" step="0.01" min="0" max="100" value={r.percentage} onChange={e => updateInstRow(idx, 'percentage', e.target.value)} disabled={r.row_number === 0} className="w-14 px-1.5 py-1 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
+                              <td className="px-1.5 py-1 font-semibold text-slate-700">{r.label}</td>
+                              <td className="px-1.5 py-1 text-right">
+                                <input type="number" step="0.01" min="0" max="100" value={r.percentage} onChange={e => updateInstRow(idx, 'percentage', e.target.value)} disabled={r.row_number === 0} className="w-14 px-1.5 py-0.5 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
                               </td>
-                              <td className="px-2 py-1.5 text-right">
-                                <input type="number" step="0.01" min="0" value={r.amount} onChange={e => updateInstRow(idx, 'amount', e.target.value)} disabled={r.row_number === 0} className="w-20 px-1.5 py-1 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
+                              <td className="px-1.5 py-1 text-right">
+                                <input type="number" step="0.01" min="0" value={r.amount} onChange={e => updateInstRow(idx, 'amount', e.target.value)} disabled={r.row_number === 0} className="w-20 px-1.5 py-0.5 text-right tabular-nums text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-slate-50 disabled:text-slate-400" />
                               </td>
-                              <td className="px-2 py-1.5 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums font-bold text-emerald-700">{fmtINR(r.net_payable)}</td>
-                              <td className="px-2 py-1.5">
-                                <input type="date" value={r.due_date} onChange={e => updateInstRow(idx, 'due_date', e.target.value)} className="w-32 px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400" />
+                              <td className="px-1.5 py-1 text-right tabular-nums">{r.discount > 0 ? fmtINR(r.discount) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums">{r.penalty > 0 ? fmtINR(r.penalty) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums">{r.gst_amount > 0 ? fmtINR(r.gst_amount) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums font-bold text-emerald-700">{fmtINR(r.net_payable)}</td>
+                              <td className="px-1.5 py-1">
+                                <input type="date" value={r.due_date} onChange={e => updateInstRow(idx, 'due_date', e.target.value)} className="w-32 px-1.5 py-0.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400" />
                               </td>
                             </tr>
                           ))}
@@ -1195,18 +1238,18 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   <table className="w-full text-[10px]">
                     <thead>
                       <tr className="bg-slate-100 text-slate-600">
-                        <th className="px-2 py-1.5 text-left font-bold">Action</th>
-                        <th className="px-2 py-1.5 text-left font-bold">Seq</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Total Amt</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Discount</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Penalty</th>
-                        <th className="px-2 py-1.5 text-right font-bold">GST Amt</th>
-                        <th className="px-2 py-1.5 text-left font-bold">Due Date</th>
-                        <th className="px-2 py-1.5 text-left font-bold">Due w/ Late</th>
-                        <th className="px-2 py-1.5 text-left font-bold">Paid Date</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Paid Amt</th>
-                        <th className="px-2 py-1.5 text-right font-bold">Remaining</th>
-                        <th className="px-2 py-1.5 text-center font-bold">Status</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Action</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Seq</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Total Amt</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Discount</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Penalty</th>
+                        <th className="px-1.5 py-1 text-right font-bold">GST Amt</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Due Date</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Due w/ Late</th>
+                        <th className="px-1.5 py-1 text-left font-bold">Paid Date</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Paid Amt</th>
+                        <th className="px-1.5 py-1 text-right font-bold">Remaining</th>
+                        <th className="px-1.5 py-1 text-center font-bold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1227,9 +1270,9 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
                           return (
                             <tr key={row.id} className={isPaid ? 'bg-emerald-50/40' : row.status === 'OVERDUE' ? 'bg-red-50/30' : isFullPayment ? 'bg-emerald-50/20' : ''}>
-                              <td className="px-2 py-1.5">
+                              <td className="px-1.5 py-1">
                                 {canPayThis ? (
-                                  <button onClick={() => handlePayInstallment(row)} disabled={payingRowId === row.id} className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-600 text-white text-[9px] font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+                                  <button onClick={() => handlePayInstallment(row)} disabled={payingRowId === row.id} className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors">
                                     {payingRowId === row.id ? <Loader2 size={10} className="animate-spin" /> : <Wallet size={10} />}
                                     {payingRowId === row.id ? 'Paying…' : 'Pay'}
                                   </button>
@@ -1241,17 +1284,17 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                   <span className="text-slate-300">—</span>
                                 )}
                               </td>
-                              <td className="px-2 py-1.5 font-semibold text-slate-700">{row.label}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums font-bold">{fmtINR(row.amount)}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number === 0 ? fmtINR(0) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number > 0 ? fmtINR(row.late_fee) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{row.gst_amount > 0 ? fmtINR(row.gst_amount) : '—'}</td>
-                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.due_date)}</td>
-                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.due_date_with_late_fee)}</td>
-                              <td className="px-2 py-1.5 text-left text-slate-500">{fmtDateShort(row.paid_date)}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums text-emerald-600 font-semibold">{row.paid_amt > 0 ? fmtINR(row.paid_amt) : '—'}</td>
-                              <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-slate-700">{row.remaining_amount > 0 ? fmtINR(row.remaining_amount) : '—'}</td>
-                              <td className="px-2 py-1.5 text-center">
+                              <td className="px-1.5 py-1 font-semibold text-slate-700">{row.label}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums font-bold">{fmtINR(row.amount)}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number === 0 ? fmtINR(0) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums text-slate-400">{row.late_fee > 0 && row.row_number > 0 ? fmtINR(row.late_fee) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums text-slate-400">{row.gst_amount > 0 ? fmtINR(row.gst_amount) : '—'}</td>
+                              <td className="px-1.5 py-1 text-left text-slate-500">{fmtDateShort(row.due_date)}</td>
+                              <td className="px-1.5 py-1 text-left text-slate-500">{fmtDateShort(row.due_date_with_late_fee)}</td>
+                              <td className="px-1.5 py-1 text-left text-slate-500">{fmtDateShort(row.paid_date)}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums text-emerald-600 font-semibold">{row.paid_amt > 0 ? fmtINR(row.paid_amt) : '—'}</td>
+                              <td className="px-1.5 py-1 text-right tabular-nums font-semibold text-slate-700">{row.remaining_amount > 0 ? fmtINR(row.remaining_amount) : '—'}</td>
+                              <td className="px-1.5 py-1 text-center">
                                 <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${
                                   isPaid ? 'bg-emerald-100 text-emerald-700' :
                                   row.status === 'EXEMPTED' ? 'bg-slate-200 text-slate-600' :
@@ -1292,29 +1335,29 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                 <table className="w-full text-[10px]">
                   <thead>
                     <tr className="bg-slate-100 text-slate-600">
-                      <th className="px-2 py-1.5 text-left font-bold">Receipt No</th>
-                      <th className="px-2 py-1.5 text-left font-bold">Date</th>
-                      <th className="px-2 py-1.5 text-left font-bold">Mode</th>
-                      <th className="px-2 py-1.5 text-left font-bold">Reference</th>
-                      <th className="px-2 py-1.5 text-right font-bold">Amount</th>
-                      <th className="px-2 py-1.5 text-left font-bold">Remarks</th>
-                      <th className="px-2 py-1.5 text-center font-bold">Receipt</th>
+                      <th className="px-1.5 py-1 text-left font-bold">Receipt No</th>
+                      <th className="px-1.5 py-1 text-left font-bold">Date</th>
+                      <th className="px-1.5 py-1 text-left font-bold">Mode</th>
+                      <th className="px-1.5 py-1 text-left font-bold">Reference</th>
+                      <th className="px-1.5 py-1 text-right font-bold">Amount</th>
+                      <th className="px-1.5 py-1 text-left font-bold">Remarks</th>
+                      <th className="px-1.5 py-1 text-center font-bold">Receipt</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[...payments].reverse().map(p => (
                       <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-2 py-2"><span className="font-bold text-emerald-700">{receiptNumber(p.id)}</span></td>
-                        <td className="px-2 py-2 text-slate-600">{fmtDate(p.payment_date)}</td>
-                        <td className="px-2 py-2">
+                        <td className="px-1.5 py-1"><span className="font-bold text-emerald-700">{receiptNumber(p.id)}</span></td>
+                        <td className="px-1.5 py-1 text-slate-600">{fmtDate(p.payment_date)}</td>
+                        <td className="px-1.5 py-1">
                           <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-semibold">
                             {PAYMENT_MODE_LABELS[p.payment_mode as PaymentMode] ?? p.payment_mode}
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-slate-500">{p.reference_number || '—'}</td>
-                        <td className="px-2 py-2 text-right tabular-nums font-bold text-emerald-700">{fmtINR(p.amount)}</td>
-                        <td className="px-2 py-2 text-slate-400 max-w-[160px] truncate" title={p.remarks ?? ''}>{p.remarks || '—'}</td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-1.5 py-1 text-slate-500">{p.reference_number || '—'}</td>
+                        <td className="px-1.5 py-1 text-right tabular-nums font-bold text-emerald-700">{fmtINR(p.amount)}</td>
+                        <td className="px-1.5 py-1 text-slate-400 max-w-[160px] truncate" title={p.remarks ?? ''}>{p.remarks || '—'}</td>
+                        <td className="px-1.5 py-1 text-center">
                           <button
                             onClick={() => {
                               if (!tile) return;
@@ -1322,7 +1365,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                               try { generatePaymentReceipt({ payment: p, tile, demand }); } catch { setActionError('Failed to generate receipt'); } finally { setDownloadingReceiptId(null); }
                             }}
                             disabled={downloadingReceiptId === p.id}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-semibold hover:bg-emerald-100 disabled:opacity-40 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[9px] font-semibold hover:bg-emerald-100 disabled:opacity-40 transition-colors"
                           >
                             {downloadingReceiptId === p.id ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />}
                             {downloadingReceiptId === p.id ? 'Gen…' : 'Download'}
@@ -1333,8 +1376,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-200">
-                      <td colSpan={4} className="px-2 py-2 text-right font-bold text-slate-700">Total Collected:</td>
-                      <td className="px-2 py-2 text-right tabular-nums font-extrabold text-emerald-700">{fmtINR(payments.reduce((s, p) => s + p.amount, 0))}</td>
+                      <td colSpan={4} className="px-1.5 py-1.5 text-right font-bold text-slate-700">Total Collected:</td>
+                      <td className="px-1.5 py-1.5 text-right tabular-nums font-extrabold text-emerald-700">{fmtINR(payments.reduce((s, p) => s + p.amount, 0))}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>
