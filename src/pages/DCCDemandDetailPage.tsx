@@ -126,18 +126,24 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
   const isGovtOfficial = user?.role === 'govt_official' || user?.role === 'dept_user' || user?.role === 'public';
 
-  // Demo payment modal
-  const [showDemoPay, setShowDemoPay] = useState(false);
-  const [demoPayMode, setDemoPayMode] = useState<string>('UPI');
-  const [demoPayStep, setDemoPayStep] = useState<'select' | 'processing' | 'done'>('select');
-  const [demoPayAmount, setDemoPayAmount] = useState(0);
-  const [demoPayLabel, setDemoPayLabel] = useState<string>('');
+  // Unified payment modal (handles both manager record-payment and demo mock payment)
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payModalMode, setPayModalMode] = useState<string>('UPI');
+  const [payModalStep, setPayModalStep] = useState<'select' | 'processing' | 'done'>('select');
+  const [payModalAmount, setPayModalAmount] = useState(0);
+  const [payModalLabel, setPayModalLabel] = useState<string>('');
+  const [payModalRowId, setPayModalRowId] = useState<string | null>(null);
+  const [payModalRef, setPayModalRef] = useState('');
+  const [payModalRemarks, setPayModalRemarks] = useState('');
+  const [payModalDate, setPayModalDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payModalRecording, setPayModalRecording] = useState(false);
 
-  const DEMO_PAY_MODES = [
+  const PAY_MODAL_METHODS = [
     { key: 'UPI', label: 'UPI', icon: Smartphone, desc: 'Pay via UPI ID or QR' },
     { key: 'NETBANKING', label: 'Net Banking', icon: Building, desc: 'Bank transfer' },
     { key: 'CARD', label: 'Debit / Credit Card', icon: CreditCard, desc: 'Visa, Mastercard, RuPay' },
     { key: 'WALLET', label: 'Wallet', icon: Wallet, desc: 'Paytm, PhonePe, etc.' },
+    { key: 'CHEQUE', label: 'Cheque', icon: Banknote, desc: 'Cheque payment' },
   ] as const;
 
   // Installment form fields
@@ -333,24 +339,45 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
   const handlePayInstallment = async (row: DccInstallmentRow) => {
     if (!demandId || !tile) return;
-    if (!canRecordPayment) {
-      setDemoPayAmount(row.remaining_amount);
-      setDemoPayLabel(row.label);
-      setShowDemoPay(true);
-      setDemoPayStep('select');
-      return;
-    }
-    setPayingRowId(row.id);
-    setActionError(null);
-    try {
-      const payAmt = row.remaining_amount;
-      await dccService.payInstallmentRow(row.id, payAmt, new Date().toISOString().slice(0, 10));
-      await loadInstallments();
-      await load();
-    } catch (e: unknown) {
-      setActionError(e instanceof Error ? e.message : 'Failed to pay installment');
-    } finally {
-      setPayingRowId(null);
+    setPayModalAmount(row.remaining_amount);
+    setPayModalLabel(row.label);
+    setPayModalRowId(row.id);
+    setPayModalStep('select');
+    setPayModalMode('UPI');
+    setPayModalRef('');
+    setPayModalRemarks('');
+    setPayModalDate(new Date().toISOString().slice(0, 10));
+    setShowPayModal(true);
+  };
+
+  const handleConfirmPayModal = async () => {
+    if (!demandId || !tile || !payModalRowId) return;
+    if (canRecordPayment) {
+      setPayModalRecording(true);
+      setActionError(null);
+      try {
+        await dccService.payInstallmentRow(payModalRowId, payModalAmount, payModalDate);
+        await dccService.submitPayment(
+          demandId,
+          tile.object_id,
+          payModalAmount,
+          payModalMode,
+          payModalDate,
+          payModalRef || undefined,
+          payModalRemarks || undefined,
+        );
+        setShowPayModal(false);
+        setPayModalStep('select');
+        await loadInstallments();
+        await load();
+      } catch (e: unknown) {
+        setActionError(e instanceof Error ? e.message : 'Failed to record payment');
+      } finally {
+        setPayModalRecording(false);
+      }
+    } else {
+      setPayModalStep('processing');
+      setTimeout(() => setPayModalStep('done'), 2000);
     }
   };
 
@@ -359,10 +386,15 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const handlePay = async () => {
     if (!demandId || !tile || payAmount <= 0) return;
     if (!canRecordPayment) {
-      setDemoPayAmount(payAmount);
-      setDemoPayLabel('Full Payment');
-      setShowDemoPay(true);
-      setDemoPayStep('select');
+      setPayModalAmount(payAmount);
+      setPayModalLabel('Full Payment');
+      setPayModalRowId(null);
+      setPayModalStep('select');
+      setPayModalMode('UPI');
+      setPayModalRef('');
+      setPayModalRemarks('');
+      setPayModalDate(new Date().toISOString().slice(0, 10));
+      setShowPayModal(true);
       return;
     }
     setPaying(true);
@@ -420,10 +452,15 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
     if (selectedTotal <= 0) return;
 
     if (!canRecordPayment) {
-      setDemoPayAmount(selectedTotal);
-      setDemoPayLabel(`${selectedDueRows.size} selected entries`);
-      setShowDemoPay(true);
-      setDemoPayStep('select');
+      setPayModalAmount(selectedTotal);
+      setPayModalLabel(`${selectedDueRows.size} selected entries`);
+      setPayModalRowId(null);
+      setPayModalStep('select');
+      setPayModalMode('UPI');
+      setPayModalRef('');
+      setPayModalRemarks('');
+      setPayModalDate(new Date().toISOString().slice(0, 10));
+      setShowPayModal(true);
       return;
     }
     setBulkPaying(true);
@@ -978,7 +1015,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   </span>
                   {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
                     <button
-                      onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); })() : undefined)}
+                      onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setPayModalAmount(tile.amount_due); setPayModalLabel('Full Payment'); setPayModalRowId(null); setPayModalStep('select'); setPayModalMode('UPI'); setPayModalRef(''); setPayModalRemarks(''); setPayModalDate(new Date().toISOString().slice(0, 10)); setShowPayModal(true); })() : undefined)}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-md shadow-sm transition-colors"
                     >
                       Pay Now against Total Outstanding
@@ -1497,65 +1534,143 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
         </AnimatePresence>
       </div>
 
-      {/* Demo Payment Modal for Govt Officials */}
-      {showDemoPay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDemoPay(false)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-            {demoPayStep === 'select' && (
-              <>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Lock size={16} className="text-emerald-600" />
-                    <h3 className="text-sm font-bold text-slate-900">Demo Payment Gateway</h3>
-                  </div>
-                  <button onClick={() => setShowDemoPay(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-                </div>
-                <div className="px-4 py-3 space-y-3">
+      {/* Unified Payment Modal — Manager record-payment + Demo mock payment */}
+      {showPayModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => { if (!payModalRecording && payModalStep !== 'processing') setShowPayModal(false); }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${canRecordPayment ? 'bg-emerald-600' : 'bg-slate-800'}`}>
+              <div className="flex items-center gap-2">
+                {canRecordPayment ? <Wallet size={16} className="text-white" /> : <Lock size={16} className="text-emerald-400" />}
+                <h3 className="text-sm font-bold text-white">
+                  {canRecordPayment ? 'Record Payment' : 'Demo Payment Gateway'}
+                </h3>
+              </div>
+              {payModalStep !== 'processing' && !payModalRecording && (
+                <button onClick={() => setShowPayModal(false)} className="text-white/60 hover:text-white"><X size={18} /></button>
+              )}
+            </div>
+
+            {payModalStep === 'select' && (
+              <div className="px-4 py-4 space-y-3">
+                {/* Info banner */}
+                {!canRecordPayment && (
                   <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-[11px] text-amber-700 flex items-center gap-1.5">
                     <AlertCircle size={13} className="shrink-0" /> This is a demo payment screen. No real payment will be processed.
                   </div>
-                  <div className="text-xs text-slate-500 mb-1">Outstanding Amount: <span className="font-bold text-slate-900">{fmtINR(demoPayAmount || tile.amount_due)}</span></div>
-                  {demoPayLabel && <div className="text-xs text-slate-500 mb-2">Paying: <span className="font-semibold text-emerald-700">{demoPayLabel}</span></div>}
+                )}
+
+                {/* Amount + label summary */}
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {canRecordPayment ? 'Record Amount' : 'Outstanding'}
+                    </span>
+                    <span className="text-lg font-black text-slate-900 tabular-nums leading-tight">{fmtINR(payModalAmount || tile.amount_due)}</span>
+                  </div>
+                  {payModalLabel && (
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">For</span>
+                      <span className="text-xs font-bold text-emerald-700">{payModalLabel}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment type selection */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Select Payment Type</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {DEMO_PAY_MODES.map(m => {
+                    {PAY_MODAL_METHODS.map(m => {
                       const Icon = m.icon;
-                      const active = demoPayMode === m.key;
+                      const active = payModalMode === m.key;
                       return (
-                        <button key={m.key} onClick={() => setDemoPayMode(m.key)} className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${active ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                          <Icon size={22} className={active ? 'text-emerald-600' : 'text-slate-400'} />
-                          <span className="text-xs font-semibold text-slate-700">{m.label}</span>
-                          <span className="text-[10px] text-slate-400">{m.desc}</span>
+                        <button
+                          key={m.key}
+                          onClick={() => setPayModalMode(m.key)}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border-2 transition-all text-left ${active ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                            <Icon size={18} className={active ? 'text-emerald-600' : 'text-slate-400'} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-slate-700 truncate">{m.label}</span>
+                            <span className="text-[10px] text-slate-400 truncate">{m.desc}</span>
+                          </div>
                         </button>
                       );
                     })}
                   </div>
-                  <button onClick={() => { setDemoPayStep('processing'); setTimeout(() => setDemoPayStep('done'), 2000); }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors">
-                    Pay {fmtINR(demoPayAmount || tile.amount_due)} via {DEMO_PAY_MODES.find(m => m.key === demoPayMode)?.label}
-                  </button>
                 </div>
-              </>
-            )}
-            {demoPayStep === 'processing' && (
-              <div className="px-4 py-16 flex flex-col items-center gap-3">
-                <Loader2 size={32} className="animate-spin text-emerald-500" />
-                <p className="text-sm font-semibold text-slate-600">Processing {demoPayMode} payment…</p>
+
+                {/* Manager: reference + remarks + date fields */}
+                {canRecordPayment && (
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Payment Date *</label>
+                        <input type="date" value={payModalDate} onChange={e => setPayModalDate(e.target.value)} className={DCC_INPUT_CLS} />
+                      </div>
+                      <div>
+                        <label className={DCC_LABEL_CLS}>Reference #</label>
+                        <input value={payModalRef} onChange={e => setPayModalRef(e.target.value)} placeholder="Optional" className={DCC_INPUT_CLS} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={DCC_LABEL_CLS}>Remarks</label>
+                      <input value={payModalRemarks} onChange={e => setPayModalRemarks(e.target.value)} placeholder="Optional notes" className={DCC_INPUT_CLS} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm / Pay button */}
+                <button
+                  onClick={handleConfirmPayModal}
+                  disabled={canRecordPayment ? payModalRecording : false}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+                >
+                  {canRecordPayment ? (
+                    payModalRecording ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />
+                  ) : (
+                    <Wallet size={16} />
+                  )}
+                  {canRecordPayment
+                    ? (payModalRecording ? 'Recording…' : `Record ${fmtINR(payModalAmount || tile.amount_due)} via ${PAY_MODAL_METHODS.find(m => m.key === payModalMode)?.label}`)
+                    : `Pay ${fmtINR(payModalAmount || tile.amount_due)} via ${PAY_MODAL_METHODS.find(m => m.key === payModalMode)?.label}`
+                  }
+                </button>
               </div>
             )}
-            {demoPayStep === 'done' && (
+
+            {/* Processing step (demo only) */}
+            {payModalStep === 'processing' && (
+              <div className="px-4 py-16 flex flex-col items-center gap-3">
+                <Loader2 size={32} className="animate-spin text-emerald-500" />
+                <p className="text-sm font-semibold text-slate-600">Processing {payModalMode} payment…</p>
+              </div>
+            )}
+
+            {/* Done step (demo only) */}
+            {payModalStep === 'done' && (
               <div className="px-4 py-10 flex flex-col items-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
                   <CheckCircle2 size={28} className="text-emerald-600" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Demo Payment Successful</h3>
                 <p className="text-xs text-slate-500 text-center max-w-xs">
-                  This was a simulated payment of {fmtINR(demoPayAmount || tile.amount_due)} via {demoPayMode}. No actual payment was recorded — demand and instalment balances remain unchanged.
+                  This was a simulated payment of {fmtINR(payModalAmount || tile.amount_due)} via {payModalMode}. No actual payment was recorded — demand and instalment balances remain unchanged.
                 </p>
-                <button onClick={() => { setShowDemoPay(false); setDemoPayStep('select'); }} className="mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
+                <button onClick={() => { setShowPayModal(false); setPayModalStep('select'); }} className="mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors">
                   Close
                 </button>
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
       )}
     </motion.div>
