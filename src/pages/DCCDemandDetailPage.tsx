@@ -36,6 +36,11 @@ const SUB_CHARGE_RATIOS: Record<string, Record<string, number>> = {
   loan_instalment: { loan_instalment: 0.90, interest: 0.10 },
 };
 
+// Demand type codes that use the Instalment view as their primary (and only) transaction tab.
+// All other codes (RENT, PROPERTY_TAX, MAINTENANCE, INSURANCE, SD, ADVANCE) use the Demand Due view.
+const INSTALLMENT_DEMAND_CODES = new Set(['LOAN']);
+const isInstalmentType = (code: string): boolean => INSTALLMENT_DEMAND_CODES.has(code);
+
 const getBreakdownConfig = (demandTypeCode: string, objectType: string): BreakdownConfig => {
   const isProperty = objectType === 'PROPERTY' || objectType === 'QUARTER';
   const configs: Record<string, BreakdownConfig> = {
@@ -70,15 +75,14 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Determine if this demand has an installment plan to decide which tab to show first
+  // Installment plan state (loaded for all demands, but only shown for instalment-type demands)
   const [instPlan, setInstPlan] = useState<DccInstallmentPlan | null>(null);
   const [instRows, setInstRows] = useState<DccInstallmentRow[]>([]);
-  const [instLoading, setInstLoading] = useState(false);
+ const [instLoading, setInstLoading] = useState(false);
   const [instError, setInstError] = useState<string | null>(null);
-  const hasInstalmentPlan = !!instPlan || instRows.length > 0;
 
-  // Default tab: installments if plan exists, otherwise demand_due
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? (hasInstalmentPlan ? 'installments' : 'demand_due'));
+  // Default tab is set after load once we know the demand type code
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'demand_due');
 
   // Payment form
   const [showPayForm, setShowPayForm] = useState(false);
@@ -240,6 +244,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
       setInstRows(instData.rows);
       if (foundTile) {
         setPayAmount(foundTile.amount_due);
+        // Set default tab based on demand type code (only if no explicit initialTab was passed)
+        if (!initialTab) {
+          setActiveTab(isInstalmentType(foundTile.demand_type_code) ? 'installments' : 'demand_due');
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load demand');
@@ -489,9 +497,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const isPaidOrExempted = tile.status === 'PAID' || tile.status === 'EXEMPTED';
   const hasDispute = !!(demand?.dispute_date);
 
-  // Context-driven tabs: Demand Due OR Instalment (mutually exclusive)
-  const showInstalmentTab = hasInstalmentPlan;
-  const showDemandDueTab = !hasInstalmentPlan;
+  // Context-driven tabs: Demand Due OR Instalment (mutually exclusive), based on demand type code
+  const demandTypeCode = tile?.demand_type_code ?? '';
+  const showInstalmentTab = isInstalmentType(demandTypeCode);
+  const showDemandDueTab = !showInstalmentTab;
 
   const TABS: { key: Tab; label: string; icon: typeof History }[] = [
     ...(showDemandDueTab ? [{ key: 'demand_due' as Tab, label: 'Demand Due', icon: CalendarDays }] : []),
@@ -1182,19 +1191,57 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
               </div>
             ) : (
               <div className="space-y-2">
-                {/* Summary Banner */}
+                {/* Enterprise Parameter Bar */}
                 {instPlan && (
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Start: {fmtDateShort(instPlan.installment_start_date)}</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Late Fee: ₹{instPlan.late_fee}</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Grace: {instPlan.due_days_with_late_fee}d</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Interest: {instPlan.interest_pct_pa}% p.a.</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Full Disc: {instPlan.discount_full_payment_pct}%</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">GST: {instPlan.gst_pct}% ({instPlan.gst_type})</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Balance: {fmtINR(instPlan.balance_payment)}</span>
-                    <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-600">Instalments: {instPlan.no_of_installments}</span>
-                    <span className="px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700">Paid: {instPlan.installments_paid}</span>
-                    <span className="px-2 py-1 rounded-md bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-700">Due: {instPlan.installments_due}</span>
+                  <div className="flex items-stretch gap-3 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    {/* Key-value grid */}
+                    <div className="flex-1 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-x-4 gap-y-2 content-center">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Start Date</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{fmtDateShort(instPlan.installment_start_date)}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Late Fee</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">₹{instPlan.late_fee}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Grace Period</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{instPlan.due_days_with_late_fee} Days</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Interest Rate</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{instPlan.interest_pct_pa}% p.a.</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Full Pay Disc</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{instPlan.discount_full_payment_pct}%</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">GST</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{instPlan.gst_pct}% ({instPlan.gst_type === 'inclusive' ? 'incl.' : 'excl.'})</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Balance</span>
+                        <span className="text-sm font-semibold text-slate-800 tabular-nums leading-tight">{fmtINR(instPlan.balance_payment)}</span>
+                      </div>
+                    </div>
+                    {/* Status metrics summary card */}
+                    <div className="flex items-stretch gap-0 border border-slate-300 rounded-md overflow-hidden shrink-0">
+                      <div className="flex flex-col items-center justify-center px-3 py-1.5 bg-white">
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-slate-400">Total Inst.</span>
+                        <span className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{instPlan.no_of_installments}</span>
+                      </div>
+                      <div className="w-px bg-slate-200" />
+                      <div className="flex flex-col items-center justify-center px-3 py-1.5 bg-emerald-50">
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-emerald-500">Paid</span>
+                        <span className="text-sm font-bold text-emerald-700 tabular-nums leading-tight">{instPlan.installments_paid}</span>
+                      </div>
+                      <div className="w-px bg-slate-200" />
+                      <div className="flex flex-col items-center justify-center px-3 py-1.5 bg-amber-50">
+                        <span className="text-[8px] font-medium uppercase tracking-wider text-amber-500">Due</span>
+                        <span className="text-sm font-bold text-amber-700 tabular-nums leading-tight">{instPlan.installments_due}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
