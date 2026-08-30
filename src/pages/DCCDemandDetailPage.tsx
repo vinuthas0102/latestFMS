@@ -763,7 +763,12 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
               }
             }
             const total = Object.values(charges).reduce((s, v) => s + v, 0);
-            return [{ sno: 1, label: 'Total', charges, total, status: tile.status }];
+            const periodLabel = (() => {
+              const runDate = new Date(tile.demand_run_date);
+              if (isNaN(runDate.getTime())) return 'One-Time / Initial Deposit';
+              return runDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+            })();
+            return [{ sno: 1, label: periodLabel, charges, total, status: tile.status }];
           })();
 
           // Only show OPEN (non-paid) rows
@@ -920,28 +925,37 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                           </div>
                           {/* Single-line: Discount Calculation Card + line-level Pay */}
                           {isSingleOpen && !isPaidOrExempted && (() => {
-                            const payAmt = hasDisc ? earlyDisc.adjusted : row.total;
+                            const netOutstanding = tile.amount_due;
+                            const netDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), netOutstanding);
+                            const netHasDisc = netDisc.pct > 0;
+                            const payAmt = netHasDisc ? netDisc.adjusted : netOutstanding;
                             return (
                               <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 my-2">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                    <Tag size={10} /> Early Payment Discount Applied
-                                  </span>
+                                  {netHasDisc ? (
+                                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                      <Tag size={10} /> Early Payment Discount Applied
+                                    </span>
+                                  ) : (
+                                    <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                      <Info size={10} /> Early Payment Discount Status
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="space-y-1">
                                   <div className="text-xs flex justify-between">
-                                    <span className="text-slate-500">Gross Line Due:</span>
-                                    <span className="font-mono font-bold text-slate-800">{fmtINR(row.total)}</span>
+                                    <span className="text-slate-500">Net Outstanding:</span>
+                                    <span className="font-mono font-bold text-slate-800">{fmtINR(netOutstanding)}</span>
                                   </div>
-                                  {hasDisc ? (
+                                  {netHasDisc ? (
                                     <div className="text-xs flex justify-between">
-                                      <span className="text-slate-500">Early Payment Discount ({earlyDisc.pct}%):</span>
-                                      <span className="font-mono font-bold text-emerald-700">-{fmtINR(earlyDisc.discount)}</span>
+                                      <span className="text-slate-500">Early Payment Discount ({netDisc.pct}%):</span>
+                                      <span className="font-mono font-bold text-emerald-700">-{fmtINR(netDisc.discount)}</span>
                                     </div>
                                   ) : (
                                     <div className="text-xs flex justify-between">
                                       <span className="text-slate-500">Early Payment Discount:</span>
-                                      <span className="font-mono text-slate-400">Not eligible ({earlyDisc.daysEarly}d early)</span>
+                                      <span className="font-mono text-slate-400">Not eligible ({netDisc.daysEarly}d early)</span>
                                     </div>
                                   )}
                                   <div className="text-sm flex justify-between pt-1 border-t border-emerald-200">
