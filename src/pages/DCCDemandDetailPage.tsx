@@ -551,39 +551,23 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
             </button>
           </div>
         </div>
-        {/* Line 2: Borderless metrics + single Pay Now */}
-        <div className="flex items-end gap-4 pl-7">
+        {/* Line 2: Flat metric text blocks */}
+        <div className="flex items-end gap-6 pl-7">
           <div className="flex flex-col">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Outstanding</span>
-            <span className="text-sm font-bold text-amber-400 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</span>
-          </div>
-          {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
-            <button
-              onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); })() : undefined)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-500 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
-            >
-              <Wallet size={13} /> Pay Now
-            </button>
-          )}
-          {isPaidOrExempted && (
-            <button
-              disabled
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-emerald-600/20 text-emerald-200/40 text-[11px] font-bold cursor-not-allowed"
-            >
-              <Wallet size={13} /> Pay Now
-            </button>
-          )}
-          <div className="flex flex-col">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Last Paid</span>
-            <span className="text-[11px] font-semibold text-slate-200 tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
+            <span className="text-[10px] font-normal text-slate-400">Outstanding</span>
+            <span className="text-sm font-semibold text-amber-400 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Pending Since</span>
-            <span className="text-[11px] font-semibold text-slate-200 tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+            <span className="text-[10px] font-normal text-slate-400">Last Paid</span>
+            <span className="text-sm font-semibold text-white tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-slate-500">Next Due</span>
-            <span className={`text-[11px] font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-slate-200'}`}>{fmtDateShort(tile.due_date)}</span>
+            <span className="text-[10px] font-normal text-slate-400">Pending Since</span>
+            <span className="text-sm font-semibold text-white tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-normal text-slate-400">Next Due</span>
+            <span className={`text-sm font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-white'}`}>{fmtDateShort(tile.due_date)}</span>
           </div>
         </div>
       </div>
@@ -740,17 +724,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   <table className="w-full text-[10px]">
                     <thead>
                       <tr className="bg-slate-100 text-slate-600">
-                        <th className="px-1.5 py-1 text-center font-bold w-8">
-                          <input
-                            type="checkbox"
-                            className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                            checked={openRows.length > 0 && openRows.every(r => selectedDueRows.has(r.sno))}
-                            onChange={e => {
-                              if (e.target.checked) setSelectedDueRows(new Set(openRows.map(r => r.sno)));
-                              else setSelectedDueRows(new Set());
-                            }}
-                          />
-                        </th>
                         <th className="px-1.5 py-1 text-left font-bold">Sl No</th>
                         <th className="px-1.5 py-1 text-left font-bold">Month/Period</th>
                         <th className="px-1.5 py-1 text-right font-bold">Demand Amt</th>
@@ -770,21 +743,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                         const rst = DCC_STATUS[m.status];
                         return (
                           <tr key={m.sno} className={`border-b border-slate-50 ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
-                            <td className="px-2 py-1 text-center">
-                              <input
-                                type="checkbox"
-                                className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                                checked={selectedDueRows.has(m.sno)}
-                                onChange={e => {
-                                  setSelectedDueRows(prev => {
-                                    const next = new Set(prev);
-                                    if (e.target.checked) next.add(m.sno);
-                                    else next.delete(m.sno);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            </td>
                             <td className="px-2 py-1 text-slate-500">{m.sno}</td>
                             <td className="px-2 py-1 font-semibold text-slate-700">{m.label}</td>
                             <td className="px-2 py-1 text-right tabular-nums">{fmtINR(demandAmt)}</td>
@@ -839,7 +797,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 5} className="px-2 py-1.5 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td colSpan={config.columns.filter(c => c.key !== 'penalty').length + 4} className="px-2 py-1.5 text-right font-bold text-slate-700">Total Outstanding:</td>
                         <td className="px-2 py-1.5 text-right tabular-nums font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
@@ -954,25 +912,29 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   })()}
                 </AnimatePresence>
 
-                {/* Bulk Pay Bar */}
-                {selectedDueRows.size > 0 && !isPaidOrExempted && (() => {
-                  const selectedTotal = openRows.filter(r => selectedDueRows.has(r.sno)).reduce((s, r) => s + r.total, 0);
-                  return (
-                    <div className="flex items-center gap-3 px-3 py-2 bg-emerald-50 border-t border-emerald-200">
-                      <span className="text-[11px] font-semibold text-emerald-700">
-                        {selectedDueRows.size} entr{selectedDueRows.size !== 1 ? 'ies' : 'y'} selected · Total: <span className="font-bold">{fmtINR(selectedTotal)}</span>
-                      </span>
-                      <button
-                        onClick={handleBulkPay}
-                        disabled={bulkPaying}
-                        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 transition-colors"
-                      >
-                        {bulkPaying ? <Loader2 size={13} className="animate-spin" /> : <Wallet size={13} />}
-                        {bulkPaying ? 'Processing…' : 'Pay Selected'}
-                      </button>
-                    </div>
-                  );
-                })()}
+              </div>
+
+              {/* Sticky Consolidated Pay Bar */}
+              <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between rounded-b-lg">
+                <span className="text-slate-800 text-sm font-bold">
+                  Total Outstanding Amount: <span className="text-red-600">{fmtINR(tile.amount_due)}</span>
+                </span>
+                {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
+                  <button
+                    onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setDemoPayAmount(tile.amount_due); setDemoPayLabel('Full Payment'); setShowDemoPay(true); setDemoPayStep('select'); })() : undefined)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 active:scale-95 transition-all shadow-sm"
+                  >
+                    <Wallet size={14} /> Pay Now against Total Outstanding
+                  </button>
+                )}
+                {isPaidOrExempted && (
+                  <button
+                    disabled
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-700/40 text-xs font-bold cursor-not-allowed"
+                  >
+                    <Wallet size={14} /> Pay Now against Total Outstanding
+                  </button>
+                )}
               </div>
             </div>
           );
