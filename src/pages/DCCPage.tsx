@@ -958,8 +958,8 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
       <div className="h-full flex flex-col bg-slate-50">
-      {/* KPI Cards — soft tint containers with left accent bars, 2 rows */}
-      <div className="px-4 pt-2 grid grid-cols-3 gap-2.5 shrink-0">
+      {/* KPI Cards — single row, 2-line cards */}
+      <div className="px-4 pt-2 grid grid-cols-5 gap-2 shrink-0">
         {KPI_CONFIG.map(dp => {
           const Icon = dp.icon;
           const value =
@@ -985,40 +985,40 @@ export const DCCPage: React.FC = () => {
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`relative text-left rounded-lg border-l-[5px] ${dp.accent} bg-slate-50/70 border border-slate-200/80 p-2.5 overflow-hidden ${
+              className={`relative text-left rounded-lg border-l-[5px] ${dp.accent} bg-slate-50/70 border border-slate-200/80 px-2.5 py-1.5 overflow-hidden ${
                 isSelected ? 'ring-2 ring-cyan-500 border-cyan-500 bg-white shadow-sm' : 'hover:shadow-md hover:bg-white'
               }`}
             >
               {isSelected && (
-                <span className="absolute top-1 right-1 text-cyan-500"><ChevronDown size={12} /></span>
+                <span className="absolute top-1 right-1 text-cyan-500"><ChevronDown size={10} /></span>
               )}
               <div className="flex items-center gap-1.5">
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center ${dp.iconBg} ${dp.iconText} shrink-0`}>
-                  <Icon size={13} />
+                <div className={`w-5 h-5 rounded flex items-center justify-center ${dp.iconBg} ${dp.iconText} shrink-0`}>
+                  <Icon size={11} />
                 </div>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{dp.label}</span>
               </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black tabular-nums leading-tight ${dp.valueColor}`}>{value}</span>
-                <span className="text-xs text-slate-500 font-medium">{displayRate}%</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className={`text-lg font-black tabular-nums leading-tight ${dp.valueColor}`}>{value}</span>
+                <span className={`text-xs font-extrabold tabular-nums ${dp.valueColor} truncate`}>{fmtINRShort(amount)}</span>
+                <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-auto">{displayRate}%</span>
               </div>
-              <div className={`text-sm font-extrabold tabular-nums ${dp.valueColor}`}>{fmtINRShort(amount)}</div>
             </motion.button>
           );
         })}
 
         {/* Collection Rate KPI */}
-        <div className="relative text-left rounded-lg border-l-[5px] border-l-rose-600 bg-slate-50/70 border border-slate-200/80 p-2.5 overflow-hidden">
+        <div className="relative text-left rounded-lg border-l-[5px] border-l-rose-600 bg-slate-50/70 border border-slate-200/80 px-2.5 py-1.5 overflow-hidden">
           <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-100/70 text-rose-600 shrink-0">
-              <TrendingUp size={13} />
+            <div className="w-5 h-5 rounded flex items-center justify-center bg-rose-100/70 text-rose-600 shrink-0">
+              <TrendingUp size={11} />
             </div>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Collection Rate</span>
           </div>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black tabular-nums leading-tight text-rose-600">{collectionRate}%</span>
+          <div className="mt-0.5 flex items-baseline gap-1.5">
+            <span className="text-lg font-black tabular-nums leading-tight text-rose-600">{collectionRate}%</span>
+            <span className="text-xs font-extrabold tabular-nums text-rose-600 truncate">of {fmtINRShort(totalAmount)}</span>
           </div>
-          <div className="text-sm font-extrabold tabular-nums text-rose-600">of {fmtINRShort(totalAmount)}</div>
         </div>
       </div>
 
