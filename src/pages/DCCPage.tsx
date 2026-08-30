@@ -15,10 +15,16 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
 import { useAuthStore } from '../stores/authStore';
 import type {
-  DccTile, DccTrackerSummary, DccDemandFilters,
+  DccTile, DccTrackerSummary,
   DccDemandType, DccObjectOwner, DccObject, DccDemandChat,
 } from '../types/dcc';
-import { FilterDrawer } from '../components/ui/FilterDrawer';
+import {
+  DCCFilterModal,
+  emptyFilterState,
+  filterStateToFilters,
+  countActiveFilters,
+  type DCCFilterState,
+} from '../components/dcc/DCCFilterModal';
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
 import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
 import { useViewPreference } from '../hooks/useViewPreference';
@@ -29,7 +35,7 @@ import { DCCDemandDetailModal } from './DCCDemandDetailPage';
 import { ChatDeliveryModePicker } from '../components/ui/ChatDeliveryModePicker';
 import type { ChatDeliveryMode } from '../types/quarters';
 import {
-  DCC_STATUS, DCC_KPIS, DCC_INPUT_CLS, DCC_LABEL_CLS,
+  DCC_STATUS, DCC_KPIS,
   fmtINR, fmtINRShort, fmtDate, fmtDateShort,
 } from '../constants/dccTheme';
 
@@ -768,23 +774,22 @@ export const DCCPage: React.FC = () => {
   const [summary, setSummary] = useState<DccTrackerSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
   const [dpFilter, setDpFilter] = useState<DpKey>('ALL');
   const [subDpFilter, setSubDpFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useViewPreference('dccView', 'list');
+  const [filterState, setFilterState] = useState<DCCFilterState>(emptyFilterState);
 
   // Chat state
   const [chatTileId, setChatTileId] = useState<string | null>(null);
   const [detailDemandId, setDetailDemandId] = useState<string | null>(null);
-  const [detailInitialTab, setDetailInitialTab] = useState<'overview' | 'due_summary' | 'payments' | 'installments' | 'dispute' | undefined>(undefined);
+  const [detailInitialTab, setDetailInitialTab] = useState<'demand_due' | 'installments' | 'paid_history' | 'dispute' | undefined>(undefined);
   const [chatMessages, setChatMessages] = useState<DccDemandChat[]>([]);
   const [chatMsg, setChatMsg] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const [chatDeliveryModes, setChatDeliveryModes] = useState<DeliveryModes>(['IN_APP']);
 
-  // Filter state
-  const [filters, setFilters] = useState<DccDemandFilters>({});
+  const filters = useMemo(() => filterStateToFilters(filterState), [filterState]);
   const [demandTypes, setDemandTypes] = useState<DccDemandType[]>([]);
   const [owners, setOwners] = useState<DccObjectOwner[]>([]);
   const [objects, setObjects] = useState<DccObject[]>([]);
@@ -843,18 +848,23 @@ export const DCCPage: React.FC = () => {
       result = result.filter(t => (t.demand_type_label || t.demand_type_code) === subDpFilter);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(t =>
-        t.object_ref.toLowerCase().includes(q) ||
-        t.object_description.toLowerCase().includes(q) ||
-        t.owner_name.toLowerCase().includes(q) ||
-        t.owner_contact.toLowerCase().includes(q) ||
-        t.demand_type_label.toLowerCase().includes(q)
-      );
+    if (filterState.objectTypes.length > 0) {
+      result = result.filter(t => filterState.objectTypes.includes(t.object_type));
+    }
+    if (filterState.ownerIds.length > 0) {
+      result = result.filter(t => filterState.ownerIds.includes(t.owner_id));
+    }
+    if (filterState.statuses.length > 0) {
+      result = result.filter(t => filterState.statuses.includes(t.status));
+    }
+    if (filterState.regions.length > 0) {
+      result = result.filter(t => filterState.regions.includes(t.region || 'Unspecified'));
+    }
+    if (filterState.demandTypeCodes.length > 0) {
+      result = result.filter(t => filterState.demandTypeCodes.includes(t.demand_type_code));
     }
     return result;
-  }, [tiles, dpFilter, subDpFilter, search]);
+  }, [tiles, dpFilter, subDpFilter, filterState]);
 
   const handlePay = (tile: DccTile) => {
     setDetailDemandId(tile.id);
@@ -892,7 +902,7 @@ export const DCCPage: React.FC = () => {
 
   const handleShowDuePayment = (tile: DccTile) => {
     setDetailDemandId(tile.id);
-    setDetailInitialTab('due_summary');
+    setDetailInitialTab('demand_due');
   };
 
   // ── Chat handlers ────────────────────────────────────────────────────────────
@@ -1094,17 +1104,8 @@ export const DCCPage: React.FC = () => {
         );
       })()}
 
-      {/* Global Filter Bar — high-density */}
-      <div className="px-4 py-2 shrink-0 flex items-center gap-2 border-b border-slate-200 bg-white">
-        <div className="relative flex-1 max-w-md">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by Object ID, Owner Name, Contact, or Demand Type…"
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-500 bg-slate-50 transition-colors placeholder-slate-400"
-          />
-          <Eye size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        </div>
+      {/* Compact toolbar — view toggle + filter button on the right */}
+      <div className="px-4 py-2 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white">
         <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
         <button
           onClick={() => setShowFilters(true)}
@@ -1112,7 +1113,7 @@ export const DCCPage: React.FC = () => {
           className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors text-xs font-semibold"
         >
           <SlidersHorizontal size={13} /> Filters
-          {Object.values(filters).some(v => v !== null && v !== undefined && v !== '') && (
+          {countActiveFilters(filterState) > 0 && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
           )}
         </button>
@@ -1176,87 +1177,16 @@ export const DCCPage: React.FC = () => {
         )}
       </div>
 
-      {/* Filter Drawer */}
-      <FilterDrawer
+      {/* Filter Conditions Modal */}
+      <DCCFilterModal
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
-        onClearAll={() => { setFilters({}); }}
-        activeFilterCount={Object.values(filters).filter(v => v !== null && v !== undefined && v !== '').length}
-      >
-        <div className="space-y-3">
-          <div>
-            <label className={DCC_LABEL_CLS}>Demand Type</label>
-            <select
-              value={filters.demand_type_code ?? ''}
-              onChange={e => setFilters(f => ({ ...f, demand_type_code: e.target.value || null }))}
-              className={DCC_INPUT_CLS}
-            >
-              <option value="">All Types</option>
-              {demandTypes.map(dt => <option key={dt.id} value={dt.code}>{dt.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={DCC_LABEL_CLS}>Object Owner</label>
-            <select
-              value={filters.owner_id ?? ''}
-              onChange={e => setFilters(f => ({ ...f, owner_id: e.target.value || null }))}
-              className={DCC_INPUT_CLS}
-            >
-              <option value="">All Owners</option>
-              {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={DCC_LABEL_CLS}>Object</label>
-            <select
-              value={filters.object_id ?? ''}
-              onChange={e => setFilters(f => ({ ...f, object_id: e.target.value || null }))}
-              className={DCC_INPUT_CLS}
-            >
-              <option value="">All Objects</option>
-              {objects.map(o => <option key={o.id} value={o.id}>{o.object_ref} — {o.description}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={DCC_LABEL_CLS}>Status</label>
-            <select
-              value={filters.status ?? ''}
-              onChange={e => setFilters(f => ({ ...f, status: (e.target.value || null) as DccDemandFilters['status'] }))}
-              className={DCC_INPUT_CLS}
-            >
-              <option value="">All Statuses</option>
-              <option value="DUE">Due</option>
-              <option value="OVERDUE">Overdue</option>
-              <option value="PAID">Paid</option>
-              <option value="EXEMPTED">Exempted</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={DCC_LABEL_CLS}>Run Date From</label>
-              <input type="date" value={filters.run_date_from ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_from: e.target.value || null }))} className={DCC_INPUT_CLS} />
-            </div>
-            <div>
-              <label className={DCC_LABEL_CLS}>Run Date To</label>
-              <input type="date" value={filters.run_date_to ?? ''} onChange={e => setFilters(f => ({ ...f, run_date_to: e.target.value || null }))} className={DCC_INPUT_CLS} />
-            </div>
-          </div>
-          <div>
-            <label className={DCC_LABEL_CLS}>Region</label>
-            <input value={filters.region ?? ''} onChange={e => setFilters(f => ({ ...f, region: e.target.value || null }))} placeholder="Region" className={DCC_INPUT_CLS} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={DCC_LABEL_CLS}>Group</label>
-              <input value={filters.group_name ?? ''} onChange={e => setFilters(f => ({ ...f, group_name: e.target.value || null }))} placeholder="Group" className={DCC_INPUT_CLS} />
-            </div>
-            <div>
-              <label className={DCC_LABEL_CLS}>Subgroup</label>
-              <input value={filters.subgroup ?? ''} onChange={e => setFilters(f => ({ ...f, subgroup: e.target.value || null }))} placeholder="Subgroup" className={DCC_INPUT_CLS} />
-            </div>
-          </div>
-        </div>
-      </FilterDrawer>
+        tiles={tiles}
+        demandTypes={demandTypes}
+        owners={owners}
+        state={filterState}
+        onApply={(s) => setFilterState(s)}
+      />
       </div>
     );
         return chatTile && chatTileId ? (
