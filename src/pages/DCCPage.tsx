@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone, MapPin, AlertTriangle,
-  CheckCircle2, Receipt, TrendingUp,
+  CheckCircle2, Receipt, TrendingUp, Clock,
   Download, SlidersHorizontal, ChevronDown, ChevronUp,
   Wallet, Eye, Users, Plus, FileText,
   LayoutGrid, List, Table2, Calendar,
@@ -45,11 +45,11 @@ type StatusKey = DccTile['status'];
 type DpKey = 'ALL' | 'PAID' | 'DUE' | 'OVERDUE';
 
 // ── KPI config ─────────────────────────────────────────────────────────────────
-const KPI_CONFIG: { key: DpKey; label: string; accent: string }[] = [
-  { key: 'ALL',     label: 'Total Demands',   accent: 'border-t-slate-600' },
-  { key: 'PAID',    label: 'Total Paid',       accent: 'border-t-emerald-600' },
-  { key: 'DUE',     label: 'Total Due',        accent: 'border-t-amber-500' },
-  { key: 'OVERDUE', label: 'Total Overdue',    accent: 'border-t-rose-600' },
+const KPI_CONFIG: { key: DpKey; label: string; icon: typeof Receipt; accent: string; iconBg: string; iconText: string; valueColor: string }[] = [
+  { key: 'ALL',     label: 'Total Demands',   icon: Receipt,       accent: 'border-l-slate-600',   iconBg: 'bg-slate-200/60',   iconText: 'text-slate-700',   valueColor: 'text-slate-800' },
+  { key: 'PAID',    label: 'Total Paid',       icon: CheckCircle2,  accent: 'border-l-blue-600',    iconBg: 'bg-blue-100/70',    iconText: 'text-blue-600',   valueColor: 'text-blue-600' },
+  { key: 'DUE',     label: 'Total Due',        icon: Clock,         accent: 'border-l-emerald-600', iconBg: 'bg-emerald-100/70', iconText: 'text-emerald-600', valueColor: 'text-emerald-600' },
+  { key: 'OVERDUE', label: 'Total Overdue',    icon: AlertTriangle, accent: 'border-l-amber-500',   iconBg: 'bg-amber-100/70',    iconText: 'text-amber-600',   valueColor: 'text-amber-600' },
 ];
 
 // ── Icon-only View Mode Toggle ──────────────────────────────────────────────────
@@ -652,6 +652,10 @@ const DemandTable: React.FC<{
 };
 
 // ── Sub-DP Drilldown Ribbon ─────────────────────────────────────────────────────
+const SUB_DP_ACCENTS = ['border-l-amber-500', 'border-l-rose-500', 'border-l-rose-700', 'border-l-blue-500', 'border-l-emerald-500', 'border-l-slate-500'];
+const SUB_DP_TINTS  = ['bg-amber-50/30', 'bg-rose-50/30', 'bg-rose-100/40', 'bg-blue-50/30', 'bg-emerald-50/30', 'bg-slate-50/30'];
+const SUB_DP_DOTS   = ['bg-amber-500', 'bg-rose-500', 'bg-rose-700', 'bg-blue-500', 'bg-emerald-500', 'bg-slate-500'];
+
 const SubDpRibbon: React.FC<{
   breakdown: Record<string, { count: number; amount: number }>;
   dpAmt: number;
@@ -668,10 +672,13 @@ const SubDpRibbon: React.FC<{
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="overflow-hidden shrink-0"
       >
-        <div className="px-4 my-1.5">
-          <div className="bg-slate-100/90 border border-slate-200 rounded-lg p-1.5 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {entries.map(([type, data]) => {
+        <div className="px-4 my-2">
+          <div className="flex items-center gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {entries.map(([type, data], idx) => {
               const isSelected = subDpFilter === type;
+              const accent = SUB_DP_ACCENTS[idx % SUB_DP_ACCENTS.length];
+              const tint = SUB_DP_TINTS[idx % SUB_DP_TINTS.length];
+              const dot = SUB_DP_DOTS[idx % SUB_DP_DOTS.length];
               return (
                 <motion.button
                   key={type}
@@ -679,25 +686,16 @@ const SubDpRibbon: React.FC<{
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   onClick={() => setSubDpFilter(isSelected ? null : type)}
-                  className={`relative flex flex-col px-3 py-1.5 rounded-md border overflow-hidden shrink-0 cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'border-slate-900 shadow-md'
-                      : 'bg-white border-slate-200 hover:border-slate-400 hover:shadow-sm'
+                  className={`relative flex flex-col px-3 py-2 rounded-lg border-l-[4px] ${accent} ${tint} border border-slate-200/80 overflow-hidden shrink-0 cursor-pointer min-w-[140px] flex-1 ${
+                    isSelected ? 'bg-white border-slate-800 ring-1 ring-slate-800 shadow-sm' : 'hover:border-slate-400'
                   }`}
-                  style={{ minWidth: '140px' }}
                 >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="activeSubDpBg"
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      className="absolute inset-0 bg-slate-900 rounded-md"
-                    />
-                  )}
-                  <div className="relative flex items-center justify-between gap-2">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>{type}</span>
-                    <span className={`text-[9px] px-1 rounded font-semibold tabular-nums shrink-0 ${isSelected ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'}`}>{data.count} txn</span>
+                  <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider truncate">{type}</span>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${dot} shrink-0`} />
+                    <span className="text-sm font-extrabold text-slate-900 tabular-nums leading-tight">{data.count}</span>
+                    <span className="text-xs font-semibold text-slate-500 tabular-nums ml-1 truncate">{fmtINRShort(data.amount)}</span>
                   </div>
-                  <div className={`relative mt-0.5 text-xs font-bold tabular-nums leading-tight ${isSelected ? 'text-white font-extrabold' : 'text-slate-900'}`}>{fmtINR(data.amount)}</div>
                 </motion.button>
               );
             })}
@@ -960,9 +958,10 @@ export const DCCPage: React.FC = () => {
       {mainTab === 'dashboard' && (() => {
         const dashboardContent = (
       <div className="h-full flex flex-col bg-slate-50">
-      {/* KPI Cards — strict 1-row, max-height 68px */}
-      <div className="px-4 pt-2 grid grid-cols-5 gap-2.5 mb-2 shrink-0">
+      {/* KPI Cards — soft tint containers with left accent bars */}
+      <div className="px-4 pt-2 grid grid-cols-5 gap-2.5 shrink-0">
         {KPI_CONFIG.map(dp => {
+          const Icon = dp.icon;
           const value =
             dp.key === 'ALL' ? tiles.length :
             dp.key === 'PAID' ? summary?.paid_count ?? 0 :
@@ -986,31 +985,40 @@ export const DCCPage: React.FC = () => {
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => { setDpFilter(prev => prev === dp.key ? 'ALL' : dp.key); setSubDpFilter(null); }}
-              className={`relative text-left rounded-lg bg-white border border-slate-200 border-t-[3px] ${dp.accent} shadow-sm px-2.5 py-1.5 overflow-hidden ${
-                isSelected ? 'ring-2 ring-slate-300 shadow-md' : 'hover:shadow-md hover:border-slate-300'
+              className={`relative text-left rounded-lg border-l-[5px] ${dp.accent} bg-slate-50/70 border border-slate-200/80 p-2.5 overflow-hidden ${
+                isSelected ? 'ring-2 ring-cyan-500 border-cyan-500 bg-white shadow-sm' : 'hover:shadow-md hover:bg-white'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase truncate">{dp.label}</span>
-                <span className="text-[10px] text-slate-700 font-medium tabular-nums bg-slate-100 px-1.5 py-0.5 rounded shrink-0">{value} txn</span>
+              {isSelected && (
+                <span className="absolute top-1 right-1 text-cyan-500"><ChevronDown size={12} /></span>
+              )}
+              <div className="flex items-center gap-1.5">
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center ${dp.iconBg} ${dp.iconText} shrink-0`}>
+                  <Icon size={13} />
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{dp.label}</span>
               </div>
-              <div className="mt-1 flex items-baseline justify-between gap-1">
-                <span className="text-lg font-extrabold text-slate-900 tabular-nums leading-tight truncate">{fmtINR(amount)}</span>
-                <span className="text-[10px] font-bold tabular-nums text-slate-500 shrink-0">{displayRate}%</span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className={`text-2xl font-black tabular-nums leading-tight ${dp.valueColor}`}>{value}</span>
+                <span className="text-xs text-slate-500 font-medium">{displayRate}%</span>
               </div>
+              <div className={`text-sm font-extrabold tabular-nums ${dp.valueColor}`}>{fmtINRShort(amount)}</div>
             </motion.button>
           );
         })}
 
         {/* Collection Rate KPI */}
-        <div className="relative text-left rounded-lg bg-white border border-slate-200 border-t-[3px] border-t-teal-600 shadow-sm px-2.5 py-1.5 overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-500 uppercase truncate">Collection Rate</span>
+        <div className="relative text-left rounded-lg border-l-[5px] border-l-rose-600 bg-slate-50/70 border border-slate-200/80 p-2.5 overflow-hidden">
+          <div className="flex items-center gap-1.5">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-100/70 text-rose-600 shrink-0">
+              <TrendingUp size={13} />
+            </div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Collection Rate</span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between gap-1">
-            <span className="text-lg font-extrabold text-slate-900 tabular-nums leading-tight">{collectionRate}%</span>
-            <span className="text-[10px] font-bold tabular-nums text-teal-600 shrink-0">{collectionRate}%</span>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-2xl font-black tabular-nums leading-tight text-rose-600">{collectionRate}%</span>
           </div>
+          <div className="text-sm font-extrabold tabular-nums text-rose-600">of {fmtINRShort(totalAmount)}</div>
         </div>
       </div>
 
