@@ -446,7 +446,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
         out.push({ sno: i + 1, total: Object.values(charges).reduce((s, v) => s + v, 0), status });
       }
       return out;
-    })() : [{ sno: 1, total: tile.total_amount, status: tile.status }];
+    })() : [{ sno: 1, total: tile.amount_due, status: tile.status }];
 
     const selectedTotal = allRows.filter(r => selectedDueRows.has(r.sno) && r.status !== 'PAID').reduce((s, r) => s + r.total, 0);
     if (selectedTotal <= 0) return;
@@ -757,12 +757,12 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
             const charges: Record<string, number> = {};
             for (const col of config.columns) {
               if (col.key === 'penalty') {
-                charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.total_amount * penaltyPct) : 0;
+                charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.amount_due * penaltyPct) : 0;
               } else {
                 charges[col.key] = tile.total_amount;
               }
             }
-            const total = Object.values(charges).reduce((s, v) => s + v, 0);
+            const total = tile.amount_due;
             const periodLabel = (() => {
               const runDate = new Date(tile.demand_run_date);
               if (isNaN(runDate.getTime())) return 'One-Time / Initial Deposit';
@@ -790,6 +790,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                         <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Sl No</th>
                         <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Month/Period</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Gross Demand</th>
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Already Paid</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Rent</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Water</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Electricity</th>
@@ -816,6 +817,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                             <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.sno}</td>
                             <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.label}</td>
                             <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{fmtINR(demandAmt)}</td>
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">{tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'}</td>
                             <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{rentVal > 0 ? fmtINRShort(rentVal) : '—'}</td>
                             <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{waterVal > 0 ? fmtINRShort(waterVal) : '—'}</td>
                             <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{elecVal > 0 ? fmtINRShort(elecVal) : '—'}</td>
@@ -875,7 +877,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={8} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td colSpan={9} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
                         <td className="py-1.5 px-3 text-right font-mono font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
@@ -930,15 +932,15 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                             const netHasDisc = netDisc.pct > 0;
                             const payAmt = netHasDisc ? netDisc.adjusted : netOutstanding;
                             return (
-                              <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 my-2">
+                              <div className={`rounded-lg p-3 my-2 ${netHasDisc ? 'bg-emerald-50/70 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
                                 <div className="flex items-center gap-2 mb-2">
                                   {netHasDisc ? (
                                     <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
                                       <Tag size={10} /> Early Payment Discount Applied
                                     </span>
                                   ) : (
-                                    <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                      <Info size={10} /> Early Payment Discount Status
+                                    <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                      <Info size={10} /> No Discount Available
                                     </span>
                                   )}
                                 </div>
@@ -955,19 +957,19 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                   ) : (
                                     <div className="text-xs flex justify-between">
                                       <span className="text-slate-500">Early Payment Discount:</span>
-                                      <span className="font-mono text-slate-400">Not eligible ({netDisc.daysEarly}d early)</span>
+                                      <span className="font-mono text-slate-400">{netDisc.daysEarly <= 0 ? 'Not eligible — deadline passed' : `Not eligible (${netDisc.daysEarly}d early, min 7d required)`}</span>
                                     </div>
                                   )}
-                                  <div className="text-sm flex justify-between pt-1 border-t border-emerald-200">
-                                    <span className="font-bold text-slate-700">Adjusted Payable Amount:</span>
+                                  <div className={`text-sm flex justify-between pt-1 border-t ${netHasDisc ? 'border-emerald-200' : 'border-slate-200'}`}>
+                                    <span className="font-bold text-slate-700">{netHasDisc ? 'Adjusted Payable Amount:' : 'Amount Payable:'}</span>
                                     <span className="font-mono font-black text-slate-900">{fmtINR(payAmt)}</span>
                                   </div>
                                 </div>
                                 <button
                                   onClick={() => { setPayAmount(payAmt); setShowPayForm(true); setPopoverSno(null); }}
-                                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors"
+                                  className={`mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-white text-xs font-bold transition-colors ${netHasDisc ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-700 hover:bg-slate-800'}`}
                                 >
-                                  <Wallet size={13} /> Pay Adjusted Amount: {fmtINR(payAmt)}
+                                  <Wallet size={13} /> {netHasDisc ? 'Pay Adjusted Amount' : 'Pay Outstanding'}: {fmtINR(payAmt)}
                                 </button>
                               </div>
                             );
