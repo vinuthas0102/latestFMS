@@ -866,7 +866,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                             <td className="py-1.5 px-3 text-center">
                               <button
                                 onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
-                                className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-semibold border transition-colors ${popoverSno === m.sno ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-100'}`}
+                                className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-bold text-white border transition-colors ${popoverSno === m.sno ? 'bg-emerald-700 border-emerald-700' : 'bg-emerald-600 border-emerald-600 hover:bg-emerald-700 hover:border-emerald-700'}`}
                               >
                                 <Eye size={10} /> Pay Now
                               </button>
