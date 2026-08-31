@@ -940,7 +940,7 @@ export const DCCPage: React.FC = () => {
   return (
     <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-slate-50">
       {/* Page header — Deep Slate Navy */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-800 border-b border-blue-900 shrink-0">
         <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
           <Landmark size={16} className="text-white" />
         </div>
