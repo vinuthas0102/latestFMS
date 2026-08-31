@@ -575,7 +575,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
       className="bg-white rounded-lg shadow-2xl w-full max-w-[1100px] max-h-[94vh] flex flex-col overflow-hidden"
     >
       {/* ── Header ─────────────────────────────────────────────────────────────── */}
-      <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-700 shrink-0">
+      <div className="px-4 py-2.5 bg-blue-800 border-b border-blue-900 shrink-0">
         {/* Line 1: Title block | Owner + Statement + Close */}
         <div className="flex items-center gap-2 mb-1.5">
           <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0">
