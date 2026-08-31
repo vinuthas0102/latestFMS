@@ -948,21 +948,25 @@ export const DCCPage: React.FC = () => {
           <h1 className="text-sm font-bold text-white">Demand & Collection Center</h1>
           <p className="text-[10px] text-slate-400">Enterprise demand tracking and collection management</p>
         </div>
-        {/* Tab bar */}
-        <div className="flex items-center gap-0.5 bg-slate-800 rounded-lg p-0.5">
+        {/* Tab bar — icon-only with hover tooltips */}
+        <div className="flex items-center gap-1">
           {mainTabs.map((t) => {
             const Icon = t.icon;
             return (
               <button
                 key={t.key}
                 onClick={() => setMainTab(t.key)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${
+                title={t.label}
+                className={`group relative flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
                   mainTab === t.key
-                    ? 'bg-slate-700 text-emerald-400 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-emerald-400'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
-                <Icon size={12} /> {t.label}
+                <Icon size={16} />
+                <span className="pointer-events-none absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  {t.label}
+                </span>
               </button>
             );
           })}
@@ -971,15 +975,23 @@ export const DCCPage: React.FC = () => {
           <>
             <button
               onClick={() => navigate(ROUTES.DCC_RULE_SETUP)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[11px] font-semibold hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
+              title="Rule Setup"
+              className="group relative flex items-center justify-center w-8 h-8 rounded-md text-slate-300 hover:text-white transition-colors"
             >
-              <Gauge size={13} /> Rule Setup
+              <Gauge size={16} />
+              <span className="pointer-events-none absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                Rule Setup
+              </span>
             </button>
             <button
               onClick={() => navigate(ROUTES.DCC_GENERATE)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+              title="Generate Demand"
+              className="group relative flex items-center justify-center w-8 h-8 rounded-md text-emerald-400 hover:text-emerald-300 transition-colors"
             >
-              <Plus size={13} /> Generate Demand
+              <Plus size={16} />
+              <span className="pointer-events-none absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                Generate Demand
+              </span>
             </button>
           </>
         )}
