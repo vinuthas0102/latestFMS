@@ -18,6 +18,8 @@ import type {
   DccOwnerReportRow,
   DccDemandChat,
   BankStatus,
+  DccReportSchedule,
+  DccReportScheduleInput,
 } from '../types/dcc';
 
 const OWNERS = 'dcc_object_owners';
@@ -29,6 +31,7 @@ const RUNLOG = 'dcc_demand_run_log';
 const IPLANS = 'dcc_installment_plans';
 const IROWS = 'dcc_installment_rows';
 const CHATS = 'dcc_demand_chats';
+const SCHEDULES = 'dcc_report_schedules';
 
 export const dccService = {
   // ── Reference data ──────────────────────────────────────────────────────────
@@ -681,5 +684,51 @@ export const dccService = {
       .single();
     if (error) throw error;
     return data as DccDemandChat;
+  },
+
+  // ── Scheduled reports ──────────────────────────────────────────────────────────
+  async listSchedules(): Promise<DccReportSchedule[]> {
+    const { data, error } = await supabase
+      .from(SCHEDULES)
+      .select('*')
+      .order('next_run_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as DccReportSchedule[];
+  },
+
+  async createSchedule(input: DccReportScheduleInput): Promise<DccReportSchedule> {
+    const { data, error } = await supabase
+      .from(SCHEDULES)
+      .insert({
+        name: input.name,
+        report_type: input.report_type,
+        criteria: input.criteria,
+        recurrence: input.recurrence,
+        next_run_at: input.next_run_at,
+      })
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as DccReportSchedule;
+  },
+
+  async updateSchedule(id: string, patch: Partial<DccReportScheduleInput> & { is_active?: boolean }): Promise<DccReportSchedule> {
+    const { data, error } = await supabase
+      .from(SCHEDULES)
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as DccReportSchedule;
+  },
+
+  async deleteSchedule(id: string): Promise<void> {
+    const { error } = await supabase.from(SCHEDULES).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async getDetailedLedger(filters?: DccDemandFilters): Promise<DccTile[]> {
+    return this.getTiles(filters);
   },
 };

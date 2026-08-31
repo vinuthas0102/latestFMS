@@ -237,6 +237,33 @@ export interface DccOwnerReportRow {
   overdue_count: number;
 }
 
+// ── Scheduled reports ──────────────────────────────────────────────────────────
+
+export type DccReportType = 'by_type' | 'by_owner' | 'overdue' | 'detailed';
+export type DccReportRecurrence = 'one-time' | 'daily' | 'weekly' | 'monthly';
+
+export interface DccReportSchedule {
+  id: string;
+  name: string;
+  report_type: DccReportType;
+  criteria: DccDemandFilters;
+  recurrence: DccReportRecurrence;
+  next_run_at: string;
+  last_run_at: string | null;
+  is_active: boolean;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DccReportScheduleInput {
+  name: string;
+  report_type: DccReportType;
+  criteria: DccDemandFilters;
+  recurrence: DccReportRecurrence;
+  next_run_at: string;
+}
+
 // ── Demand chat ────────────────────────────────────────────────────────────────
 
 export interface DccDemandChat {
