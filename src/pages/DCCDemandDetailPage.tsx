@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Phone, MapPin, Users, Building2,
   Calendar, Clock, AlertTriangle, CheckCircle2, Wallet, Download,
-  Loader2, X, Layers, FileText, AlertCircle, History,
-  MessageSquareWarning, ChevronDown, ChevronUp, Receipt, Info,
+  Loader2, X, Layers, AlertCircle, History,
+  MessageSquareWarning, Receipt,
   Plus, Save, FileSpreadsheet, Filter, CalendarDays,
-  CreditCard, Smartphone, Building, Banknote, Lock, Tag,
+  CreditCard, Smartphone, Building, Banknote, Lock,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { ROUTES } from '../constants/routes';
@@ -57,6 +57,14 @@ interface DCCDemandDetailModalProps {
 }
 
 export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ demandId, onClose, initialTab }) => {
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const [demand, setDemand] = useState<DccDemand | null>(null);
   const [tile, setTile] = useState<DccTile | null>(null);
@@ -136,7 +144,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const [bulkPaying, setBulkPaying] = useState(false);
 
   // Demand Details popover
-  const [popoverSno, setPopoverSno] = useState<number | null>(null);
 
   // Receipt download
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
@@ -536,12 +543,12 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
   const effectiveTab = TABS.some(t => t.key === activeTab) ? activeTab : TABS[0]?.key ?? 'demand_due';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6 lg:p-8">
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
-      className="bg-white rounded-lg shadow-2xl w-full max-w-[1100px] max-h-[94vh] flex flex-col overflow-hidden"
+      className="bg-white rounded-xl shadow-2xl w-full max-w-[1000px] max-h-[86vh] flex flex-col overflow-hidden"
     >
       {/* ── Header ─────────────────────────────────────────────────────────────── */}
       <div className="px-4 py-2.5 bg-blue-800 border-b border-blue-900 shrink-0">
@@ -585,11 +592,11 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
             <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINR(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-slate-400 text-[10px] uppercase font-bold">Pending Since</span>
-            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : fmtDateShort(tile.demand_run_date)}</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Run Date</span>
+            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{fmtDateShort(tile.demand_run_date)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-slate-400 text-[10px] uppercase font-bold">Next Due</span>
+            <span className="text-slate-400 text-[10px] uppercase font-bold">Due Date</span>
             <span className={`text-xs font-semibold tabular-nums leading-tight ${tile.status === 'OVERDUE' ? 'text-red-400' : 'text-white'}`}>{fmtDateShort(tile.due_date)}</span>
           </div>
         </div>
@@ -741,9 +748,15 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), tile.amount_due);
           const netPayable = earlyDisc.pct > 0 ? earlyDisc.adjusted : tile.amount_due;
 
+          const firstRow = openRows[0];
+          const lateFee = firstRow?.charges['penalty'] ?? 0;
+          const rowEarlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), firstRow?.total ?? 0);
+          const rowAlreadyPaid = isSingleOpen ? tile.amount_paid : 0;
+          const rowNetPayable = Math.max(0, (firstRow?.total ?? 0) - rowEarlyDisc.discount - rowAlreadyPaid);
+
           return (
             <div className="space-y-3">
-              {/* ── Line-Item Table (primary view) ─────────────────────────────── */}
+              {/* ── Line-Item Table ────────────────────────────────────────────── */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -756,264 +769,88 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                         ))}
                         <th className="py-2 px-3 text-right font-bold text-slate-600 border-b border-slate-200">Penalty</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-600 border-b border-slate-200">Total Line Due</th>
-                        <th className="py-2 px-3 text-center font-bold text-slate-600 border-b border-slate-200">Dispute?</th>
-                        <th className="py-2 px-3 text-center font-bold text-slate-600 border-b border-slate-200">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {openRows.map(m => {
-                        const lateFee = m.charges['penalty'] ?? 0;
-                        const rowEarlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), m.total);
-                        const rowAlreadyPaid = isSingleOpen ? tile.amount_paid : 0;
-                        const rowNetPayable = Math.max(0, m.total - rowEarlyDisc.discount - rowAlreadyPaid);
-                        const isOpen = popoverSno === m.sno;
-                        return (
-                          <React.Fragment key={m.sno}>
-                            <tr className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''} ${isOpen ? 'bg-emerald-50/40' : ''}`}>
-                              <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.sno}</td>
-                              <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.label}</td>
-                              {config.components.map(comp => (
-                                <td key={comp.key} className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
-                                  {(m.charges[comp.key] ?? 0) > 0 ? fmtINR(m.charges[comp.key]) : '—'}
-                                </td>
-                              ))}
-                              <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{lateFee > 0 ? fmtINR(lateFee) : '—'}</td>
-                              <td className="py-1.5 px-3 text-right">
-                                <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
-                              </td>
-                              <td className="py-1.5 px-3 text-center">
-                                {hasDispute ? (
-                                  <div className="relative inline-block group">
-                                    <span className="inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-100 text-orange-700 cursor-help">
-                                      {fmtDateShort(demand?.dispute_date ?? null)}
-                                    </span>
-                                    <AnimatePresence>
-                                      <motion.div
-                                        initial={{ opacity: 0, y: -4, scale: 0.96 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: -4, scale: 0.96 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 w-56 p-2.5 rounded-lg bg-slate-900 border border-slate-700 shadow-xl pointer-events-none"
-                                      >
-                                        <div className="text-[10px] font-bold text-orange-300 mb-1">Dispute Reason</div>
-                                        <div className="text-[10px] text-slate-200 mb-1.5">{demand?.dispute_reason ?? '—'}</div>
-                                        {demand?.dispute_remarks && (
-                                          <>
-                                            <div className="text-[9px] font-bold text-slate-400 mb-0.5">Remarks</div>
-                                            <div className="text-[10px] text-slate-300">{demand.dispute_remarks}</div>
-                                          </>
-                                        )}
-                                        <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-slate-900 border-l border-t border-slate-700 rotate-45" />
-                                      </motion.div>
-                                    </AnimatePresence>
-                                  </div>
-                                ) : (
-                                  <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-3 text-center">
-                                <button
-                                  onClick={() => setPopoverSno(isOpen ? null : m.sno)}
-                                  className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-bold text-white border transition-colors ${isOpen ? 'bg-emerald-700 border-emerald-700' : 'bg-emerald-600 border-emerald-600 hover:bg-emerald-700 hover:border-emerald-700'}`}
-                                >
-                                  {isOpen ? <><ChevronUp size={10} /> Hide</> : <><ChevronDown size={10} /> Details</>}
-                                </button>
-                              </td>
-                            </tr>
-                            {/* ── Inline expanded details row ─────────────────────────── */}
-                            <AnimatePresence>
-                              {isOpen && (
-                                <motion.tr
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  className="bg-slate-50/60"
-                                >
-                                  <td colSpan={config.components.length + 6} className="px-4 py-3">
-                                    <div className="space-y-3">
-                                      {/* Header line */}
-                                      <div className="flex items-center gap-2 text-xs">
-                                        <FileText size={13} className="text-slate-400" />
-                                        <span className="font-bold text-slate-700">Demand Details — {m.label}</span>
-                                        <span className="text-slate-400">·</span>
-                                        <span className="text-slate-500">{config.objectLabel}: {tile.object_description || tile.object_ref}</span>
-                                        <span className="text-slate-400">·</span>
-                                        <span className="text-slate-500">{config.transactionLabel}</span>
-                                        <span className="text-slate-400">·</span>
-                                        <span className="text-slate-500">Run: {fmtDateShort(tile.demand_run_date)}</span>
-                                        <span className="text-slate-400">·</span>
-                                        <span className="text-slate-500">Due: {fmtDateShort(tile.due_date)}</span>
-                                      </div>
-
-                                      {/* Component breakdown */}
-                                      <div className="bg-white rounded-md border border-slate-200 p-3 space-y-1.5">
-                                        {config.components.map(comp => {
-                                          const amt = m.charges[comp.key] ?? 0;
-                                          return (
-                                            <div key={comp.key} className="flex items-baseline text-xs">
-                                              <span className="text-slate-600 font-medium">{comp.label}</span>
-                                              <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                                              <span className="font-mono font-bold text-slate-800 tabular-nums">{amt > 0 ? fmtINR(amt) : '—'}</span>
-                                            </div>
-                                          );
-                                        })}
-                                        {/* Subtotal */}
-                                        <div className="flex items-baseline text-xs pt-1.5 border-t border-slate-100">
-                                          <span className="text-slate-500 font-semibold">Subtotal</span>
-                                          <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                                          <span className="font-mono font-bold text-slate-700 tabular-nums">{fmtINR(m.total - lateFee)}</span>
-                                        </div>
-                                        {/* Penalty */}
-                                        {lateFee > 0 && (
-                                          <div className="flex items-baseline text-xs">
-                                            <span className="text-red-600 font-medium">Late Fee / Penalty (+)</span>
-                                            <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                                            <span className="font-mono font-bold text-red-600 tabular-nums">{fmtINR(lateFee)}</span>
-                                          </div>
-                                        )}
-                                        {/* Already paid (tile-level) */}
-                                        {rowAlreadyPaid > 0 && (
-                                          <div className="flex items-baseline text-xs">
-                                            <span className="text-slate-600 font-medium">Less Already Paid (-)</span>
-                                            <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                                            <span className="font-mono font-bold text-slate-600 tabular-nums">-{fmtINR(rowAlreadyPaid)}</span>
-                                          </div>
-                                        )}
-                                        {rowEarlyDisc.pct > 0 && (
-                                          <div className="flex items-baseline text-xs">
-                                            <span className="text-emerald-600 font-medium">Early Payment Discount ({rowEarlyDisc.pct}%) (-)</span>
-                                            <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                                            <span className="font-mono font-bold text-emerald-600 tabular-nums">-{fmtINR(rowEarlyDisc.discount)}</span>
-                                          </div>
-                                        )}
-                                        {/* Net payable */}
-                                        <div className="flex items-baseline text-sm pt-1.5 border-t border-slate-200">
-                                          <span className="font-bold text-slate-700">Net Amount Payable</span>
-                                          <span className="flex-1 mx-2 border-b border-dotted border-slate-300 translate-y-[-4px]" />
-                                          <span className="font-mono font-black text-slate-900 tabular-nums">{fmtINR(rowNetPayable)}</span>
-                                        </div>
-                                      </div>
-
-                                      {/* Pay action for single open demand */}
-                                      {isSingleOpen && !isPaidOrExempted && (() => {
-                                        const netOutstanding = tile.amount_due;
-                                        const netDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), netOutstanding);
-                                        const netHasDisc = netDisc.pct > 0;
-                                        const payAmt = netHasDisc ? netDisc.adjusted : netOutstanding;
-                                        return (
-                                          <div className={`rounded-md p-3 ${netHasDisc ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
-                                            <div className="flex items-center gap-2 mb-2">
-                                              {netHasDisc ? (
-                                                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                                  <Tag size={10} /> Early Payment Discount Applied
-                                                </span>
-                                              ) : (
-                                                <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                                  <Info size={10} /> No Discount Available
-                                                </span>
-                                              )}
-                                            </div>
-                                            <div className="space-y-1">
-                                              <div className="text-xs flex justify-between">
-                                                <span className="text-slate-500">Net Outstanding:</span>
-                                                <span className="font-mono font-bold text-slate-800">{fmtINR(netOutstanding)}</span>
-                                              </div>
-                                              {netHasDisc ? (
-                                                <div className="text-xs flex justify-between">
-                                                  <span className="text-slate-500">Early Payment Discount ({netDisc.pct}%):</span>
-                                                  <span className="font-mono font-bold text-emerald-700">-{fmtINR(netDisc.discount)}</span>
-                                                </div>
-                                              ) : (
-                                                <div className="text-xs flex justify-between">
-                                                  <span className="text-slate-500">Early Payment Discount:</span>
-                                                  <span className="font-mono text-slate-400">{netDisc.daysEarly <= 0 ? 'Not eligible — deadline passed' : `Not eligible (${netDisc.daysEarly}d early, min 7d required)`}</span>
-                                                </div>
-                                              )}
-                                              <div className={`text-sm flex justify-between pt-1 border-t ${netHasDisc ? 'border-emerald-200' : 'border-slate-200'}`}>
-                                                <span className="font-bold text-slate-700">{netHasDisc ? 'Adjusted Payable Amount:' : 'Amount Payable:'}</span>
-                                                <span className="font-mono font-black text-slate-900">{fmtINR(payAmt)}</span>
-                                              </div>
-                                            </div>
-                                            <button
-                                              onClick={() => { setPayAmount(payAmt); setShowPayForm(true); setPopoverSno(null); }}
-                                              className={`mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-white text-xs font-bold transition-colors ${netHasDisc ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-700 hover:bg-slate-800'}`}
-                                            >
-                                              <Wallet size={13} /> Pay Outstanding: {fmtINR(payAmt)}
-                                            </button>
-                                          </div>
-                                        );
-                                      })()}
-
-                                      {/* Multi-line info */}
-                                      {!isSingleOpen && !isPaidOrExempted && (
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-md">
-                                          <Info size={13} className="text-slate-500 shrink-0" />
-                                          <span className="text-[11px] text-slate-600">
-                                            Multi-line open demand — use the <span className="font-bold">Pay Outstanding</span> bar below to settle all lines together.
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Dispute trigger for admins */}
-                                      {canRecordPayment && !hasDispute && (
-                                        <div className="pt-2 border-t border-slate-200">
-                                          <div className="grid grid-cols-2 gap-3 mb-2">
-                                            <div>
-                                              <label className={DCC_LABEL_CLS}>Dispute Reason</label>
-                                              <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5`}>
-                                                <option value="">Select reason…</option>
-                                                <option value="Wrong amount">Wrong amount</option>
-                                                <option value="Already paid">Already paid</option>
-                                                <option value="Invalid demand">Invalid demand</option>
-                                                <option value="Calculation error">Calculation error</option>
-                                                <option value="Other">Other</option>
-                                              </select>
-                                            </div>
-                                            <div>
-                                              <label className={DCC_LABEL_CLS}>Dispute Remarks</label>
-                                              <input value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5`} />
-                                            </div>
-                                          </div>
-                                          <div className="flex justify-end">
-                                            <button
-                                              onClick={handleDispute}
-                                              disabled={disputing || !disputeReason.trim()}
-                                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-600 text-white text-[10px] font-semibold hover:bg-orange-700 disabled:opacity-40 transition-colors"
-                                            >
-                                              {disputing ? <Loader2 size={11} className="animate-spin" /> : <MessageSquareWarning size={11} />}
-                                              Mark as Disputed
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                </motion.tr>
-                              )}
-                            </AnimatePresence>
-                          </React.Fragment>
-                        );
-                      })}
+                      {openRows.map(m => (
+                        <tr key={m.sno} className={`border-b border-slate-100 ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
+                          <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.sno}</td>
+                          <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.label}</td>
+                          {config.components.map(comp => (
+                            <td key={comp.key} className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                              {(m.charges[comp.key] ?? 0) > 0 ? fmtINR(m.charges[comp.key]) : '—'}
+                            </td>
+                          ))}
+                          <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{(m.charges['penalty'] ?? 0) > 0 ? fmtINR(m.charges['penalty']) : '—'}</td>
+                          <td className="py-1.5 px-3 text-right">
+                            <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
                         <td colSpan={config.components.length + 3} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
                         <td className="py-1.5 px-3 text-right font-mono font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
-                        <td colSpan={2} />
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               </div>
 
-              {/* Consolidated Pay Bar — for multi-line open demands */}
-              {!isSingleOpen && (
+              {/* ── Demand Breakdown (auto-visible) ────────────────────────────── */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-1.5">
+                {config.components.map(comp => {
+                  const amt = firstRow?.charges[comp.key] ?? 0;
+                  return (
+                    <div key={comp.key} className="flex items-baseline text-xs">
+                      <span className="text-slate-600 font-medium">{comp.label}</span>
+                      <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
+                      <span className="font-mono font-bold text-slate-800 tabular-nums">{amt > 0 ? fmtINR(amt) : '—'}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex items-baseline text-xs pt-1.5 border-t border-slate-100">
+                  <span className="text-slate-500 font-semibold">Subtotal</span>
+                  <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
+                  <span className="font-mono font-bold text-slate-700 tabular-nums">{fmtINR((firstRow?.total ?? 0) - lateFee)}</span>
+                </div>
+                {lateFee > 0 && (
+                  <div className="flex items-baseline text-xs">
+                    <span className="text-red-600 font-medium">Late Fee / Penalty (+)</span>
+                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
+                    <span className="font-mono font-bold text-red-600 tabular-nums">{fmtINR(lateFee)}</span>
+                  </div>
+                )}
+                {rowAlreadyPaid > 0 && (
+                  <div className="flex items-baseline text-xs">
+                    <span className="text-slate-600 font-medium">Less Already Paid (-)</span>
+                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
+                    <span className="font-mono font-bold text-slate-600 tabular-nums">-{fmtINR(rowAlreadyPaid)}</span>
+                  </div>
+                )}
+                {rowEarlyDisc.pct > 0 && (
+                  <div className="flex items-baseline text-xs">
+                    <span className="text-emerald-600 font-medium">Early Payment Discount ({rowEarlyDisc.pct}%) (-)</span>
+                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
+                    <span className="font-mono font-bold text-emerald-600 tabular-nums">-{fmtINR(rowEarlyDisc.discount)}</span>
+                  </div>
+                )}
+                <div className="flex items-baseline text-sm pt-1.5 border-t border-slate-200">
+                  <span className="font-bold text-slate-700">Net Amount Payable</span>
+                  <span className="flex-1 mx-2 border-b border-dotted border-slate-300 translate-y-[-4px]" />
+                  <span className="font-mono font-black text-slate-900 tabular-nums">{fmtINR(rowNetPayable)}</span>
+                </div>
+              </div>
+
+              {/* ── Pay Outstanding ────────────────────────────────────────────── */}
+              {!isPaidOrExempted && (
                 <div className="bg-white border border-slate-200 rounded-lg p-3 px-4 flex items-center justify-between shadow-sm">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Outstanding</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isSingleOpen ? 'Amount Payable' : 'Total Outstanding'}</span>
                     <span className="text-lg font-black text-slate-900 tabular-nums">{fmtINR(netPayable)}</span>
                   </div>
-                  {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
+                  {(canRecordPayment || isGovtOfficial) && (
                     <button
                       onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setPayModalAmount(netPayable); setPayModalLabel('Full Payment'); setPayModalRowId(null); setPayModalStep('select'); setPayModalMode('UPI'); setPayModalRef(''); setPayModalRemarks(''); setPayModalDate(new Date().toISOString().slice(0, 10)); setShowPayModal(true); })() : undefined)}
                       className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-md shadow-sm transition-colors"
@@ -1021,14 +858,54 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                       <Wallet size={14} /> Pay Outstanding: {fmtINR(netPayable)}
                     </button>
                   )}
-                  {isPaidOrExempted && (
-                    <button
-                      disabled
-                      className="bg-emerald-600/20 text-emerald-700/40 font-bold px-4 py-2 rounded-md cursor-not-allowed"
-                    >
-                      Pay Outstanding: {fmtINR(netPayable)}
-                    </button>
+                </div>
+              )}
+
+              {/* ── Dispute Management (below payment) ─────────────────────────── */}
+              {canRecordPayment && (
+                <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MessageSquareWarning size={13} className="text-orange-500" />
+                    <span className="text-xs font-bold text-slate-700">Dispute Management</span>
+                  </div>
+                  {hasDispute && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-md p-2.5 space-y-1 text-[11px] text-slate-600">
+                      <div><span className="text-slate-400">Date:</span> {fmtDate(demand?.dispute_date ?? null)}</div>
+                      <div><span className="text-slate-400">Reason:</span> {demand?.dispute_reason}</div>
+                      {demand?.dispute_remarks && <div><span className="text-slate-400">Remarks:</span> {demand.dispute_remarks}</div>}
+                    </div>
                   )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={DCC_LABEL_CLS}>Dispute Date *</label>
+                      <input type="date" value={disputeDate} onChange={e => setDisputeDate(e.target.value)} className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5`} />
+                    </div>
+                    <div>
+                      <label className={DCC_LABEL_CLS}>Reason *</label>
+                      <select value={disputeReason} onChange={e => setDisputeReason(e.target.value)} className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5`}>
+                        <option value="">Select reason…</option>
+                        <option value="Wrong amount">Wrong amount</option>
+                        <option value="Already paid">Already paid</option>
+                        <option value="Invalid demand">Invalid demand</option>
+                        <option value="Calculation error">Calculation error</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={DCC_LABEL_CLS}>Remarks</label>
+                    <textarea value={disputeRemarks} onChange={e => setDisputeRemarks(e.target.value)} placeholder="Additional details" className={`${DCC_INPUT_CLS} text-xs py-1.5 px-2.5 h-14 resize-none`} />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleDispute}
+                      disabled={disputing || !disputeReason.trim()}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-600 text-white text-[10px] font-semibold hover:bg-orange-700 disabled:opacity-40 transition-colors"
+                    >
+                      {disputing ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                      {hasDispute ? 'Update Dispute' : 'Mark as Disputed'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
