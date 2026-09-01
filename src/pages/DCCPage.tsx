@@ -8,11 +8,12 @@ import {
   Wallet, Eye, Users, Plus, FileText,
   LayoutGrid, List, Table2, Calendar,
   MessageSquare, Send, X, Loader2,
-  CalendarDays, Landmark, Gauge,
+  CalendarDays, Landmark, Gauge, CircleUser as UserCircle,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
+import { ROLE_LABELS } from '../constants/roles';
 import { useAuthStore } from '../stores/authStore';
 import type {
   DccTile, DccTrackerSummary,
@@ -27,6 +28,7 @@ import {
 } from '../components/dcc/DCCFilterModal';
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
 import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
+import { ClientWiseView } from '../components/dcc/ClientWiseView';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import type { ViewMode } from '../components/ui/ViewSwitcher';
@@ -58,6 +60,7 @@ const IconViewToggle: React.FC<{
   onViewChange: (v: ViewMode) => void;
 }> = ({ currentView, onViewChange }) => {
   const views: { mode: ViewMode; icon: typeof LayoutGrid; label: string }[] = [
+    { mode: 'client', icon: Users, label: 'Client-Wise' },
     { mode: 'card', icon: LayoutGrid, label: 'Cards' },
     { mode: 'list', icon: List, label: 'List' },
     { mode: 'table', icon: Table2, label: 'Table' },
@@ -750,7 +753,7 @@ export const DCCPage: React.FC = () => {
   const [dpFilter, setDpFilter] = useState<DpKey>('ALL');
   const [subDpFilter, setSubDpFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useViewPreference('dccView', 'list');
+  const [viewMode, setViewMode] = useViewPreference('dccView', 'client');
   const [filterState, setFilterState] = useState<DCCFilterState>(emptyFilterState);
 
   // Chat state
@@ -948,6 +951,19 @@ export const DCCPage: React.FC = () => {
           <h1 className="text-sm font-bold text-white">Demand & Collection Center</h1>
           <p className="text-[10px] text-slate-400">Enterprise demand tracking and collection management</p>
         </div>
+
+        {/* User context */}
+        {user && (
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-blue-900/40 border border-blue-700/40 shrink-0">
+            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="text-left leading-tight hidden sm:block">
+              <div className="text-[11px] font-semibold text-white whitespace-nowrap">{user.fullName || user.email}</div>
+              <div className="text-[9px] text-emerald-300 font-medium whitespace-nowrap">{ROLE_LABELS[user.role]}</div>
+            </div>
+          </div>
+        )}
         {/* Tab bar — icon-only with hover tooltips */}
         <div className="flex items-center gap-1">
           {mainTabs.map((t) => {
@@ -1141,6 +1157,17 @@ export const DCCPage: React.FC = () => {
             onPay={handlePay}
             onDownload={handleDownload}
             onShowDuePayment={handleShowDuePayment}
+          />
+        ) : viewMode === 'client' ? (
+          <ClientWiseView
+            tiles={filteredTiles}
+            onPay={handlePay}
+            onViewDetails={handleViewDetails}
+            onDownload={handleDownload}
+            onChat={handleOpenChat}
+            onShowDuePayment={handleShowDuePayment}
+            canRecordPayment={canRecordPayment}
+            chatTileId={chatTileId}
           />
         ) : (
           <div className="flex flex-col gap-2.5">

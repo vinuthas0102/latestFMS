@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export type ViewMode = 'card' | 'table' | 'list';
+export type ViewMode = 'card' | 'table' | 'list' | 'client';
 
 export const useViewPreference = (storageKey: string, defaultView: ViewMode = 'list') => {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
