@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Phone, MapPin, Building2, Receipt, Calendar, Wallet,
   CheckCircle2, AlertTriangle, Clock, ChevronDown, ChevronUp,
-  Download, MessageSquare, Eye, FileText, TrendingDown,
+  MessageSquare, Eye, FileText, TrendingDown,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -117,7 +118,8 @@ const ClientSummaryCard: React.FC<{
   group: ClientGroup;
   isExpanded: boolean;
   onToggle: () => void;
-}> = ({ group, isExpanded, onToggle }) => {
+  onViewDetails: () => void;
+}> = ({ group, isExpanded, onToggle, onViewDetails }) => {
   const initials = group.ownerName.charAt(0).toUpperCase();
 
   return (
@@ -217,16 +219,11 @@ const ClientSummaryCard: React.FC<{
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
-            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
-            title="Pay All Outstanding"
+            onClick={onViewDetails}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            title="View Details"
           >
-            <Wallet size={10} /> Pay Now
-          </button>
-          <button
-            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
-            title="Download Statement"
-          >
-            <Download size={10} /> Statement
+            <Eye size={10} /> View Details
           </button>
         </div>
         <div className="text-[9px] text-slate-400">
@@ -242,12 +239,11 @@ const ClientDemandTable: React.FC<{
   tiles: DccTile[];
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
   onChat: (tile: DccTile) => void;
   onShowDuePayment: (tile: DccTile) => void;
   canRecordPayment: boolean;
   chatTileId: string | null;
-}> = ({ tiles, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, canRecordPayment, chatTileId }) => {
+}> = ({ tiles, onPay, onViewDetails, onChat, onShowDuePayment, canRecordPayment, chatTileId }) => {
   return (
     <div className="overflow-x-auto bg-slate-50/40">
       <table className="w-full">
@@ -328,13 +324,6 @@ const ClientDemandTable: React.FC<{
                       </button>
                     )}
                     <button
-                      onClick={() => onDownload(tile)}
-                      title="Download Statement"
-                      className="p-1 rounded text-slate-500 hover:bg-slate-100 transition-colors"
-                    >
-                      <Download size={11} />
-                    </button>
-                    <button
                       onClick={() => onChat(tile)}
                       title="Chat"
                       className={`p-1 rounded transition-colors ${chatTileId === tile.id ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
@@ -357,7 +346,6 @@ export interface ClientWiseViewProps {
   tiles: DccTile[];
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
   onChat: (tile: DccTile) => void;
   onShowDuePayment: (tile: DccTile) => void;
   canRecordPayment: boolean;
@@ -365,17 +353,13 @@ export interface ClientWiseViewProps {
 }
 
 export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
-  tiles, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, canRecordPayment, chatTileId,
+  tiles, onPay, onViewDetails, onChat, onShowDuePayment, canRecordPayment, chatTileId,
 }) => {
+  const navigate = useNavigate();
   const clientGroups = useMemo(() => groupByClient(tiles), [tiles]);
   const allClientIds = useMemo(() => clientGroups.map((g) => g.ownerId), [clientGroups]);
 
-  // Auto-expand all groups on load and when filters change
-  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set(allClientIds));
-
-  useEffect(() => {
-    setExpandedClients(new Set(allClientIds));
-  }, [allClientIds]);
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
 
   const toggleClient = (id: string) => {
     setExpandedClients((prev) => {
@@ -441,6 +425,7 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
               group={group}
               isExpanded={isExpanded}
               onToggle={() => toggleClient(group.ownerId)}
+              onViewDetails={() => navigate(`/dcc/client/${group.ownerId}`)}
             />
 
             {/* Expanded demand details table */}
@@ -457,7 +442,6 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
                     tiles={group.tiles}
                     onPay={onPay}
                     onViewDetails={onViewDetails}
-                    onDownload={onDownload}
                     onChat={onChat}
                     onShowDuePayment={onShowDuePayment}
                     canRecordPayment={canRecordPayment}

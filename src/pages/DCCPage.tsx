@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone, MapPin, AlertTriangle,
   CheckCircle2, Receipt, TrendingUp, Clock,
-  Download, SlidersHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  SlidersHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Wallet, Eye, Users, Plus, FileText,
   LayoutGrid, List, Table2, Calendar,
   MessageSquare, Send, X, Loader2,
@@ -90,11 +90,10 @@ const DemandTile: React.FC<{
   tile: DccTile;
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
   onChat: (tile: DccTile) => void;
   onShowDuePayment: (tile: DccTile) => void;
   isChatActive: boolean;
-}> = ({ tile, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, isChatActive }) => {
+}> = ({ tile, onPay, onViewDetails, onChat, onShowDuePayment, isChatActive }) => {
   const [expanded, setExpanded] = useState(false);
   const st = DCC_STATUS[tile.status];
   const { user } = useAuthStore();
@@ -206,12 +205,6 @@ const DemandTile: React.FC<{
           </button>
         )}
         <button
-          onClick={() => onDownload(tile)}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
-        >
-          <Download size={11} /> Statement
-        </button>
-        <button
           onClick={() => onChat(tile)}
           className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
             isChatActive
@@ -238,11 +231,10 @@ const DemandListCard: React.FC<{
   tile: DccTile;
   onPay: (tile: DccTile) => void;
   onViewDetails: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
   onChat: (tile: DccTile) => void;
   onShowDuePayment: (tile: DccTile) => void;
   isChatActive: boolean;
-}> = ({ tile, onPay, onViewDetails, onDownload, onChat, onShowDuePayment, isChatActive }) => {
+}> = ({ tile, onPay, onViewDetails, onChat, onShowDuePayment, isChatActive }) => {
   const [expanded, setExpanded] = useState(false);
   const st = DCC_STATUS[tile.status];
   const { user } = useAuthStore();
@@ -322,13 +314,6 @@ const DemandListCard: React.FC<{
               <CalendarDays size={10} /> Due
             </button>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(tile); }}
-            className="flex items-center justify-center w-6 h-6 rounded text-slate-500 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
-            title="Download Statement"
-          >
-            <Download size={10} />
-          </button>
           <button
             onClick={(e) => { e.stopPropagation(); onChat(tile); }}
             className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
@@ -509,9 +494,8 @@ const DemandTable: React.FC<{
   tiles: DccTile[];
   onRowClick: (tile: DccTile) => void;
   onPay: (tile: DccTile) => void;
-  onDownload: (tile: DccTile) => void;
   onShowDuePayment: (tile: DccTile) => void;
-}> = ({ tiles, onRowClick, onPay, onDownload, onShowDuePayment }) => {
+}> = ({ tiles, onRowClick, onPay, onShowDuePayment }) => {
   const { user } = useAuthStore();
   const canRecordPayment = user?.role === 'manager' || user?.role === 'admin';
   const columns: Column<DccTile>[] = [
@@ -632,12 +616,6 @@ const DemandTable: React.FC<{
               <CalendarDays size={11} />
             </button>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onDownload(t); }}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
-          >
-            <Download size={11} />
-          </button>
         </div>
       ),
     },
@@ -856,30 +834,6 @@ export const DCCPage: React.FC = () => {
   const handleViewDetails = (tile: DccTile) => {
     setDetailDemandId(tile.id);
     setDetailInitialTab(undefined);
-  };
-
-  const handleDownload = (tile: DccTile) => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demand Statement — ${tile.object_ref}</title>
-    <style>body{font-family:sans-serif;font-size:13px;color:#1e293b;margin:32px}h2{margin:0 0 4px;color:#1e293b}p{margin:2px 0;color:#64748b;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#1e293b;color:#fff;padding:8px 10px;text-align:left}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}.footer{margin-top:12px;text-align:right;font-weight:700;font-size:14px;color:#b45309}</style></head>
-    <body><h2>Demand Statement — ${tile.object_ref}</h2>
-    <p>Owner: ${tile.owner_name} · ${tile.owner_contact}</p>
-    <p>Type: ${tile.demand_type_label} · Run Date: ${fmtDate(tile.demand_run_date)}</p>
-    <table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>
-    <tr><td>Total Amount</td><td>${fmtINR(tile.total_amount)}</td></tr>
-    <tr><td>Amount Paid</td><td>${fmtINR(tile.amount_paid)}</td></tr>
-    <tr><td>Amount Due</td><td>${fmtINR(tile.amount_due)}</td></tr>
-    <tr><td>Due Date</td><td>${fmtDate(tile.due_date)}</td></tr>
-    <tr><td>Overdue Amount</td><td>${fmtINR(tile.overdue_amount)}</td></tr>
-    <tr><td>Last Paid</td><td>${tile.last_paid_date ? fmtINR(tile.last_paid_amount ?? 0) + ' on ' + fmtDate(tile.last_paid_date) : '—'}</td></tr>
-    </tbody></table>
-    <div class="footer">Total Outstanding: ${fmtINR(tile.amount_due)}</div>
-    </body></html>`;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `Demand_${tile.object_ref}.html`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleShowDuePayment = (tile: DccTile) => {
@@ -1143,7 +1097,6 @@ export const DCCPage: React.FC = () => {
                 tile={tile}
                 onPay={handlePay}
                 onViewDetails={handleViewDetails}
-                onDownload={handleDownload}
                 onChat={handleOpenChat}
                 onShowDuePayment={handleShowDuePayment}
                 isChatActive={chatTileId === tile.id}
@@ -1155,7 +1108,6 @@ export const DCCPage: React.FC = () => {
             tiles={filteredTiles}
             onRowClick={handleViewDetails}
             onPay={handlePay}
-            onDownload={handleDownload}
             onShowDuePayment={handleShowDuePayment}
           />
         ) : viewMode === 'client' ? (
@@ -1163,7 +1115,6 @@ export const DCCPage: React.FC = () => {
             tiles={filteredTiles}
             onPay={handlePay}
             onViewDetails={handleViewDetails}
-            onDownload={handleDownload}
             onChat={handleOpenChat}
             onShowDuePayment={handleShowDuePayment}
             canRecordPayment={canRecordPayment}
@@ -1177,7 +1128,6 @@ export const DCCPage: React.FC = () => {
                 tile={tile}
                 onPay={handlePay}
                 onViewDetails={handleViewDetails}
-                onDownload={handleDownload}
                 onChat={handleOpenChat}
                 onShowDuePayment={handleShowDuePayment}
                 isChatActive={chatTileId === tile.id}

@@ -36,6 +36,7 @@ const DCCPage = lazy(() => import('./pages/DCCPage').then(m => ({ default: m.DCC
 const DCCRuleSetupPage = lazy(() => import('./pages/DCCRuleSetupPage').then(m => ({ default: m.DCCRuleSetupPage })));
 const DCCDemandGenerationPage = lazy(() => import('./pages/DCCDemandGenerationPage').then(m => ({ default: m.DCCDemandGenerationPage })));
 const DCCDemandDetailPage = lazy(() => import('./pages/DCCDemandDetailPage').then(m => ({ default: m.DCCDemandDetailPage })));
+const DCCClientDueSummaryPage = lazy(() => import('./pages/DCCClientDueSummaryPage').then(m => ({ default: m.DCCClientDueSummaryPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 function PageLoader() {
@@ -263,6 +264,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
                     <AppLayout><DCCDemandDetailPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dcc/client/:ownerId"
+                element={
+                  <ProtectedRoute allowedRoles={['manager', 'admin', 'govt_official', 'dept_user', 'public']}>
+                    <AppLayout><DCCClientDueSummaryPage /></AppLayout>
                   </ProtectedRoute>
                 }
               />
