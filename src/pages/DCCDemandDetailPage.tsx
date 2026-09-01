@@ -19,43 +19,17 @@ import { useAuthStore } from '../stores/authStore';
 import { generatePaymentReceipt, receiptNumber } from '../utils/dccReceipt';
 import {
   DCC_STATUS, DCC_INPUT_CLS, DCC_LABEL_CLS,
-  fmtINR, fmtINRShort, fmtDate, fmtDateShort,
+  fmtINR, fmtDate, fmtDateShort,
 } from '../constants/dccTheme';
+import { getDemandComponentConfig, computeBill } from '../constants/demandComponents';
+import { BillBreakdownCard } from '../components/dcc/BillBreakdownCard';
 
 type StatusKey = DccTile['status'];
-
-type BreakdownColumn = { key: string; label: string };
-type BreakdownConfig = {
-  columns: BreakdownColumn[];
-  cadence: 'monthly' | 'single';
-  primaryColumnKey: string;
-};
-
-const SUB_CHARGE_RATIOS: Record<string, Record<string, number>> = {
-  rent: { rent: 0.75, water: 0.08, electricity: 0.12, maintenance: 0.05 },
-  loan_instalment: { loan_instalment: 0.90, interest: 0.10 },
-};
 
 // Demand type codes that use the Instalment view as their primary (and only) transaction tab.
 // All other codes (RENT, PROPERTY_TAX, MAINTENANCE, INSURANCE, SD, ADVANCE) use the Demand Due view.
 const INSTALLMENT_DEMAND_CODES = new Set(['LOAN']);
 const isInstalmentType = (code: string): boolean => INSTALLMENT_DEMAND_CODES.has(code);
-
-const getBreakdownConfig = (demandTypeCode: string, objectType: string): BreakdownConfig => {
-  const isProperty = objectType === 'PROPERTY' || objectType === 'QUARTER';
-  const configs: Record<string, BreakdownConfig> = {
-    RENT: isProperty
-      ? { columns: [{ key: 'rent', label: 'Rent' }, { key: 'water', label: 'Water' }, { key: 'electricity', label: 'Electricity' }, { key: 'maintenance', label: 'Maintenance' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'rent' }
-      : { columns: [{ key: 'rent', label: 'Rent' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'rent' },
-    MAINTENANCE: { columns: [{ key: 'maintenance', label: 'Maintenance' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'maintenance' },
-    LOAN: { columns: [{ key: 'loan_instalment', label: 'Loan Instalment' }, { key: 'interest', label: 'Interest' }, { key: 'penalty', label: 'Penalty' }], cadence: 'monthly', primaryColumnKey: 'loan_instalment' },
-    PROPERTY_TAX: { columns: [{ key: 'property_tax', label: 'Property Tax' }, { key: 'penalty', label: 'Penalty' }], cadence: 'single', primaryColumnKey: 'property_tax' },
-    INSURANCE: { columns: [{ key: 'insurance', label: 'Insurance Premium' }, { key: 'penalty', label: 'Penalty' }], cadence: 'single', primaryColumnKey: 'insurance' },
-    SD: { columns: [{ key: 'security_deposit', label: 'Security Deposit' }], cadence: 'single', primaryColumnKey: 'security_deposit' },
-    ADVANCE: { columns: [{ key: 'advance', label: 'Advance' }], cadence: 'single', primaryColumnKey: 'advance' },
-  };
-  return configs[demandTypeCode] ?? { columns: [{ key: 'amount', label: 'Amount' }], cadence: 'single', primaryColumnKey: 'amount' };
-};
 
 // Early-payment discount matrix: >=15 days early = 5%, >=7 days early = 2.5%
 const computeEarlyPayDiscount = (dueDate: string, paymentDate: string, grossAmount: number): { pct: number; discount: number; adjusted: number; daysEarly: number } => {
@@ -422,10 +396,9 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
   const handleBulkPay = async () => {
     if (!demandId || !tile || selectedDueRows.size === 0) return;
-    const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+    const config = getDemandComponentConfig(tile.demand_type_code, tile.object_type);
     const isMonthly = config.cadence === 'monthly';
     const penaltyPct = 0.02;
-    const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
 
     const allRows = isMonthly ? (() => {
       const runDate = new Date(tile.demand_run_date);
@@ -436,13 +409,10 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
         const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
         const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
         const charges: Record<string, number> = {};
-        for (const col of config.columns) {
-          if (col.key === 'penalty') {
-            charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
-          } else {
-            charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
-          }
+        for (const comp of config.components) {
+          charges[comp.key] = Math.round(monthlyAmount * comp.ratio);
         }
+        charges['penalty'] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
         out.push({ sno: i + 1, total: Object.values(charges).reduce((s, v) => s + v, 0), status });
       }
       return out;
@@ -613,7 +583,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           </div>
           <div className="flex flex-col">
             <span className="text-slate-400 text-[10px] uppercase font-bold">Last Paid</span>
-            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINRShort(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
+            <span className="text-white text-xs font-semibold tabular-nums leading-tight">{tile.last_paid_date ? `${fmtINR(tile.last_paid_amount ?? 0)} · ${fmtDateShort(tile.last_paid_date)}` : '—'}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-slate-400 text-[10px] uppercase font-bold">Pending Since</span>
@@ -727,10 +697,9 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           >
         {/* ═══ Tab 1: Demand Due ═══════════════════════════════════════════════════ */}
         {effectiveTab === 'demand_due' && (() => {
-          const config = getBreakdownConfig(tile.demand_type_code, tile.object_type);
+          const config = getDemandComponentConfig(tile.demand_type_code, tile.object_type);
           const isMonthly = config.cadence === 'monthly';
           const penaltyPct = 0.02;
-          const ratios = SUB_CHARGE_RATIOS[config.primaryColumnKey] ?? { [config.primaryColumnKey]: 1 };
 
           const rows = isMonthly ? (() => {
             const runDate = new Date(tile.demand_run_date);
@@ -742,26 +711,21 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
               const isOverdue = !isPaid && new Date(tile.due_date) < new Date();
               const status = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'DUE';
               const charges: Record<string, number> = {};
-              for (const col of config.columns) {
-                if (col.key === 'penalty') {
-                  charges[col.key] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
-                } else {
-                  charges[col.key] = Math.round(monthlyAmount * (ratios[col.key] ?? 0));
-                }
+              for (const comp of config.components) {
+                charges[comp.key] = Math.round(monthlyAmount * comp.ratio);
               }
+              charges['penalty'] = status === 'OVERDUE' ? Math.round(monthlyAmount * penaltyPct) : 0;
               const total = Object.values(charges).reduce((s, v) => s + v, 0);
               out.push({ sno: i + 1, label: d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), charges, total, status });
             }
             return out;
           })() : (() => {
             const charges: Record<string, number> = {};
-            for (const col of config.columns) {
-              if (col.key === 'penalty') {
-                charges[col.key] = tile.status === 'OVERDUE' ? Math.round(tile.amount_due * penaltyPct) : 0;
-              } else {
-                charges[col.key] = tile.total_amount;
-              }
+            const baseAmount = tile.status === 'OVERDUE' ? tile.amount_due : tile.total_amount;
+            for (const comp of config.components) {
+              charges[comp.key] = Math.round(baseAmount * comp.ratio);
             }
+            charges['penalty'] = tile.status === 'OVERDUE' ? Math.round(tile.amount_due * penaltyPct) : 0;
             const total = tile.amount_due;
             const periodLabel = (() => {
               const runDate = new Date(tile.demand_run_date);
@@ -771,31 +735,40 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
             return [{ sno: 1, label: periodLabel, charges, total, status: tile.status }];
           })();
 
-          // Only show OPEN (non-paid) rows
           const openRows = rows.filter(r => r.status !== 'PAID');
           const allOpenCount = openRows.length;
           const isSingleOpen = allOpenCount === 1;
 
-          // Standard column keys for the 11-column table
-          const chargeCols = config.columns.filter(c => c.key !== 'penalty');
-          const colCount = chargeCols.length;
+          // Compute the bill for the Bill Breakdown card
+          const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), tile.amount_due);
+          const bill = computeBill(tile.total_amount, tile.amount_paid, tile.amount_due, tile.status === 'OVERDUE', earlyDisc.discount, config);
 
           return (
             <div className="space-y-3">
+              {/* ── Bill Breakdown Card ─────────────────────────────────────────── */}
+              <BillBreakdownCard
+                bill={bill}
+                config={config}
+                objectRef={tile.object_ref}
+                objectDescription={tile.object_description}
+                objectType={tile.object_type}
+                demandRunDate={tile.demand_run_date}
+                dueDate={tile.due_date}
+                fmtDateShort={fmtDateShort}
+              />
+
+              {/* ── Dynamic Line-Item Table ────────────────────────────────────── */}
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="bg-slate-100/90 text-xs font-bold text-slate-700 py-2 px-3 border-b border-slate-200">
+                      <tr className="bg-slate-100/90 border-b border-slate-200">
                         <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Sl No</th>
-                        <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Month/Period</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Gross Demand</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Already Paid</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Rent</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Water</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Electricity</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Maintenance</th>
-                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Taxes</th>
+                        <th className="py-2 px-3 text-left font-bold text-slate-700 border-b border-slate-200">Period</th>
+                        {config.components.map(comp => (
+                          <th key={comp.key} className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">{comp.label}</th>
+                        ))}
+                        <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Penalty</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-700 border-b border-slate-200">Total Line Due</th>
                         <th className="py-2 px-3 text-center font-bold text-slate-700 border-b border-slate-200">Dispute?</th>
                         <th className="py-2 px-3 text-center font-bold text-slate-700 border-b border-slate-200">Actions</th>
@@ -803,35 +776,19 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </thead>
                     <tbody>
                       {openRows.map(m => {
-                        const demandAmt = chargeCols.reduce((s, c) => s + (m.charges[c.key] ?? 0), 0);
                         const lateFee = m.charges['penalty'] ?? 0;
-                        const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), m.total);
-                        const hasDisc = earlyDisc.pct > 0;
-                        const rentVal = m.charges['rent'] ?? m.charges['amount'] ?? 0;
-                        const waterVal = m.charges['water'] ?? 0;
-                        const elecVal = m.charges['electricity'] ?? 0;
-                        const maintVal = m.charges['maintenance'] ?? 0;
-                        const taxesVal = m.charges['taxes'] ?? m.charges['penalty'] ?? 0;
                         return (
                           <tr key={m.sno} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${m.status === 'OVERDUE' ? 'bg-red-50/30' : ''}`}>
                             <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.sno}</td>
                             <td className="py-1.5 px-3 font-semibold text-slate-800 text-left">{m.label}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{fmtINR(demandAmt)}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">{tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{rentVal > 0 ? fmtINRShort(rentVal) : '—'}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{waterVal > 0 ? fmtINRShort(waterVal) : '—'}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{elecVal > 0 ? fmtINRShort(elecVal) : '—'}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{maintVal > 0 ? fmtINRShort(maintVal) : '—'}</td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{lateFee > 0 ? fmtINRShort(lateFee) : '—'}</td>
+                            {config.components.map(comp => (
+                              <td key={comp.key} className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                                {(m.charges[comp.key] ?? 0) > 0 ? fmtINR(m.charges[comp.key]) : '—'}
+                              </td>
+                            ))}
+                            <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{lateFee > 0 ? fmtINR(lateFee) : '—'}</td>
                             <td className="py-1.5 px-3 text-right">
-                              <div className="flex flex-col items-end gap-0.5">
-                                <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
-                                {hasDisc && isSingleOpen && (
-                                  <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-200">
-                                    {fmtINR(earlyDisc.adjusted)} ({earlyDisc.pct}% off)
-                                  </span>
-                                )}
-                              </div>
+                              <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
                             </td>
                             <td className="py-1.5 px-3 text-center">
                               {hasDispute ? (
@@ -868,7 +825,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                 onClick={() => setPopoverSno(popoverSno === m.sno ? null : m.sno)}
                                 className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-bold text-white border transition-colors ${popoverSno === m.sno ? 'bg-emerald-700 border-emerald-700' : 'bg-emerald-600 border-emerald-600 hover:bg-emerald-700 hover:border-emerald-700'}`}
                               >
-                                <Eye size={10} /> Pay Now
+                                <Eye size={10} /> Details
                               </button>
                             </td>
                           </tr>
@@ -877,7 +834,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={9} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td colSpan={config.components.length + 3} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
                         <td className="py-1.5 px-3 text-right font-mono font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                         <td colSpan={2} />
                       </tr>
@@ -885,14 +842,16 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                   </table>
                 </div>
 
-                {/* Demand Details Popover */}
+                {/* Demand Details Popover — Bill Breakdown for selected row */}
                 <AnimatePresence>
                   {popoverSno !== null && (() => {
                     const row = rows.find(r => r.sno === popoverSno);
                     if (!row) return null;
-                    const config2 = getBreakdownConfig(tile.demand_type_code, tile.object_type);
-                    const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), row.total);
-                    const hasDisc = earlyDisc.pct > 0;
+                    const rowEarlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), row.total);
+                    const rowBill = computeBill(
+                      row.total, 0, row.total,
+                      row.status === 'OVERDUE', rowEarlyDisc.discount, config,
+                    );
                     return (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
@@ -908,24 +867,17 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                               <X size={12} />
                             </button>
                           </div>
-                          {/* Structured key-value grid */}
-                          <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-md text-xs grid grid-cols-5 gap-2">
-                            {config2.columns.filter(c => c.key !== 'penalty').map(col => (
-                              <div key={col.key} className="flex flex-col">
-                                <span className="text-slate-400 text-[10px] font-semibold">{col.label}</span>
-                                <span className="font-mono font-bold text-slate-800">{row.charges[col.key] > 0 ? fmtINR(row.charges[col.key]) : '—'}</span>
-                              </div>
-                            ))}
-                            <div className="flex flex-col">
-                              <span className="text-slate-400 text-[10px] font-semibold">Taxes</span>
-                              <span className="font-mono font-bold text-slate-800">{(row.charges['penalty'] ?? 0) > 0 ? fmtINR(row.charges['penalty']) : '₹0'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-slate-400 text-[10px] font-semibold">Total Line Due</span>
-                              <span className="font-mono font-extrabold text-slate-900">{fmtINR(row.total)}</span>
-                            </div>
-                          </div>
-                          {/* Single-line: Discount Calculation Card + line-level Pay */}
+                          <BillBreakdownCard
+                            bill={rowBill}
+                            config={config}
+                            objectRef={tile.object_ref}
+                            objectDescription={tile.object_description}
+                            objectType={tile.object_type}
+                            demandRunDate={tile.demand_run_date}
+                            dueDate={tile.due_date}
+                            fmtDateShort={fmtDateShort}
+                          />
+                          {/* Single-line: Discount info + Pay */}
                           {isSingleOpen && !isPaidOrExempted && (() => {
                             const netOutstanding = tile.amount_due;
                             const netDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), netOutstanding);
@@ -969,17 +921,17 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                                   onClick={() => { setPayAmount(payAmt); setShowPayForm(true); setPopoverSno(null); }}
                                   className={`mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-white text-xs font-bold transition-colors ${netHasDisc ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-700 hover:bg-slate-800'}`}
                                 >
-                                  <Wallet size={13} /> {netHasDisc ? 'Pay Adjusted Amount' : 'Pay Outstanding'}: {fmtINR(payAmt)}
+                                  <Wallet size={13} /> Pay Outstanding: {fmtINR(payAmt)}
                                 </button>
                               </div>
                             );
                           })()}
-                          {/* Multi-line: no line-level Pay button, just info */}
+                          {/* Multi-line info */}
                           {!isSingleOpen && !isPaidOrExempted && (
                             <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-md">
                               <Info size={13} className="text-slate-500 shrink-0" />
                               <span className="text-[11px] text-slate-600">
-                                Multi-line open demand — use the <span className="font-bold">Pay Now against Total Outstanding</span> bar below to settle all lines together. Individual line payments are disabled for bulk accumulations.
+                                Multi-line open demand — use the <span className="font-bold">Pay Outstanding</span> bar below to settle all lines together.
                               </span>
                             </div>
                           )}
@@ -1020,21 +972,20 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     );
                   })()}
                 </AnimatePresence>
-
               </div>
 
-              {/* Sticky Consolidated Pay Bar — only for multi-line open demands */}
+              {/* Sticky Consolidated Pay Bar — for multi-line open demands */}
               {!isSingleOpen && (
                 <div className="bg-slate-900 text-white p-3 px-6 rounded-b-lg flex items-center justify-between sticky bottom-0 z-20 shadow-xl">
                   <span className="text-sm font-bold text-amber-400">
-                    Total Outstanding Amount: {fmtINR(tile.amount_due)}
+                    Total Outstanding: {fmtINR(bill.netPayable)}
                   </span>
                   {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
                     <button
-                      onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setPayModalAmount(tile.amount_due); setPayModalLabel('Full Payment'); setPayModalRowId(null); setPayModalStep('select'); setPayModalMode('UPI'); setPayModalRef(''); setPayModalRemarks(''); setPayModalDate(new Date().toISOString().slice(0, 10)); setShowPayModal(true); })() : undefined)}
+                      onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setPayModalAmount(bill.netPayable); setPayModalLabel('Full Payment'); setPayModalRowId(null); setPayModalStep('select'); setPayModalMode('UPI'); setPayModalRef(''); setPayModalRemarks(''); setPayModalDate(new Date().toISOString().slice(0, 10)); setShowPayModal(true); })() : undefined)}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-md shadow-sm transition-colors"
                     >
-                      Pay Now against Total Outstanding
+                      Pay Outstanding: {fmtINR(bill.netPayable)}
                     </button>
                   )}
                   {isPaidOrExempted && (
@@ -1042,7 +993,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                       disabled
                       className="bg-emerald-600/20 text-emerald-700/40 font-bold px-5 py-2 rounded-md cursor-not-allowed"
                     >
-                      Pay Now against Total Outstanding
+                      Pay Outstanding: {fmtINR(bill.netPayable)}
                     </button>
                   )}
                 </div>
