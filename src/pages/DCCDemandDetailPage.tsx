@@ -748,11 +748,8 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
           const earlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), tile.amount_due);
           const netPayable = earlyDisc.pct > 0 ? earlyDisc.adjusted : tile.amount_due;
 
-          const firstRow = openRows[0];
-          const lateFee = firstRow?.charges['penalty'] ?? 0;
-          const rowEarlyDisc = computeEarlyPayDiscount(tile.due_date, new Date().toISOString().slice(0, 10), firstRow?.total ?? 0);
-          const rowAlreadyPaid = isSingleOpen ? tile.amount_paid : 0;
-          const rowNetPayable = Math.max(0, (firstRow?.total ?? 0) - rowEarlyDisc.discount - rowAlreadyPaid);
+          const penaltyAmount = openRows.reduce((sum, row) => sum + (row.charges['penalty'] ?? 0), 0);
+          const appliedPenaltyPct = penaltyAmount > 0 ? penaltyPct * 100 : 0;
 
           return (
             <div className="space-y-3">
@@ -798,68 +795,37 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                 </div>
               </div>
 
-              {/* ── Demand Breakdown (auto-visible) ────────────────────────────── */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3 space-y-1.5">
-                {config.components.map(comp => {
-                  const amt = firstRow?.charges[comp.key] ?? 0;
-                  return (
-                    <div key={comp.key} className="flex items-baseline text-xs">
-                      <span className="text-slate-600 font-medium">{comp.label}</span>
-                      <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                      <span className="font-mono font-bold text-slate-800 tabular-nums">{amt > 0 ? fmtINR(amt) : '—'}</span>
-                    </div>
-                  );
-                })}
-                <div className="flex items-baseline text-xs pt-1.5 border-t border-slate-100">
-                  <span className="text-slate-500 font-semibold">Subtotal</span>
-                  <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                  <span className="font-mono font-bold text-slate-700 tabular-nums">{fmtINR((firstRow?.total ?? 0) - lateFee)}</span>
+              {/* ── Amount Summary and Pay Outstanding ──────────────────────────── */}
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Outstanding</span>
+                    <span className="block mt-0.5 text-base font-black text-red-600 tabular-nums">{fmtINR(tile.amount_due)}</span>
+                  </div>
+                  <div className="rounded-md bg-red-50 border border-red-100 px-3 py-2">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-red-500">Penalty ({appliedPenaltyPct}%)</span>
+                    <span className="block mt-0.5 text-base font-black text-red-700 tabular-nums">{penaltyAmount > 0 ? fmtINR(penaltyAmount) : '—'}</span>
+                  </div>
+                  <div className="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-600">Early Discount ({earlyDisc.pct}%)</span>
+                    <span className="block mt-0.5 text-base font-black text-emerald-700 tabular-nums">{earlyDisc.discount > 0 ? `-${fmtINR(earlyDisc.discount)}` : '—'}</span>
+                  </div>
+                  <div className="rounded-md bg-slate-800 border border-slate-800 px-3 py-2">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-300">Final Amount Payable</span>
+                    <span className="block mt-0.5 text-base font-black text-white tabular-nums">{fmtINR(netPayable)}</span>
+                  </div>
                 </div>
-                {lateFee > 0 && (
-                  <div className="flex items-baseline text-xs">
-                    <span className="text-red-600 font-medium">Late Fee / Penalty (+)</span>
-                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                    <span className="font-mono font-bold text-red-600 tabular-nums">{fmtINR(lateFee)}</span>
-                  </div>
-                )}
-                {rowAlreadyPaid > 0 && (
-                  <div className="flex items-baseline text-xs">
-                    <span className="text-slate-600 font-medium">Less Already Paid (-)</span>
-                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                    <span className="font-mono font-bold text-slate-600 tabular-nums">-{fmtINR(rowAlreadyPaid)}</span>
-                  </div>
-                )}
-                {rowEarlyDisc.pct > 0 && (
-                  <div className="flex items-baseline text-xs">
-                    <span className="text-emerald-600 font-medium">Early Payment Discount ({rowEarlyDisc.pct}%) (-)</span>
-                    <span className="flex-1 mx-2 border-b border-dotted border-slate-200 translate-y-[-4px]" />
-                    <span className="font-mono font-bold text-emerald-600 tabular-nums">-{fmtINR(rowEarlyDisc.discount)}</span>
-                  </div>
-                )}
-                <div className="flex items-baseline text-sm pt-1.5 border-t border-slate-200">
-                  <span className="font-bold text-slate-700">Net Amount Payable</span>
-                  <span className="flex-1 mx-2 border-b border-dotted border-slate-300 translate-y-[-4px]" />
-                  <span className="font-mono font-black text-slate-900 tabular-nums">{fmtINR(rowNetPayable)}</span>
-                </div>
-              </div>
-
-              {/* ── Pay Outstanding ────────────────────────────────────────────── */}
-              {!isPaidOrExempted && (
-                <div className="bg-white border border-slate-200 rounded-lg p-3 px-4 flex items-center justify-between shadow-sm">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{isSingleOpen ? 'Amount Payable' : 'Total Outstanding'}</span>
-                    <span className="text-lg font-black text-slate-900 tabular-nums">{fmtINR(netPayable)}</span>
-                  </div>
-                  {(canRecordPayment || isGovtOfficial) && (
+                {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
+                  <div className="flex justify-end border-t border-slate-100 pt-3">
                     <button
                       onClick={() => canRecordPayment ? setShowPayForm(v => !v) : (isGovtOfficial ? (() => { setPayModalAmount(netPayable); setPayModalLabel('Full Payment'); setPayModalRowId(null); setPayModalStep('select'); setPayModalMode('UPI'); setPayModalRef(''); setPayModalRemarks(''); setPayModalDate(new Date().toISOString().slice(0, 10)); setShowPayModal(true); })() : undefined)}
                       className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-md shadow-sm transition-colors"
                     >
                       <Wallet size={14} /> Pay Outstanding: {fmtINR(netPayable)}
                     </button>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
               {/* ── Dispute Management (below payment) ─────────────────────────── */}
               {canRecordPayment && (
