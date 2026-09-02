@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, MessageSquare, Wallet, CalendarDays, ChevronUp, ChevronDown,
-  Phone, Users, AlertTriangle, CheckCircle2,
+  Phone, MapPin, Users, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -14,7 +14,7 @@ const LV: React.FC<{ label: string; value: React.ReactNode; valueCls?: string }>
   label, value, valueCls = 'text-slate-900',
 }) => (
   <div className="flex flex-col gap-0 min-w-0">
-    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 leading-none">{label}</span>
+    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 leading-none mb-0.5">{label}</span>
     <span className={`text-[11px] font-semibold tabular-nums truncate leading-tight ${valueCls}`}>{value || '—'}</span>
   </div>
 );
@@ -48,54 +48,52 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
       <div className="flex items-stretch gap-0">
         <div className={`w-1 shrink-0 ${st.dot}`} />
 
-        <div className="flex-1 px-3 py-1.5">
-          {/* ── Row 1: Identity + amount + metrics (all inline, no separator) �────── */}
-          <div className="flex items-center gap-3">
-            {/* Left: badge + description */}
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border} shrink-0`}>
-                {st.label}
-              </span>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-slate-900 truncate leading-tight">{tile.object_description || tile.object_ref}</h3>
-                <p className="text-[9px] text-slate-500 truncate leading-tight">{tile.object_ref} · {tile.demand_type_label}</p>
+        <div className="flex-1 px-3 py-2">
+          {/* Row 1: Identity + amount */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
+                  {st.label}
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">{tile.demand_type_label}</span>
               </div>
+              <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
+              <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
             </div>
-
-            {/* Middle: metrics grid (hidden on very small screens) */}
-            <div className="hidden lg:grid grid-cols-6 gap-x-4 shrink-0">
-              <LV label="Run" value={fmtDateShort(tile.demand_run_date)} />
-              <LV label="Due" value={fmtDateShort(tile.due_date)} valueCls={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-900'} />
-              <LV label="Total" value={fmtINRShort(tile.total_amount)} />
-              <LV label="Paid" value={tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'} valueCls="text-emerald-600" />
-              <LV label="Pend" value={tile.amount_due > 0 ? fmtINRShort(tile.amount_due) : '—'} valueCls="text-red-600" />
-              <LV label="Pen" value={tile.overdue_amount > 0 ? fmtINRShort(tile.overdue_amount) : '—'} valueCls="text-red-600" />
-            </div>
-
-            {/* Right: amount */}
-            <div className="text-right shrink-0">
-              <div className="text-sm font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
-              <div className="text-[9px] text-slate-400 leading-tight">of {fmtINRShort(tile.total_amount)}</div>
+            <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
+              <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
+              <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
             </div>
           </div>
 
-          {/* ── Row 2: Owner + indicators + actions ────────────────────────────── */}
-          <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-100">
-            <span className="flex items-center gap-0.5 min-w-0 text-[10px] text-slate-600">
+          {/* Row 2: Key metrics grid */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5">
+            <LV label="Run Date" value={fmtDateShort(tile.demand_run_date)} />
+            <LV label="Due Date" value={fmtDateShort(tile.due_date)} valueCls={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-900'} />
+            <LV label="Total" value={fmtINRShort(tile.total_amount)} />
+            <LV label="Paid" value={tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'} valueCls="text-emerald-600" />
+            <LV label="Pending" value={tile.amount_due > 0 ? fmtINRShort(tile.amount_due) : '—'} valueCls="text-red-600" />
+            <LV label="Penalty" value={tile.overdue_amount > 0 ? fmtINRShort(tile.overdue_amount) : '—'} valueCls="text-red-600" />
+          </div>
+
+          {/* Row 3: Owner info + actions */}
+          <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap border-t border-slate-100 pt-1.5 mt-1.5 text-[10px] text-slate-600">
+            <span className="flex items-center gap-0.5 min-w-0">
               <Users size={10} className="text-slate-400 shrink-0" />
-              <span className="truncate font-medium max-w-[140px]">{tile.owner_name}</span>
+              <span className="truncate font-medium max-w-[120px]">{tile.owner_name}</span>
             </span>
-            <span className="flex items-center gap-0.5 shrink-0 text-[10px] text-slate-600">
+            <span className="flex items-center gap-0.5 shrink-0">
               <Phone size={10} className="text-slate-400" />
               <span className="truncate max-w-[100px]">{tile.owner_contact || '—'}</span>
             </span>
             {tile.overdue_amount > 0 && (
-              <span className="flex items-center gap-0.5 shrink-0 text-[10px] text-red-600 font-semibold">
+              <span className="flex items-center gap-0.5 shrink-0 text-red-600 font-semibold">
                 <AlertTriangle size={10} /> {fmtINRShort(tile.overdue_amount)}
               </span>
             )}
             {tile.amount_paid > 0 && (
-              <span className="flex items-center gap-0.5 shrink-0 text-[10px] text-emerald-600">
+              <span className="flex items-center gap-0.5 shrink-0 text-emerald-600">
                 <CheckCircle2 size={10} /> {fmtINRShort(tile.amount_paid)} pd
               </span>
             )}
@@ -147,7 +145,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             </div>
           </div>
 
-          {/* ── Expanded section (only when toggled) ────────────────────────────── */}
+          {/* Expanded section — only appears when toggled */}
           <AnimatePresence>
             {expanded && (
               <motion.div
@@ -157,11 +155,11 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-1 border-t border-slate-100 pt-1.5 mt-1 bg-slate-50/40">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5 bg-slate-50/40">
                   <LV label="Txn Type" value={tile.demand_type_code} valueCls="text-slate-500" />
                   <LV label="Last Paid" value={tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : '—'} />
                   <LV label="Last Amt" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
-                  <LV label="Avg OD" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
+                  <LV label="Avg OD Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
                   <LV label="Region" value={tile.region || '—'} valueCls="text-slate-500" />
                   <LV label="Group" value={tile.group_name || '—'} valueCls="text-slate-500" />
                   <LV label="Subgroup" value={tile.subgroup || '—'} valueCls="text-slate-500" />
@@ -177,5 +175,3 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
 };
 
 export default DemandListRecord;
-
-export { DemandListRecord }
