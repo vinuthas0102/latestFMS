@@ -1068,18 +1068,78 @@ export const DCCPage: React.FC = () => {
       })()}
 
       {/* Compact toolbar */}
-      <div className="px-4 py-1 shrink-0 flex items-center justify-end gap-2 border-b border-slate-200 bg-white mt-0">
-        <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
-        <button
-          onClick={() => setShowFilters(true)}
-          title="Filters"
-          className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors text-xs font-semibold"
-        >
-          <SlidersHorizontal size={13} /> Filters
-          {countActiveFilters(filterState) > 0 && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
-          )}
-        </button>
+      <div className="px-4 py-1 shrink-0 flex items-center justify-between gap-2 border-b border-slate-200 bg-white mt-0">
+        {/* Breadcrumb / context info — left side */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+          {(() => {
+            const viewLabel =
+              viewMode === 'client' ? 'Client-Wise' :
+              viewMode === 'card' ? 'Cards' :
+              viewMode === 'table' ? 'Table' : 'List';
+            const dpLabel =
+              dpFilter === 'PAID' ? 'Total Paid' :
+              dpFilter === 'DUE' ? 'Total Due' :
+              dpFilter === 'OVERDUE' ? 'Total Overdue' : 'All Records';
+            const hasAdvFilters = countActiveFilters(filterState) > 0 || subDpFilter !== null;
+            const contextLabel = hasAdvFilters ? 'Filtered Data' : dpLabel;
+            const visibleCount = filteredTiles.length;
+            const totalCount = tiles.length;
+            const countText = hasAdvFilters
+              ? `${visibleCount} of ${totalCount}`
+              : `${visibleCount}`;
+            const handleClear = () => {
+              setFilterState(emptyFilterState);
+              setDpFilter('ALL');
+              setSubDpFilter(null);
+            };
+            return (
+              <>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                  {viewLabel}
+                </span>
+                <ChevronRight size={11} className="text-slate-300 shrink-0" />
+                <span className="text-[11px] font-bold text-blue-700 whitespace-nowrap">
+                  {contextLabel}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+                  · {countText}
+                </span>
+                {hasAdvFilters && (
+                  <button
+                    onClick={handleClear}
+                    title="Clear all filters"
+                    className="flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors whitespace-nowrap"
+                  >
+                    <X size={9} /> Clear
+                  </button>
+                )}
+                {subDpFilter && (
+                  <>
+                    <ChevronRight size={11} className="text-slate-300 shrink-0" />
+                    <span className="text-[11px] font-semibold text-slate-600 truncate">
+                      {subDpFilter}
+                    </span>
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* View + filter controls — right side */}
+        <div className="flex items-center gap-2 shrink-0">
+          <IconViewToggle currentView={viewMode} onViewChange={setViewMode} />
+          <button
+            onClick={() => setShowFilters(true)}
+            title="Filters"
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors text-xs font-semibold"
+          >
+            <SlidersHorizontal size={13} /> Filters
+            {countActiveFilters(filterState) > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Tiles grid / table / list */}
