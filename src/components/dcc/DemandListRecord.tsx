@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, MessageSquare, Wallet, CalendarDays, ChevronUp, ChevronDown,
-  Phone, MapPin, Users, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -38,6 +37,14 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
   const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
   const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
 
+  const initials = (tile.owner_name || '?')
+    .split(' ')
+    .map(w => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -49,25 +56,83 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
         <div className={`w-1 shrink-0 ${st.dot}`} />
 
         <div className="flex-1 px-3 py-2">
-          {/* Row 1: Identity + amount */}
+          {/* ── Row 1: Identity + amount + actions ── */}
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
-                  {st.label}
-                </span>
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">{tile.demand_type_label}</span>
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+              {/* Avatar */}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
+                {initials}
               </div>
-              <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
-              <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
+                    {st.label}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">{tile.demand_type_label}</span>
+                </div>
+                <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
+                <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
+              </div>
             </div>
-            <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
-              <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
-              <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
+
+            {/* Amount + actions */}
+            <div className="text-right shrink-0 flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
+                  <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
+                </div>
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+                    title="View Details"
+                    className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+                  >
+                    <Eye size={12} />
+                  </button>
+                  {canPay && onPay && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onPay(tile); }}
+                      title="Pay Now"
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                    >
+                      <Wallet size={10} /> Pay
+                    </button>
+                  )}
+                  {canShowDue && !canPay && onShowDuePayment && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
+                      title="Due Payment"
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+                    >
+                      <CalendarDays size={10} /> Due
+                    </button>
+                  )}
+                  {onChat && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onChat(tile); }}
+                      title="Chat"
+                      className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
+                        isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <MessageSquare size={11} />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+                    title={expanded ? 'Show Less' : 'Show More'}
+                    className="flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+                  >
+                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Row 2: Key metrics grid */}
+          {/* ── Row 2: Label-value grid ── */}
           <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5">
             <LV label="Run Date" value={fmtDateShort(tile.demand_run_date)} />
             <LV label="Due Date" value={fmtDateShort(tile.due_date)} valueCls={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-900'} />
@@ -75,74 +140,6 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <LV label="Paid" value={tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'} valueCls="text-emerald-600" />
             <LV label="Pending" value={tile.amount_due > 0 ? fmtINRShort(tile.amount_due) : '—'} valueCls="text-red-600" />
             <LV label="Penalty" value={tile.overdue_amount > 0 ? fmtINRShort(tile.overdue_amount) : '—'} valueCls="text-red-600" />
-          </div>
-
-          {/* Row 3: Owner info + actions */}
-          <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap border-t border-slate-100 pt-1.5 mt-1.5 text-[10px] text-slate-600">
-            <span className="flex items-center gap-0.5 min-w-0">
-              <Users size={10} className="text-slate-400 shrink-0" />
-              <span className="truncate font-medium max-w-[120px]">{tile.owner_name}</span>
-            </span>
-            <span className="flex items-center gap-0.5 shrink-0">
-              <Phone size={10} className="text-slate-400" />
-              <span className="truncate max-w-[100px]">{tile.owner_contact || '—'}</span>
-            </span>
-            {tile.overdue_amount > 0 && (
-              <span className="flex items-center gap-0.5 shrink-0 text-red-600 font-semibold">
-                <AlertTriangle size={10} /> {fmtINRShort(tile.overdue_amount)}
-              </span>
-            )}
-            {tile.amount_paid > 0 && (
-              <span className="flex items-center gap-0.5 shrink-0 text-emerald-600">
-                <CheckCircle2 size={10} /> {fmtINRShort(tile.amount_paid)} pd
-              </span>
-            )}
-
-            <div className="ml-auto flex items-center gap-1 shrink-0">
-              <button
-                onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
-                title="View Details"
-                className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
-              >
-                <Eye size={12} />
-              </button>
-              {canPay && onPay && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onPay(tile); }}
-                  title="Pay Now"
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
-                >
-                  <Wallet size={10} /> Pay
-                </button>
-              )}
-              {canShowDue && !canPay && onShowDuePayment && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
-                  title="Due Payment"
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
-                >
-                  <CalendarDays size={10} /> Due
-                </button>
-              )}
-              {onChat && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onChat(tile); }}
-                  title="Chat"
-                  className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
-                    isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <MessageSquare size={11} />
-                </button>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
-                title={expanded ? 'Show Less' : 'Show More'}
-                className="flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
-              >
-                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-            </div>
           </div>
 
           {/* Expanded section — only appears when toggled */}
@@ -163,7 +160,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                   <LV label="Region" value={tile.region || '—'} valueCls="text-slate-500" />
                   <LV label="Group" value={tile.group_name || '—'} valueCls="text-slate-500" />
                   <LV label="Subgroup" value={tile.subgroup || '—'} valueCls="text-slate-500" />
-                  <LV label="Address" value={tile.owner_address || '—'} valueCls="text-slate-500" />
+                  <LV label="Owner" value={tile.owner_name || '—'} valueCls="text-slate-500" />
                 </div>
               </motion.div>
             )}
