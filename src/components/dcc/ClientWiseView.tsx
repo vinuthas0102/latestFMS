@@ -357,7 +357,6 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
   tiles, onPay, onViewDetails, onChat, onShowDuePayment, canRecordPayment, chatTileId,
 }) => {
   const clientGroups = useMemo(() => groupByClient(tiles), [tiles]);
-  const allClientIds = useMemo(() => clientGroups.map((g) => g.ownerId), [clientGroups]);
 
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [summaryOwnerId, setSummaryOwnerId] = useState<string | null>(null);
@@ -371,9 +370,6 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
     });
   };
 
-  const expandAll = () => setExpandedClients(new Set(allClientIds));
-  const collapseAll = () => setExpandedClients(new Set());
-
   if (clientGroups.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -386,30 +382,6 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2 text-[11px] text-slate-500">
-          <Users size={13} className="text-blue-600" />
-          <span className="font-bold text-slate-700">{clientGroups.length} Clients</span>
-          <span className="text-slate-300">·</span>
-          <span>{tiles.length} Demands</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={expandAll}
-            className="px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={collapseAll}
-            className="px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-          >
-            Collapse All
-          </button>
-        </div>
-      </div>
-
       {/* Client groups */}
       {clientGroups.map((group) => {
         const isExpanded = expandedClients.has(group.ownerId);

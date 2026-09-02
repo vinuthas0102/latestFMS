@@ -1087,6 +1087,9 @@ export const DCCPage: React.FC = () => {
             const countText = hasAdvFilters
               ? `${visibleCount} of ${totalCount}`
               : `${visibleCount}`;
+            const clientCount = viewMode === 'client'
+              ? new Set(filteredTiles.map(t => t.owner_id)).size
+              : 0;
             const handleClear = () => {
               setFilterState(emptyFilterState);
               setDpFilter('ALL');
@@ -1104,6 +1107,11 @@ export const DCCPage: React.FC = () => {
                 <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
                   · {countText}
                 </span>
+                {clientCount > 0 && (
+                  <span className="text-[10px] font-semibold text-blue-600 whitespace-nowrap">
+                    · {clientCount} {clientCount === 1 ? 'Client' : 'Clients'}
+                  </span>
+                )}
                 {hasAdvFilters && (
                   <button
                     onClick={handleClear}
