@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DCCClientDueSummaryModal } from '../../pages/DCCClientDueSummaryPage';
 import {
   Users, Phone, MapPin, Building2, Receipt, Calendar, Wallet,
   CheckCircle2, AlertTriangle, Clock, ChevronDown, ChevronUp,
@@ -355,11 +355,11 @@ export interface ClientWiseViewProps {
 export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
   tiles, onPay, onViewDetails, onChat, onShowDuePayment, canRecordPayment, chatTileId,
 }) => {
-  const navigate = useNavigate();
   const clientGroups = useMemo(() => groupByClient(tiles), [tiles]);
   const allClientIds = useMemo(() => clientGroups.map((g) => g.ownerId), [clientGroups]);
 
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [summaryOwnerId, setSummaryOwnerId] = useState<string | null>(null);
 
   const toggleClient = (id: string) => {
     setExpandedClients((prev) => {
@@ -425,7 +425,7 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
               group={group}
               isExpanded={isExpanded}
               onToggle={() => toggleClient(group.ownerId)}
-              onViewDetails={() => navigate(`/dcc/client/${group.ownerId}`)}
+              onViewDetails={() => setSummaryOwnerId(group.ownerId)}
             />
 
             {/* Expanded demand details table */}
@@ -453,6 +453,16 @@ export const ClientWiseView: React.FC<ClientWiseViewProps> = ({
           </motion.div>
         );
       })}
+
+      {/* Client Due Summary Overlay */}
+      <AnimatePresence>
+        {summaryOwnerId && (
+          <DCCClientDueSummaryModal
+            ownerId={summaryOwnerId}
+            onClose={() => setSummaryOwnerId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
