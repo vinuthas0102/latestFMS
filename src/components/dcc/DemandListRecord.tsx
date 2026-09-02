@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Eye, MessageSquare, Wallet, CalendarDays,
+  MessageSquare, Wallet, CalendarDays, ChevronRight,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -86,13 +86,6 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                 <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
-                  title="View Details"
-                  className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
-                >
-                  <Eye size={12} />
-                </button>
                 {canPay && onPay && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onPay(tile); }}
@@ -141,6 +134,17 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <LV label="Last Amount" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
             <LV label="Subgroup" value={tile.subgroup} valueCls="text-slate-600" />
             <LV label="Overdue Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
+          </div>
+
+          {/* ── Row 3: View Details button at bottom-right ── */}
+          <div className="flex justify-end border-t border-slate-100 pt-1.5 mt-1.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+              title="View Details"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 transition-colors"
+            >
+              View Details <ChevronRight size={11} />
+            </button>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { DCCClientDueSummaryModal } from '../../pages/DCCClientDueSummaryPage';
 import {
   Users, Phone, MapPin, Building2, Receipt, Calendar, Wallet,
   CheckCircle2, AlertTriangle, Clock, ChevronDown, ChevronUp,
-  MessageSquare, Eye, FileText, TrendingDown,
+  MessageSquare, Eye, ChevronRight,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -217,17 +217,18 @@ const ClientSummaryCard: React.FC<{
             {isExpanded ? 'Collapse' : 'Expand'}
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            onClick={onViewDetails}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            title="View Details"
-          >
-            <Eye size={10} /> View Details
-          </button>
-        </div>
         <div className="text-[9px] text-slate-400">
           Collection: {group.totalDemand > 0 ? Math.round((group.totalPaid / group.totalDemand) * 100) : 0}%
+        </div>
+        {/* View Details button at bottom-right */}
+        <div className="mt-auto flex justify-end">
+          <button
+            onClick={onViewDetails}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 transition-colors"
+            title="View Details"
+          >
+            View Details <ChevronRight size={11} />
+          </button>
         </div>
       </div>
     </div>
