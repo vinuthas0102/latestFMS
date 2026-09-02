@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, MessageSquare, Wallet, CalendarDays, ChevronUp, ChevronDown,
-  Phone, MapPin, Users, Calendar, AlertTriangle, CheckCircle2, Clock,
+  Phone, MapPin, Users, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -46,13 +46,11 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
       className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all overflow-hidden"
     >
       <div className="flex items-stretch gap-0">
-        {/* Left status bar */}
         <div className={`w-1 shrink-0 ${st.dot}`} />
 
-        {/* Main content */}
-        <div className="flex-1 px-3 py-2.5">
-          {/* Row 1: Identity + amount + status */}
-          <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex-1 px-3 py-2">
+          {/* Row 1: Identity + amount */}
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
@@ -69,8 +67,8 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             </div>
           </div>
 
-          {/* Row 2: Label-value grid */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-1.5 border-t border-slate-100 pt-2">
+          {/* Row 2: Key metrics grid */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5">
             <LV label="Run Date" value={fmtDateShort(tile.demand_run_date)} />
             <LV label="Due Date" value={fmtDateShort(tile.due_date)} valueCls={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-900'} />
             <LV label="Total" value={fmtINRShort(tile.total_amount)} />
@@ -79,29 +77,15 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <LV label="Penalty" value={tile.overdue_amount > 0 ? fmtINRShort(tile.overdue_amount) : '—'} valueCls="text-red-600" />
           </div>
 
-          {/* Row 3: Secondary details */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-1.5 border-t border-slate-100 pt-2 mt-1.5 bg-slate-50/50">
-            <LV label="Txn Type" value={tile.demand_type_code} valueCls="text-slate-500" />
-            <LV label="Last Paid" value={tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : '—'} />
-            <LV label="Last Amt" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
-            <LV label="Avg OD Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
-            <LV label="Region" value={tile.region || '—'} valueCls="text-slate-500" />
-            <LV label="Group" value={tile.group_name || '—'} valueCls="text-slate-500" />
-          </div>
-
-          {/* Row 4: Owner info + actions */}
-          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap border-t border-slate-100 pt-2 mt-1.5 text-[10px] text-slate-600">
+          {/* Row 3: Owner info + actions */}
+          <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap border-t border-slate-100 pt-1.5 mt-1.5 text-[10px] text-slate-600">
             <span className="flex items-center gap-0.5 min-w-0">
               <Users size={10} className="text-slate-400 shrink-0" />
-              <span className="truncate font-medium">{tile.owner_name}</span>
+              <span className="truncate font-medium max-w-[120px]">{tile.owner_name}</span>
             </span>
             <span className="flex items-center gap-0.5 shrink-0">
               <Phone size={10} className="text-slate-400" />
-              <span className="truncate">{tile.owner_contact || '—'}</span>
-            </span>
-            <span className="flex items-center gap-0.5 shrink-0">
-              <MapPin size={10} className="text-slate-400" />
-              <span className="truncate max-w-[160px]">{tile.owner_address || '—'}</span>
+              <span className="truncate max-w-[100px]">{tile.owner_contact || '—'}</span>
             </span>
             {tile.overdue_amount > 0 && (
               <span className="flex items-center gap-0.5 shrink-0 text-red-600 font-semibold">
@@ -114,20 +98,19 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
               </span>
             )}
 
-            {/* Actions */}
             <div className="ml-auto flex items-center gap-1 shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
                 title="View Details"
-                className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+                className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
               >
-                <Eye size={13} />
+                <Eye size={12} />
               </button>
               {canPay && onPay && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onPay(tile); }}
                   title="Pay Now"
-                  className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
                 >
                   <Wallet size={10} /> Pay
                 </button>
@@ -136,7 +119,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                 <button
                   onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
                   title="Due Payment"
-                  className="flex items-center gap-0.5 px-1.5 py-1 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
                 >
                   <CalendarDays size={10} /> Due
                 </button>
@@ -145,7 +128,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                 <button
                   onClick={(e) => { e.stopPropagation(); onChat(tile); }}
                   title="Chat"
-                  className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                  className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
                     isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -155,14 +138,14 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
               <button
                 onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
                 title={expanded ? 'Show Less' : 'Show More'}
-                className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+                className="flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
               >
                 {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
             </div>
           </div>
 
-          {/* Expanded section */}
+          {/* Expanded section — only appears when toggled */}
           <AnimatePresence>
             {expanded && (
               <motion.div
@@ -172,11 +155,15 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5 border-t border-slate-100 pt-2 mt-1.5 bg-slate-50/40 text-[10px]">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5 bg-slate-50/40">
+                  <LV label="Txn Type" value={tile.demand_type_code} valueCls="text-slate-500" />
+                  <LV label="Last Paid" value={tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : '—'} />
+                  <LV label="Last Amt" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
+                  <LV label="Avg OD Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
+                  <LV label="Region" value={tile.region || '—'} valueCls="text-slate-500" />
+                  <LV label="Group" value={tile.group_name || '—'} valueCls="text-slate-500" />
                   <LV label="Subgroup" value={tile.subgroup || '—'} valueCls="text-slate-500" />
-                  <LV label="Object Type" value={tile.object_type} valueCls="text-slate-500" />
-                  <LV label="Demand Code" value={tile.demand_type_code} valueCls="text-slate-500" />
-                  <LV label="Status" value={st.label} valueCls={st.text} />
+                  <LV label="Address" value={tile.owner_address || '—'} valueCls="text-slate-500" />
                 </div>
               </motion.div>
             )}
