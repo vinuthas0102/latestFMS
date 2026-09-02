@@ -29,6 +29,7 @@ import {
 import { DCCReconciliationTab } from '../components/dcc/DCCReconciliationTab';
 import { DCCReportsTab } from '../components/dcc/DCCReportsTab';
 import { ClientWiseView } from '../components/dcc/ClientWiseView';
+import { DemandListRecord } from '../components/dcc/DemandListRecord';
 import { useViewPreference } from '../hooks/useViewPreference';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import type { ViewMode } from '../components/ui/ViewSwitcher';
@@ -1122,15 +1123,17 @@ export const DCCPage: React.FC = () => {
           />
         ) : (
           <div className="flex flex-col gap-2.5">
-            {filteredTiles.map(tile => (
-              <DemandListCard
+            {filteredTiles.map((tile, idx) => (
+              <DemandListRecord
                 key={tile.id}
                 tile={tile}
-                onPay={handlePay}
+                idx={idx}
                 onViewDetails={handleViewDetails}
+                onPay={handlePay}
                 onChat={handleOpenChat}
                 onShowDuePayment={handleShowDuePayment}
                 isChatActive={chatTileId === tile.id}
+                canRecordPayment={canRecordPayment}
               />
             ))}
           </div>

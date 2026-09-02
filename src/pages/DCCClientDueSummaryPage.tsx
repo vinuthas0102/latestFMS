@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { DCCDemandDetailModal } from './DCCDemandDetailPage';
+import { DemandListRecord } from '../components/dcc/DemandListRecord';
 import type { DccTile, DccDemandStatus } from '../types/dcc';
 import {
   DCC_STATUS,
@@ -272,53 +273,14 @@ export const DCCClientDueSummaryModal: React.FC<DCCClientDueSummaryModalProps> =
     );
   };
 
-  // ── List view (enhanced with left border + two-line) ────────────────────────
-  const ListView: React.FC<{ tile: DccTile; idx: number }> = ({ tile, idx }) => {
-    const st = DCC_STATUS[tile.status];
-    return (
-      <motion.button
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.15, delay: Math.min(idx * 0.02, 0.1) }}
-        whileHover={{ scale: 1.005 }}
-        onClick={() => setDetailDemandId(tile.id)}
-        className="w-full bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all text-left overflow-hidden group"
-      >
-        <div className="flex items-stretch gap-0">
-          <div className={`w-1 shrink-0 ${st.dot}`} />
-          <div className="flex-1 px-3 py-2 flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">{tile.demand_type_label}</span>
-              </div>
-              <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
-              <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
-            </div>
-            <div className="hidden sm:flex items-center gap-4 shrink-0">
-              <LV label="Run" value={fmtDateShort(tile.demand_run_date)} />
-              <LV label="Due" value={fmtDateShort(tile.due_date)} valueCls={tile.status === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-900'} />
-              <LV label="Total" value={fmtINRShort(tile.total_amount)} />
-              <LV label="Paid" value={tile.amount_paid > 0 ? fmtINRShort(tile.amount_paid) : '—'} valueCls="text-emerald-600" />
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-sm font-extrabold text-slate-900 tabular-nums">{fmtINR(tile.amount_due)}</div>
-            </div>
-            <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border} shrink-0`}>
-              {st.label}
-            </span>
-            <button
-              onClick={(e) => { e.stopPropagation(); setDetailDemandId(tile.id); }}
-              title="View Details"
-              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all shrink-0"
-            >
-              <Eye size={13} />
-            </button>
-            <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
-          </div>
-        </div>
-      </motion.button>
-    );
-  };
+  // ── List view (shared label-value record) ───────────────────────────────────
+  const ListView: React.FC<{ tile: DccTile; idx: number }> = ({ tile, idx }) => (
+    <DemandListRecord
+      tile={tile}
+      idx={idx}
+      onViewDetails={(t) => setDetailDemandId(t.id)}
+    />
+  );
 
   // ── Table view (status column last/right) ────────────────────────────────────
   const TableView: React.FC = () => (
