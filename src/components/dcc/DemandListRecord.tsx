@@ -178,5 +178,4 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
 
 export default DemandListRecord;
 
-
 export { DemandListRecord }
