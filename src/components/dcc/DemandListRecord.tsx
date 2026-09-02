@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { motion } from 'framer-motion';
 import {
-  Eye, MessageSquare, Wallet, CalendarDays, ChevronUp, ChevronDown,
+  Eye, MessageSquare, Wallet, CalendarDays,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -32,7 +32,6 @@ export interface DemandListRecordProps {
 export const DemandListRecord: React.FC<DemandListRecordProps> = ({
   tile, idx, onViewDetails, onPay, onChat, onShowDuePayment, isChatActive, canRecordPayment,
 }) => {
-  const [expanded, setExpanded] = useState(false);
   const st = DCC_STATUS[tile.status];
   const canPay = (tile.status === 'DUE' || tile.status === 'OVERDUE') && canRecordPayment;
   const canShowDue = tile.status === 'DUE' || tile.status === 'OVERDUE';
@@ -56,10 +55,9 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
         <div className={`w-1 shrink-0 ${st.dot}`} />
 
         <div className="flex-1 px-3 py-2">
-          {/* ── Row 1: Identity + amount + actions ── */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              {/* Avatar */}
+          {/* ── Row 1: Identity + related details + amount/actions ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,1.25fr)_minmax(360px,2fr)_auto] items-center gap-x-5 gap-y-2">
+            <div className="min-w-0 flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
                 {initials}
               </div>
@@ -68,66 +66,62 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
                   <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
                     {st.label}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">{tile.demand_type_label}</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide truncate">{tile.demand_type_label}</span>
                 </div>
                 <h3 className="text-xs font-bold text-slate-900 truncate leading-snug">{tile.object_description || tile.object_ref}</h3>
                 <p className="text-[10px] text-slate-500 truncate">{tile.object_ref} · {tile.object_type}</p>
               </div>
             </div>
 
-            {/* Amount + actions */}
-            <div className="text-right shrink-0 flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2">
-                <div>
-                  <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
-                  <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
-                </div>
-                {/* Action buttons */}
-                <div className="flex items-center gap-1 shrink-0">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-5 gap-y-1 min-w-0">
+              <LV label="Client" value={tile.owner_name} />
+              <LV label="Contact" value={tile.owner_contact} valueCls="text-slate-600" />
+              <LV label="Region" value={tile.region} valueCls="text-slate-600" />
+              <LV label="Group" value={tile.group_name || tile.subgroup} valueCls="text-slate-600" />
+            </div>
+
+            <div className="text-right shrink-0 flex items-center justify-end gap-2">
+              <div>
+                <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
+                <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
+                  title="View Details"
+                  className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+                >
+                  <Eye size={12} />
+                </button>
+                {canPay && onPay && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
-                    title="View Details"
-                    className="flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+                    onClick={(e) => { e.stopPropagation(); onPay(tile); }}
+                    title="Pay Now"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
                   >
-                    <Eye size={12} />
+                    <Wallet size={10} /> Pay
                   </button>
-                  {canPay && onPay && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onPay(tile); }}
-                      title="Pay Now"
-                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
-                    >
-                      <Wallet size={10} /> Pay
-                    </button>
-                  )}
-                  {canShowDue && !canPay && onShowDuePayment && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
-                      title="Due Payment"
-                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
-                    >
-                      <CalendarDays size={10} /> Due
-                    </button>
-                  )}
-                  {onChat && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onChat(tile); }}
-                      title="Chat"
-                      className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
-                        isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <MessageSquare size={11} />
-                    </button>
-                  )}
+                )}
+                {canShowDue && !canPay && onShowDuePayment && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
-                    title={expanded ? 'Show Less' : 'Show More'}
-                    className="flex items-center justify-center w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
+                    title="Due Payment"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
                   >
-                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <CalendarDays size={10} /> Due
                   </button>
-                </div>
+                )}
+                {onChat && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onChat(tile); }}
+                    title="Chat"
+                    className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
+                      isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <MessageSquare size={11} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -142,29 +136,12 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <LV label="Penalty" value={tile.overdue_amount > 0 ? fmtINRShort(tile.overdue_amount) : '—'} valueCls="text-red-600" />
           </div>
 
-          {/* Expanded section — only appears when toggled */}
-          <AnimatePresence>
-            {expanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5 bg-slate-50/40">
-                  <LV label="Txn Type" value={tile.demand_type_code} valueCls="text-slate-500" />
-                  <LV label="Last Paid" value={tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : '—'} />
-                  <LV label="Last Amt" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
-                  <LV label="Avg OD Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
-                  <LV label="Region" value={tile.region || '—'} valueCls="text-slate-500" />
-                  <LV label="Group" value={tile.group_name || '—'} valueCls="text-slate-500" />
-                  <LV label="Subgroup" value={tile.subgroup || '—'} valueCls="text-slate-500" />
-                  <LV label="Owner" value={tile.owner_name || '—'} valueCls="text-slate-500" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 mt-1.5">
+            <LV label="Last Paid" value={tile.last_paid_date ? fmtDateShort(tile.last_paid_date) : '—'} />
+            <LV label="Last Amount" value={tile.last_paid_amount && tile.last_paid_amount > 0 ? fmtINRShort(tile.last_paid_amount) : '—'} valueCls="text-emerald-600" />
+            <LV label="Subgroup" value={tile.subgroup} valueCls="text-slate-600" />
+            <LV label="Overdue Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
+          </div>
         </div>
       </div>
     </motion.div>
