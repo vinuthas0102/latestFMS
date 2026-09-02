@@ -80,41 +80,10 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
               <LV label="Group" value={tile.group_name || tile.subgroup} valueCls="text-slate-600" />
             </div>
 
-            <div className="text-right shrink-0 flex items-center justify-end gap-2">
+            <div className="text-right shrink-0 flex items-center justify-end">
               <div>
                 <div className="text-base font-extrabold text-slate-900 tabular-nums leading-tight">{fmtINR(tile.amount_due)}</div>
                 <div className="text-[9px] text-slate-400">of {fmtINRShort(tile.total_amount)}</div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {canPay && onPay && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onPay(tile); }}
-                    title="Pay Now"
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
-                  >
-                    <Wallet size={10} /> Pay
-                  </button>
-                )}
-                {canShowDue && !canPay && onShowDuePayment && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
-                    title="Due Payment"
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
-                  >
-                    <CalendarDays size={10} /> Due
-                  </button>
-                )}
-                {onChat && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onChat(tile); }}
-                    title="Chat"
-                    className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
-                      isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <MessageSquare size={11} />
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -136,12 +105,41 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <LV label="Overdue Days" value={tile.avg_overdue_days > 0 ? `${tile.avg_overdue_days}d` : '—'} valueCls={tile.avg_overdue_days > 0 ? 'text-red-600' : 'text-slate-500'} />
           </div>
 
-          {/* ── Row 3: View Details button at bottom-right ── */}
-          <div className="flex justify-end border-t border-slate-100 pt-1.5 mt-1.5">
+          {/* ── Row 3: Actions at bottom-right ── */}
+          <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-1.5 mt-1.5">
+            {canPay && onPay && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onPay(tile); }}
+                title="Pay Now"
+                className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+              >
+                <Wallet size={11} /> Pay
+              </button>
+            )}
+            {canShowDue && !canPay && onShowDuePayment && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onShowDuePayment(tile); }}
+                title="Due Payment"
+                className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+              >
+                <CalendarDays size={11} /> Due
+              </button>
+            )}
+            {onChat && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onChat(tile); }}
+                title="Chat"
+                className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                  isChatActive ? 'bg-slate-800 text-white' : 'text-slate-500 bg-white border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <MessageSquare size={12} />
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
               title="View Details"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition-colors"
             >
               View Details <ChevronRight size={11} />
             </button>
