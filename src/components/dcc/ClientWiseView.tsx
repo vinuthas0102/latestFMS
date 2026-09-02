@@ -224,7 +224,7 @@ const ClientSummaryCard: React.FC<{
         <div className="mt-auto flex justify-end">
           <button
             onClick={onViewDetails}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             title="View Details"
           >
             View Details <ChevronRight size={11} />

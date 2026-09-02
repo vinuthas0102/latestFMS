@@ -56,7 +56,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
 
         <div className="flex-1 px-3 py-2">
           {/* ── Row 1: Identity + related details + amount/actions ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,1.25fr)_minmax(360px,2fr)_auto] items-center gap-x-5 gap-y-2">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(240px,1.1fr)_minmax(430px,2fr)_auto] items-center gap-x-3 gap-y-2">
             <div className="min-w-0 flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
                 {initials}
@@ -73,7 +73,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-5 gap-y-1 min-w-0">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-3 lg:gap-x-4 gap-y-1 min-w-0">
               <LV label="Client" value={tile.owner_name} />
               <LV label="Contact" value={tile.owner_contact} valueCls="text-slate-600" />
               <LV label="Region" value={tile.region} valueCls="text-slate-600" />
@@ -139,7 +139,7 @@ export const DemandListRecord: React.FC<DemandListRecordProps> = ({
             <button
               onClick={(e) => { e.stopPropagation(); onViewDetails(tile); }}
               title="View Details"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             >
               View Details <ChevronRight size={11} />
             </button>

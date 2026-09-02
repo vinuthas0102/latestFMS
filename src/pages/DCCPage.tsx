@@ -824,6 +824,15 @@ export const DCCPage: React.FC = () => {
     if (filterState.demandTypeCodes.length > 0) {
       result = result.filter(t => filterState.demandTypeCodes.includes(t.demand_type_code));
     }
+
+    const statusRank: Record<string, number> = { OVERDUE: 0, DUE: 1, DISPUTED: 2, EXEMPTED: 3, PAID: 4 };
+    result = [...result].sort((a, b) => {
+      const ra = statusRank[a.status] ?? 5;
+      const rb = statusRank[b.status] ?? 5;
+      if (ra !== rb) return ra - rb;
+      return (b.overdue_amount || 0) - (a.overdue_amount || 0);
+    });
+
     return result;
   }, [tiles, dpFilter, subDpFilter, filterState]);
 
