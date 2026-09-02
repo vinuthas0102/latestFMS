@@ -4,7 +4,7 @@ import { DCCClientDueSummaryModal } from '../../pages/DCCClientDueSummaryPage';
 import {
   Users, Phone, MapPin, Building2, Receipt, Calendar, Wallet,
   CheckCircle2, AlertTriangle, Clock, ChevronDown, ChevronUp,
-  MessageSquare, Eye,
+  MessageSquare, Eye, FileText, TrendingDown,
 } from 'lucide-react';
 import type { DccTile } from '../../types/dcc';
 import {
@@ -113,7 +113,7 @@ const StatusBadge: React.FC<{ status: 'PAID' | 'DUE' | 'OVERDUE' }> = ({ status 
   );
 };
 
-// ── Client summary card (2-row compact layout) ───────────────────────────────
+// ── Client summary card (4-column high-density) ──────────────────────────────
 const ClientSummaryCard: React.FC<{
   group: ClientGroup;
   isExpanded: boolean;
@@ -121,108 +121,114 @@ const ClientSummaryCard: React.FC<{
   onViewDetails: () => void;
 }> = ({ group, isExpanded, onToggle, onViewDetails }) => {
   const initials = group.ownerName.charAt(0).toUpperCase();
-  const collectionPct = group.totalDemand > 0 ? Math.round((group.totalPaid / group.totalDemand) * 100) : 0;
 
   return (
-    <div className="px-3 py-2">
-      {/* ── Row 1: Client identity + status + actions ── */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-slate-200">
+      {/* Column 1: Client Info */}
+      <div className="bg-white px-3 py-2.5 flex items-start gap-2.5">
+        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-xs font-bold text-slate-900 truncate leading-tight">{group.ownerName}</h3>
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[9px] font-bold border border-blue-200 shrink-0">
-              <Building2 size={9} /> {group.propertyCount} {group.propertyCount === 1 ? 'Prop' : 'Props'}
-            </span>
+          <h3 className="text-xs font-bold text-slate-900 truncate leading-tight">{group.ownerName}</h3>
+          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-500">
+            <Phone size={9} className="shrink-0" />
+            <span className="truncate">{group.ownerContact || '—'}</span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
-            <span className="flex items-center gap-0.5 min-w-0">
-              <Phone size={9} className="shrink-0" />
-              <span className="truncate">{group.ownerContact || '—'}</span>
-            </span>
-            <span className="flex items-center gap-0.5 min-w-0">
-              <MapPin size={9} className="shrink-0" />
-              <span className="truncate">{group.ownerAddress || '—'}</span>
-            </span>
+          <div className="flex items-start gap-1 mt-0.5 text-[10px] text-slate-500">
+            <MapPin size={9} className="shrink-0 mt-0.5" />
+            <span className="truncate">{group.ownerAddress || '—'}</span>
           </div>
+          <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[9px] font-bold border border-blue-200">
+            <Building2 size={9} /> {group.propertyCount} {group.propertyCount === 1 ? 'Property' : 'Properties'}
+          </span>
         </div>
-        <StatusBadge status={group.overallStatus} />
-        <button
-          onClick={onToggle}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shrink-0"
-        >
-          {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          {isExpanded ? 'Collapse' : 'Expand'}
-        </button>
       </div>
 
-      {/* ── Row 2: Demand stats + financials + actions inline ── */}
-      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1.5 text-[10px]">
-        {/* Demand count + type chips */}
-        <span className="flex items-center gap-1 shrink-0">
-          <Receipt size={10} className="text-slate-400" />
-          <span className="font-bold text-slate-700 tabular-nums">{group.demandCount}</span>
-          <span className="text-slate-400">demands</span>
-        </span>
-        <span className="flex items-center gap-1 shrink-0 text-slate-500">
+      {/* Column 2: Demand Overview */}
+      <div className="bg-white px-3 py-2.5">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Receipt size={11} className="text-slate-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Demand Overview</span>
+        </div>
+        <div className="text-sm font-extrabold text-slate-900 tabular-nums">{group.demandCount} Demands</div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {group.demandTypes.slice(0, 4).map((dt) => (
+            <span key={dt.label} className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-semibold">
+              {dt.label} · {dt.count}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-500">
           <Calendar size={9} />
-          <span className="tabular-nums">Run {fmtDateShort(group.runDateMin)}{group.runDateMax && group.runDateMin !== group.runDateMax ? `–${fmtDateShort(group.runDateMax)}` : ''}</span>
-        </span>
-        <span className="flex items-center gap-1 shrink-0 text-slate-500">
-          <Clock size={9} />
-          <span className="tabular-nums">Due {fmtDateShort(group.dueDateMin)}{group.dueDateMax && group.dueDateMin !== group.dueDateMax ? `–${fmtDateShort(group.dueDateMax)}` : ''}</span>
-        </span>
-
-        {/* Divider */}
-        <span className="hidden md:inline text-slate-200">|</span>
-
-        {/* Financial breakdown inline */}
-        <span className="flex items-center gap-1 shrink-0">
-          <span className="text-slate-400">Demand</span>
-          <span className="font-bold text-slate-900 tabular-nums">{fmtINRShort(group.totalDemand)}</span>
-        </span>
-        <span className="flex items-center gap-1 shrink-0">
-          <CheckCircle2 size={9} className="text-emerald-500" />
-          <span className="font-bold text-emerald-600 tabular-nums">{fmtINRShort(group.totalPaid)}</span>
-        </span>
-        <span className="flex items-center gap-1 shrink-0">
-          <span className="text-slate-400">Outstanding</span>
-          <span className="font-extrabold text-red-600 tabular-nums">{fmtINRShort(group.totalOutstanding)}</span>
-        </span>
-        {group.overdueAmount > 0 && (
-          <span className="flex items-center gap-1 shrink-0">
-            <AlertTriangle size={9} className="text-red-500" />
-            <span className="font-bold text-red-700 tabular-nums">{fmtINRShort(group.overdueAmount)}</span>
+          <span>
+            Run: {fmtDateShort(group.runDateMin)}{group.runDateMax && group.runDateMin !== group.runDateMax ? `–${fmtDateShort(group.runDateMax)}` : ''}
           </span>
-        )}
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+          <Clock size={9} />
+          <span>
+            Due: {fmtDateShort(group.dueDateMin)}{group.dueDateMax && group.dueDateMin !== group.dueDateMax ? `–${fmtDateShort(group.dueDateMax)}` : ''}
+          </span>
+        </div>
+      </div>
 
-        {/* Collection rate + view details */}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${collectionPct}%` }} />
-            </div>
-            <span className="text-[9px] font-bold text-slate-500 tabular-nums">{collectionPct}%</span>
+      {/* Column 3: Financial Breakdown */}
+      <div className="bg-white px-3 py-2.5">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Wallet size={11} className="text-slate-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Financial Breakdown</span>
+        </div>
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-500">Total Demand</span>
+            <span className="text-xs font-bold text-slate-900 tabular-nums">{fmtINR(group.totalDemand)}</span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+              <CheckCircle2 size={9} className="text-emerald-500" /> Total Paid
+            </span>
+            <span className="text-xs font-bold text-emerald-600 tabular-nums">{fmtINR(group.totalPaid)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-500">Outstanding</span>
+            <span className="text-sm font-extrabold text-red-600 tabular-nums">{fmtINR(group.totalOutstanding)}</span>
+          </div>
+          {group.overdueAmount > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                <AlertTriangle size={9} className="text-red-500" /> Overdue
+              </span>
+              <span className="text-xs font-bold text-red-700 tabular-nums">{fmtINR(group.overdueAmount)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Column 4: Status & Actions */}
+      <div className="bg-white px-3 py-2.5 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <StatusBadge status={group.overallStatus} />
+          <button
+            onClick={onToggle}
+            className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors"
+          >
+            {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            {isExpanded ? 'Collapse' : 'Expand'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
           <button
             onClick={onViewDetails}
             className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             title="View Details"
           >
-            <Eye size={10} /> Details
+            <Eye size={10} /> View Details
           </button>
         </div>
-      </div>
-
-      {/* Demand type chips — fill remaining space in row 2 */}
-      <div className="flex flex-wrap gap-1 mt-1">
-        {group.demandTypes.slice(0, 6).map((dt) => (
-          <span key={dt.label} className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-semibold">
-            {dt.label} · {dt.count}
-          </span>
-        ))}
+        <div className="text-[9px] text-slate-400">
+          Collection: {group.totalDemand > 0 ? Math.round((group.totalPaid / group.totalDemand) * 100) : 0}%
+        </div>
       </div>
     </div>
   );
