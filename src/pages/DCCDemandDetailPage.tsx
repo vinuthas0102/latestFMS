@@ -764,7 +764,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                         {config.components.map(comp => (
                           <th key={comp.key} className="py-2 px-3 text-right font-bold text-slate-600 border-b border-slate-200">{comp.label}</th>
                         ))}
-                        <th className="py-2 px-3 text-right font-bold text-slate-600 border-b border-slate-200">Penalty</th>
                         <th className="py-2 px-3 text-right font-bold text-slate-600 border-b border-slate-200">Total Line Due</th>
                       </tr>
                     </thead>
@@ -778,7 +777,6 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                               {(m.charges[comp.key] ?? 0) > 0 ? fmtINR(m.charges[comp.key]) : '—'}
                             </td>
                           ))}
-                          <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">{(m.charges['penalty'] ?? 0) > 0 ? fmtINR(m.charges['penalty']) : '—'}</td>
                           <td className="py-1.5 px-3 text-right">
                             <span className="font-mono font-bold text-slate-900">{fmtINR(m.total)}</span>
                           </td>
@@ -787,7 +785,7 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td colSpan={config.components.length + 3} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
+                        <td colSpan={config.components.length + 2} className="py-1.5 px-3 text-right font-bold text-slate-700">Total Outstanding:</td>
                         <td className="py-1.5 px-3 text-right font-mono font-extrabold text-red-600">{fmtINR(tile.amount_due)}</td>
                       </tr>
                     </tfoot>
@@ -797,22 +795,22 @@ export const DCCDemandDetailModal: React.FC<DCCDemandDetailModalProps> = ({ dema
 
               {/* ── Amount Summary and Pay Outstanding ──────────────────────────── */}
               <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Outstanding</span>
-                    <span className="block mt-0.5 text-base font-black text-red-600 tabular-nums">{fmtINR(tile.amount_due)}</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Outstanding</span>
+                    <span className="text-base font-black text-red-600 tabular-nums">{fmtINR(tile.amount_due)}</span>
                   </div>
-                  <div className="rounded-md bg-red-50 border border-red-100 px-3 py-2">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-red-500">Penalty ({appliedPenaltyPct}%)</span>
-                    <span className="block mt-0.5 text-base font-black text-red-700 tabular-nums">{penaltyAmount > 0 ? fmtINR(penaltyAmount) : '—'}</span>
+                  <div className="flex items-baseline justify-between gap-4 text-xs">
+                    <span className="text-slate-500">Penalty ({appliedPenaltyPct}%)</span>
+                    <span className="font-semibold text-red-700 tabular-nums">{penaltyAmount > 0 ? fmtINR(penaltyAmount) : '—'}</span>
                   </div>
-                  <div className="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-600">Early Discount ({earlyDisc.pct}%)</span>
-                    <span className="block mt-0.5 text-base font-black text-emerald-700 tabular-nums">{earlyDisc.discount > 0 ? `-${fmtINR(earlyDisc.discount)}` : '—'}</span>
+                  <div className="flex items-baseline justify-between gap-4 text-xs">
+                    <span className="text-slate-500">Early Discount ({earlyDisc.pct}%)</span>
+                    <span className="font-semibold text-emerald-700 tabular-nums">{earlyDisc.discount > 0 ? `-${fmtINR(earlyDisc.discount)}` : '—'}</span>
                   </div>
-                  <div className="rounded-md bg-slate-800 border border-slate-800 px-3 py-2">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-300">Final Amount Payable</span>
-                    <span className="block mt-0.5 text-base font-black text-white tabular-nums">{fmtINR(netPayable)}</span>
+                  <div className="flex items-baseline justify-between gap-4 border-t border-slate-100 pt-1.5 text-xs">
+                    <span className="font-bold text-slate-700">Final Amount Payable</span>
+                    <span className="font-black text-slate-900 tabular-nums">{fmtINR(netPayable)}</span>
                   </div>
                 </div>
                 {!isPaidOrExempted && (canRecordPayment || isGovtOfficial) && (
