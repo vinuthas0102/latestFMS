@@ -4,7 +4,7 @@ import {
   X, Users, Phone, MapPin, Building2, Receipt,
   Calendar, Clock, Wallet, CheckCircle2, AlertTriangle,
   Loader2, ChevronRight, LayoutGrid, List, Table2,
-  Filter, RotateCcw, Search, TrendingUp,
+  Filter, RotateCcw, Search, TrendingUp, Eye,
 } from 'lucide-react';
 import { dccService } from '../services/dccService';
 import { DCCDemandDetailModal } from './DCCDemandDetailPage';
@@ -120,7 +120,7 @@ export const DCCClientDueSummaryModal: React.FC<DCCClientDueSummaryModalProps> =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailDemandId, setDetailDemandId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [activeKpi, setActiveKpi] = useState<KpiKey>('ALL');
   const [filterState, setFilterState] = useState<LocalFilterState>(emptyFilterState);
   const [showFilter, setShowFilter] = useState(false);
@@ -306,6 +306,13 @@ export const DCCClientDueSummaryModal: React.FC<DCCClientDueSummaryModalProps> =
             <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border} shrink-0`}>
               {st.label}
             </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setDetailDemandId(tile.id); }}
+              title="View Details"
+              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all shrink-0"
+            >
+              <Eye size={13} />
+            </button>
             <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
           </div>
         </div>
@@ -329,6 +336,7 @@ export const DCCClientDueSummaryModal: React.FC<DCCClientDueSummaryModalProps> =
               <th className="py-2 px-3 text-right font-bold text-slate-600">Pending</th>
               <th className="py-2 px-3 text-right font-bold text-slate-600">Penalty</th>
               <th className="py-2 px-3 text-center font-bold text-slate-600">Status</th>
+              <th className="py-2 px-3 text-center font-bold text-slate-600">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -361,6 +369,15 @@ export const DCCClientDueSummaryModal: React.FC<DCCClientDueSummaryModalProps> =
                     <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold ${st.bg} ${st.text} border ${st.border}`}>
                       {st.label}
                     </span>
+                  </td>
+                  <td className="py-1.5 px-3 text-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDetailDemandId(tile.id); }}
+                      title="View Details"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+                    >
+                      <Eye size={13} />
+                    </button>
                   </td>
                 </tr>
               );
