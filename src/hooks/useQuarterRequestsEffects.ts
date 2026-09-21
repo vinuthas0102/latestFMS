@@ -19,6 +19,12 @@ interface AvqMenuCloseCtx {
   setAvqMenuPos: (v: { top: number; left: number } | null) => void;
 }
 
+interface SvcMenuCloseCtx {
+  svcMenuRef: RefObject<HTMLDivElement>;
+  setSvcMenuOpenId: (v: string | null) => void;
+  setSvcMenuPos: (v: { top: number; left: number } | null) => void;
+}
+
 interface FilterPopupCtx {
   modalFilterOpen: boolean;
   modalFilterRef: RefObject<HTMLDivElement>;
@@ -65,6 +71,7 @@ interface PrefillCtx {
 export function useQuarterRequestsEffects(
   menu_: MenuCloseCtx,
   avqMenu_: AvqMenuCloseCtx,
+  svcMenu_: SvcMenuCloseCtx,
   filterPopup_: FilterPopupCtx,
   dpScroll_: DpScrollCtx,
   eoRight_: EoRightModeCtx,
@@ -102,6 +109,25 @@ export function useQuarterRequestsEffects(
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { avqMenu_.setAvqMenuId(null); avqMenu_.setAvqMenuPos(null); }
+    };
+    document.addEventListener('mousedown', onMouse);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close service dot-menu on outside click or Escape
+  useEffect(() => {
+    const onMouse = (e: MouseEvent) => {
+      if (svcMenu_.svcMenuRef.current && !svcMenu_.svcMenuRef.current.contains(e.target as Node)) {
+        svcMenu_.setSvcMenuOpenId(null);
+        svcMenu_.setSvcMenuPos(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { svcMenu_.setSvcMenuOpenId(null); svcMenu_.setSvcMenuPos(null); }
     };
     document.addEventListener('mousedown', onMouse);
     document.addEventListener('keydown', onKey);

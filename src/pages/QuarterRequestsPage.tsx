@@ -146,6 +146,7 @@ export const QuarterRequestsPage: React.FC = () => {
     manualAllotSubmitting, setManualAllotSubmitting,
     eoTrId, setEoTrId, eoTrAction, setEoTrAction, eoTrNotes, setEoTrNotes,
     eoTrSubmitting, setEoTrSubmitting, svcMenuOpenId, setSvcMenuOpenId,
+    svcMenuPos, setSvcMenuPos, svcMenuRef,
     showRunAllocationPopup, setShowRunAllocationPopup, runAllocSubmitting, setRunAllocSubmitting,
     runAllocCycleName, setRunAllocCycleName, runAllocStart, setRunAllocStart,
     runAllocEnd, setRunAllocEnd,
@@ -495,6 +496,7 @@ export const QuarterRequestsPage: React.FC = () => {
   useQuarterRequestsEffects(
     { menuRef, setOpenMenuId, setMenuPos },
     { avqMenuRef, setAvqMenuId, setAvqMenuPos },
+    { svcMenuRef, setSvcMenuOpenId, setSvcMenuPos },
     { modalFilterOpen, modalFilterRef, setModalFilterOpen },
     { dpScrollRef, dpFilter, updateDpScrollState, eoMode },
     {
@@ -560,6 +562,17 @@ export const QuarterRequestsPage: React.FC = () => {
     const top = spaceBelow > menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4;
     setAvqMenuPos({ top, left: rect.right - 200 });
     setAvqMenuId(quarterId);
+  }
+
+  function openSvcMenu(e: React.MouseEvent, svcId: string, itemCount: number) {
+    e.stopPropagation();
+    if (svcMenuOpenId === svcId) { setSvcMenuOpenId(null); setSvcMenuPos(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuHeight = Math.min(itemCount * 36 + 28, 320);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow > menuHeight + 8 ? rect.bottom + 4 : rect.top - menuHeight - 4;
+    setSvcMenuPos({ top, left: Math.max(8, rect.right - 200) });
+    setSvcMenuOpenId(svcId);
   }
 
   function resetActionForm() {
@@ -3788,89 +3801,27 @@ export const QuarterRequestsPage: React.FC = () => {
                                               vacMenuItems.push({ label: 'Update Findings', icon: <span className="w-5 h-5 rounded-md bg-indigo-600 flex items-center justify-center shrink-0"><ClipboardCheck size={10} className="text-white" /></span>, onClick: () => { setSvcMenuOpenId(null); setDamageFindingsTarget(svc); }, disabled: processingVacateInspection === svc.id });
                                             }
                                             return (
-                                              <div className="relative shrink-0">
-                                                <button
-                                                  onClick={e => { e.stopPropagation(); setSvcMenuOpenId(prev => prev === svc.id ? null : svc.id); }}
-                                                  className="p-1 rounded-md border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 transition-colors"
-                                                  title="Actions"
-                                                >
-                                                  <MoreVertical size={11} />
-                                                </button>
-                                                {svcMenuOpenId === svc.id && (
-                                                  <div
-                                                    className="absolute right-0 bottom-7 z-30 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1 text-xs"
-                                                    onClick={e => e.stopPropagation()}
-                                                  >
-                                                    <div className="px-3 pt-1.5 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Vacate Inspection</span></div>
-                                                    {vacMenuItems.map((item, idx) => (
-                                                      <button
-                                                        key={idx}
-                                                        onClick={item.onClick}
-                                                        disabled={item.disabled}
-                                                        className={`w-full flex items-center gap-2 px-3 py-2 font-medium transition-colors ${item.disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'} ${idx === 0 ? 'rounded-t-none' : ''} ${idx === vacMenuItems.length - 1 ? 'rounded-b-xl' : ''}`}
-                                                      >
-                                                        {item.icon}{item.label}
-                                                      </button>
-                                                    ))}
-                                                  </div>
-                                                )}
-                                              </div>
+                                              <button
+                                                onClick={e => openSvcMenu(e, svc.id, vacMenuItems.length)}
+                                                className={`p-1 rounded-md border transition-colors shrink-0 ${svcMenuOpenId === svc.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                                title="Actions"
+                                              >
+                                                <MoreVertical size={11} />
+                                              </button>
                                             );
                                           }
                                           if (!isEO || eoMode !== 'employee') return null;
                                           if (!isMaintenanceOrGrievance && !isExtend) return null;
                                           if (!isPending && !isInProgress) return null;
+                                          const nonVacItemCount = isExtend ? 2 : (isPending ? 2 : 1);
                                           return (
-                                            <div className="relative shrink-0">
-                                              <button
-                                                onClick={e => { e.stopPropagation(); setSvcMenuOpenId(prev => prev === svc.id ? null : svc.id); }}
-                                                className="p-1 rounded-md border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 transition-colors"
-                                                title="Actions"
-                                              >
-                                                <MoreVertical size={11} />
-                                              </button>
-                                              {svcMenuOpenId === svc.id && (
-                                                <div
-                                                  className="absolute right-0 bottom-7 z-30 w-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1 text-xs"
-                                                  onClick={e => e.stopPropagation()}
-                                                >
-                                                  {isMaintenanceOrGrievance && (
-                                                    <>
-                                                      {isPending && (
-                                                        <button
-                                                          onClick={() => handleSvcStatusUpdate(svc.id, 'IN_PROGRESS')}
-                                                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-amber-50 text-amber-700 font-medium transition-colors rounded-t-xl"
-                                                        >
-                                                          <RefreshCw size={11} />In Progress
-                                                        </button>
-                                                      )}
-                                                      <button
-                                                        onClick={() => handleSvcStatusUpdate(svc.id, 'RESOLVED')}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors rounded-b-xl"
-                                                      >
-                                                        <CheckCircle size={11} />Resolved
-                                                      </button>
-                                                    </>
-                                                  )}
-                                                  {isExtend && isPending && (
-                                                    <>
-                                                      <button
-                                                        onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors rounded-t-xl"
-                                                      >
-                                                        <ThumbsUp size={11} />Accept
-                                                      </button>
-                                                      <button
-                                                        onClick={() => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-700 font-medium transition-colors rounded-b-xl"
-                                                      >
-                                                        <ThumbsDown size={11} />Reject
-                                                      </button>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              )}
-                                            </div>
+                                            <button
+                                              onClick={e => openSvcMenu(e, svc.id, nonVacItemCount)}
+                                              className={`p-1 rounded-md border transition-colors shrink-0 ${svcMenuOpenId === svc.id ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'}`}
+                                              title="Actions"
+                                            >
+                                              <MoreVertical size={11} />
+                                            </button>
                                           );
                                         })()}
                                         {/* Expand / collapse */}
@@ -4238,6 +4189,116 @@ export const QuarterRequestsPage: React.FC = () => {
                       Log Details
                     </button>
                   </div>
+                </div>,
+                document.body
+              );
+            })()}
+
+            {/* ── Service portal action menu (renders at fixed viewport coords to avoid clipping) */}
+            {svcMenuOpenId && svcMenuPos && (() => {
+              const svc = tenantRequests.find(t => t.id === svcMenuOpenId);
+              if (!svc) return null;
+              const isMaintenanceOrGrievance = svc.service_type === 'MAINTENANCE' || svc.service_type === 'GRIEVANCE';
+              const isExtend = svc.service_type === 'EXTEND';
+              const isVacate = svc.service_type === 'VACATE';
+              const isPending = svc.request_status === 'PENDING';
+              const isInProgress = svc.request_status === 'IN_PROGRESS';
+
+              if (isVacate) {
+                const vacInsp = vacateInspectionMap[svc.id];
+                const hasInspection = !!vacInsp;
+                const isCompleted = vacInsp?.status === 'COMPLETED';
+                const isInProgressInsp = vacInsp?.status === 'IN_PROGRESS';
+                const isEmployeeAccepted = vacInsp?.employeeAccepted === 'ACCEPTED';
+                const isEmployeePending = vacInsp?.employeeAccepted === 'PENDING';
+                const showEmployeeActions = !isEO && isEmployeePending;
+                const showEOActions = isEO && eoMode === 'employee' && isPending;
+                const showInspectorActions = isEO && eoMode === 'employee' && vacInsp && isEmployeeAccepted && !isCompleted;
+                const showViewReport = hasInspection;
+                const items: { label: string; icon: React.ReactNode; onClick: () => void; disabled?: boolean }[] = [];
+                if (showViewReport) {
+                  items.push({ label: 'View Inspection Report', icon: <span className="w-5 h-5 rounded-md bg-slate-100 flex items-center justify-center shrink-0"><Eye size={10} className="text-slate-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setViewReportTarget(svc); } });
+                }
+                if (showEmployeeActions) {
+                  items.push({ label: 'Accept Schedule', icon: <span className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center shrink-0"><CheckCircle size={10} className="text-emerald-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); handleAcceptInspection(svc.id); }, disabled: acceptingInspection === svc.id });
+                  items.push({ label: 'Decline Schedule', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); handleDeclineInspection(svc.id); }, disabled: acceptingInspection === svc.id });
+                }
+                if (showEOActions) {
+                  items.push({ label: 'Schedule Inspection', icon: <span className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center shrink-0"><Calendar size={10} className="text-sky-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setScheduleTarget(svc); }, disabled: processingVacateInspection === svc.id || hasInspection });
+                  items.push({ label: 'Complete Inspection', icon: <span className="w-5 h-5 rounded-md bg-teal-100 flex items-center justify-center shrink-0"><ClipboardCheck size={10} className="text-teal-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setCompleteTarget(svc); }, disabled: processingVacateInspection === svc.id || !isInProgressInsp });
+                  items.push({ label: 'Accept Vacate', icon: <span className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center shrink-0"><CheckCircle size={10} className="text-emerald-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id || !isCompleted });
+                  items.push({ label: 'Reject Vacate', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id });
+                }
+                if (showInspectorActions) {
+                  items.push({ label: 'Request Details', icon: <span className="w-5 h-5 rounded-md bg-indigo-100 flex items-center justify-center shrink-0"><FileText size={10} className="text-indigo-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setInspectionDetailsTarget(svc); } });
+                  items.push({ label: 'Blank Form', icon: <span className="w-5 h-5 rounded-md bg-indigo-100 flex items-center justify-center shrink-0"><Download size={10} className="text-indigo-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setInspectionDetailsTarget(svc); } });
+                  items.push({ label: 'Update Findings', icon: <span className="w-5 h-5 rounded-md bg-indigo-600 flex items-center justify-center shrink-0"><ClipboardCheck size={10} className="text-white" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setDamageFindingsTarget(svc); }, disabled: processingVacateInspection === svc.id });
+                }
+                if (items.length === 0) return null;
+                return createPortal(
+                  <div
+                    ref={svcMenuRef}
+                    style={{ position: 'fixed', top: svcMenuPos.top, left: svcMenuPos.left, zIndex: 9999, minWidth: 200 }}
+                    className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 text-xs"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="px-3 pt-1.5 pb-0.5"><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Vacate Inspection</span></div>
+                    {items.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={item.onClick}
+                        disabled={item.disabled}
+                        className={`w-full flex items-center gap-2 px-3 py-2 font-medium transition-colors ${item.disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {item.icon}{item.label}
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                );
+              }
+
+              return createPortal(
+                <div
+                  ref={svcMenuRef}
+                  style={{ position: 'fixed', top: svcMenuPos.top, left: svcMenuPos.left, zIndex: 9999, minWidth: 160 }}
+                  className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 text-xs"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {isMaintenanceOrGrievance && (
+                    <>
+                      {isPending && (
+                        <button
+                          onClick={() => { setSvcMenuOpenId(null); setSvcMenuPos(null); handleSvcStatusUpdate(svc.id, 'IN_PROGRESS'); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-amber-50 text-amber-700 font-medium transition-colors"
+                        >
+                          <RefreshCw size={11} />In Progress
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setSvcMenuOpenId(null); setSvcMenuPos(null); handleSvcStatusUpdate(svc.id, 'RESOLVED'); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors"
+                      >
+                        <CheckCircle size={11} />Resolved
+                      </button>
+                    </>
+                  )}
+                  {isExtend && isPending && (
+                    <>
+                      <button
+                        onClick={() => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-medium transition-colors"
+                      >
+                        <ThumbsUp size={11} />Accept
+                      </button>
+                      <button
+                        onClick={() => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-700 font-medium transition-colors"
+                      >
+                        <ThumbsDown size={11} />Reject
+                      </button>
+                    </>
+                  )}
                 </div>,
                 document.body
               );

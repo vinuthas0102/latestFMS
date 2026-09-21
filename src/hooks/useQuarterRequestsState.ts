@@ -66,8 +66,10 @@ export function useQuarterRequestsState() {
   const [eoTrNotes, setEoTrNotes] = useState('');
   const [eoTrSubmitting, setEoTrSubmitting] = useState(false);
 
-  // ── Service card three-dot action menu ────────────────────────────────────
+  // ── Service card three-dot action menu (portal-based) ─────────────────────
   const [svcMenuOpenId, setSvcMenuOpenId] = useState<string | null>(null);
+  const [svcMenuPos, setSvcMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const svcMenuRef = useRef<HTMLDivElement>(null);
 
   // ── EO: Run Allocation popup ───────────────────────────────────────────────
   const [showRunAllocationPopup, setShowRunAllocationPopup] = useState(false);
@@ -414,6 +416,8 @@ export function useQuarterRequestsState() {
     eoTrNotes, setEoTrNotes,
     eoTrSubmitting, setEoTrSubmitting,
     svcMenuOpenId, setSvcMenuOpenId,
+    svcMenuPos, setSvcMenuPos,
+    svcMenuRef,
     showRunAllocationPopup, setShowRunAllocationPopup,
     runAllocSubmitting, setRunAllocSubmitting,
     runAllocCycleName, setRunAllocCycleName,
