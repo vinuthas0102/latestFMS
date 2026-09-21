@@ -11,6 +11,7 @@ import {
   ArrowLeft, ExternalLink, ShieldCheck, UserCog,
   GitMerge, Key, ClipboardList, PlayCircle, CheckSquare, MessageSquare,
   HardHat, ClipboardCheck, Download, Zap, ListFilter, Lock, CheckCircle2, Check, Loader2, AlertTriangle,
+  Calendar,
 } from 'lucide-react';
 import { PhotoLightbox } from '../components/ui/PhotoGallery';
 import SplitLayout from '../components/ui/SplitLayout';
@@ -3748,14 +3749,15 @@ export const QuarterRequestsPage: React.FC = () => {
                                         >
                                           <MessageSquare size={11} />
                                         </button>
-                                        {/* Three-dot action menu — EO employee mode only */}
+                                        {/* Three-dot action menu — EO employee mode only (non-vacate) */}
                                         {isEO && eoMode === 'employee' && (() => {
                                           const isMaintenanceOrGrievance = svc.service_type === 'MAINTENANCE' || svc.service_type === 'GRIEVANCE';
                                           const isExtend = svc.service_type === 'EXTEND';
                                           const isVacate = svc.service_type === 'VACATE';
                                           const isPending = svc.request_status === 'PENDING';
                                           const isInProgress = svc.request_status === 'IN_PROGRESS';
-                                          if (!isMaintenanceOrGrievance && !isExtend && !isVacate) return null;
+                                          if (isVacate) return null;
+                                          if (!isMaintenanceOrGrievance && !isExtend) return null;
                                           if (!isPending && !isInProgress) return null;
                                           return (
                                             <div className="relative shrink-0">
@@ -3804,14 +3806,6 @@ export const QuarterRequestsPage: React.FC = () => {
                                                         <ThumbsDown size={11} />Reject
                                                       </button>
                                                     </>
-                                                  )}
-                                                  {isVacate && isPending && (
-                                                    <button
-                                                      onClick={() => { setSvcMenuOpenId(null); setInspectTarget(req); setInspectRemarks(''); setInspectCondition('GOOD'); setInspectChecklist(buildDefaultChecklist()); setInspectInspectorName(''); }}
-                                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-blue-700 font-medium transition-colors rounded-xl"
-                                                    >
-                                                      <ClipboardCheck size={11} />Inspection
-                                                    </button>
                                                   )}
                                                 </div>
                                               )}
@@ -3898,6 +3892,149 @@ export const QuarterRequestsPage: React.FC = () => {
                                       )}
                                     </div>
                                   )}
+
+                                  {/* Inline vacate inspection actions — visible to all roles */}
+                                  {svc.service_type === 'VACATE' && (() => {
+                                    const vacInsp = vacateInspectionMap[svc.id];
+                                    const hasInspection = !!vacInsp;
+                                    const isCompleted = vacInsp?.status === 'COMPLETED';
+                                    const isInProgress = vacInsp?.status === 'IN_PROGRESS';
+                                    const isPending = svc.request_status === 'PENDING';
+                                    const isEmployeeAccepted = vacInsp?.employeeAccepted === 'ACCEPTED';
+                                    const isEmployeePending = vacInsp?.employeeAccepted === 'PENDING';
+
+                                    if (!isPending && !hasInspection) return null;
+
+                                    return (
+                                      <div className="border-t border-gray-100 px-3 py-2.5 space-y-2" onClick={e => e.stopPropagation()}>
+                                        {/* Vacate stage badge */}
+                                        {vacInsp && (
+                                          <div className="flex items-center gap-1.5 text-[10px] font-semibold rounded-lg px-2.5 py-1.5 w-fit">
+                                            {vacInsp.status === 'SCHEDULED' && isEmployeePending && (
+                                              <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                                <Calendar size={11} /> Scheduled {vacInsp.inspectionDate} · {vacInsp.timeSlot} — Awaiting employee acceptance
+                                              </span>
+                                            )}
+                                            {vacInsp.status === 'SCHEDULED' && isEmployeeAccepted && (
+                                              <span className="flex items-center gap-1.5 text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
+                                                <Calendar size={11} /> Scheduled {vacInsp.inspectionDate} · {vacInsp.timeSlot} — Employee accepted
+                                              </span>
+                                            )}
+                                            {vacInsp.status === 'IN_PROGRESS' && (
+                                              <span className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
+                                                <ClipboardCheck size={11} /> Inspector report submitted — {vacInsp.findings.length} findings · Awaiting EO completion
+                                              </span>
+                                            )}
+                                            {vacInsp.status === 'COMPLETED' && (
+                                              <span className="flex items-center gap-1.5 text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1.5">
+                                                <ClipboardCheck size={11} /> Inspection completed — Ready for decision
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* View report — always visible when inspection exists */}
+                                        {hasInspection && (
+                                          <button
+                                            onClick={() => setViewReportTarget(svc)}
+                                            className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors w-full"
+                                          >
+                                            <Eye size={13} /> View Inspection Report
+                                          </button>
+                                        )}
+
+                                        {/* Employee accept/decline — visible to non-EO (employee) when schedule pending acceptance */}
+                                        {!isEO && isEmployeePending && (
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                              onClick={() => handleAcceptInspection(svc.id)}
+                                              disabled={acceptingInspection === svc.id}
+                                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                              <CheckCircle size={13} /> Accept
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeclineInspection(svc.id)}
+                                              disabled={acceptingInspection === svc.id}
+                                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                            >
+                                              <XCircle size={13} /> Decline
+                                            </button>
+                                          </div>
+                                        )}
+
+                                        {/* EO actions — visible only to EO in employee mode */}
+                                        {isEO && eoMode === 'employee' && isPending && (
+                                          <>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <button
+                                                onClick={() => setScheduleTarget(svc)}
+                                                disabled={processingVacateInspection === svc.id || hasInspection}
+                                                className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                              >
+                                                <Calendar size={13} /> Schedule
+                                              </button>
+                                              <button
+                                                onClick={() => setCompleteTarget(svc)}
+                                                disabled={processingVacateInspection === svc.id || !isInProgress}
+                                                className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                              >
+                                                <ClipboardCheck size={13} /> Complete
+                                              </button>
+                                              <button
+                                                onClick={() => { setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                                                disabled={processingVacateInspection === svc.id || !isCompleted}
+                                                className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                              >
+                                                <CheckCircle size={13} /> Accept
+                                              </button>
+                                              <button
+                                                onClick={() => { setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }}
+                                                disabled={processingVacateInspection === svc.id}
+                                                className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                              >
+                                                <XCircle size={13} /> Reject
+                                              </button>
+                                            </div>
+
+                                            {/* Inspector Actions — shown when employee has accepted the inspection schedule */}
+                                            {vacInsp && isEmployeeAccepted && !isCompleted && (
+                                              <div className="rounded-lg border border-indigo-200 bg-indigo-50/30 p-2.5">
+                                                <div className="flex items-center gap-1.5 mb-2">
+                                                  <HardHat size={11} className="text-indigo-500" />
+                                                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Inspector Actions</span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-1.5">
+                                                  <button
+                                                    onClick={() => setInspectionDetailsTarget(svc)}
+                                                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                                                  >
+                                                    <FileText size={14} />
+                                                    Request Details
+                                                  </button>
+                                                  <button
+                                                    onClick={() => setInspectionDetailsTarget(svc)}
+                                                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                                                  >
+                                                    <Download size={14} />
+                                                    Blank Form
+                                                  </button>
+                                                  <button
+                                                    onClick={() => setDamageFindingsTarget(svc)}
+                                                    disabled={processingVacateInspection === svc.id}
+                                                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                  >
+                                                    <ClipboardCheck size={14} />
+                                                    Update Findings
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             );
