@@ -1,7 +1,8 @@
 import React from 'react';
-import { Building2, CheckCircle, XCircle, Search, Calendar, HardHat, ClipboardCheck } from 'lucide-react';
+import { Building2, CheckCircle, XCircle, Search, Calendar, ClipboardCheck, FileText, Eye } from 'lucide-react';
 import { MandatorySearchBar } from '../../ui/MandatorySearchBar';
 import type { QuarterTenantRequest, Quarter } from '../../../services/quartersService';
+import type { VacateInspectionDetail } from './InspectionReportViewModal';
 
 interface ServiceTypeConfig {
   cls: string;
@@ -26,7 +27,8 @@ interface Props {
   onReject: (tr: QuarterTenantRequest) => void;
   onScheduleInspection: (tr: QuarterTenantRequest) => void;
   onCompleteInspection: (tr: QuarterTenantRequest) => void;
-  vacateInspectionsMap: Record<string, { id: string; status: string }[]>;
+  onViewReport: (tr: QuarterTenantRequest) => void;
+  vacateInspectionMap: Record<string, VacateInspectionDetail | undefined>;
   processingInspection: string | null;
   tenantServiceConfig: (type: string) => ServiceTypeConfig;
   tenantStatusBadge: (status: string) => string;
@@ -40,11 +42,49 @@ const SUMMARY_TILES = [
   { key: 'REJECTED', label: 'Rejected',       color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
 ];
 
+function VacateStageBadge({ inspection }: { inspection?: VacateInspectionDetail }) {
+  if (!inspection) return null;
+  if (inspection.status === 'SCHEDULED' && inspection.employeeAccepted === 'PENDING') {
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+        <Calendar size={11} />
+        Scheduled {inspection.inspectionDate} · {inspection.timeSlot} — Awaiting employee acceptance
+      </div>
+    );
+  }
+  if (inspection.status === 'SCHEDULED' && inspection.employeeAccepted === 'ACCEPTED') {
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
+        <Calendar size={11} />
+        Scheduled {inspection.inspectionDate} · {inspection.timeSlot} — Employee accepted
+      </div>
+    );
+  }
+  if (inspection.status === 'IN_PROGRESS') {
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
+        <ClipboardCheck size={11} />
+        Inspector report submitted — {inspection.findings.length} findings · Awaiting EO completion
+      </div>
+    );
+  }
+  if (inspection.status === 'COMPLETED') {
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1.5">
+        <ClipboardCheck size={11} />
+        Inspection completed — Ready for decision
+      </div>
+    );
+  }
+  return null;
+}
+
 export const TenantServicesTabContent: React.FC<Props> = ({
   filteredTenantRequests, allTenantRequests, tenantSearch, setTenantSearch,
   tenantStatusFilter, setTenantStatusFilter, tenantTypeFilter, setTenantTypeFilter,
   loadingTenant, eoNotesMap, setEoNotesMap, processingTenant, onApprove, onReject,
-  onScheduleInspection, onCompleteInspection, vacateInspectionsMap, processingInspection,
+  onScheduleInspection, onCompleteInspection, onViewReport,
+  vacateInspectionMap, processingInspection,
   tenantServiceConfig, tenantStatusBadge, getImage, fmtDate,
 }) => (
   <div className="space-y-4">
@@ -123,6 +163,12 @@ export const TenantServicesTabContent: React.FC<Props> = ({
           const stc = tenantServiceConfig(tr.service_type);
           const q = tr.allotment?.quarter;
           const isPending = tr.request_status === 'PENDING';
+          const isVacate = tr.service_type === 'VACATE';
+          const vacInsp = isVacate ? vacateInspectionMap[tr.id] : undefined;
+          const hasInspection = !!vacInsp;
+          const isCompleted = vacInsp?.status === 'COMPLETED';
+          const isInProgress = vacInsp?.status === 'IN_PROGRESS';
+
           return (
             <div
               key={tr.id}
@@ -156,6 +202,17 @@ export const TenantServicesTabContent: React.FC<Props> = ({
 
                 {isPending && (
                   <div className="flex flex-col gap-2 min-w-56">
+                    {isVacate && <VacateStageBadge inspection={vacInsp} />}
+
+                    {isVacate && hasInspection && (
+                      <button
+                        onClick={() => onViewReport(tr)}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
+                      >
+                        <Eye size={13} /> View Inspection Report
+                      </button>
+                    )}
+
                     <textarea
                       value={eoNotesMap[tr.id] ?? ''}
                       onChange={e => setEoNotesMap(prev => ({ ...prev, [tr.id]: e.target.value }))}
@@ -163,58 +220,38 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                       placeholder="EO notes (optional)…"
                       className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                     />
-                    {tr.service_type === 'VACATE' ? (
-                      <>
-                        {/* Inspection status badges for vacate workflow */}
-                        {(() => {
-                          const insps = vacateInspectionsMap[tr.id] ?? [];
-                          const hasOpen = insps.some(i => i.status === 'OPEN');
-                          const hasClosed = insps.some(i => i.status === 'CLOSED');
-                          if (hasOpen && !hasClosed) return (
-                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
-                              <Calendar size={11} />
-                              Inspection scheduled
-                            </div>
-                          );
-                          if (hasClosed) return (
-                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1.5">
-                              <ClipboardCheck size={11} />
-                              Inspection completed — ready for decision
-                            </div>
-                          );
-                          return null;
-                        })()}
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => onScheduleInspection(tr)}
-                            disabled={processingTenant === tr.id || processingInspection === tr.id || (vacateInspectionsMap[tr.id] ?? []).length > 0}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Calendar size={13} /> Schedule
-                          </button>
-                          <button
-                            onClick={() => onCompleteInspection(tr)}
-                            disabled={processingTenant === tr.id || processingInspection === tr.id || !(vacateInspectionsMap[tr.id] ?? []).some(i => i.status === 'OPEN')}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <HardHat size={13} /> Complete
-                          </button>
-                          <button
-                            onClick={() => onApprove(tr)}
-                            disabled={processingTenant === tr.id || processingInspection === tr.id}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                          >
-                            <CheckCircle size={13} /> Accept
-                          </button>
-                          <button
-                            onClick={() => onReject(tr)}
-                            disabled={processingTenant === tr.id || processingInspection === tr.id}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-                          >
-                            <XCircle size={13} /> Reject
-                          </button>
-                        </div>
-                      </>
+
+                    {isVacate ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => onScheduleInspection(tr)}
+                          disabled={processingTenant === tr.id || processingInspection === tr.id || hasInspection}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Calendar size={13} /> Schedule
+                        </button>
+                        <button
+                          onClick={() => onCompleteInspection(tr)}
+                          disabled={processingTenant === tr.id || processingInspection === tr.id || !isInProgress}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ClipboardCheck size={13} /> Complete
+                        </button>
+                        <button
+                          onClick={() => onApprove(tr)}
+                          disabled={processingTenant === tr.id || processingInspection === tr.id || !isCompleted}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <CheckCircle size={13} /> Accept
+                        </button>
+                        <button
+                          onClick={() => onReject(tr)}
+                          disabled={processingTenant === tr.id || processingInspection === tr.id}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                          <XCircle size={13} /> Reject
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex gap-2">
                         <button
@@ -240,6 +277,15 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                   <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 max-w-xs">
                     <span className="font-medium text-gray-700">EO Notes:</span> {tr.eo_notes}
                   </div>
+                )}
+
+                {!isPending && isVacate && (
+                  <button
+                    onClick={() => onViewReport(tr)}
+                    className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    <FileText size={13} /> View Report
+                  </button>
                 )}
               </div>
             </div>
