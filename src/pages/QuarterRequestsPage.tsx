@@ -429,10 +429,8 @@ export const QuarterRequestsPage: React.FC = () => {
     setAcceptingInspection(null);
   };
 
-  // Pending vacate requests for the selected request's allotment
-  const pendingVacateRequests = selectedRequest?.allotment
-    ? tenantRequests.filter(tr => tr.allotment_id === selectedRequest.allotment!.id && tr.service_type === 'VACATE' && tr.request_status === 'PENDING')
-    : [];
+  // All pending vacate requests across all allotments (for EO inspection tab)
+  const pendingVacateRequests = tenantRequests.filter(tr => tr.service_type === 'VACATE' && tr.request_status === 'PENDING');
 
   // ── Run Allocation: available users pool ─────────────────────────────────────
   type AllocUser = { id: string; full_name: string; govt_employee_id: string; email: string; govt_department: string };
@@ -2841,6 +2839,8 @@ export const QuarterRequestsPage: React.FC = () => {
                   onViewVacateReport={(tr) => setViewReportTarget(tr)}
                   processingVacateInspection={processingVacateInspection}
                   pendingVacateRequests={pendingVacateRequests}
+                  onOpenInspectionDetails={(tr) => setInspectionDetailsTarget(tr)}
+                  onOpenDamageFindings={(tr) => setDamageFindingsTarget(tr)}
                   handover={handover}
                   handoverKeyNo={handoverKeyNo}
                   setHandoverKeyNo={setHandoverKeyNo}

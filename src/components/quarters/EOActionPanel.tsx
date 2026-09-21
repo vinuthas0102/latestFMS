@@ -5,6 +5,7 @@ import {
   X, Search, Building2, Send, Paperclip, Upload, Plus, ArrowLeft,
   PlayCircle, CheckSquare, SkipForward, ClipboardCheck, Handshake, Users,
   ChevronDown, Zap, Image as ImageIcon, CheckCircle, Eye, Calendar,
+  Download,
 } from 'lucide-react';
 import {
   Quarter, QuarterRequest, QuarterAllotment, QuarterAllotmentApproval,
@@ -129,6 +130,8 @@ export interface EOActionPanelProps {
   onViewVacateReport?: (tr: QuarterTenantRequest) => void;
   processingVacateInspection?: string | null;
   pendingVacateRequests?: QuarterTenantRequest[];
+  onOpenInspectionDetails?: (tr: QuarterTenantRequest) => void;
+  onOpenDamageFindings?: (tr: QuarterTenantRequest) => void;
 
   // Handover
   handover: QuarterHandover | null;
@@ -266,6 +269,8 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   onViewVacateReport,
   processingVacateInspection,
   pendingVacateRequests = [],
+  onOpenInspectionDetails,
+  onOpenDamageFindings,
   handover,
   handoverKeyNo,
   setHandoverKeyNo,
@@ -762,7 +767,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
             {pendingVacateRequests.length === 0 ? (
               <div className="text-center py-8">
                 <HardHat size={28} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-400">No pending vacate inspection requests for this quarter.</p>
+                <p className="text-xs text-gray-400">No pending vacate inspection requests.</p>
               </div>
             ) : (
               pendingVacateRequests.map(tr => {
@@ -780,6 +785,10 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-wide">Vacate Request</span>
                         <span className="text-[10px] text-gray-400">{fmtDate(tr.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-semibold text-gray-700">{tr.allotment?.quarter?.quarter_number ?? '—'}</span>
+                        <span className="text-[10px] text-gray-400">{tr.allotment?.quarter?.block_name ?? ''}</span>
                       </div>
                       <p className="text-xs text-gray-700 font-medium">{tr.reason || 'Vacate request'}</p>
                     </div>
@@ -846,6 +855,40 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
                         <CheckCircle size={13} /> Accept
                       </button>
                     </div>
+
+                    {/* Inspector Actions — shown when employee has accepted the inspection schedule */}
+                    {vacInsp && vacInsp.employeeAccepted === 'ACCEPTED' && !isCompleted && (
+                      <div className="px-4 py-3 border-t border-gray-100 bg-indigo-50/30">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <HardHat size={11} className="text-indigo-500" />
+                          <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Inspector Actions</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            onClick={() => onOpenInspectionDetails?.(tr)}
+                            className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                          >
+                            <FileText size={14} />
+                            Request Details
+                          </button>
+                          <button
+                            onClick={() => onOpenInspectionDetails?.(tr)}
+                            className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                          >
+                            <Download size={14} />
+                            Blank Form
+                          </button>
+                          <button
+                            onClick={() => onOpenDamageFindings?.(tr)}
+                            disabled={isProc}
+                            className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ClipboardCheck size={14} />
+                            Update Findings
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })

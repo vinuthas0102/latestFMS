@@ -99,32 +99,25 @@ export function InspectionFormModal({ requestRef, quarterRef, tr, onClose, onSub
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Inspection Time <span className="text-red-500">*</span></label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {TIME_SLOTS.map(slot => (
-                <button key={slot} type="button" onClick={() => setTimeSlot(slot)}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-all ${timeSlot === slot ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300 hover:bg-sky-50/40'}`}>
-                  <Clock size={13} className={timeSlot === slot ? 'text-white' : 'text-gray-400'} />{slot}
-                </button>
-              ))}
+            <div className="relative">
+              <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <select value={timeSlot} onChange={e => setTimeSlot(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 transition-colors appearance-none bg-white cursor-pointer">
+                <option value="" disabled>Select a time slot…</option>
+                {TIME_SLOTS.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Inspected By (Lead Officer) <span className="text-red-500">*</span></label>
-            <div className="space-y-2">
-              {INSPECTORS.map(insp => (
-                <button key={insp.id} type="button" onClick={() => setInspectorId(insp.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${inspectorId === insp.id ? 'bg-sky-50 border-sky-400 ring-1 ring-sky-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${inspectorId === insp.id ? 'bg-sky-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                    <User size={14} />
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-800 truncate">{insp.name}</div>
-                    <div className="text-[11px] text-gray-500">{insp.role}</div>
-                  </div>
-                  {inspectorId === insp.id && <CheckSquare size={15} className="text-sky-600 shrink-0" />}
-                </button>
-              ))}
+            <div className="relative">
+              <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <select value={inspectorId} onChange={e => setInspectorId(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 transition-colors appearance-none bg-white cursor-pointer">
+                <option value="" disabled>Select an inspector…</option>
+                {INSPECTORS.map(insp => <option key={insp.id} value={insp.id}>{insp.name} — {insp.role}</option>)}
+              </select>
             </div>
           </div>
 
