@@ -339,7 +339,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
     { key: 'detail' as EORightMode, label: 'Detail', icon: <FileText size={12} />, show: false },
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && isEO && (isAllocatedStage || isUnapprovedStage) },
     { key: 'request_approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isSubmitted && isEO },
-    { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
+    { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isOccupied && isEO },
   
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied || isSubmitted || isAllotted },
@@ -761,7 +761,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
         )}
 
         {/* Inspection tab — Vacate inspection flow with four actions */}
-        {eoRightMode === 'inspection' && isAccepted && (
+        {eoRightMode === 'inspection' && isOccupied && (
           <div className="p-4 space-y-4">
             {/* Pending Vacate Requests */}
             {pendingVacateRequests.length === 0 ? (
