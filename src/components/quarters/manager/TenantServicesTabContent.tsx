@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, CheckCircle, XCircle, Search, Calendar, ClipboardCheck, FileText, Eye } from 'lucide-react';
+import { Building2, CheckCircle, XCircle, Search, Calendar, ClipboardCheck, FileText, Eye, HardHat, Download } from 'lucide-react';
 import { MandatorySearchBar } from '../../ui/MandatorySearchBar';
 import type { QuarterTenantRequest, Quarter } from '../../../services/quartersService';
 import type { VacateInspectionDetail } from './InspectionReportViewModal';
@@ -28,6 +28,8 @@ interface Props {
   onScheduleInspection: (tr: QuarterTenantRequest) => void;
   onCompleteInspection: (tr: QuarterTenantRequest) => void;
   onViewReport: (tr: QuarterTenantRequest) => void;
+  onOpenInspectionDetails: (tr: QuarterTenantRequest) => void;
+  onOpenDamageFindings: (tr: QuarterTenantRequest) => void;
   vacateInspectionMap: Record<string, VacateInspectionDetail | undefined>;
   processingInspection: string | null;
   tenantServiceConfig: (type: string) => ServiceTypeConfig;
@@ -84,6 +86,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
   tenantStatusFilter, setTenantStatusFilter, tenantTypeFilter, setTenantTypeFilter,
   loadingTenant, eoNotesMap, setEoNotesMap, processingTenant, onApprove, onReject,
   onScheduleInspection, onCompleteInspection, onViewReport,
+  onOpenInspectionDetails, onOpenDamageFindings,
   vacateInspectionMap, processingInspection,
   tenantServiceConfig, tenantStatusBadge, getImage, fmtDate,
 }) => (
@@ -222,35 +225,71 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                     />
 
                     {isVacate ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => onScheduleInspection(tr)}
-                          disabled={processingTenant === tr.id || processingInspection === tr.id || hasInspection}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Calendar size={13} /> Schedule
-                        </button>
-                        <button
-                          onClick={() => onCompleteInspection(tr)}
-                          disabled={processingTenant === tr.id || processingInspection === tr.id || !isInProgress}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <ClipboardCheck size={13} /> Complete
-                        </button>
-                        <button
-                          onClick={() => onApprove(tr)}
-                          disabled={processingTenant === tr.id || processingInspection === tr.id || !isCompleted}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <CheckCircle size={13} /> Accept
-                        </button>
-                        <button
-                          onClick={() => onReject(tr)}
-                          disabled={processingTenant === tr.id || processingInspection === tr.id}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-                        >
-                          <XCircle size={13} /> Reject
-                        </button>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => onScheduleInspection(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id || hasInspection}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Calendar size={13} /> Schedule
+                          </button>
+                          <button
+                            onClick={() => onCompleteInspection(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id || !isInProgress}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ClipboardCheck size={13} /> Complete
+                          </button>
+                          <button
+                            onClick={() => onApprove(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id || !isCompleted}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <CheckCircle size={13} /> Accept
+                          </button>
+                          <button
+                            onClick={() => onReject(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          >
+                            <XCircle size={13} /> Reject
+                          </button>
+                        </div>
+
+                        {/* Inspector Actions — shown when employee has accepted the inspection schedule */}
+                        {vacInsp && vacInsp.employeeAccepted === 'ACCEPTED' && !isCompleted && (
+                          <div className="rounded-lg border border-indigo-200 bg-indigo-50/30 p-2.5">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <HardHat size={11} className="text-indigo-500" />
+                              <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">Inspector Actions</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <button
+                                onClick={() => onOpenInspectionDetails(tr)}
+                                className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                              >
+                                <FileText size={14} />
+                                Request Details
+                              </button>
+                              <button
+                                onClick={() => onOpenInspectionDetails(tr)}
+                                className="flex flex-col items-center gap-1 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
+                              >
+                                <Download size={14} />
+                                Blank Form
+                              </button>
+                              <button
+                                onClick={() => onOpenDamageFindings(tr)}
+                                disabled={processingInspection === tr.id}
+                                className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <ClipboardCheck size={14} />
+                                Update Findings
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex gap-2">

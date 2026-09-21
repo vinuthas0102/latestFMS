@@ -19,6 +19,8 @@ import { TenantServicesTabContent } from '../components/quarters/manager/TenantS
 import { ScheduleInspectionModal } from '../components/quarters/manager/ScheduleInspectionModal';
 import { CompleteInspectionModal } from '../components/quarters/manager/CompleteInspectionModal';
 import { InspectionReportViewModal, type VacateInspectionDetail } from '../components/quarters/manager/InspectionReportViewModal';
+import { InspectionRequestDetailsModal } from '../components/quarters/manager/InspectionRequestDetailsModal';
+import { DamageFindingsModal } from '../components/quarters/manager/DamageFindingsModal';
 import { DEMO_VACATE_INSPECTIONS } from '../mocks/demoData';
 import {
   quartersService,
@@ -164,6 +166,8 @@ export const QuarterManagerPage: React.FC = () => {
   const [scheduleTarget, setScheduleTarget] = useState<QuarterTenantRequest | null>(null);
   const [completeTarget, setCompleteTarget] = useState<QuarterTenantRequest | null>(null);
   const [viewReportTarget, setViewReportTarget] = useState<QuarterTenantRequest | null>(null);
+  const [inspectionDetailsTarget, setInspectionDetailsTarget] = useState<QuarterTenantRequest | null>(null);
+  const [damageFindingsTarget, setDamageFindingsTarget] = useState<QuarterTenantRequest | null>(null);
   const [vacateInspectionMap, setVacateInspectionMap] = useState<Record<string, VacateInspectionDetail | undefined>>({});
   const [overrideTarget, setOverrideTarget] = useState<QuarterAllotment | null>(null);
 
@@ -403,6 +407,26 @@ export const QuarterManagerPage: React.FC = () => {
     } finally {
       setProcessingInspection(null);
     }
+  };
+
+  const handleDamageFindingsSubmit = (data: { findings: { id: string; item: string; category: string; estimatedCost: number; deductionAmount: number; remarks: string }[]; closingRemarks: string; uploadedDocs: { name: string; type: string }[]; damagePhotos: { name: string; type: string }[] }) => {
+    if (!damageFindingsTarget) return;
+    const existing = vacateInspectionMap[damageFindingsTarget.id];
+    if (!existing) { addToast('No inspection found', 'error'); return; }
+    setProcessingInspection(damageFindingsTarget.id);
+    const updated: VacateInspectionDetail = {
+      ...existing,
+      status: 'IN_PROGRESS',
+      closingRemarks: data.closingRemarks,
+      findings: data.findings,
+      uploadedDocs: [...existing.uploadedDocs, ...data.uploadedDocs.map(d => ({ name: d.name, type: d.type, size: '—' }))],
+      damagePhotos: [...existing.damagePhotos, ...data.damagePhotos.map(p => ({ name: p.name, type: p.type }))],
+      auditTrail: [...existing.auditTrail, { timestamp: new Date().toISOString(), actor: 'Inspector', action: `Damage findings submitted: ${data.findings.length} item(s). Inspection report uploaded.` }],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [damageFindingsTarget.id]: updated }));
+    addToast('Inspection report submitted to Estate Manager', 'success');
+    setDamageFindingsTarget(null);
+    setProcessingInspection(null);
   };
 
   const handleDeallocate = async (req: QuarterRequest) => {
@@ -1274,6 +1298,8 @@ export const QuarterManagerPage: React.FC = () => {
                 onScheduleInspection={(tr) => setScheduleTarget(tr)}
                 onCompleteInspection={(tr) => setCompleteTarget(tr)}
                 onViewReport={(tr) => setViewReportTarget(tr)}
+                onOpenInspectionDetails={(tr) => setInspectionDetailsTarget(tr)}
+                onOpenDamageFindings={(tr) => setDamageFindingsTarget(tr)}
                 vacateInspectionMap={vacateInspectionMap}
                 processingInspection={processingInspection}
                 tenantServiceConfig={tenantServiceConfig}
@@ -1392,6 +1418,26 @@ export const QuarterManagerPage: React.FC = () => {
           tr={viewReportTarget}
           inspection={vacateInspectionMap[viewReportTarget.id] ?? null}
           onClose={() => setViewReportTarget(null)}
+        />
+      )}
+
+      {/* Inspection Request Details Modal */}
+      {inspectionDetailsTarget && (
+        <InspectionRequestDetailsModal
+          tr={inspectionDetailsTarget}
+          inspection={vacateInspectionMap[inspectionDetailsTarget.id] ?? null}
+          onClose={() => setInspectionDetailsTarget(null)}
+        />
+      )}
+
+      {/* Damage Findings Modal */}
+      {damageFindingsTarget && (
+        <DamageFindingsModal
+          tr={damageFindingsTarget}
+          inspection={vacateInspectionMap[damageFindingsTarget.id] ?? null}
+          onClose={() => setDamageFindingsTarget(null)}
+          onSubmit={handleDamageFindingsSubmit}
+          submitting={processingInspection === damageFindingsTarget.id}
         />
       )}
 
