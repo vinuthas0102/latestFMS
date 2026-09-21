@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, CheckCircle, XCircle, Search } from 'lucide-react';
+import { Building2, CheckCircle, XCircle, Search, Calendar, HardHat, ClipboardCheck } from 'lucide-react';
 import { MandatorySearchBar } from '../../ui/MandatorySearchBar';
 import type { QuarterTenantRequest, Quarter } from '../../../services/quartersService';
 
@@ -24,6 +24,10 @@ interface Props {
   processingTenant: string | null;
   onApprove: (tr: QuarterTenantRequest) => void;
   onReject: (tr: QuarterTenantRequest) => void;
+  onScheduleInspection: (tr: QuarterTenantRequest) => void;
+  onCompleteInspection: (tr: QuarterTenantRequest) => void;
+  vacateInspectionsMap: Record<string, { id: string; status: string }[]>;
+  processingInspection: string | null;
   tenantServiceConfig: (type: string) => ServiceTypeConfig;
   tenantStatusBadge: (status: string) => string;
   getImage: (q: Quarter, idx: number) => string;
@@ -40,6 +44,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
   filteredTenantRequests, allTenantRequests, tenantSearch, setTenantSearch,
   tenantStatusFilter, setTenantStatusFilter, tenantTypeFilter, setTenantTypeFilter,
   loadingTenant, eoNotesMap, setEoNotesMap, processingTenant, onApprove, onReject,
+  onScheduleInspection, onCompleteInspection, vacateInspectionsMap, processingInspection,
   tenantServiceConfig, tenantStatusBadge, getImage, fmtDate,
 }) => (
   <div className="space-y-4">
@@ -150,7 +155,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                 </div>
 
                 {isPending && (
-                  <div className="flex flex-col gap-2 min-w-52">
+                  <div className="flex flex-col gap-2 min-w-56">
                     <textarea
                       value={eoNotesMap[tr.id] ?? ''}
                       onChange={e => setEoNotesMap(prev => ({ ...prev, [tr.id]: e.target.value }))}
@@ -158,22 +163,76 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                       placeholder="EO notes (optional)…"
                       className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                     />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => onApprove(tr)}
-                        disabled={processingTenant === tr.id}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                      >
-                        <CheckCircle size={13} /> Approve
-                      </button>
-                      <button
-                        onClick={() => onReject(tr)}
-                        disabled={processingTenant === tr.id}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-                      >
-                        <XCircle size={13} /> Reject
-                      </button>
-                    </div>
+                    {tr.service_type === 'VACATE' ? (
+                      <>
+                        {/* Inspection status badges for vacate workflow */}
+                        {(() => {
+                          const insps = vacateInspectionsMap[tr.id] ?? [];
+                          const hasOpen = insps.some(i => i.status === 'OPEN');
+                          const hasClosed = insps.some(i => i.status === 'CLOSED');
+                          if (hasOpen && !hasClosed) return (
+                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
+                              <Calendar size={11} />
+                              Inspection scheduled
+                            </div>
+                          );
+                          if (hasClosed) return (
+                            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1.5">
+                              <ClipboardCheck size={11} />
+                              Inspection completed — ready for decision
+                            </div>
+                          );
+                          return null;
+                        })()}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => onScheduleInspection(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id || (vacateInspectionsMap[tr.id] ?? []).length > 0}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Calendar size={13} /> Schedule
+                          </button>
+                          <button
+                            onClick={() => onCompleteInspection(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id || !(vacateInspectionsMap[tr.id] ?? []).some(i => i.status === 'OPEN')}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <HardHat size={13} /> Complete
+                          </button>
+                          <button
+                            onClick={() => onApprove(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          >
+                            <CheckCircle size={13} /> Accept
+                          </button>
+                          <button
+                            onClick={() => onReject(tr)}
+                            disabled={processingTenant === tr.id || processingInspection === tr.id}
+                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          >
+                            <XCircle size={13} /> Reject
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => onApprove(tr)}
+                          disabled={processingTenant === tr.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                        >
+                          <CheckCircle size={13} /> Approve
+                        </button>
+                        <button
+                          onClick={() => onReject(tr)}
+                          disabled={processingTenant === tr.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                          <XCircle size={13} /> Reject
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

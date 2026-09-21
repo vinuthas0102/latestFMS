@@ -671,6 +671,40 @@ export const quartersService = {
     }
   },
 
+  async scheduleVacateInspection(_allotmentId: string, _scheduledDate: string, _eoNotes: string, _createdBy: string): Promise<QuarterInspection> {
+    if (DEMO_MODE) return Promise.resolve({ id: `insp-demo-${Date.now()}`, allotment_id: _allotmentId, created_by: _createdBy, status: 'OPEN', inspector_name: '', opening_remarks: `Scheduled: ${_scheduledDate}${_eoNotes ? ` — ${_eoNotes}` : ''}`, closing_remarks: '', property_condition: '', created_at: new Date().toISOString(), closed_at: null });
+    const { data, error } = await supabase.from('quarter_inspections').insert({
+      allotment_id: _allotmentId,
+      created_by: _createdBy,
+      status: 'OPEN',
+      inspector_name: '',
+      opening_remarks: `Scheduled: ${_scheduledDate}${_eoNotes ? ` — ${_eoNotes}` : ''}`,
+      property_condition: '',
+    }).select().single();
+    if (error) throw error;
+    return data as QuarterInspection;
+  },
+
+  async completeVacateInspection(_inspectionId: string, _closingRemarks: string, _propertyCondition: string): Promise<void> {
+    if (DEMO_MODE) return Promise.resolve();
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('quarter_inspections').update({
+      status: 'CLOSED', closing_remarks: _closingRemarks, property_condition: _propertyCondition, closed_at: now,
+    }).eq('id', _inspectionId);
+    if (error) throw error;
+  },
+
+  async getVacateInspectionsForAllotment(_allotmentId: string): Promise<QuarterInspection[]> {
+    if (DEMO_MODE) return Promise.resolve([]);
+    const { data, error } = await supabase
+      .from('quarter_inspections')
+      .select('*')
+      .eq('allotment_id', _allotmentId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as QuarterInspection[];
+  },
+
   async deallocateRequest(_allotmentId: string, _requestId: string): Promise<void> {
     if (DEMO_MODE) return Promise.resolve();
     const allotmentId = _allotmentId;

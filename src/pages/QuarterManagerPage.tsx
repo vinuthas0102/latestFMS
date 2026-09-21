@@ -6,6 +6,7 @@ import {
   ThumbsUp, ThumbsDown, ArrowRightCircle, LogOut, Search,
   Layers, Trash2, Ban, Star, Plus, ArrowLeftRight, Shuffle,
   HardHat, MoreVertical, MessageSquare, PlayCircle, X, Download,
+  CalendarDays,
   ClipboardList,
 } from 'lucide-react';
 import { SummaryStatsCard } from '../components/ui/SummaryStatsCard';
@@ -156,6 +157,10 @@ export const QuarterManagerPage: React.FC = () => {
   const [tenantTypeFilter, setTenantTypeFilter] = useState('ALL');
   const [eoNotesMap, setEoNotesMap] = useState<Record<string, string>>({});
   const [processingTenant, setProcessingTenant] = useState<string | null>(null);
+  const [processingInspection, setProcessingInspection] = useState<string | null>(null);
+  const [scheduleTarget, setScheduleTarget] = useState<QuarterTenantRequest | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [vacateInspectionsMap, setVacateInspectionsMap] = useState<Record<string, { id: string; status: string }[]>>({});
   const [overrideTarget, setOverrideTarget] = useState<QuarterAllotment | null>(null);
 
   // Accepted DP filter — inspection state
@@ -236,6 +241,22 @@ export const QuarterManagerPage: React.FC = () => {
       setLoadingTenant(false);
     }
   }, [addToast]);
+
+  const loadVacateInspectionsForTenant = useCallback(async (tenantRequestId: string, allotmentId: string) => {
+    try {
+      const insps = await quartersService.getVacateInspectionsForAllotment(allotmentId);
+      setVacateInspectionsMap(prev => ({ ...prev, [tenantRequestId]: insps }));
+    } catch { /* silent */ }
+  }, []);
+
+  // Load vacate inspections for all pending vacate tenant requests
+  useEffect(() => {
+    const pendingVacate = allTenantRequests.filter(tr => tr.service_type === 'VACATE' && tr.request_status === 'PENDING');
+    pendingVacate.forEach(tr => {
+      if (tr.allotment?.id) loadVacateInspectionsForTenant(tr.id, tr.allotment.id);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTenantRequests]);
 
   const loadQuartersSummary = useCallback(async () => {
     try {
@@ -319,6 +340,44 @@ export const QuarterManagerPage: React.FC = () => {
       addToast('Failed to reject', 'error');
     } finally {
       setProcessingTenant(null);
+    }
+  };
+
+  const handleScheduleInspection = async () => {
+    if (!scheduleTarget || !scheduleTarget.allotment?.id || !user) return;
+    setProcessingInspection(scheduleTarget.id);
+    try {
+      await quartersService.scheduleVacateInspection(scheduleTarget.allotment.id, scheduleDate, eoNotesMap[scheduleTarget.id] ?? '', user.id);
+      addToast('Inspection scheduled', 'success');
+      setScheduleTarget(null);
+      setScheduleDate('');
+      loadAllTenantRequests();
+      loadVacateInspectionsForTenant(scheduleTarget.id, scheduleTarget.allotment.id);
+    } catch {
+      addToast('Failed to schedule inspection', 'error');
+    } finally {
+      setProcessingInspection(null);
+    }
+  };
+
+  const handleCompleteInspection = async (tr: QuarterTenantRequest) => {
+    if (!tr.allotment?.id || !user) return;
+    setProcessingInspection(tr.id);
+    try {
+      const insps = vacateInspectionsMap[tr.id] ?? [];
+      const openInsp = insps.find(i => i.status === 'OPEN');
+      if (!openInsp) {
+        addToast('No open inspection found', 'error');
+        return;
+      }
+      await quartersService.completeVacateInspection(openInsp.id, eoNotesMap[tr.id] ?? 'Inspection completed', 'GOOD');
+      addToast('Inspection completed', 'success');
+      loadAllTenantRequests();
+      loadVacateInspectionsForTenant(tr.id, tr.allotment.id);
+    } catch {
+      addToast('Failed to complete inspection', 'error');
+    } finally {
+      setProcessingInspection(null);
     }
   };
 
@@ -1188,6 +1247,10 @@ export const QuarterManagerPage: React.FC = () => {
                 processingTenant={processingTenant}
                 onApprove={handleApproveTenant}
                 onReject={handleRejectTenant}
+                onScheduleInspection={(tr) => { setScheduleTarget(tr); setScheduleDate(''); }}
+                onCompleteInspection={handleCompleteInspection}
+                vacateInspectionsMap={vacateInspectionsMap}
+                processingInspection={processingInspection}
                 tenantServiceConfig={tenantServiceConfig}
                 tenantStatusBadge={tenantStatusBadge}
                 getImage={getImage}
@@ -1271,6 +1334,59 @@ export const QuarterManagerPage: React.FC = () => {
               >
                 <PlayCircle size={14} />
                 {inspectSubmitting ? 'Starting…' : 'Start Inspection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Inspection Modal */}
+      {scheduleTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 bg-sky-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Calendar size={16} className="text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white">Schedule Inspection</div>
+                  <div className="text-[11px] text-sky-200">{scheduleTarget.allotment?.quarter?.quarter_number ?? '—'}</div>
+                </div>
+              </div>
+              <button onClick={() => setScheduleTarget(null)} className="p-1.5 rounded-lg text-sky-200 hover:text-white hover:bg-white/10 transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Inspection Date</label>
+                <div className="relative">
+                  <CalendarDays size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={e => setScheduleDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-300/40 focus:border-sky-400 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setScheduleTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleScheduleInspection}
+                disabled={!scheduleDate || processingInspection === scheduleTarget.id}
+                className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Calendar size={14} />
+                {processingInspection === scheduleTarget.id ? 'Scheduling…' : 'Schedule'}
               </button>
             </div>
           </div>
