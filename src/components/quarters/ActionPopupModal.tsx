@@ -692,21 +692,16 @@ export function ActionPopupModal({
   onRetentionReasonChange, onRequestedMonthsChange,
 }: Props) {
   const type = actionPopup.type;
+  // suppress old inspection props (replaced by new schedule form)
+  void inspectorName; void openingRemarks; void checklist;
+  void onInspectorNameChange; void onOpeningRemarksChange; void onChecklistChange;
 
   if (type === 'INSPECTION') {
     return (
       <InspectionFormModal
         requestRef={actionPopup.requestId ?? undefined}
         quarterRef={undefined}
-        inspectorName={inspectorName}
-        openingRemarks={openingRemarks}
-        condition={condition}
-        checklist={checklist}
         submitting={submitting}
-        onInspectorNameChange={onInspectorNameChange}
-        onOpeningRemarksChange={onOpeningRemarksChange}
-        onConditionChange={onConditionChange}
-        onChecklistChange={onChecklistChange}
         onClose={onClose}
         onSubmit={onSubmit}
       />

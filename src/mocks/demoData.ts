@@ -1306,9 +1306,30 @@ export const DEMO_TENANT_REQUESTS: QuarterTenantRequest[] = [
     updated_at: '2025-03-01T11:00:00Z',
     allotment: DEMO_ALLOTMENT_OCCUPIED,
   },
+  // Vacate request — Stage 7: Employee accepted inspection, inspector hasn't submitted findings yet
+  {
+    id: 'tr-014',
+    allotment_id: 'allot-002',
+    employee_id: '5f865f74-aeab-4885-a898-80ba3da33ae0',
+    service_type: 'VACATE',
+    request_status: 'PENDING',
+    remarks: 'Transfer to Kolkata HQ. Vacating quarter B-310 by 15 September 2025. Employee has accepted inspection schedule.',
+    reason: 'Transfer to Kolkata HQ effective 15 September 2025.',
+    document_url: '',
+    requested_date: '2025-09-15',
+    required_bhk_config: '',
+    eo_notes: 'Inspection scheduled for 10 September 2025, 09:00 AM – 11:00 AM. Inspector: Amit Verma. Employee accepted. Awaiting inspector findings.',
+    grievance_subject: '',
+    urgency_level: 'NORMAL',
+    retention_reason: '',
+    requested_months: null,
+    upgrade_mode: null,
+    target_quarter_id: null,
+    created_at: '2025-08-20T09:00:00Z',
+    updated_at: '2025-08-25T14:00:00Z',
+    allotment: DEMO_ALLOTMENT_OCCUPIED,
+  },
 ];
-
-// ─── Demo chat data ────────────────────────────────────────────────────────────
 
 export const DEMO_SERVICE_CHATS: QuarterServiceChat[] = [
   {
@@ -1467,9 +1488,28 @@ export const DEMO_VACATE_INSPECTIONS: VacateInspectionDetail[] = [
       { timestamp: '2025-08-20T17:30:00Z', actor: 'Estate Manager', action: 'Inspection completed. Ready for final decision.' },
     ],
   },
+  // tr-014: Inspection scheduled, employee accepted, inspector hasn't submitted findings yet
+  {
+    id: 'vin-004',
+    tenantRequestId: 'tr-014',
+    inspectorName: 'Amit Verma',
+    inspectionDate: '2025-09-10',
+    timeSlot: '09:00 AM – 11:00 AM',
+    status: 'SCHEDULED',
+    employeeAccepted: 'ACCEPTED',
+    propertyCondition: '',
+    openingRemarks: 'Vacate inspection for B-310. Employee accepted schedule. Inspector to conduct physical inspection on 10 September 2025.',
+    closingRemarks: '',
+    findings: [],
+    uploadedDocs: [],
+    damagePhotos: [],
+    auditTrail: [
+      { timestamp: '2025-08-20T09:00:00Z', actor: 'Employee', action: 'Vacate request submitted' },
+      { timestamp: '2025-08-25T14:00:00Z', actor: 'Estate Manager', action: 'Inspection scheduled for 10 September 2025, 09:00 AM – 11:00 AM. Inspector: Amit Verma.' },
+      { timestamp: '2025-08-26T09:00:00Z', actor: 'Employee', action: 'Inspection schedule accepted.' },
+    ],
+  },
 ];
-
-// ─── Handovers ────────────────────────────────────────────────────────────────
 
 export const DEMO_HANDOVER: QuarterHandover = {
   id: 'hov-001',

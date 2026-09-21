@@ -4,7 +4,7 @@ import {
   Home, FileText, XCircle, Key, MessageSquare, GitMerge, HardHat,
   X, Search, Building2, Send, Paperclip, Upload, Plus, ArrowLeft,
   PlayCircle, CheckSquare, SkipForward, ClipboardCheck, Handshake, Users,
-  ChevronDown, Zap, Image as ImageIcon,
+  ChevronDown, Zap, Image as ImageIcon, CheckCircle, Eye, Calendar,
 } from 'lucide-react';
 import {
   Quarter, QuarterRequest, QuarterAllotment, QuarterAllotmentApproval,
@@ -17,7 +17,6 @@ import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types';
 import { EORightMode } from '../../types/quarterRequests';
 import { QuarterOverrideModal } from './QuarterOverrideModal';
-import { InspectionFormModal } from './InspectionFormModal';
 import {
   fmtINR, fmtDate, statusConfig, isAllottedStatus, isOccupiedStatus,
   ChatBubble, CompactQuarterRow, RequestSummaryBlock, getImage,
@@ -122,6 +121,14 @@ export interface EOActionPanelProps {
   handleCloseInspection: () => void;
   inspectionChatMode: ChatDeliveryMode[];
   setInspectionChatMode: (m: ChatDeliveryMode[]) => void;
+
+  // Vacate inspection flow
+  vacateInspectionMap?: Record<string, import('./manager/InspectionReportViewModal').VacateInspectionDetail | undefined>;
+  onScheduleVacateInspection?: (tr: QuarterTenantRequest) => void;
+  onCompleteVacateInspection?: (tr: QuarterTenantRequest) => void;
+  onViewVacateReport?: (tr: QuarterTenantRequest) => void;
+  processingVacateInspection?: string | null;
+  pendingVacateRequests?: QuarterTenantRequest[];
 
   // Handover
   handover: QuarterHandover | null;
@@ -253,6 +260,12 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   handleCloseInspection,
   inspectionChatMode,
   setInspectionChatMode,
+  vacateInspectionMap = {},
+  onScheduleVacateInspection,
+  onCompleteVacateInspection,
+  onViewVacateReport,
+  processingVacateInspection,
+  pendingVacateRequests = [],
   handover,
   handoverKeyNo,
   setHandoverKeyNo,
@@ -322,7 +335,7 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
     { key: 'approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isAllotted && isEO && (isAllocatedStage || isUnapprovedStage) },
     { key: 'request_approval_chat' as EORightMode, label: 'Approval', icon: <GitMerge size={12} />, show: isSubmitted && isEO },
     { key: 'inspection' as EORightMode, label: 'Inspection', icon: <HardHat size={12} />, show: isAccepted && !isOccupied && isEO },
-    { key: 'inspection_chat' as EORightMode, label: 'Insp. Chat', icon: <MessageSquare size={12} />, show: isAccepted && !isOccupied && isEO && !!selectedInspectionId },
+  
     { key: 'handover' as EORightMode, label: 'Handover', icon: <Key size={12} />, show: isAccepted && !isOccupied && isEO },
     { key: 'chat' as EORightMode, label: 'Chat', icon: <MessageSquare size={12} />, show: isOccupied || isSubmitted || isAllotted },
   ] as TabEntry[]).filter(t => t.show);
@@ -346,6 +359,18 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
   void requestApprovalSubmitting;
   void handleApproveRequestLevel;
   void handleSendRequestClarification;
+  // suppress old inspection props (still required by interface but replaced by vacate flow)
+  void inspections; void inspectionChats; void selectedInspectionId; void setSelectedInspectionId;
+  void inspectionPanel; void setInspectionPanel;
+  void inspectionOpeningRemark; void setInspectionOpeningRemark;
+  void inspectionInspectorName; void setInspectionInspectorName;
+  void inspectionInitialCondition; void setInspectionInitialCondition;
+  void inspectionChecklist; void setInspectionChecklist;
+  void inspectionChatMsg; void setInspectionChatMsg;
+  void inspectionSubmitting; void inspectionCloseRemarks; void setInspectionCloseRemarks;
+  void inspectionCondition; void setInspectionCondition;
+  void handleStartInspection; void handleSendInspectionChat; void handleCloseInspection;
+  void inspectionChatMode; void setInspectionChatMode;
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -730,158 +755,118 @@ export const EOActionPanel: React.FC<EOActionPanelProps> = ({
           </div>
         )}
 
-        {/* Inspection tab */}
+        {/* Inspection tab — Vacate inspection flow with four actions */}
         {eoRightMode === 'inspection' && isAccepted && (
-          <div className="p-4 space-y-3">
-            {inspectionPanel === 'list' && (
-              <>
-                <button
-                  onClick={() => setInspectionPanel('new')}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors"
-                >
-                  <Plus size={14} />New Inspection
-                </button>
-                {inspections.length === 0 && <p className="text-xs text-gray-400 text-center italic py-4">No inspections yet.</p>}
+          <div className="p-4 space-y-4">
+            {/* Pending Vacate Requests */}
+            {pendingVacateRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <HardHat size={28} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-xs text-gray-400">No pending vacate inspection requests for this quarter.</p>
+              </div>
+            ) : (
+              pendingVacateRequests.map(tr => {
+                const vacInsp = vacateInspectionMap[tr.id];
+                const hasInspection = !!vacInsp;
+                const isCompleted = vacInsp?.status === 'COMPLETED';
+                const isInProgress = vacInsp?.status === 'IN_PROGRESS';
+                const isScheduled = vacInsp?.status === 'SCHEDULED';
+                const isProc = processingVacateInspection === tr.id;
+
+                return (
+                  <div key={tr.id} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                    {/* Vacate Request Header */}
+                    <div className="px-4 py-3 bg-orange-50 border-b border-orange-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-wide">Vacate Request</span>
+                        <span className="text-[10px] text-gray-400">{fmtDate(tr.created_at)}</span>
+                      </div>
+                      <p className="text-xs text-gray-700 font-medium">{tr.reason || 'Vacate request'}</p>
+                    </div>
+
+                    {/* Inspection Stage Badge */}
+                    {vacInsp && (
+                      <div className="px-4 py-2.5 border-b border-gray-100">
+                        {isScheduled && vacInsp.employeeAccepted === 'PENDING' && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            <Calendar size={12} /> Scheduled {vacInsp.inspectionDate} · {vacInsp.timeSlot} — Awaiting employee acceptance
+                          </div>
+                        )}
+                        {isScheduled && vacInsp.employeeAccepted === 'ACCEPTED' && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+                            <Calendar size={12} /> Scheduled {vacInsp.inspectionDate} · {vacInsp.timeSlot} — Employee accepted
+                          </div>
+                        )}
+                        {isScheduled && vacInsp.employeeAccepted === 'DECLINED' && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            <XCircle size={12} /> Employee declined — reschedule needed
+                          </div>
+                        )}
+                        {isInProgress && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                            <ClipboardCheck size={12} /> Inspector report submitted — {vacInsp.findings.length} findings · Awaiting EO completion
+                          </div>
+                        )}
+                        {isCompleted && (
+                          <div className="flex items-center gap-2 text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                            <ClipboardCheck size={12} /> Inspection completed — Ready for decision
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Four Actions */}
+                    <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => onScheduleVacateInspection?.(tr)}
+                        disabled={isProc || hasInspection}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Calendar size={13} /> Schedule
+                      </button>
+                      <button
+                        onClick={() => onCompleteVacateInspection?.(tr)}
+                        disabled={isProc || !isInProgress}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ClipboardCheck size={13} /> Complete
+                      </button>
+                      <button
+                        onClick={() => onViewVacateReport?.(tr)}
+                        disabled={isProc || !hasInspection}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Eye size={13} /> View Report
+                      </button>
+                      <button
+                        onClick={() => onViewVacateReport?.(tr)}
+                        disabled={isProc || !isCompleted}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <CheckCircle size={13} /> Accept
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {/* Legacy inspections (pre-occupancy) */}
+            {inspections.length > 0 && (
+              <div className="pt-2 border-t border-gray-100">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pre-Occupancy Inspections</div>
                 {inspections.map(insp => (
-                  <div key={insp.id} className={`rounded-xl border px-3 py-3 space-y-1.5 ${insp.status === 'CLOSED' ? 'border-gray-200 bg-gray-50' : 'border-teal-200 bg-teal-50'}`}>
+                  <div key={insp.id} className={`rounded-xl border px-3 py-3 space-y-1.5 mb-2 ${insp.status === 'CLOSED' ? 'border-gray-200 bg-gray-50' : 'border-teal-200 bg-teal-50'}`}>
                     <div className="flex items-center justify-between">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${insp.status === 'CLOSED' ? 'bg-gray-100 text-gray-500' : 'bg-teal-100 text-teal-700'}`}>{insp.status}</span>
                       <span className="text-[10px] text-gray-400">{fmtDate(insp.created_at)}</span>
                     </div>
                     {insp.opening_remarks && <p className="text-xs text-gray-600">{insp.opening_remarks}</p>}
                     {insp.property_condition && <p className="text-[10px] font-semibold text-gray-500">Condition: {insp.property_condition}</p>}
-                    <button
-                      onClick={() => { setSelectedInspectionId(insp.id); setInspectionPanel('chat'); setEoRightMode('inspection_chat'); }}
-                      className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold hover:bg-sky-700 transition-colors"
-                    >
-                      <MessageSquare size={11} />Open Chat
-                    </button>
                   </div>
                 ))}
-              </>
-            )}
-            {inspectionPanel === 'new' && (
-              <InspectionFormModal
-                requestRef={selectedRequest.request_no ?? undefined}
-                quarterRef={selectedRequest.allotment?.quarter?.quarter_number ?? undefined}
-                inspectorName={inspectionInspectorName}
-                openingRemarks={inspectionOpeningRemark}
-                condition={inspectionInitialCondition}
-                checklist={inspectionChecklist}
-                submitting={inspectionSubmitting}
-                onInspectorNameChange={setInspectionInspectorName}
-                onOpeningRemarksChange={setInspectionOpeningRemark}
-                onConditionChange={setInspectionInitialCondition}
-                onChecklistChange={setInspectionChecklist}
-                onClose={() => setInspectionPanel('list')}
-                onSubmit={handleStartInspection}
-              />
-            )}
-            {inspectionPanel === 'chat' && selectedInspectionId && (
-              <div className="space-y-3">
-                <button onClick={() => { setInspectionPanel('list'); setSelectedInspectionId(null); }} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors">
-                  <ArrowLeft size={12} />Back
-                </button>
-                <div className="space-y-2 max-h-44 overflow-y-auto">
-                  {inspectionChats.map(chat => (
-                    <div key={chat.id} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-xs">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="font-semibold text-teal-700 capitalize">{chat.author_role}</span>
-                        <span className="text-gray-400 text-[10px]">{fmtDate(chat.created_at)}</span>
-                      </div>
-                      <p className="text-gray-700">{chat.message}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    value={inspectionChatMsg}
-                    onChange={e => setInspectionChatMsg(e.target.value)}
-                    placeholder="Add observation…"
-                    className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none"
-                    onKeyDown={e => { if (e.key === 'Enter') handleSendInspectionChat(); }}
-                  />
-                  <button onClick={handleSendInspectionChat} className="px-3 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors"><Send size={13} /></button>
-                </div>
-                <div className="border-t border-gray-100 pt-3 space-y-2">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Close Inspection</div>
-                  <select
-                    value={inspectionCondition}
-                    onChange={e => setInspectionCondition(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none"
-                  >
-                    {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NEEDS_REPAIR'].map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <textarea
-                    value={inspectionCloseRemarks}
-                    onChange={e => setInspectionCloseRemarks(e.target.value)}
-                    rows={2}
-                    placeholder="Closing remarks…"
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none resize-none"
-                  />
-                  <button onClick={handleCloseInspection} disabled={inspectionSubmitting || !inspectionCloseRemarks.trim()} className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-gray-700 text-white text-xs font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                    <ClipboardCheck size={12} />{inspectionSubmitting ? '…' : 'Close Inspection'}
-                  </button>
-                </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Inspection Chat tab */}
-        {eoRightMode === 'inspection_chat' && isAccepted && selectedInspectionId && (
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-sky-50">
-              <HardHat size={12} className="text-sky-600" />
-              <span className="text-xs font-semibold text-sky-800">Inspection Chat</span>
-              <button
-                onClick={() => { setSelectedInspectionId(null); setEoRightMode('inspection'); }}
-                className="ml-auto text-[10px] text-sky-500 hover:text-sky-700 flex items-center gap-1 transition-colors"
-              >
-                <X size={11} />Back
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-gray-50 min-h-0">
-              {inspectionChats.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center mb-2">
-                    <MessageSquare size={14} className="text-sky-400" />
-                  </div>
-                  <p className="text-xs text-gray-400 italic">No messages yet</p>
-                </div>
-              )}
-              {inspectionChats.map(chat => (
-                <div key={chat.id} className={`flex ${chat.author_role === 'eo' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[78%] rounded-xl px-3 py-2 text-xs shadow-sm ${chat.author_role === 'eo' ? 'bg-sky-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
-                    <div className={`text-[9px] font-bold mb-0.5 capitalize ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-sky-600'}`}>{chat.author_role}</div>
-                    <p className="leading-relaxed">{chat.message}</p>
-                    <div className={`text-[9px] mt-0.5 ${chat.author_role === 'eo' ? 'text-sky-200' : 'text-gray-400'}`}>{fmtDate(chat.created_at)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex-none border-t border-gray-100 px-4 py-3 bg-white">
-              <ChatDeliveryModePicker value={inspectionChatMode} onChange={setInspectionChatMode} className="mb-2" />
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={inspectionChatMsg}
-                  onChange={e => setInspectionChatMsg(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && inspectionChatMsg.trim()) { e.preventDefault(); handleSendInspectionChat(); } }}
-                  rows={1}
-                  placeholder="Add observation… (Enter to send)"
-                  className="flex-1 px-3.5 py-2.5 text-[13px] border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 bg-white leading-relaxed transition-colors"
-                  style={{ minHeight: '40px', maxHeight: '80px' }}
-                />
-                <button
-                  onClick={handleSendInspectionChat}
-                  disabled={!inspectionChatMsg.trim() || inspectionSubmitting}
-                  className="flex-none p-2.5 rounded-xl bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-                  title="Send"
-                >
-                  <Send size={15} />
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

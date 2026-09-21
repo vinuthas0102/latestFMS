@@ -51,7 +51,13 @@ import { LogDetailsModal, type LogEntry } from '../components/ui/LogDetailsModal
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
-import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES, DEMO_WORKFLOWS, DEMO_ALLOCATED_CYCLES, DEMO_UNAPPROVED_CYCLES } from '../mocks/demoData';
+import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES, DEMO_WORKFLOWS, DEMO_ALLOCATED_CYCLES, DEMO_UNAPPROVED_CYCLES, DEMO_VACATE_INSPECTIONS } from '../mocks/demoData';
+import type { VacateInspectionDetail } from '../components/quarters/manager/InspectionReportViewModal';
+import { ScheduleInspectionModal } from '../components/quarters/manager/ScheduleInspectionModal';
+import { CompleteInspectionModal } from '../components/quarters/manager/CompleteInspectionModal';
+import { InspectionReportViewModal } from '../components/quarters/manager/InspectionReportViewModal';
+import { DamageFindingsModal } from '../components/quarters/manager/DamageFindingsModal';
+import { InspectionRequestDetailsModal } from '../components/quarters/manager/InspectionRequestDetailsModal';
 import {
   PLACEHOLDER_IMAGES, getImage, resolveAllImages,
   fmtINR, fmtDate, statusAccentColor,
@@ -307,6 +313,126 @@ export const QuarterRequestsPage: React.FC = () => {
   const [logModal, setLogModal] = useState<{ title: string; subtitle?: string } | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logLoading, setLogLoading] = useState(false);
+
+  // ── Vacate inspection flow state ────────────────────────────────────────────
+  const [vacateInspectionMap, setVacateInspectionMap] = useState<Record<string, VacateInspectionDetail | undefined>>({});
+  const [scheduleTarget, setScheduleTarget] = useState<QuarterTenantRequest | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<QuarterTenantRequest | null>(null);
+  const [viewReportTarget, setViewReportTarget] = useState<QuarterTenantRequest | null>(null);
+  const [damageFindingsTarget, setDamageFindingsTarget] = useState<QuarterTenantRequest | null>(null);
+  const [inspectionDetailsTarget, setInspectionDetailsTarget] = useState<QuarterTenantRequest | null>(null);
+  const [processingVacateInspection, setProcessingVacateInspection] = useState<string | null>(null);
+  const [acceptingInspection, setAcceptingInspection] = useState<string | null>(null);
+
+  // Build vacate inspection map from demo data + tenant requests
+  useEffect(() => {
+    const map: Record<string, VacateInspectionDetail | undefined> = {};
+    for (const tr of tenantRequests) {
+      if (tr.service_type === 'VACATE') {
+        map[tr.id] = DEMO_VACATE_INSPECTIONS.find(v => v.tenantRequestId === tr.id);
+      }
+    }
+    setVacateInspectionMap(map);
+  }, [tenantRequests]);
+
+  const handleScheduleVacateInspectionSubmit = (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[] }) => {
+    if (!scheduleTarget) return;
+    setProcessingVacateInspection(scheduleTarget.id);
+    const newInsp: VacateInspectionDetail = {
+      id: `vin-new-${Date.now()}`,
+      tenantRequestId: scheduleTarget.id,
+      inspectorName: data.inspectorName,
+      inspectionDate: data.date,
+      timeSlot: data.timeSlot,
+      status: 'SCHEDULED',
+      employeeAccepted: 'PENDING',
+      propertyCondition: '',
+      openingRemarks: data.remarks,
+      closingRemarks: '',
+      findings: [],
+      uploadedDocs: [],
+      damagePhotos: [],
+      auditTrail: [
+        { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `Inspection scheduled for ${data.date}, ${data.timeSlot}. Inspector: ${data.inspectorName}.` },
+        { timestamp: new Date().toISOString(), actor: 'System', action: 'Auto-dispatch email sent to selected recipients.' },
+      ],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [scheduleTarget.id]: newInsp }));
+    addToast('Inspection scheduled successfully', 'success');
+    setScheduleTarget(null);
+    setProcessingVacateInspection(null);
+  };
+
+  const handleCompleteVacateInspectionSubmit = (data: { remarks: string; uploadedDocs: { name: string }[] }) => {
+    if (!completeTarget) return;
+    const existing = vacateInspectionMap[completeTarget.id];
+    if (!existing) { addToast('No inspection found to complete', 'error'); return; }
+    setProcessingVacateInspection(completeTarget.id);
+    const updated: VacateInspectionDetail = {
+      ...existing,
+      status: 'COMPLETED',
+      closingRemarks: data.remarks || existing.closingRemarks,
+      uploadedDocs: [...existing.uploadedDocs, ...data.uploadedDocs.map(d => ({ name: d.name, type: 'PDF', size: '—' }))],
+      auditTrail: [...existing.auditTrail, { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: 'Inspection completed. Final report uploaded.' }],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [completeTarget.id]: updated }));
+    addToast('Inspection completed successfully', 'success');
+    setCompleteTarget(null);
+    setProcessingVacateInspection(null);
+  };
+
+  const handleDamageFindingsSubmit = (data: { findings: { id: string; item: string; category: string; estimatedCost: number; deductionAmount: number; remarks: string }[]; closingRemarks: string; uploadedDocs: { name: string; type: string }[]; damagePhotos: { name: string; type: string }[] }) => {
+    if (!damageFindingsTarget) return;
+    const existing = vacateInspectionMap[damageFindingsTarget.id];
+    if (!existing) { addToast('No inspection found', 'error'); return; }
+    setProcessingVacateInspection(damageFindingsTarget.id);
+    const updated: VacateInspectionDetail = {
+      ...existing,
+      status: 'IN_PROGRESS',
+      closingRemarks: data.closingRemarks,
+      findings: data.findings,
+      uploadedDocs: [...existing.uploadedDocs, ...data.uploadedDocs.map(d => ({ name: d.name, type: d.type, size: '—' }))],
+      damagePhotos: [...existing.damagePhotos, ...data.damagePhotos.map(p => ({ name: p.name, type: p.type }))],
+      auditTrail: [...existing.auditTrail, { timestamp: new Date().toISOString(), actor: 'Inspector', action: `Damage findings submitted: ${data.findings.length} item(s). Inspection report uploaded.` }],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [damageFindingsTarget.id]: updated }));
+    addToast('Inspection report submitted to Estate Manager', 'success');
+    setDamageFindingsTarget(null);
+    setProcessingVacateInspection(null);
+  };
+
+  const handleAcceptInspection = (tenantRequestId: string) => {
+    setAcceptingInspection(tenantRequestId);
+    const existing = vacateInspectionMap[tenantRequestId];
+    if (!existing) { setAcceptingInspection(null); return; }
+    const updated: VacateInspectionDetail = {
+      ...existing,
+      employeeAccepted: 'ACCEPTED',
+      auditTrail: [...existing.auditTrail, { timestamp: new Date().toISOString(), actor: 'Employee', action: 'Inspection schedule accepted.' }],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [tenantRequestId]: updated }));
+    addToast('Inspection schedule accepted', 'success');
+    setAcceptingInspection(null);
+  };
+
+  const handleDeclineInspection = (tenantRequestId: string) => {
+    setAcceptingInspection(tenantRequestId);
+    const existing = vacateInspectionMap[tenantRequestId];
+    if (!existing) { setAcceptingInspection(null); return; }
+    const updated: VacateInspectionDetail = {
+      ...existing,
+      employeeAccepted: 'DECLINED',
+      auditTrail: [...existing.auditTrail, { timestamp: new Date().toISOString(), actor: 'Employee', action: 'Inspection schedule declined. Reschedule requested.' }],
+    };
+    setVacateInspectionMap(prev => ({ ...prev, [tenantRequestId]: updated }));
+    addToast('Reschedule request sent to Estate Manager', 'success');
+    setAcceptingInspection(null);
+  };
+
+  // Pending vacate requests for the selected request's allotment
+  const pendingVacateRequests = selectedRequest?.allotment
+    ? tenantRequests.filter(tr => tr.allotment_id === selectedRequest.allotment!.id && tr.service_type === 'VACATE' && tr.request_status === 'PENDING')
+    : [];
 
   // ── Run Allocation: available users pool ─────────────────────────────────────
   type AllocUser = { id: string; full_name: string; govt_employee_id: string; email: string; govt_department: string };
@@ -2709,6 +2835,12 @@ export const QuarterRequestsPage: React.FC = () => {
                   handleCloseInspection={handleCloseInspection}
                   inspectionChatMode={inspectionChatMode}
                   setInspectionChatMode={setInspectionChatMode}
+                  vacateInspectionMap={vacateInspectionMap}
+                  onScheduleVacateInspection={(tr) => setScheduleTarget(tr)}
+                  onCompleteVacateInspection={(tr) => setCompleteTarget(tr)}
+                  onViewVacateReport={(tr) => setViewReportTarget(tr)}
+                  processingVacateInspection={processingVacateInspection}
+                  pendingVacateRequests={pendingVacateRequests}
                   handover={handover}
                   handoverKeyNo={handoverKeyNo}
                   setHandoverKeyNo={setHandoverKeyNo}
@@ -2856,6 +2988,10 @@ export const QuarterRequestsPage: React.FC = () => {
                     handleSendAllotmentChat={handleSendAllotmentChat}
                     allotmentChatMode={allotmentChatMode}
                     setAllotmentChatMode={setAllotmentChatMode}
+                    vacateInspectionMap={vacateInspectionMap}
+                    onAcceptInspection={handleAcceptInspection}
+                    onDeclineInspection={handleDeclineInspection}
+                    acceptingInspection={acceptingInspection}
                   />
                 </Suspense>
               );
@@ -5944,6 +6080,56 @@ export const QuarterRequestsPage: React.FC = () => {
           entries={logEntries}
           loading={logLoading}
           onClose={() => { setLogModal(null); setLogEntries([]); }}
+        />
+      )}
+
+      {/* Schedule Inspection Modal */}
+      {scheduleTarget && (
+        <ScheduleInspectionModal
+          tr={scheduleTarget}
+          onClose={() => setScheduleTarget(null)}
+          onSubmit={handleScheduleVacateInspectionSubmit}
+          submitting={processingVacateInspection === scheduleTarget.id}
+        />
+      )}
+
+      {/* Complete Inspection Modal */}
+      {completeTarget && (
+        <CompleteInspectionModal
+          tr={completeTarget}
+          inspection={vacateInspectionMap[completeTarget.id] ?? null}
+          onClose={() => setCompleteTarget(null)}
+          onSubmit={handleCompleteVacateInspectionSubmit}
+          submitting={processingVacateInspection === completeTarget.id}
+        />
+      )}
+
+      {/* Inspection Report View Modal */}
+      {viewReportTarget && (
+        <InspectionReportViewModal
+          tr={viewReportTarget}
+          inspection={vacateInspectionMap[viewReportTarget.id] ?? null}
+          onClose={() => setViewReportTarget(null)}
+        />
+      )}
+
+      {/* Damage Findings Modal (Inspector) */}
+      {damageFindingsTarget && (
+        <DamageFindingsModal
+          tr={damageFindingsTarget}
+          inspection={vacateInspectionMap[damageFindingsTarget.id] ?? null}
+          onClose={() => setDamageFindingsTarget(null)}
+          onSubmit={handleDamageFindingsSubmit}
+          submitting={processingVacateInspection === damageFindingsTarget.id}
+        />
+      )}
+
+      {/* Inspection Request Details Modal (Inspector) */}
+      {inspectionDetailsTarget && (
+        <InspectionRequestDetailsModal
+          tr={inspectionDetailsTarget}
+          inspection={vacateInspectionMap[inspectionDetailsTarget.id] ?? null}
+          onClose={() => setInspectionDetailsTarget(null)}
         />
       )}
     </div>

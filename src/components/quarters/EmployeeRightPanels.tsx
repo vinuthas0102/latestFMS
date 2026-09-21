@@ -4,6 +4,7 @@ import {
   ThumbsUp, Bell, Wrench, RefreshCw, ArrowRightCircle, LogOut, IndianRupee,
   AlertCircle, ExternalLink, CalendarDays, Bed, Eye, Star, Plus,
   Ruler, ArrowLeft, XCircle, Send as SendIcon, Download, ArrowLeftRight,
+  Calendar, HardHat, ClipboardCheck,
 } from 'lucide-react';
 import { downloadElementAsHtml } from '../../utils/downloadHtml';
 import { Button } from '../ui/Button';
@@ -27,6 +28,7 @@ import type { ChatDeliveryMode } from '../../types/quarters';
 import { ChatDeliveryModePicker } from '../ui/ChatDeliveryModePicker';
 import { UserDTO } from '../../types/user.types';
 import { ROUTES } from '../../constants/routes';
+import type { VacateInspectionDetail } from './manager/InspectionReportViewModal';
 
 // ─── shared prop types ────────────────────────────────────────────────────────
 
@@ -238,6 +240,11 @@ interface RightPanelOccupiedProps extends PanelBase {
   handleSendAllotmentChat?: () => void;
   allotmentChatMode?: ChatDeliveryMode[];
   setAllotmentChatMode?: (m: ChatDeliveryMode[]) => void;
+  // Vacate inspection acceptance
+  vacateInspectionMap?: Record<string, VacateInspectionDetail | undefined>;
+  onAcceptInspection?: (tenantRequestId: string) => void;
+  onDeclineInspection?: (tenantRequestId: string) => void;
+  acceptingInspection?: string | null;
 }
 
 export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
@@ -256,6 +263,7 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
   allotmentChatFile = null, setAllotmentChatFile,
   allotmentChatSubmitting = false, handleSendAllotmentChat,
   allotmentChatMode = ['IN_APP'] as ChatDeliveryMode[], setAllotmentChatMode,
+  vacateInspectionMap = {}, onAcceptInspection, onDeclineInspection, acceptingInspection,
 }) => {
   const navigate = useNavigate();
   const chatFileRef = useRef<HTMLInputElement>(null);
@@ -509,6 +517,73 @@ export const RightPanelOccupied: React.FC<RightPanelOccupiedProps> = ({
                   <div className="text-[12px] text-amber-900 leading-relaxed">{selectedSvc.eo_notes}</div>
                 </div>
               )}
+
+              {/* Vacate Inspection Acceptance Card */}
+              {selectedSvc.service_type === 'VACATE' && selectedSvc.request_status === 'PENDING' && (() => {
+                const vacInsp = vacateInspectionMap[selectedSvc.id];
+                if (!vacInsp) return null;
+                const isPending = vacInsp.employeeAccepted === 'PENDING';
+                const isAccepted = vacInsp.employeeAccepted === 'ACCEPTED';
+                const isDeclined = vacInsp.employeeAccepted === 'DECLINED';
+                return (
+                  <div className="mx-4 mb-4 rounded-xl border border-sky-200 bg-sky-50/60 overflow-hidden">
+                    <div className="px-4 py-2.5 bg-sky-100/80 border-b border-sky-200 flex items-center gap-2">
+                      <HardHat size={13} className="text-sky-600" />
+                      <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wide">Scheduled Inspection</span>
+                    </div>
+                    <div className="px-4 py-3 space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5"><Calendar size={12} className="text-sky-500" /><span className="text-gray-500">Date:</span> <span className="font-medium text-gray-800">{vacInsp.inspectionDate}</span></div>
+                        <div className="flex items-center gap-1.5"><Clock size={12} className="text-sky-500" /><span className="text-gray-500">Time:</span> <span className="font-medium text-gray-800">{vacInsp.timeSlot}</span></div>
+                        <div className="flex items-center gap-1.5"><HardHat size={12} className="text-sky-500" /><span className="text-gray-500">Inspector:</span> <span className="font-medium text-gray-800">{vacInsp.inspectorName}</span></div>
+                      </div>
+                      {vacInsp.openingRemarks && (
+                        <div className="text-[11px] text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                          <span className="font-medium text-gray-700">Guidelines:</span> {vacInsp.openingRemarks}
+                        </div>
+                      )}
+                      {isPending && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => onAcceptInspection?.(selectedSvc.id)}
+                            disabled={acceptingInspection === selectedSvc.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          >
+                            <CheckCircle size={13} /> {acceptingInspection === selectedSvc.id ? 'Accepting…' : 'Accept'}
+                          </button>
+                          <button
+                            onClick={() => onDeclineInspection?.(selectedSvc.id)}
+                            disabled={acceptingInspection === selectedSvc.id}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          >
+                            <XCircle size={13} /> Decline / Reschedule
+                          </button>
+                        </div>
+                      )}
+                      {isAccepted && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                          <CheckCircle size={13} /> You have accepted the inspection schedule.
+                        </div>
+                      )}
+                      {isDeclined && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          <XCircle size={13} /> You have requested a reschedule. The Estate Manager will assign a new slot.
+                        </div>
+                      )}
+                      {vacInsp.status === 'IN_PROGRESS' && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                          <ClipboardCheck size={13} /> Inspector report submitted — {vacInsp.findings.length} damage finding{vacInsp.findings.length !== 1 ? 's' : ''} recorded.
+                        </div>
+                      )}
+                      {vacInsp.status === 'COMPLETED' && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+                          <ClipboardCheck size={13} /> Inspection completed. Awaiting final decision from Estate Manager.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
