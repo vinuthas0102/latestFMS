@@ -104,7 +104,10 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
   // Recompute / close on scroll and resize
   useEffect(() => {
     if (!dropdownOpen) return;
-    const onScroll = () => closeDropdown();
+    const onScroll = (e: Event) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      closeDropdown();
+    };
     const onResize = () => computePanelPos();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);
