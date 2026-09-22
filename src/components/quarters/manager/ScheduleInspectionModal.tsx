@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, User, FileText, X, Send, CheckSquare, Square } from 'lucide-react';
-import type { QuarterTenantRequest, Quarter } from '../../../services/quartersService';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { Calendar, Clock, User, FileText, X, Send, CheckSquare, Square, ChevronDown, Plus, Mail, Trash2 } from 'lucide-react';
+import type { QuarterTenantRequest } from '../../../services/quartersService';
 
 const TIME_SLOTS = [
   '09:00 AM – 11:00 AM',
@@ -18,19 +19,26 @@ const INSPECTORS = [
   { id: 'insp-004', name: 'Kavitha Rao', role: 'Junior Inspector' },
 ];
 
-const DISPATCH_TARGETS = [
+export const DISPATCH_TARGETS = [
   { id: 'emp', name: 'Suresh Nair (Employee)', role: 'Allottee', email: 'suresh.nair@gov.in' },
   { id: 'insp-001', name: 'Rajiv Sharma', role: 'Senior Inspector', email: 'rajiv.sharma@gov.in' },
   { id: 'eo', name: 'Estate Office', role: 'Estate Office', email: 'estate.office@gov.in' },
   { id: 'maint', name: 'Maintenance Cell', role: 'Maintenance', email: 'maintenance@gov.in' },
 ];
 
+export interface AdhocRecipient {
+  name: string;
+  email: string;
+}
+
 interface Props {
   tr: QuarterTenantRequest;
   onClose: () => void;
-  onSubmit: (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[] }) => void;
+  onSubmit: (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[]; adhocRecipients: AdhocRecipient[] }) => void;
   submitting: boolean;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit, submitting }) => {
   const [date, setDate] = useState('');
@@ -38,10 +46,93 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
   const [inspectorId, setInspectorId] = useState('');
   const [remarks, setRemarks] = useState('');
   const [dispatchIds, setDispatchIds] = useState<string[]>(['emp', 'eo']);
+  const [adhocRecipients, setAdhocRecipients] = useState<AdhocRecipient[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [adhocName, setAdhocName] = useState('');
+  const [adhocEmail, setAdhocEmail] = useState('');
+  const [adhocError, setAdhocError] = useState('');
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const dropdownBtnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const q = tr.allotment?.quarter;
   const toggleDispatch = (id: string) => {
     setDispatchIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const computePanelPos = useCallback(() => {
+    const btn = dropdownBtnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelMaxH = 320;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < panelMaxH + 16 && rect.top > panelMaxH + 16
+      ? rect.top - panelMaxH - 8
+      : rect.bottom + 8;
+    setPanelPos({ top: Math.max(8, top), left: rect.left, width: rect.width });
+  }, []);
+
+  const openDropdown = () => {
+    computePanelPos();
+    setDropdownOpen(true);
+  };
+
+  const closeDropdown = () => {
+    setDropdownOpen(false);
+    setAdhocError('');
+  };
+
+  const toggleDropdown = () => {
+    if (dropdownOpen) closeDropdown();
+    else openDropdown();
+  };
+
+  // Close on click-outside
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (panelRef.current?.contains(target)) return;
+      if (dropdownBtnRef.current?.contains(target)) return;
+      closeDropdown();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropdownOpen]);
+
+  // Recompute / close on scroll and resize
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const onScroll = () => closeDropdown();
+    const onResize = () => computePanelPos();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [dropdownOpen, computePanelPos]);
+
+  const totalSelected = dispatchIds.length + adhocRecipients.length;
+
+  const addAdhocRecipient = () => {
+    setAdhocError('');
+    const name = adhocName.trim();
+    const email = adhocEmail.trim();
+    if (!name) { setAdhocError('Please enter a name.'); return; }
+    if (!email) { setAdhocError('Please enter an email address.'); return; }
+    if (!EMAIL_RE.test(email)) { setAdhocError('Please enter a valid email address.'); return; }
+    if (adhocRecipients.some(r => r.email.toLowerCase() === email.toLowerCase())) {
+      setAdhocError('This email has already been added.'); return;
+    }
+    setAdhocRecipients(prev => [...prev, { name, email }]);
+    setAdhocName('');
+    setAdhocEmail('');
+  };
+
+  const removeAdhocRecipient = (idx: number) => {
+    setAdhocRecipients(prev => prev.filter((_, i) => i !== idx));
   };
 
   const canSubmit = date && timeSlot && inspectorId;
@@ -56,13 +147,108 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
       inspectorName: insp?.name ?? '',
       remarks,
       dispatchTargets: dispatchIds,
+      adhocRecipients,
     });
   };
+
+  const panelContent = dropdownOpen && panelPos ? (
+    <div
+      ref={panelRef}
+      className="fixed z-[60] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
+      style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
+    >
+      <div className="max-h-80 overflow-y-auto">
+        {/* Preset targets */}
+        <div className="px-3 pt-2.5 pb-1">
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Preset Recipients</span>
+        </div>
+        {DISPATCH_TARGETS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => toggleDispatch(t.id)}
+            className={`w-full flex items-center gap-3 px-3.5 py-2 transition-all ${
+              dispatchIds.includes(t.id) ? 'bg-sky-50/60' : 'hover:bg-gray-50'
+            }`}
+          >
+            {dispatchIds.includes(t.id)
+              ? <CheckSquare size={15} className="text-sky-600 shrink-0" />
+              : <Square size={15} className="text-gray-300 shrink-0" />
+            }
+            <div className="text-left flex-1 min-w-0">
+              <div className="text-xs font-medium text-gray-700 truncate">{t.name}</div>
+              <div className="text-[11px] text-gray-400 truncate">{t.email}</div>
+            </div>
+          </button>
+        ))}
+
+        {/* Ad-hoc recipients added */}
+        {adhocRecipients.length > 0 && (
+          <>
+            <div className="mx-3 border-t border-gray-100 my-1.5" />
+            <div className="px-3 pt-1 pb-1">
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Custom Recipients</span>
+            </div>
+            {adhocRecipients.map((r, idx) => (
+              <div key={idx} className="w-full flex items-center gap-3 px-3.5 py-2 bg-sky-50/40">
+                <CheckSquare size={15} className="text-sky-600 shrink-0" />
+                <div className="text-left flex-1 min-w-0">
+                  <div className="text-xs font-medium text-gray-700 truncate flex items-center gap-1.5">
+                    {r.name}
+                    <span className="text-[8px] font-bold text-sky-600 bg-sky-100 rounded px-1 py-0.5 leading-none">CUSTOM</span>
+                  </div>
+                  <div className="text-[11px] text-gray-400 truncate">{r.email}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeAdhocRecipient(idx)}
+                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* Add ad-hoc recipient form */}
+        <div className="mx-3 border-t border-gray-100 my-1.5" />
+        <div className="px-3 pt-1.5 pb-1">
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Add Custom Recipient</span>
+        </div>
+        <div className="px-3 pb-3 space-y-2">
+          <input
+            type="text"
+            value={adhocName}
+            onChange={e => { setAdhocName(e.target.value); setAdhocError(''); }}
+            placeholder="Recipient name"
+            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 transition-colors"
+          />
+          <input
+            type="email"
+            value={adhocEmail}
+            onChange={e => { setAdhocEmail(e.target.value); setAdhocError(''); }}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAdhocRecipient(); } }}
+            placeholder="email@example.com"
+            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 transition-colors"
+          />
+          {adhocError && <p className="text-[10px] text-red-500 font-medium">{adhocError}</p>}
+          <button
+            type="button"
+            onClick={addAdhocRecipient}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all"
+          >
+            <Plus size={13} />Add Recipient
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden" style={{ maxHeight: '92vh' }}>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden" style={{ maxHeight: '94vh' }}>
 
         <div className="shrink-0 bg-gradient-to-r from-sky-700 to-blue-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -155,33 +341,26 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
             </div>
           </div>
 
-          {/* Auto-Dispatch Targets */}
+          {/* Auto-Dispatch Targets — Multi-Select Dropdown */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Auto-Dispatch Targets</label>
             <p className="text-[11px] text-gray-400 mb-2.5">Updates will be emailed to the selected recipients.</p>
-            <div className="space-y-2">
-              {DISPATCH_TARGETS.map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => toggleDispatch(t.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${
-                    dispatchIds.includes(t.id)
-                      ? 'bg-sky-50/60 border-sky-200'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {dispatchIds.includes(t.id)
-                    ? <CheckSquare size={15} className="text-sky-600 shrink-0" />
-                    : <Square size={15} className="text-gray-300 shrink-0" />
-                  }
-                  <div className="text-left flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-700 truncate">{t.name}</div>
-                    <div className="text-[11px] text-gray-400 truncate">{t.email}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <button
+              ref={dropdownBtnRef}
+              type="button"
+              onClick={toggleDropdown}
+              className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm border rounded-xl transition-all bg-white ${
+                dropdownOpen ? 'border-sky-400 ring-2 ring-sky-400/30' : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Mail size={14} className="text-gray-400 shrink-0" />
+                <span className="truncate text-gray-700">
+                  {totalSelected === 0 ? 'Select recipients…' : `${totalSelected} recipient${totalSelected > 1 ? 's' : ''} selected`}
+                </span>
+              </div>
+              <ChevronDown size={16} className={`text-gray-400 shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
 
@@ -212,6 +391,8 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
           </button>
         </div>
       </div>
+
+      {panelContent && createPortal(panelContent, document.body)}
     </div>
   );
 };

@@ -54,7 +54,7 @@ import { useUIStore } from '../stores/uiStore';
 import { ROUTES } from '../constants/routes';
 import { DEMO_MODE, DEMO_REQUESTS, DEMO_TENANT_REQUESTS, DEMO_CYCLE, DEMO_EMPLOYEES, DEMO_TP_PROFILES, DEMO_WORKFLOWS, DEMO_ALLOCATED_CYCLES, DEMO_UNAPPROVED_CYCLES, DEMO_VACATE_INSPECTIONS } from '../mocks/demoData';
 import type { VacateInspectionDetail } from '../components/quarters/manager/InspectionReportViewModal';
-import { ScheduleInspectionModal } from '../components/quarters/manager/ScheduleInspectionModal';
+import { ScheduleInspectionModal, DISPATCH_TARGETS } from '../components/quarters/manager/ScheduleInspectionModal';
 import { CompleteInspectionModal } from '../components/quarters/manager/CompleteInspectionModal';
 import { InspectionReportViewModal } from '../components/quarters/manager/InspectionReportViewModal';
 import { DamageFindingsModal } from '../components/quarters/manager/DamageFindingsModal';
@@ -337,9 +337,17 @@ export const QuarterRequestsPage: React.FC = () => {
     setVacateInspectionMap(map);
   }, [tenantRequests]);
 
-  const handleScheduleVacateInspectionSubmit = (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[] }) => {
+  const handleScheduleVacateInspectionSubmit = (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[]; adhocRecipients?: { name: string; email: string }[] }) => {
     if (!scheduleTarget) return;
     setProcessingVacateInspection(scheduleTarget.id);
+    const adhoc = data.adhocRecipients ?? [];
+    const recipientNames = [
+      ...DISPATCH_TARGETS.filter(t => data.dispatchTargets.includes(t.id)).map(t => t.name),
+      ...adhoc.map(r => `${r.name} (${r.email})`),
+    ];
+    const dispatchSummary = recipientNames.length > 0
+      ? `Auto-dispatch email sent to: ${recipientNames.join(', ')}.`
+      : 'Auto-dispatch email sent to selected recipients.';
     const newInsp: VacateInspectionDetail = {
       id: `vin-new-${Date.now()}`,
       tenantRequestId: scheduleTarget.id,
@@ -356,7 +364,7 @@ export const QuarterRequestsPage: React.FC = () => {
       damagePhotos: [],
       auditTrail: [
         { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `Inspection scheduled for ${data.date}, ${data.timeSlot}. Inspector: ${data.inspectorName}.` },
-        { timestamp: new Date().toISOString(), actor: 'System', action: 'Auto-dispatch email sent to selected recipients.' },
+        { timestamp: new Date().toISOString(), actor: 'System', action: dispatchSummary },
       ],
     };
     setVacateInspectionMap(prev => ({ ...prev, [scheduleTarget.id]: newInsp }));
