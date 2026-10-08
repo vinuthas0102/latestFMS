@@ -571,8 +571,10 @@ export const QuarterManagerPage: React.FC = () => {
     if (tenantSearch.trim()) {
       const q = tenantSearch.toLowerCase();
       r = r.filter(x =>
+        x.id.toLowerCase().includes(q) ||
         x.allotment?.quarter?.quarter_number?.toLowerCase().includes(q) ||
-        x.reason?.toLowerCase().includes(q)
+        x.reason?.toLowerCase().includes(q) ||
+        x.remarks?.toLowerCase().includes(q)
       );
     }
     return r;

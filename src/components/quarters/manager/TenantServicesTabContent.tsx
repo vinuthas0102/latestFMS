@@ -202,6 +202,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                     <div className="font-semibold text-gray-900 text-sm">
                       {q?.quarter_number ?? 'Quarter'}{q?.bhk_config ? ` · ${q.bhk_config}` : ''}
                     </div>
+                    <div className="text-[10px] font-mono text-gray-400 mt-0.5">Service record: {tr.id}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{q?.address || q?.block_name}</div>
                     <div className="text-xs text-gray-600 mt-1.5 max-w-sm">{tr.reason || 'No reason provided'}</div>
                     {tr.remarks && (
