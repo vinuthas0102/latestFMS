@@ -318,7 +318,7 @@ export const QuarterRequestsPage: React.FC = () => {
 
   // ── Vacate inspection flow state ────────────────────────────────────────────
   const [vacateInspectionMap, setVacateInspectionMap] = useState<Record<string, VacateInspectionDetail | undefined>>({});
-  const [scheduleTarget, setScheduleTarget] = useState<QuarterTenantRequest | null>(null);
+  const [scheduleTarget, setScheduleTarget] = useState<{ request: QuarterTenantRequest; isReschedule: boolean } | null>(null);
   const [completeTarget, setCompleteTarget] = useState<QuarterTenantRequest | null>(null);
   const [viewReportTarget, setViewReportTarget] = useState<QuarterTenantRequest | null>(null);
   const [damageFindingsTarget, setDamageFindingsTarget] = useState<QuarterTenantRequest | null>(null);
@@ -339,7 +339,9 @@ export const QuarterRequestsPage: React.FC = () => {
 
   const handleScheduleVacateInspectionSubmit = (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[]; adhocRecipients?: { name: string; email: string }[] }) => {
     if (!scheduleTarget) return;
-    setProcessingVacateInspection(scheduleTarget.id);
+    const request = scheduleTarget.request;
+    const existing = vacateInspectionMap[request.id];
+    setProcessingVacateInspection(request.id);
     const adhoc = data.adhocRecipients ?? [];
     const recipientNames = [
       ...DISPATCH_TARGETS.filter(t => data.dispatchTargets.includes(t.id)).map(t => t.name),
@@ -350,25 +352,26 @@ export const QuarterRequestsPage: React.FC = () => {
       : 'Auto-dispatch email sent to selected recipients.';
     const newInsp: VacateInspectionDetail = {
       id: `vin-new-${Date.now()}`,
-      tenantRequestId: scheduleTarget.id,
+      tenantRequestId: request.id,
       inspectorName: data.inspectorName,
       inspectionDate: data.date,
       timeSlot: data.timeSlot,
       status: 'SCHEDULED',
       employeeAccepted: 'PENDING',
       propertyCondition: '',
-      openingRemarks: data.remarks,
+      openingRemarks: data.remarks || existing?.openingRemarks || '',
       closingRemarks: '',
       findings: [],
       uploadedDocs: [],
       damagePhotos: [],
       auditTrail: [
-        { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `Inspection scheduled for ${data.date}, ${data.timeSlot}. Inspector: ${data.inspectorName}.` },
+        ...(existing?.auditTrail ?? []),
+        { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `${scheduleTarget.isReschedule ? 'Inspection rescheduled' : 'Inspection scheduled'} for ${data.date}, ${data.timeSlot}. Inspector: ${data.inspectorName}.` },
         { timestamp: new Date().toISOString(), actor: 'System', action: dispatchSummary },
       ],
     };
-    setVacateInspectionMap(prev => ({ ...prev, [scheduleTarget.id]: newInsp }));
-    addToast('Inspection scheduled successfully', 'success');
+    setVacateInspectionMap(prev => ({ ...prev, [request.id]: newInsp }));
+    addToast(scheduleTarget.isReschedule ? 'Inspection rescheduled successfully' : 'Inspection scheduled successfully', 'success');
     setScheduleTarget(null);
     setProcessingVacateInspection(null);
   };
@@ -2856,7 +2859,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   inspectionChatMode={inspectionChatMode}
                   setInspectionChatMode={setInspectionChatMode}
                   vacateInspectionMap={vacateInspectionMap}
-                  onScheduleVacateInspection={(tr) => setScheduleTarget(tr)}
+                  onScheduleVacateInspection={(tr) => setScheduleTarget({ request: tr, isReschedule: false })}
                   onCompleteVacateInspection={(tr) => setCompleteTarget(tr)}
                   onViewVacateReport={(tr) => setViewReportTarget(tr)}
                   processingVacateInspection={processingVacateInspection}
@@ -3784,6 +3787,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                             const isInProgressInsp = vacInsp?.status === 'IN_PROGRESS';
                                             const isEmployeeAccepted = vacInsp?.employeeAccepted === 'ACCEPTED';
                                             const isEmployeePending = vacInsp?.employeeAccepted === 'PENDING';
+                                            const isEmployeeDeclined = vacInsp?.employeeAccepted === 'DECLINED';
                                             const showEmployeeActions = !isEO && isEmployeePending;
                                             const showEOActions = isEO && eoMode === 'employee' && isPending;
                                             const showInspectorActions = isEO && eoMode === 'employee' && vacInsp && isEmployeeAccepted && !isCompleted;
@@ -3798,7 +3802,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                               vacMenuItems.push({ label: 'Decline Schedule', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); handleDeclineInspection(svc.id); }, disabled: acceptingInspection === svc.id });
                                             }
                                             if (showEOActions) {
-                                              vacMenuItems.push({ label: 'Schedule Inspection', icon: <span className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center shrink-0"><Calendar size={10} className="text-sky-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setScheduleTarget(svc); }, disabled: processingVacateInspection === svc.id || hasInspection });
+                                              vacMenuItems.push({ label: isEmployeeDeclined ? 'Reschedule Inspection' : 'Schedule Inspection', icon: <span className={`w-5 h-5 rounded-md ${isEmployeeDeclined ? 'bg-red-100' : 'bg-sky-100'} flex items-center justify-center shrink-0`}>{isEmployeeDeclined ? <RefreshCw size={10} className="text-red-600" /> : <Calendar size={10} className="text-sky-600" />}</span>, onClick: () => { setSvcMenuOpenId(null); setScheduleTarget({ request: svc, isReschedule: isEmployeeDeclined }); }, disabled: processingVacateInspection === svc.id || (hasInspection && !isEmployeeDeclined) });
                                               vacMenuItems.push({ label: 'Complete Inspection', icon: <span className="w-5 h-5 rounded-md bg-teal-100 flex items-center justify-center shrink-0"><ClipboardCheck size={10} className="text-teal-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setCompleteTarget(svc); }, disabled: processingVacateInspection === svc.id || !isInProgressInsp });
                                               vacMenuItems.push({ label: 'Accept Vacate', icon: <span className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center shrink-0"><CheckCircle size={10} className="text-emerald-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id || !isCompleted });
                                               vacMenuItems.push({ label: 'Reject Vacate', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id });
@@ -3919,6 +3923,7 @@ export const QuarterRequestsPage: React.FC = () => {
                                     if (!vacInsp) return null;
                                     const isEmployeePending = vacInsp.employeeAccepted === 'PENDING';
                                     const isEmployeeAccepted = vacInsp.employeeAccepted === 'ACCEPTED';
+                                    const isEmployeeDeclined = vacInsp.employeeAccepted === 'DECLINED';
                                     return (
                                       <div className="border-t border-gray-100 px-3 py-2" onClick={e => e.stopPropagation()}>
                                         <div className="flex items-center gap-1.5 text-[10px] font-semibold w-fit">
@@ -3930,6 +3935,11 @@ export const QuarterRequestsPage: React.FC = () => {
                                           {vacInsp.status === 'SCHEDULED' && isEmployeeAccepted && (
                                             <span className="flex items-center gap-1.5 text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5">
                                               <Calendar size={11} /> Scheduled {vacInsp.inspectionDate} · {vacInsp.timeSlot} — Employee accepted
+                                            </span>
+                                          )}
+                                          {vacInsp.status === 'SCHEDULED' && isEmployeeDeclined && (
+                                            <span className="flex items-center gap-1.5 text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+                                              <XCircle size={11} /> Employee rejected schedule — reschedule required ({vacInsp.inspectionDate} · {vacInsp.timeSlot})
                                             </span>
                                           )}
                                           {vacInsp.status === 'IN_PROGRESS' && (
@@ -4219,6 +4229,7 @@ export const QuarterRequestsPage: React.FC = () => {
                 const isInProgressInsp = vacInsp?.status === 'IN_PROGRESS';
                 const isEmployeeAccepted = vacInsp?.employeeAccepted === 'ACCEPTED';
                 const isEmployeePending = vacInsp?.employeeAccepted === 'PENDING';
+                const isEmployeeDeclined = vacInsp?.employeeAccepted === 'DECLINED';
                 const showEmployeeActions = !isEO && isEmployeePending;
                 const showEOActions = isEO && eoMode === 'employee' && isPending;
                 const showInspectorActions = isEO && eoMode === 'employee' && vacInsp && isEmployeeAccepted && !isCompleted;
@@ -4232,7 +4243,7 @@ export const QuarterRequestsPage: React.FC = () => {
                   items.push({ label: 'Decline Schedule', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); handleDeclineInspection(svc.id); }, disabled: acceptingInspection === svc.id });
                 }
                 if (showEOActions) {
-                  items.push({ label: 'Schedule Inspection', icon: <span className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center shrink-0"><Calendar size={10} className="text-sky-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setScheduleTarget(svc); }, disabled: processingVacateInspection === svc.id || hasInspection });
+                  items.push({ label: isEmployeeDeclined ? 'Reschedule Inspection' : 'Schedule Inspection', icon: <span className={`w-5 h-5 rounded-md ${isEmployeeDeclined ? 'bg-red-100' : 'bg-sky-100'} flex items-center justify-center shrink-0`}>{isEmployeeDeclined ? <RefreshCw size={10} className="text-red-600" /> : <Calendar size={10} className="text-sky-600" />}</span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setScheduleTarget({ request: svc, isReschedule: isEmployeeDeclined }); }, disabled: processingVacateInspection === svc.id || (hasInspection && !isEmployeeDeclined) });
                   items.push({ label: 'Complete Inspection', icon: <span className="w-5 h-5 rounded-md bg-teal-100 flex items-center justify-center shrink-0"><ClipboardCheck size={10} className="text-teal-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setCompleteTarget(svc); }, disabled: processingVacateInspection === svc.id || !isInProgressInsp });
                   items.push({ label: 'Accept Vacate', icon: <span className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center shrink-0"><CheckCircle size={10} className="text-emerald-600" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('approve'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id || !isCompleted });
                   items.push({ label: 'Reject Vacate', icon: <span className="w-5 h-5 rounded-md bg-red-100 flex items-center justify-center shrink-0"><XCircle size={10} className="text-red-500" /></span>, onClick: () => { setSvcMenuOpenId(null); setSvcMenuPos(null); setEoTrId(svc.id); setEoTrAction('reject'); setEoTrNotes(''); setExpandedSvcDetailId(svc.id); }, disabled: processingVacateInspection === svc.id });
@@ -6244,10 +6255,12 @@ export const QuarterRequestsPage: React.FC = () => {
       {/* Schedule Inspection Modal */}
       {scheduleTarget && (
         <ScheduleInspectionModal
-          tr={scheduleTarget}
+          tr={scheduleTarget.request}
           onClose={() => setScheduleTarget(null)}
           onSubmit={handleScheduleVacateInspectionSubmit}
-          submitting={processingVacateInspection === scheduleTarget.id}
+          isReschedule={scheduleTarget.isReschedule}
+          previousInspection={scheduleTarget.isReschedule ? vacateInspectionMap[scheduleTarget.request.id] : undefined}
+          submitting={processingVacateInspection === scheduleTarget.request.id}
         />
       )}
 
