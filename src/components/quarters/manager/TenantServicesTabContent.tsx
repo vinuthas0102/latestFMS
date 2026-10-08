@@ -62,6 +62,14 @@ function VacateStageBadge({ inspection }: { inspection?: VacateInspectionDetail 
       </div>
     );
   }
+  if (inspection.status === 'SCHEDULED' && inspection.employeeAccepted === 'DECLINED') {
+    return (
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+        <Calendar size={11} />
+        Scheduled {inspection.inspectionDate} · {inspection.timeSlot} — Employee declined, reschedule required
+      </div>
+    );
+  }
   if (inspection.status === 'IN_PROGRESS') {
     return (
       <div className="flex items-center gap-1.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5">
