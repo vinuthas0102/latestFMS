@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, CheckCircle, XCircle, Search, Calendar, ClipboardCheck, FileText, Eye, HardHat, Download } from 'lucide-react';
+import { Building2, CheckCircle, XCircle, Search, Calendar, ClipboardCheck, FileText, Eye, HardHat, Download, RefreshCw } from 'lucide-react';
 import { MandatorySearchBar } from '../../ui/MandatorySearchBar';
 import type { QuarterTenantRequest, Quarter } from '../../../services/quartersService';
 import type { VacateInspectionDetail } from './InspectionReportViewModal';
@@ -26,6 +26,7 @@ interface Props {
   onApprove: (tr: QuarterTenantRequest) => void;
   onReject: (tr: QuarterTenantRequest) => void;
   onScheduleInspection: (tr: QuarterTenantRequest) => void;
+  onRescheduleInspection: (tr: QuarterTenantRequest) => void;
   onCompleteInspection: (tr: QuarterTenantRequest) => void;
   onViewReport: (tr: QuarterTenantRequest) => void;
   onOpenInspectionDetails: (tr: QuarterTenantRequest) => void;
@@ -65,8 +66,8 @@ function VacateStageBadge({ inspection }: { inspection?: VacateInspectionDetail 
   if (inspection.status === 'SCHEDULED' && inspection.employeeAccepted === 'DECLINED') {
     return (
       <div className="flex items-center gap-1.5 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
-        <Calendar size={11} />
-        Scheduled {inspection.inspectionDate} · {inspection.timeSlot} — Employee declined, reschedule required
+        <XCircle size={11} />
+        Employee rejected schedule — reschedule required ({inspection.inspectionDate} · {inspection.timeSlot})
       </div>
     );
   }
@@ -93,7 +94,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
   filteredTenantRequests, allTenantRequests, tenantSearch, setTenantSearch,
   tenantStatusFilter, setTenantStatusFilter, tenantTypeFilter, setTenantTypeFilter,
   loadingTenant, eoNotesMap, setEoNotesMap, processingTenant, onApprove, onReject,
-  onScheduleInspection, onCompleteInspection, onViewReport,
+  onScheduleInspection, onRescheduleInspection, onCompleteInspection, onViewReport,
   onOpenInspectionDetails, onOpenDamageFindings,
   vacateInspectionMap, processingInspection,
   tenantServiceConfig, tenantStatusBadge, getImage, fmtDate,
@@ -179,6 +180,7 @@ export const TenantServicesTabContent: React.FC<Props> = ({
           const hasInspection = !!vacInsp;
           const isCompleted = vacInsp?.status === 'COMPLETED';
           const isInProgress = vacInsp?.status === 'IN_PROGRESS';
+          const isDeclinedSchedule = vacInsp?.status === 'SCHEDULED' && vacInsp.employeeAccepted === 'DECLINED';
 
           return (
             <div
@@ -236,13 +238,23 @@ export const TenantServicesTabContent: React.FC<Props> = ({
                     {isVacate ? (
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => onScheduleInspection(tr)}
-                            disabled={processingTenant === tr.id || processingInspection === tr.id || hasInspection}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Calendar size={13} /> Schedule
-                          </button>
+                          {isDeclinedSchedule ? (
+                            <button
+                              onClick={() => onRescheduleInspection(tr)}
+                              disabled={processingTenant === tr.id || processingInspection === tr.id}
+                              className="col-span-2 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <RefreshCw size={13} /> Reschedule Inspection
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onScheduleInspection(tr)}
+                              disabled={processingTenant === tr.id || processingInspection === tr.id || hasInspection}
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Calendar size={13} /> Schedule
+                            </button>
+                          )}
                           <button
                             onClick={() => onCompleteInspection(tr)}
                             disabled={processingTenant === tr.id || processingInspection === tr.id || !isInProgress}

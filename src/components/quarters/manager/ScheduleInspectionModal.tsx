@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Clock, User, FileText, X, Send, CheckSquare, Square, ChevronDown, Plus, Mail, Trash2 } from 'lucide-react';
+import { Calendar, Clock, User, FileText, X, Send, CheckSquare, Square, ChevronDown, Plus, Mail, Trash2, RefreshCw } from 'lucide-react';
 import type { QuarterTenantRequest } from '../../../services/quartersService';
 
 const TIME_SLOTS = [
@@ -36,14 +36,16 @@ interface Props {
   onClose: () => void;
   onSubmit: (data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[]; adhocRecipients: AdhocRecipient[] }) => void;
   submitting: boolean;
+  isReschedule?: boolean;
+  previousInspection?: { inspectionDate: string; timeSlot: string; inspectorName: string };
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit, submitting }) => {
-  const [date, setDate] = useState('');
-  const [timeSlot, setTimeSlot] = useState('');
-  const [inspectorId, setInspectorId] = useState('');
+export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit, submitting, isReschedule = false, previousInspection }) => {
+  const [date, setDate] = useState(previousInspection?.inspectionDate ?? '');
+  const [timeSlot, setTimeSlot] = useState(previousInspection?.timeSlot ?? '');
+  const [inspectorId, setInspectorId] = useState(() => INSPECTORS.find(i => i.name === previousInspection?.inspectorName)?.id ?? '');
   const [remarks, setRemarks] = useState('');
   const [dispatchIds, setDispatchIds] = useState<string[]>(['emp', 'eo']);
   const [adhocRecipients, setAdhocRecipients] = useState<AdhocRecipient[]>([]);
@@ -259,7 +261,7 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
               <Calendar size={18} className="text-white" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white leading-tight">Schedule Inspection</h2>
+              <h2 className="text-base font-bold text-white leading-tight">{isReschedule ? 'Reschedule Inspection' : 'Schedule Inspection'}</h2>
               <p className="text-xs text-sky-200 mt-0.5 leading-tight">
                 {q?.quarter_number ?? 'Quarter'}{q?.bhk_config ? ` · ${q.bhk_config}` : ''} · Vacate Request
               </p>
@@ -281,6 +283,13 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
               <div><span className="text-gray-500">Type:</span> <span className="font-medium text-gray-800">{q?.bhk_config ?? '—'}</span></div>
             </div>
           </div>
+
+          {isReschedule && previousInspection && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+              <div className="flex items-center gap-2 font-semibold"><RefreshCw size={13} /> Previous schedule was declined by the employee</div>
+              <div className="mt-1 text-red-700">{previousInspection.inspectionDate} · {previousInspection.timeSlot} · {previousInspection.inspectorName}</div>
+            </div>
+          )}
 
           {/* Inspection Date */}
           <div>
@@ -383,12 +392,12 @@ export const ScheduleInspectionModal: React.FC<Props> = ({ tr, onClose, onSubmit
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Scheduling…
+                {isReschedule ? 'Rescheduling…' : 'Scheduling…'}
               </>
             ) : (
               <>
-                <Send size={15} />
-                Submit
+                {isReschedule ? <RefreshCw size={15} /> : <Send size={15} />}
+                {isReschedule ? 'Reschedule Inspection' : 'Submit'}
               </>
             )}
           </button>

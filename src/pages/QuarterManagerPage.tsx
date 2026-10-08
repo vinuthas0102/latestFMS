@@ -163,7 +163,7 @@ export const QuarterManagerPage: React.FC = () => {
   const [eoNotesMap, setEoNotesMap] = useState<Record<string, string>>({});
   const [processingTenant, setProcessingTenant] = useState<string | null>(null);
   const [processingInspection, setProcessingInspection] = useState<string | null>(null);
-  const [scheduleTarget, setScheduleTarget] = useState<QuarterTenantRequest | null>(null);
+  const [scheduleTarget, setScheduleTarget] = useState<{ request: QuarterTenantRequest; isReschedule: boolean } | null>(null);
   const [completeTarget, setCompleteTarget] = useState<QuarterTenantRequest | null>(null);
   const [viewReportTarget, setViewReportTarget] = useState<QuarterTenantRequest | null>(null);
   const [inspectionDetailsTarget, setInspectionDetailsTarget] = useState<QuarterTenantRequest | null>(null);
@@ -348,30 +348,33 @@ export const QuarterManagerPage: React.FC = () => {
 
   const handleScheduleInspectionSubmit = async (_data: { date: string; timeSlot: string; inspectorId: string; inspectorName: string; remarks: string; dispatchTargets: string[] }) => {
     if (!scheduleTarget) return;
-    setProcessingInspection(scheduleTarget.id);
+    const request = scheduleTarget.request;
+    const existing = vacateInspectionMap[request.id];
+    setProcessingInspection(request.id);
     try {
-      // Demo mode: just show success and update the map
+      const actionLabel = scheduleTarget.isReschedule ? 'Inspection rescheduled' : 'Inspection scheduled';
       const newInsp: VacateInspectionDetail = {
         id: `vin-new-${Date.now()}`,
-        tenantRequestId: scheduleTarget.id,
+        tenantRequestId: request.id,
         inspectorName: _data.inspectorName,
         inspectionDate: _data.date,
         timeSlot: _data.timeSlot,
         status: 'SCHEDULED',
         employeeAccepted: 'PENDING',
         propertyCondition: '',
-        openingRemarks: _data.remarks,
+        openingRemarks: _data.remarks || existing?.openingRemarks || '',
         closingRemarks: '',
         findings: [],
         uploadedDocs: [],
         damagePhotos: [],
         auditTrail: [
-          { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `Inspection scheduled for ${_data.date}, ${_data.timeSlot}. Inspector: ${_data.inspectorName}.` },
+          ...(existing?.auditTrail ?? []),
+          { timestamp: new Date().toISOString(), actor: 'Estate Manager', action: `${actionLabel} for ${_data.date}, ${_data.timeSlot}. Inspector: ${_data.inspectorName}.` },
           { timestamp: new Date().toISOString(), actor: 'System', action: 'Auto-dispatch email sent to selected recipients.' },
         ],
       };
-      setVacateInspectionMap(prev => ({ ...prev, [scheduleTarget.id]: newInsp }));
-      addToast('Inspection scheduled successfully', 'success');
+      setVacateInspectionMap(prev => ({ ...prev, [request.id]: newInsp }));
+      addToast(scheduleTarget.isReschedule ? 'Inspection rescheduled successfully' : 'Inspection scheduled successfully', 'success');
       setScheduleTarget(null);
     } catch {
       addToast('Failed to schedule inspection', 'error');
@@ -1297,7 +1300,8 @@ export const QuarterManagerPage: React.FC = () => {
                 processingTenant={processingTenant}
                 onApprove={handleApproveTenant}
                 onReject={handleRejectTenant}
-                onScheduleInspection={(tr) => setScheduleTarget(tr)}
+                onScheduleInspection={(tr) => setScheduleTarget({ request: tr, isReschedule: false })}
+                onRescheduleInspection={(tr) => setScheduleTarget({ request: tr, isReschedule: true })}
                 onCompleteInspection={(tr) => setCompleteTarget(tr)}
                 onViewReport={(tr) => setViewReportTarget(tr)}
                 onOpenInspectionDetails={(tr) => setInspectionDetailsTarget(tr)}
@@ -1396,10 +1400,12 @@ export const QuarterManagerPage: React.FC = () => {
       {/* Schedule Inspection Modal */}
       {scheduleTarget && (
         <ScheduleInspectionModal
-          tr={scheduleTarget}
+          tr={scheduleTarget.request}
           onClose={() => setScheduleTarget(null)}
           onSubmit={handleScheduleInspectionSubmit}
-          submitting={processingInspection === scheduleTarget.id}
+          isReschedule={scheduleTarget.isReschedule}
+          previousInspection={scheduleTarget.isReschedule ? vacateInspectionMap[scheduleTarget.request.id] : undefined}
+          submitting={processingInspection === scheduleTarget.request.id}
         />
       )}
 
