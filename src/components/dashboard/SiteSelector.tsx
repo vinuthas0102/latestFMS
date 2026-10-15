@@ -9,7 +9,7 @@ interface SiteSelectorProps {
 
 export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSelectSite }) => {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Project sites">
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4" role="tablist" aria-label="Project sites">
       {DASHBOARD_SITES.map((site) => {
         const isActive = site === selectedSite;
         return (
@@ -19,13 +19,13 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSele
             role="tab"
             aria-selected={isActive}
             onClick={() => onSelectSite(site)}
-            className={`group flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:px-3 ${
+            className={`group flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:px-2.5 ${
               isActive
                 ? 'border-blue-700 bg-blue-700 text-white shadow-lg shadow-blue-900/15'
                 : 'border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md'
             }`}
           >
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${isActive ? 'bg-white/15' : 'bg-slate-100 group-hover:bg-blue-50'}`}>
+            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isActive ? 'bg-white/15' : 'bg-slate-100 group-hover:bg-blue-50'}`}>
               {isActive ? <Check size={16} strokeWidth={2.5} /> : <MapPin size={16} className="text-blue-700" />}
             </span>
             <span className="min-w-0">

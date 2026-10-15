@@ -63,5 +63,5 @@ export const Chart3DColumn: React.FC<Chart3DColumnProps> = ({ containerId, title
     };
   }, [containerId, title, categories, data]);
 
-  return <div id={containerId} className="w-full h-[350px]" />;
+  return <div id={containerId} className="h-[220px] w-full" />;
 };

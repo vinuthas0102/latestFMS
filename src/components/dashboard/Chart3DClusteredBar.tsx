@@ -31,7 +31,7 @@ export const Chart3DClusteredBar: React.FC<Chart3DClusteredBarProps> = ({
           enabled: true,
           alpha: 12,
           beta: 12,
-          depth: 60,
+          depth: 40,
           viewDistance: 25,
         },
         backgroundColor: 'transparent',
@@ -79,5 +79,5 @@ export const Chart3DClusteredBar: React.FC<Chart3DClusteredBarProps> = ({
     };
   }, [containerId, title, categories, series, onBarClick]);
 
-  return <div id={containerId} className="w-full h-[350px]" />;
+  return <div id={containerId} className="h-[220px] w-full" />;
 };

@@ -184,39 +184,32 @@ export const OperationsDashboardPage: React.FC = () => {
     <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
-        <div className="relative mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300">
-                <Activity size={13} /> Estate operations / portfolio intelligence
+        <div className="relative mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-h-12 items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Activity size={15} className="shrink-0 text-blue-300" />
+              <div className="flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-lg font-bold tracking-tight sm:text-xl">Operations Dashboard</h1>
+                <p className="hidden truncate text-xs text-slate-300 xl:block">Quarters, service demand, and resident operations across the selected project site.</p>
               </div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Operations Dashboard</h1>
-              <p className="mt-1 hidden text-xs leading-5 text-slate-300 sm:block">
-                Quarters, service demand, and resident operations across the selected project site.
-              </p>
             </div>
-            <div className="hidden shrink-0 text-right sm:block">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Signed in as</p>
-              <p className="mt-1 text-sm font-semibold text-white">{user?.fullName || 'Estate Manager'}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-3 lg:flex-row lg:items-center lg:justify-between">
-            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] font-medium text-slate-400">Reporting snapshot · 15 Oct 2026</p>
-              <div className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-white/10 p-1 backdrop-blur-sm">
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="hidden text-right sm:block">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Signed in as</p>
+                <p className="text-sm font-semibold text-white">{user?.fullName || 'Estate Manager'}</p>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/10 p-1 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => setViewMode('data')}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'data' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'data' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
                 >
                   <Table2 size={14} /> Data
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('chart')}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
                 >
                   <BarChart3 size={14} /> Charts
                 </button>
@@ -226,8 +219,15 @@ export const OperationsDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
-        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <main className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        <section className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+          <span className="hidden shrink-0 px-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">Project sites</span>
+          <div className="min-w-0 flex-1">
+            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+          </div>
+        </section>
+
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected project site</p>
             <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900">{selectedSite}</h2>
@@ -247,24 +247,24 @@ export const OperationsDashboardPage: React.FC = () => {
               <SummaryCard label="Pending actions" value={summary.pendingActions} icon={<AlertTriangle size={18} />} tone="red" />
             </section>
 
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Site performance indicators</h3>
-                <p className="mt-1 text-sm text-slate-500">Expand a card to inspect the operational breakdown.</p>
+                <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <h3 className="shrink-0 text-base font-bold text-slate-900">Site performance indicators</h3>
+                <span className="hidden truncate text-xs text-slate-500 sm:block">· Expand a card to inspect the operational breakdown.</span>
               </div>
-              <span className="hidden items-center gap-1.5 text-xs font-semibold text-slate-400 sm:flex"><CircleDot size={13} /> {siteData.metrics.length} indicators</span>
+              <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-400"><CircleDot size={13} /> {siteData.metrics.length} indicators</span>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-3">
               {metricGroups.map((group) => (
-                <section key={group.label}>
-                  <div className="mb-2 flex items-end justify-between gap-3">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">{group.label}</h4>
-                      <p className="mt-0.5 text-xs text-slate-500">{group.description}</p>
+                <section key={group.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h4 className="shrink-0 text-sm font-bold text-slate-800">{group.label}</h4>
+                      <span className="hidden truncate text-xs text-slate-500 sm:block">· {group.description}</span>
                     </div>
-                    <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:block">{group.metrics.length} indicators</span>
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{group.metrics.length} indicators</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
                     {group.metrics.map((metric, index) => (
                       <ExpandableMetricCard key={metric.key} metric={metric} index={index} onBreakdownClick={handleBreakdownClick} />
                     ))}
@@ -275,7 +275,7 @@ export const OperationsDashboardPage: React.FC = () => {
           </div>
         ) : (
           <div key={`chart-${selectedSite}`} className="space-y-4 animate-fadeIn">
-            <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               <ChartPanel title="Occupancy distribution" eyebrow="Portfolio mix">
                 <Chart3DDonut containerId="chart-occupancy-donut" title="Occupancy Distribution" data={occupancyData} />
               </ChartPanel>
@@ -290,14 +290,14 @@ export const OperationsDashboardPage: React.FC = () => {
               </ChartPanel>
             </section>
             <section>
-              <div className="mb-3 flex items-end justify-between border-b border-slate-200 pb-2">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Detailed analysis</p>
-                  <h3 className="mt-1 text-base font-bold text-slate-900">Breakdown by operating category</h3>
+              <div className="mb-2 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700">Detailed analysis</p>
+                  <h3 className="text-sm font-bold text-slate-900">· Breakdown by operating category</h3>
                 </div>
-                <span className="hidden text-xs font-medium text-slate-400 sm:block">Hover for values · select bars for records</span>
+                <span className="hidden text-[11px] font-medium text-slate-400 sm:block">Hover for values · select bars for records</span>
               </div>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <ChartPanel title="Availability" eyebrow="By quarter type"><Chart3DColumn containerId="chart-availability-3d" title="Quarters Availability Breakdown" categories={columnCharts.availability.categories} data={columnCharts.availability.data} /></ChartPanel>
                 <ChartPanel title="Occupied quarters" eyebrow="By quarter type"><Chart3DColumn containerId="chart-occupied-3d" title="Quarters Occupied Breakdown" categories={columnCharts.occupied.categories} data={columnCharts.occupied.data} /></ChartPanel>
                 <ChartPanel title="Grievances" eyebrow="Reported categories"><Chart3DColumn containerId="chart-grievances-3d" title="Grievances Breakdown" categories={columnCharts.grievances.categories} data={columnCharts.grievances.data} /></ChartPanel>
@@ -346,10 +346,10 @@ interface ChartPanelProps {
 
 const ChartPanel: React.FC<ChartPanelProps> = ({ title, eyebrow, children }) => (
   <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
-    <div className="border-b border-slate-100 px-5 pt-5">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700">{eyebrow}</p>
-      <h3 className="mt-1 text-base font-bold text-slate-900">{title}</h3>
+    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+      <p className="shrink-0 text-[9px] font-bold uppercase tracking-[0.16em] text-blue-700">{eyebrow}</p>
+      <h3 className="truncate text-sm font-bold text-slate-900">· {title}</h3>
     </div>
-    <div className="p-3">{children}</div>
+    <div className="p-2">{children}</div>
   </section>
 );

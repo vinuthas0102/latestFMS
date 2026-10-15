@@ -29,8 +29,8 @@ export const Chart3DDonut: React.FC<Chart3DDonutProps> = ({ containerId, title, 
       title: { text: title, style: { fontSize: '14px', fontWeight: '600', color: '#1e3a5f' } },
       plotOptions: {
         pie: {
-          innerSize: 120,
-          depth: 45,
+          innerSize: 90,
+          depth: 30,
           dataLabels: {
             enabled: true,
             format: '{point.name}: {point.percentage:.1f}%',
@@ -58,5 +58,5 @@ export const Chart3DDonut: React.FC<Chart3DDonutProps> = ({ containerId, title, 
     };
   }, [containerId, title, data]);
 
-  return <div id={containerId} className="w-full h-[350px]" />;
+  return <div id={containerId} className="h-[220px] w-full" />;
 };
