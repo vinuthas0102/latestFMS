@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import type HighchartsTypes from 'highcharts';
 import Highcharts from './highcharts';
 
 interface Chart3DClusteredBarProps {
@@ -16,7 +17,7 @@ export const Chart3DClusteredBar: React.FC<Chart3DClusteredBarProps> = ({
   series,
   onBarClick,
 }) => {
-  const chartRef = useRef<Highcharts.Chart | null>(null);
+  const chartRef = useRef<HighchartsTypes.Chart | null>(null);
 
   useEffect(() => {
     if (chartRef.current) {
@@ -49,7 +50,7 @@ export const Chart3DClusteredBar: React.FC<Chart3DClusteredBarProps> = ({
           dataLabels: { enabled: true, style: { fontSize: '10px' } },
           point: {
             events: {
-              click: function (this: Highcharts.Point) {
+              click: function (this: HighchartsTypes.Point) {
                 if (onBarClick) {
                   onBarClick(this.category as string, this.series.name);
                 }

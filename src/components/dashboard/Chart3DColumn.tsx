@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import type HighchartsTypes from 'highcharts';
 import Highcharts from './highcharts';
 
 interface Chart3DColumnProps {
@@ -9,7 +10,7 @@ interface Chart3DColumnProps {
 }
 
 export const Chart3DColumn: React.FC<Chart3DColumnProps> = ({ containerId, title, categories, data }) => {
-  const chartRef = useRef<Highcharts.Chart | null>(null);
+  const chartRef = useRef<HighchartsTypes.Chart | null>(null);
 
   useEffect(() => {
     if (chartRef.current) {

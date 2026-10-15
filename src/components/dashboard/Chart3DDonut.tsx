@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import type HighchartsTypes from 'highcharts';
 import Highcharts from './highcharts';
 
 interface Chart3DDonutProps {
@@ -8,7 +9,7 @@ interface Chart3DDonutProps {
 }
 
 export const Chart3DDonut: React.FC<Chart3DDonutProps> = ({ containerId, title, data }) => {
-  const chartRef = useRef<Highcharts.Chart | null>(null);
+  const chartRef = useRef<HighchartsTypes.Chart | null>(null);
 
   useEffect(() => {
     if (chartRef.current) {
