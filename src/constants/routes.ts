@@ -33,4 +33,5 @@ export const ROUTES = {
   DCC_GENERATE: '/dcc/generate',
   DCC_DEMAND_DETAIL: '/dcc/demand/:demandId',
   DCC_CLIENT_DUE_SUMMARY: '/dcc/client/:ownerId',
+  OPERATIONS_DASHBOARD: '/operations-dashboard',
 } as const;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Building2, Home, IndianRupee, LogOut, Pencil, Wallet } from 'lucide-react';
+import { Building2, Home, IndianRupee, LayoutDashboard, LogOut, Pencil, Wallet } from 'lucide-react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -9,10 +9,11 @@ import { ROLE_LABELS } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
 
 const MODULE_ICONS: Record<string, React.ReactNode> = {
-  Building2:   <Building2 size={22} strokeWidth={1.75} />,
-  Home:        <Home size={22} strokeWidth={1.75} />,
-  IndianRupee: <IndianRupee size={22} strokeWidth={1.75} />,
-  Wallet:      <Wallet size={22} strokeWidth={1.75} />,
+  Building2:       <Building2 size={22} strokeWidth={1.75} />,
+  Home:            <Home size={22} strokeWidth={1.75} />,
+  IndianRupee:     <IndianRupee size={22} strokeWidth={1.75} />,
+  LayoutDashboard: <LayoutDashboard size={22} strokeWidth={1.75} />,
+  Wallet:          <Wallet size={22} strokeWidth={1.75} />,
 };
 
 interface ModuleButtonProps {

@@ -28,6 +28,12 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
     case 'admin':
       return [
         {
+          title: 'Dashboard',
+          iconName: 'LayoutDashboard',
+          route: ROUTES.OPERATIONS_DASHBOARD,
+          activePrefix: '/operations-dashboard',
+        },
+        {
           title: 'Facilities',
           iconName: 'Building2',
           route: ROUTES.PROPERTIES,
@@ -45,6 +51,12 @@ export function getModuleTabs(role: UserRole): ModuleTab[] {
 
     case 'manager':
       return [
+        {
+          title: 'Dashboard',
+          iconName: 'LayoutDashboard',
+          route: ROUTES.OPERATIONS_DASHBOARD,
+          activePrefix: '/operations-dashboard',
+        },
         {
           title: 'Facilities',
           iconName: 'Building2',

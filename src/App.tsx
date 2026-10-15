@@ -37,6 +37,7 @@ const DCCRuleSetupPage = lazy(() => import('./pages/DCCRuleSetupPage').then(m =>
 const DCCDemandGenerationPage = lazy(() => import('./pages/DCCDemandGenerationPage').then(m => ({ default: m.DCCDemandGenerationPage })));
 const DCCDemandDetailPage = lazy(() => import('./pages/DCCDemandDetailPage').then(m => ({ default: m.DCCDemandDetailPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const OperationsDashboardPage = lazy(() => import('./pages/OperationsDashboardPage').then(m => ({ default: m.OperationsDashboardPage })));
 
 function PageLoader() {
   return (
@@ -90,6 +91,14 @@ function App() {
               <Route path="/book/:token" element={<AdHocBookingPage />} />
 
               {/* ── Protected routes (with sidebar layout) ── */}
+              <Route
+                path="/operations-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                    <AppLayout><OperationsDashboardPage /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/properties"
                 element={
