@@ -1,8 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import Highcharts from 'highcharts';
-import Highcharts3D from 'highcharts-3d';
-
-Highcharts3D(Highcharts);
+import Highcharts from './highcharts';
 
 interface Chart3DClusteredBarProps {
   containerId: string;
@@ -37,13 +34,6 @@ export const Chart3DClusteredBar: React.FC<Chart3DClusteredBarProps> = ({
           viewDistance: 25,
         },
         backgroundColor: 'transparent',
-        events: {
-          click: function (event: any) {
-            if (onBarClick && event.point) {
-              onBarClick(event.point.category as string, event.point.series.name);
-            }
-          },
-        },
       },
       title: { text: title, style: { fontSize: '14px', fontWeight: '600', color: '#1e3a5f' } },
       xAxis: {

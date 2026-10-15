@@ -1,8 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import Highcharts from 'highcharts';
-import Highcharts3D from 'highcharts-3d';
-
-Highcharts3D(Highcharts);
+import Highcharts from './highcharts';
 
 interface Chart3DColumnProps {
   containerId: string;

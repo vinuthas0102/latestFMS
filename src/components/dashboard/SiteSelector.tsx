@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { Check, MapPin } from 'lucide-react';
 import { DASHBOARD_SITES, DashboardSite } from '../../types/dashboard';
 
 interface SiteSelectorProps {
@@ -9,21 +9,29 @@ interface SiteSelectorProps {
 
 export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSelectSite }) => {
   return (
-    <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="tablist" aria-label="Project sites">
       {DASHBOARD_SITES.map((site) => {
         const isActive = site === selectedSite;
         return (
           <button
             key={site}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onSelectSite(site)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 border-2 ${
+            className={`group flex items-center gap-2 rounded-xl border px-3 py-3 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:px-4 ${
               isActive
-                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200 -translate-y-0.5'
-                : 'bg-white text-blue-700 border-blue-200 hover:border-blue-400 hover:shadow-sm hover:-translate-y-0.5'
+                ? 'border-blue-700 bg-blue-700 text-white shadow-lg shadow-blue-900/15'
+                : 'border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md'
             }`}
           >
-            <MapPin size={18} className={isActive ? 'text-white' : 'text-blue-500'} />
-            {site}
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isActive ? 'bg-white/15' : 'bg-slate-100 group-hover:bg-blue-50'}`}>
+              {isActive ? <Check size={16} strokeWidth={2.5} /> : <MapPin size={16} className="text-blue-700" />}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-medium uppercase tracking-[0.12em] opacity-70">Project site</span>
+              <span className="block truncate text-sm font-bold">{site}</span>
+            </span>
           </button>
         );
       })}
