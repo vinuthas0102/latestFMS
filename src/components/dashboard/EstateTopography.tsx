@@ -14,90 +14,115 @@ interface EstateTopographyProps {
   blocks: TopographyBlock[];
 }
 
+const statusStyles = {
+  occupied: 'bg-gradient-to-b from-green-400 to-green-600',
+  available: 'bg-gradient-to-b from-blue-400 to-blue-600',
+  maintenance: 'bg-gradient-to-b from-red-400 to-red-600',
+};
+
+const getStatusPercentage = (value: number, total: number) => (total > 0 ? (value / total) * 100 : 0);
+
 export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, blocks }) => {
   const [hoveredBlock, setHoveredBlock] = useState<TopographyBlock | null>(null);
-
-  const getBlockColor = (block: TopographyBlock) => {
-    const occupancyRate = block.total > 0 ? block.occupied / block.total : 0;
-    if (block.maintenance > 0 && block.maintenance >= block.total * 0.3) return 'from-red-400 to-red-600';
-    if (occupancyRate > 0.8) return 'from-green-400 to-green-600';
-    if (occupancyRate > 0.5) return 'from-teal-400 to-teal-600';
-    if (occupancyRate > 0.2) return 'from-yellow-400 to-yellow-500';
-    return 'from-sky-300 to-sky-500';
-  };
+  const maxTotal = Math.max(1, ...blocks.map((block) => block.total));
 
   const getBlockHeight = (block: TopographyBlock) => {
     const maxHeight = 120;
     const minHeight = 50;
-    const ratio = block.total > 0 ? block.total / Math.max(...blocks.map((b) => b.total)) : 0;
+    const ratio = block.total > 0 ? block.total / maxTotal : 0;
     return minHeight + ratio * (maxHeight - minHeight);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+      <div className="mb-3 flex items-center gap-2">
         <Box size={18} className="text-blue-600" />
-        <h3 className="text-sm font-semibold text-gray-800">Estate Topography — {siteName}</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Estate Topography — {siteName}</h3>
       </div>
 
       <div
-        className="relative overflow-hidden rounded-lg bg-gradient-to-b from-gray-100 to-gray-200 p-8"
-        style={{ minHeight: '280px', perspective: '800px' }}
+        className="relative overflow-hidden rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 p-6"
+        style={{ minHeight: '260px', perspective: '800px' }}
       >
         <div
-          className="flex flex-wrap gap-6 justify-center items-end"
+          className="flex flex-wrap items-end justify-center gap-5"
           style={{ transform: 'rotateX(20deg) rotateY(-5deg)', transformStyle: 'preserve-3d' }}
         >
-          {blocks.map((block, idx) => {
+          {blocks.map((block) => {
+            const occupied = Math.max(0, block.occupied);
+            const available = Math.max(0, block.available);
+            const maintenance = Math.max(0, block.maintenance);
+            const statusTotal = Math.max(1, occupied + available + maintenance);
             const height = getBlockHeight(block);
-            const colors = getBlockColor(block);
+
             return (
               <div
-                key={idx}
-                className="relative cursor-pointer transition-all duration-200 hover:scale-105"
+                key={block.name}
+                className="relative w-[78px] cursor-pointer transition-all duration-200 hover:scale-105"
                 onMouseEnter={() => setHoveredBlock(block)}
                 onMouseLeave={() => setHoveredBlock(null)}
-                style={{ height: `${height}px`, width: '70px', transformStyle: 'preserve-3d' }}
+                style={{ height: `${height}px`, transformStyle: 'preserve-3d' }}
+                aria-label={`${block.name}: ${occupied} occupied, ${available} available, ${maintenance} under maintenance`}
               >
                 <div
-                  className={`bg-gradient-to-b ${colors} rounded-t-md shadow-lg w-full h-full flex flex-col items-center justify-center text-white`}
+                  className="flex h-full w-full flex-col-reverse overflow-hidden rounded-t-md shadow-lg"
                   style={{ boxShadow: '4px 4px 12px rgba(0,0,0,0.15)' }}
                 >
-                  <span className="text-xs font-bold">{block.name}</span>
-                  <span className="text-[10px] mt-0.5 opacity-90">{block.total} units</span>
+                  <div
+                    className={`${statusStyles.occupied} flex items-center justify-center text-white`}
+                    style={{ height: `${getStatusPercentage(occupied, statusTotal)}%` }}
+                  >
+                    {getStatusPercentage(occupied, statusTotal) >= 20 && <span className="text-[9px] font-bold">{occupied}</span>}
+                  </div>
+                  <div
+                    className={`${statusStyles.available} flex items-center justify-center text-white`}
+                    style={{ height: `${getStatusPercentage(available, statusTotal)}%` }}
+                  >
+                    {getStatusPercentage(available, statusTotal) >= 14 && <span className="text-[9px] font-bold">{available}</span>}
+                  </div>
+                  <div
+                    className={`${statusStyles.maintenance} flex items-center justify-center text-white`}
+                    style={{ height: `${getStatusPercentage(maintenance, statusTotal)}%` }}
+                  >
+                    {getStatusPercentage(maintenance, statusTotal) >= 10 && <span className="text-[9px] font-bold">{maintenance}</span>}
+                  </div>
                 </div>
                 <div
-                  className="absolute bottom-0 left-0 right-0 bg-gray-300 rounded-b-sm"
+                  className="absolute bottom-0 left-0 right-0 rounded-b-sm bg-slate-400"
                   style={{ height: '12px', transform: 'translateZ(-12px) rotateX(90deg)', transformOrigin: 'top' }}
                 />
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white drop-shadow-md">
+                  <span className="block text-[10px] font-bold">{block.name}</span>
+                  <span className="block text-[9px] font-semibold opacity-90">{block.total} total</span>
+                </div>
               </div>
             );
           })}
         </div>
 
         {hoveredBlock && (
-          <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 text-xs space-y-1 z-10">
-            <p className="font-bold text-gray-800 text-sm">{hoveredBlock.name}</p>
+          <div className="absolute right-3 top-3 z-10 space-y-1 rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-lg">
+            <p className="text-sm font-bold text-slate-800">{hoveredBlock.name}</p>
             <p className="text-green-600">Occupied: {hoveredBlock.occupied}</p>
-            <p className="text-sky-600">Available: {hoveredBlock.available}</p>
-            <p className="text-red-500">Maintenance: {hoveredBlock.maintenance}</p>
-            <p className="text-gray-500 pt-1 border-t border-gray-100">Total: {hoveredBlock.total}</p>
+            <p className="text-blue-600">Available: {hoveredBlock.available}</p>
+            <p className="text-red-600">Maintenance: {hoveredBlock.maintenance}</p>
+            <p className="border-t border-slate-100 pt-1 text-slate-500">Total: {hoveredBlock.total}</p>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-4 mt-4 text-xs">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-gradient-to-b from-green-400 to-green-600" />
-          <span className="text-gray-600">High Occupancy</span>
+          <span className="h-3 w-3 rounded-sm bg-green-500" />
+          <span className="text-slate-600">Occupied</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-gradient-to-b from-yellow-400 to-yellow-500" />
-          <span className="text-gray-600">Available</span>
+          <span className="h-3 w-3 rounded-sm bg-blue-500" />
+          <span className="text-slate-600">Available</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-gradient-to-b from-red-400 to-red-600" />
-          <span className="text-gray-600">Maintenance</span>
+          <span className="h-3 w-3 rounded-sm bg-red-500" />
+          <span className="text-slate-600">Maintenance</span>
         </span>
       </div>
     </div>
