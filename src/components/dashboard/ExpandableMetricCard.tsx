@@ -62,7 +62,7 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
 
   return (
     <article
-      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_16px_34px_rgba(15,23,42,0.1)] animate-slideUp"
+      className="group relative overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] animate-slideUp"
       style={{ animationDelay: `${index * 45}ms`, animationFillMode: 'both' }}
     >
       <div className={`absolute inset-x-0 top-0 h-1 ${colors.bar}`} />
@@ -70,9 +70,9 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
         type="button"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-5 pb-4 pt-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
+        className="flex w-full items-center gap-2.5 px-4 pb-3 pt-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
       >
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colors.iconBg} ${colors.icon} transition-transform duration-300 group-hover:scale-105`}>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors.iconBg} ${colors.icon} transition-transform duration-300 group-hover:scale-105`}>
           <Icon size={19} strokeWidth={2} />
         </span>
         <span className="min-w-0 flex-1">

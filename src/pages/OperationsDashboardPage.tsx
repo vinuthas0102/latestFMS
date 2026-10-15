@@ -23,6 +23,35 @@ import { useAuthStore } from '../stores/authStore';
 
 type ViewMode = 'data' | 'chart';
 
+type MetricGroup = {
+  label: string;
+  description: string;
+  keys: string[];
+};
+
+const METRIC_GROUPS: MetricGroup[] = [
+  {
+    label: 'Housing portfolio',
+    description: 'Quarter inventory and occupancy position',
+    keys: ['total_quarters', 'quarters_available', 'quarters_occupied'],
+  },
+  {
+    label: 'Maintenance operations',
+    description: 'Repairs, tickets, and current workload',
+    keys: ['quarters_maintenance', 'maintenance_tickets_total', 'maintenance_tickets_pending'],
+  },
+  {
+    label: 'Resident support',
+    description: 'Grievances and community service activity',
+    keys: ['grievances_total', 'grievances_pending', 'non_nmdc_allotted'],
+  },
+  {
+    label: 'Bookings and collections',
+    description: 'Facility usage, guest stays, and rent position',
+    keys: ['facilities_booking', 'guest_house_booking', 'rent_collected', 'rent_pending'],
+  },
+];
+
 function buildTopographyBlocks(siteName: string) {
   const seedBlocks: Record<string, { name: string; total: number; occupied: number; maintenance: number }[]> = {
     Bacheli: [
@@ -106,6 +135,13 @@ export const OperationsDashboardPage: React.FC = () => {
     { name: 'Maintenance', y: summary.maintenance, color: '#d97706' },
   ], [summary]);
 
+  const metricGroups = useMemo(() => METRIC_GROUPS.map((group) => ({
+    ...group,
+    metrics: group.keys
+      .map((key) => getMetric(siteData.metrics, key))
+      .filter((metric): metric is MetricData => Boolean(metric)),
+  })).filter((group) => group.metrics.length > 0), [siteData.metrics]);
+
   const clusteredBarData = useMemo(() => {
     const types = ['Type A', 'Type B', 'Type C'];
     const getValues = (metric: MetricData | undefined) => types.map((type) => {
@@ -148,36 +184,41 @@ export const OperationsDashboardPage: React.FC = () => {
     <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
-        <div className="relative mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-            <div>
-              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-300">
-                <Activity size={14} /> Estate operations / portfolio intelligence
+        <div className="relative mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300">
+                <Activity size={13} /> Estate operations / portfolio intelligence
               </div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Operations Dashboard</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-                A clear view of quarters, service demand, and resident operations across the selected project site.
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Operations Dashboard</h1>
+              <p className="mt-1 hidden text-xs leading-5 text-slate-300 sm:block">
+                Quarters, service demand, and resident operations across the selected project site.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Signed in as</p>
-                <p className="mt-1 text-sm font-semibold text-white">{user?.fullName || 'Estate Manager'}</p>
-              </div>
-              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/10 p-1 backdrop-blur-sm">
+            <div className="hidden shrink-0 text-right sm:block">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Signed in as</p>
+              <p className="mt-1 text-sm font-semibold text-white">{user?.fullName || 'Estate Manager'}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-3 lg:flex-row lg:items-center lg:justify-between">
+            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-medium text-slate-400">Reporting snapshot · 15 Oct 2026</p>
+              <div className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-white/10 p-1 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => setViewMode('data')}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${viewMode === 'data' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'data' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
                 >
-                  <Table2 size={15} /> Data View
+                  <Table2 size={14} /> Data
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('chart')}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${viewMode === 'chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
                 >
-                  <BarChart3 size={15} /> Chart View
+                  <BarChart3 size={14} /> Charts
                 </button>
               </div>
             </div>
@@ -185,31 +226,20 @@ export const OperationsDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <section className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.05)] sm:p-5">
-          <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Operational scope</p>
-              <h2 className="mt-1 text-lg font-bold text-slate-900">Choose a project site</h2>
-            </div>
-            <p className="text-xs font-medium text-slate-400">Reporting snapshot · 15 Oct 2026</p>
-          </div>
-          <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
-        </section>
-
-        <div className="mb-6 flex flex-col justify-between gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
+      <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected project site</p>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{selectedSite}</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected project site</p>
+            <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900">{selectedSite}</h2>
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" /> Live operational snapshot
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" /> Live snapshot
           </div>
         </div>
 
         {viewMode === 'data' ? (
           <div key={`data-${selectedSite}`} className="animate-fadeIn">
-            <section className="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <section className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-5">
               <SummaryCard label="Total quarters" value={summary.total} icon={<Building2 size={18} />} tone="blue" />
               <SummaryCard label="Occupancy rate" value={`${summary.occupancyRate}%`} icon={<Gauge size={18} />} tone="teal" />
               <SummaryCard label="Available units" value={summary.available} icon={<CheckCircle2 size={18} />} tone="green" />
@@ -217,22 +247,35 @@ export const OperationsDashboardPage: React.FC = () => {
               <SummaryCard label="Pending actions" value={summary.pendingActions} icon={<AlertTriangle size={18} />} tone="red" />
             </section>
 
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Site performance indicators</h3>
                 <p className="mt-1 text-sm text-slate-500">Expand a card to inspect the operational breakdown.</p>
               </div>
               <span className="hidden items-center gap-1.5 text-xs font-semibold text-slate-400 sm:flex"><CircleDot size={13} /> {siteData.metrics.length} indicators</span>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {siteData.metrics.map((metric, index) => (
-                <ExpandableMetricCard key={metric.key} metric={metric} index={index} onBreakdownClick={handleBreakdownClick} />
+            <div className="space-y-5">
+              {metricGroups.map((group) => (
+                <section key={group.label}>
+                  <div className="mb-2 flex items-end justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">{group.label}</h4>
+                      <p className="mt-0.5 text-xs text-slate-500">{group.description}</p>
+                    </div>
+                    <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:block">{group.metrics.length} indicators</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+                    {group.metrics.map((metric, index) => (
+                      <ExpandableMetricCard key={metric.key} metric={metric} index={index} onBreakdownClick={handleBreakdownClick} />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </div>
         ) : (
-          <div key={`chart-${selectedSite}`} className="space-y-6 animate-fadeIn">
-            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div key={`chart-${selectedSite}`} className="space-y-4 animate-fadeIn">
+            <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <ChartPanel title="Occupancy distribution" eyebrow="Portfolio mix">
                 <Chart3DDonut containerId="chart-occupancy-donut" title="Occupancy Distribution" data={occupancyData} />
               </ChartPanel>
@@ -247,14 +290,14 @@ export const OperationsDashboardPage: React.FC = () => {
               </ChartPanel>
             </section>
             <section>
-              <div className="mb-4 flex items-end justify-between border-b border-slate-200 pb-3">
+              <div className="mb-3 flex items-end justify-between border-b border-slate-200 pb-2">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Detailed analysis</p>
                   <h3 className="mt-1 text-base font-bold text-slate-900">Breakdown by operating category</h3>
                 </div>
                 <span className="hidden text-xs font-medium text-slate-400 sm:block">Hover for values · select bars for records</span>
               </div>
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <ChartPanel title="Availability" eyebrow="By quarter type"><Chart3DColumn containerId="chart-availability-3d" title="Quarters Availability Breakdown" categories={columnCharts.availability.categories} data={columnCharts.availability.data} /></ChartPanel>
                 <ChartPanel title="Occupied quarters" eyebrow="By quarter type"><Chart3DColumn containerId="chart-occupied-3d" title="Quarters Occupied Breakdown" categories={columnCharts.occupied.categories} data={columnCharts.occupied.data} /></ChartPanel>
                 <ChartPanel title="Grievances" eyebrow="Reported categories"><Chart3DColumn containerId="chart-grievances-3d" title="Grievances Breakdown" categories={columnCharts.grievances.categories} data={columnCharts.grievances.data} /></ChartPanel>
@@ -278,20 +321,20 @@ interface SummaryCardProps {
 }
 
 const SUMMARY_TONES: Record<SummaryCardProps['tone'], string> = {
-  blue: 'border-blue-100 bg-blue-50/60 text-blue-700',
-  teal: 'border-teal-100 bg-teal-50/60 text-teal-700',
-  green: 'border-emerald-100 bg-emerald-50/60 text-emerald-700',
-  amber: 'border-amber-100 bg-amber-50/60 text-amber-700',
-  red: 'border-red-100 bg-red-50/60 text-red-700',
+  blue: 'border-blue-200 bg-blue-50/60 text-blue-700',
+  teal: 'border-teal-200 bg-teal-50/60 text-teal-700',
+  green: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
+  amber: 'border-amber-200 bg-amber-50/60 text-amber-700',
+  red: 'border-red-200 bg-red-50/60 text-red-700',
 };
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ label, value, icon, tone }) => (
-  <div className={`rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${SUMMARY_TONES[tone]}`}>
+  <div className={`rounded-xl border-2 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${SUMMARY_TONES[tone]}`}>
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs font-semibold leading-4 text-slate-600">{label}</span>
       <span className="opacity-70">{icon}</span>
     </div>
-    <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{value}</p>
+    <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">{value}</p>
   </div>
 );
 
