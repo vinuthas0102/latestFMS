@@ -25,7 +25,7 @@ const STATUS_COLORS = {
 export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, blocks }) => {
   const chartRef = useRef<HighchartsTypes.Chart | null>(null);
   const containerId = 'estate-topography-chart';
-  const chartHeight = Math.max(280, blocks.length * 42 + 88);
+  const chartHeight = 320;
 
   useEffect(() => {
     if (chartRef.current) {
@@ -34,8 +34,7 @@ export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, bl
 
     chartRef.current = Highcharts.chart(containerId, {
       chart: {
-        type: 'bar',
-        inverted: true,
+        type: 'column',
         height: chartHeight,
         backgroundColor: 'transparent',
         spacing: [8, 12, 8, 8],
@@ -49,6 +48,7 @@ export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, bl
         labels: {
           style: { fontSize: '11px', color: '#334155', fontWeight: '600' },
           padding: 4,
+          rotation: blocks.length > 4 ? -25 : 0,
         },
       },
       yAxis: {
