@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { Box } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { BarChart3 } from 'lucide-react';
+import type HighchartsTypes from 'highcharts';
+import Highcharts from './highcharts';
 
 interface TopographyBlock {
   name: string;
@@ -14,117 +16,101 @@ interface EstateTopographyProps {
   blocks: TopographyBlock[];
 }
 
-const statusStyles = {
-  occupied: 'bg-gradient-to-b from-green-400 to-green-600',
-  available: 'bg-gradient-to-b from-blue-400 to-blue-600',
-  maintenance: 'bg-gradient-to-b from-red-400 to-red-600',
+const STATUS_COLORS = {
+  occupied: '#16a34a',
+  available: '#2563eb',
+  maintenance: '#dc2626',
 };
 
-const getStatusPercentage = (value: number, total: number) => (total > 0 ? (value / total) * 100 : 0);
-
 export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, blocks }) => {
-  const [hoveredBlock, setHoveredBlock] = useState<TopographyBlock | null>(null);
-  const maxTotal = Math.max(1, ...blocks.map((block) => block.total));
+  const chartRef = useRef<HighchartsTypes.Chart | null>(null);
+  const containerId = 'estate-topography-chart';
+  const chartHeight = Math.max(280, blocks.length * 42 + 88);
 
-  const getBlockHeight = (block: TopographyBlock) => {
-    const maxHeight = 120;
-    const minHeight = 50;
-    const ratio = block.total > 0 ? block.total / maxTotal : 0;
-    return minHeight + ratio * (maxHeight - minHeight);
-  };
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    chartRef.current = Highcharts.chart(containerId, {
+      chart: {
+        type: 'bar',
+        height: chartHeight,
+        backgroundColor: 'transparent',
+        spacing: [8, 12, 8, 8],
+      },
+      title: { text: undefined },
+      xAxis: {
+        categories: blocks.map((block) => block.name),
+        lineColor: '#cbd5e1',
+        tickColor: '#cbd5e1',
+        labels: {
+          style: { fontSize: '11px', color: '#334155', fontWeight: '600' },
+        },
+      },
+      yAxis: {
+        min: 0,
+        title: { text: 'Units', style: { fontSize: '11px', color: '#64748b' } },
+        gridLineColor: '#e2e8f0',
+        labels: { style: { fontSize: '10px', color: '#64748b' } },
+        stackLabels: {
+          enabled: true,
+          style: { fontSize: '10px', fontWeight: '600', color: '#475569', textOutline: 'none' },
+        },
+      },
+      tooltip: {
+        shared: true,
+        useHTML: true,
+        headerFormat: '<span style="font-size:12px;font-weight:600">{point.key}</span><br/>',
+        pointFormat: '<span style="color:{series.color}">●</span> {series.name}: <b>{point.y}</b><br/>',
+        footerFormat: '<span style="color:#64748b">Total: <b>{point.total}</b></span>',
+      },
+      plotOptions: {
+        series: {
+          stacking: 'normal',
+          borderWidth: 0,
+          pointPadding: 0.08,
+          groupPadding: 0.12,
+          dataLabels: {
+            enabled: true,
+            inside: true,
+            formatter: function () {
+              return typeof this.y === 'number' && this.y > 0 ? String(this.y) : '';
+            },
+            style: { fontSize: '10px', fontWeight: '700', color: '#ffffff', textOutline: 'none' },
+          },
+        },
+      },
+      series: [
+        { name: 'Occupied', color: STATUS_COLORS.occupied, data: blocks.map((block) => Math.max(0, block.occupied)) },
+        { name: 'Available', color: STATUS_COLORS.available, data: blocks.map((block) => Math.max(0, block.available)) },
+        { name: 'Maintenance', color: STATUS_COLORS.maintenance, data: blocks.map((block) => Math.max(0, block.maintenance)) },
+      ],
+      legend: {
+        enabled: true,
+        align: 'center',
+        verticalAlign: 'bottom',
+        itemStyle: { fontSize: '11px', fontWeight: '600', color: '#475569' },
+        symbolRadius: 3,
+      },
+      credits: { enabled: false },
+    });
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
+    };
+  }, [blocks, chartHeight]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
       <div className="mb-3 flex items-center gap-2">
-        <Box size={18} className="text-blue-600" />
+        <BarChart3 size={18} className="text-blue-600" />
         <h3 className="text-sm font-semibold text-slate-800">Estate Topography — {siteName}</h3>
       </div>
-
-      <div
-        className="relative overflow-hidden rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 p-6"
-        style={{ minHeight: '260px', perspective: '800px' }}
-      >
-        <div
-          className="flex flex-wrap items-end justify-center gap-5"
-          style={{ transform: 'rotateX(20deg) rotateY(-5deg)', transformStyle: 'preserve-3d' }}
-        >
-          {blocks.map((block) => {
-            const occupied = Math.max(0, block.occupied);
-            const available = Math.max(0, block.available);
-            const maintenance = Math.max(0, block.maintenance);
-            const statusTotal = Math.max(1, occupied + available + maintenance);
-            const height = getBlockHeight(block);
-
-            return (
-              <div
-                key={block.name}
-                className="relative w-[78px] cursor-pointer transition-all duration-200 hover:scale-105"
-                onMouseEnter={() => setHoveredBlock(block)}
-                onMouseLeave={() => setHoveredBlock(null)}
-                style={{ height: `${height}px`, transformStyle: 'preserve-3d' }}
-                aria-label={`${block.name}: ${occupied} occupied, ${available} available, ${maintenance} under maintenance`}
-              >
-                <div
-                  className="flex h-full w-full flex-col-reverse overflow-hidden rounded-t-md shadow-lg"
-                  style={{ boxShadow: '4px 4px 12px rgba(0,0,0,0.15)' }}
-                >
-                  <div
-                    className={`${statusStyles.occupied} flex items-center justify-center text-white`}
-                    style={{ height: `${getStatusPercentage(occupied, statusTotal)}%` }}
-                  >
-                    {getStatusPercentage(occupied, statusTotal) >= 20 && <span className="text-[9px] font-bold">{occupied}</span>}
-                  </div>
-                  <div
-                    className={`${statusStyles.available} flex items-center justify-center text-white`}
-                    style={{ height: `${getStatusPercentage(available, statusTotal)}%` }}
-                  >
-                    {getStatusPercentage(available, statusTotal) >= 14 && <span className="text-[9px] font-bold">{available}</span>}
-                  </div>
-                  <div
-                    className={`${statusStyles.maintenance} flex items-center justify-center text-white`}
-                    style={{ height: `${getStatusPercentage(maintenance, statusTotal)}%` }}
-                  >
-                    {getStatusPercentage(maintenance, statusTotal) >= 10 && <span className="text-[9px] font-bold">{maintenance}</span>}
-                  </div>
-                </div>
-                <div
-                  className="absolute bottom-0 left-0 right-0 rounded-b-sm bg-slate-400"
-                  style={{ height: '12px', transform: 'translateZ(-12px) rotateX(90deg)', transformOrigin: 'top' }}
-                />
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-white drop-shadow-md">
-                  <span className="block text-[10px] font-bold">{block.name}</span>
-                  <span className="block text-[9px] font-semibold opacity-90">{block.total} total</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {hoveredBlock && (
-          <div className="absolute right-3 top-3 z-10 space-y-1 rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-lg">
-            <p className="text-sm font-bold text-slate-800">{hoveredBlock.name}</p>
-            <p className="text-green-600">Occupied: {hoveredBlock.occupied}</p>
-            <p className="text-blue-600">Available: {hoveredBlock.available}</p>
-            <p className="text-red-600">Maintenance: {hoveredBlock.maintenance}</p>
-            <p className="border-t border-slate-100 pt-1 text-slate-500">Total: {hoveredBlock.total}</p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-green-500" />
-          <span className="text-slate-600">Occupied</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-blue-500" />
-          <span className="text-slate-600">Available</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-red-500" />
-          <span className="text-slate-600">Maintenance</span>
-        </span>
-      </div>
+      <div id={containerId} className="w-full" aria-label={`Estate occupancy chart for ${siteName}`} />
     </div>
   );
 };
