@@ -9,7 +9,7 @@ interface SiteSelectorProps {
 
 export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSelectSite }) => {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
       {ALL_SITES.map((site) => {
         const isActive = site === selectedSite;
         const isAll = site === 'All NMDC Sites';
@@ -19,7 +19,7 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSele
             key={site}
             type="button"
             onClick={() => onSelectSite(site)}
-            className={`flex items-center gap-2 rounded-lg border-2 p-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+            className={`flex min-w-[156px] shrink-0 items-center gap-2 rounded-lg border-2 p-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
               isActive
                 ? 'border-blue-600 bg-blue-50 text-blue-700'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'

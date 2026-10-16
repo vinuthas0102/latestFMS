@@ -116,6 +116,12 @@ function numericTotal(metric: MetricData | undefined): number {
   return typeof metric?.total === 'number' ? metric.total : 0;
 }
 
+function formatDateForDisplay(value: string): string {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}-${month}-${year}` : value;
+}
+
 export const OperationsDashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const [selectedSite, setSelectedSite] = useState<DashboardSite>('All NMDC Sites');
@@ -142,7 +148,13 @@ export const OperationsDashboardPage: React.FC = () => {
 
   const activeDateRange = useMemo(() => {
     if (dateRangeKey === 'Custom') {
-      return { label: `${customStart || 'Start'} – ${customEnd || 'End'}`, start: customStart, end: customEnd };
+      return {
+        label: customStart && customEnd
+          ? `${formatDateForDisplay(customStart)} – ${formatDateForDisplay(customEnd)}`
+          : 'Custom Range',
+        start: customStart,
+        end: customEnd,
+      };
     }
     const opt = DATE_RANGE_OPTIONS.find((o) => o.key === dateRangeKey);
     return { label: opt?.label ?? dateRangeKey, start: opt?.start ?? '', end: opt?.end ?? '' };
@@ -316,7 +328,7 @@ export const OperationsDashboardPage: React.FC = () => {
                 <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {dateDropdownOpen && (
-                <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg lg:w-64">
+                <div className="absolute left-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                   {DATE_RANGE_OPTIONS.map((opt) => (
                     <button
                       key={opt.key}
@@ -334,12 +346,12 @@ export const OperationsDashboardPage: React.FC = () => {
                     </button>
                   ))}
                   {dateRangeKey === 'Custom' && (
-                    <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-slate-100 px-3 py-2">
                       <input
                         type="date"
                         value={customStart}
                         onChange={(e) => setCustomStart(e.target.value)}
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                        className="min-w-0 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
                         placeholder="Start"
                       />
                       <span className="text-xs text-slate-400">to</span>
@@ -347,7 +359,7 @@ export const OperationsDashboardPage: React.FC = () => {
                         type="date"
                         value={customEnd}
                         onChange={(e) => setCustomEnd(e.target.value)}
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                        className="min-w-0 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
                         placeholder="End"
                       />
                     </div>
@@ -361,16 +373,16 @@ export const OperationsDashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleExportPdf}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
+                className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
               >
-                <Download size={14} className="text-blue-600" /> PDF
+                <Download size={13} className="text-blue-600" /> PDF
               </button>
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
+                className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
               >
-                <FileSpreadsheet size={14} className="text-emerald-600" /> Excel
+                <FileSpreadsheet size={13} className="text-emerald-600" /> Excel
               </button>
             </div>
           </div>
