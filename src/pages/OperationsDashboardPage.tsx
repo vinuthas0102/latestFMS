@@ -272,13 +272,13 @@ export const OperationsDashboardPage: React.FC = () => {
     <div ref={dashboardRef} className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
-        <div className="relative mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-[1440px] px-4 py-1.5 sm:px-6 lg:px-8">
           <div className="flex min-h-12 items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <Activity size={15} className="shrink-0 text-blue-300" />
               <div className="flex min-w-0 flex-col gap-0.5">
                 <h1 className="shrink-0 text-lg font-bold tracking-tight sm:text-xl">Operations Dashboard</h1>
-                <p className="hidden truncate text-xs text-slate-300 xl:block">
+                <p className="truncate text-[11px] text-slate-300">
                   Welcome, {welcomeDesignation} {welcomeName} &mdash; {welcomeOrg}
                 </p>
               </div>
