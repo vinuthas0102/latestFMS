@@ -62,7 +62,7 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
 
   return (
     <article
-      className="group relative overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] animate-slideUp"
+      className="group relative overflow-hidden rounded-lg border-2 border-slate-300 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] animate-slideUp"
       style={{ animationDelay: `${index * 45}ms`, animationFillMode: 'both' }}
     >
       <div className={`absolute inset-x-0 top-0 h-1 ${colors.bar}`} />
@@ -70,17 +70,17 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
         type="button"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-2.5 px-4 pb-3 pt-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
+        className="flex w-full items-center gap-2 px-3 pb-2.5 pt-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
       >
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors.iconBg} ${colors.icon} transition-transform duration-300 group-hover:scale-105`}>
-          <Icon size={19} strokeWidth={2} />
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colors.iconBg} ${colors.icon} transition-transform duration-300 group-hover:scale-105`}>
+          <Icon size={17} strokeWidth={2} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-slate-700">{metric.label}</span>
-          <span className="mt-1 block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">Portfolio indicator</span>
+          <span className="block truncate text-xs font-semibold text-slate-700">{metric.label}</span>
+          <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-[0.12em] text-slate-400">Portfolio indicator</span>
         </span>
-        <span className={`text-xl font-bold tracking-tight ${colors.value}`}>{metric.total}</span>
-        <ChevronDown size={17} className={`shrink-0 text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
+        <span className={`text-lg font-bold tracking-tight ${colors.value}`}>{metric.total}</span>
+        <ChevronDown size={15} className={`shrink-0 text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
       <div className={`grid transition-[grid-template-rows,opacity] duration-300 ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
@@ -94,8 +94,8 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
                     onClick={() => onBreakdownClick(metric.key, item.label, item.value)}
                     className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                   >
-                    <span className="text-sm font-medium text-slate-600">{item.label}</span>
-                    <span className={`text-sm font-bold ${colors.value}`}>{item.value}</span>
+                    <span className="text-xs font-medium text-slate-600">{item.label}</span>
+                    <span className={`text-xs font-bold ${colors.value}`}>{item.value}</span>
                   </button>
                 </li>
               ))}

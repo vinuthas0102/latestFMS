@@ -219,7 +219,7 @@ export const OperationsDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+      <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
         <section className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
           <span className="hidden shrink-0 px-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">Project sites</span>
           <div className="min-w-0 flex-1">
@@ -228,11 +228,11 @@ export const OperationsDashboardPage: React.FC = () => {
         </section>
 
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected project site</p>
-            <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900">{selectedSite}</h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Selected project site</span>
+            <h2 className="truncate text-base font-bold tracking-tight text-slate-900">· {selectedSite}</h2>
           </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+          <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" /> Live snapshot
           </div>
         </div>
@@ -249,7 +249,7 @@ export const OperationsDashboardPage: React.FC = () => {
 
                 <div className="mb-2 flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
-                <h3 className="shrink-0 text-base font-bold text-slate-900">Site performance indicators</h3>
+                <h3 className="shrink-0 text-sm font-bold text-slate-900">Site performance indicators</h3>
                 <span className="hidden truncate text-xs text-slate-500 sm:block">· Expand a card to inspect the operational breakdown.</span>
               </div>
               <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-400"><CircleDot size={13} /> {siteData.metrics.length} indicators</span>
@@ -264,7 +264,7 @@ export const OperationsDashboardPage: React.FC = () => {
                     </div>
                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{group.metrics.length} indicators</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {group.metrics.map((metric, index) => (
                       <ExpandableMetricCard key={metric.key} metric={metric} index={index} onBreakdownClick={handleBreakdownClick} />
                     ))}
@@ -329,12 +329,12 @@ const SUMMARY_TONES: Record<SummaryCardProps['tone'], string> = {
 };
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ label, value, icon, tone }) => (
-  <div className={`rounded-xl border-2 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${SUMMARY_TONES[tone]}`}>
+  <div className={`rounded-lg border-2 p-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${SUMMARY_TONES[tone]}`}>
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs font-semibold leading-4 text-slate-600">{label}</span>
+      <span className="text-[11px] font-semibold leading-4 text-slate-600">{label}</span>
       <span className="opacity-70">{icon}</span>
     </div>
-    <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">{value}</p>
+    <p className="mt-1 text-lg font-bold tracking-tight text-slate-900">{value}</p>
   </div>
 );
 
