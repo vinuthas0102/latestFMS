@@ -311,8 +311,8 @@ export const OperationsDashboardPage: React.FC = () => {
 
       <main className="mx-auto max-w-[1440px] px-3 py-2 text-[13px] sm:px-5 lg:px-7 lg:py-3">
         {/* Controls bar: one horizontal row for period, sites, and exports */}
-        <section className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
-          <div className="w-full overflow-hidden">
+        <section className="relative z-20 mb-3 overflow-visible rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+          <div className="w-full overflow-visible">
             <div className="flex w-full min-w-0 items-center gap-2">
               {/* Date filter dropdown */}
             <div ref={dateDropdownRef} className="relative shrink-0">
@@ -329,7 +329,7 @@ export const OperationsDashboardPage: React.FC = () => {
                 <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {dateDropdownOpen && (
-                <div className="absolute left-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="absolute left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                   {DATE_RANGE_OPTIONS.map((opt) => (
                     <button
                       key={opt.key}
