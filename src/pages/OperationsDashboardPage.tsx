@@ -264,7 +264,7 @@ export const OperationsDashboardPage: React.FC = () => {
                     </div>
                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{group.metrics.length} indicators</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {group.metrics.map((metric, index) => (
                       <ExpandableMetricCard key={metric.key} metric={metric} index={index} onBreakdownClick={handleBreakdownClick} />
                     ))}

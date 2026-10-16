@@ -62,7 +62,7 @@ export const ExpandableMetricCard: React.FC<ExpandableMetricCardProps> = ({ metr
 
   return (
     <article
-      className="group relative overflow-hidden rounded-lg border-2 border-slate-300 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] animate-slideUp"
+      className="group relative self-start overflow-hidden rounded-lg border-2 border-slate-300 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] animate-slideUp"
       style={{ animationDelay: `${index * 45}ms`, animationFillMode: 'both' }}
     >
       <div className={`absolute inset-x-0 top-0 h-1 ${colors.bar}`} />
