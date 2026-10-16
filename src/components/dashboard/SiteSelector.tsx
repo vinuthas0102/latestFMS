@@ -9,7 +9,7 @@ interface SiteSelectorProps {
 
 export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSelectSite }) => {
   return (
-    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+    <div className="flex w-max min-w-0 shrink-0 gap-2 pb-1">
       {ALL_SITES.map((site) => {
         const isActive = site === selectedSite;
         const isAll = site === 'All NMDC Sites';

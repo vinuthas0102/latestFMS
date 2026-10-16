@@ -310,10 +310,11 @@ export const OperationsDashboardPage: React.FC = () => {
       </header>
 
       <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
-        {/* Controls bar: date filter, export, site selector cards */}
-        <section className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
-          <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            {/* Date filter dropdown */}
+        {/* Controls bar: one horizontal row for period, sites, and exports */}
+        <section className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max items-center gap-3">
+              {/* Date filter dropdown */}
             <div ref={dateDropdownRef} className="relative shrink-0">
               <button
                 type="button"
@@ -368,29 +369,26 @@ export const OperationsDashboardPage: React.FC = () => {
               )}
             </div>
 
-            {/* Export controls */}
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
-              >
-                <Download size={13} className="text-blue-600" /> PDF
-              </button>
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
-              >
-                <FileSpreadsheet size={13} className="text-emerald-600" /> Excel
-              </button>
-            </div>
-          </div>
+              <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
 
-          {/* Site selector cards */}
-          <div>
-            <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Project sites</span>
-            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+              {/* Export controls */}
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
+                >
+                  <Download size={13} className="text-blue-600" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
+                >
+                  <FileSpreadsheet size={13} className="text-emerald-600" /> Excel
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
