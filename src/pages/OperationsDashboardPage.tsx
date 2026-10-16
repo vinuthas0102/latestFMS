@@ -261,7 +261,6 @@ export const OperationsDashboardPage: React.FC = () => {
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
         <div className="relative mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
-          {/* Row 1: Welcome banner + view toggle */}
           <div className="flex min-h-12 items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <Activity size={15} className="shrink-0 text-blue-300" />
@@ -295,20 +294,24 @@ export const OperationsDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </header>
 
-          {/* Row 2: Global controls — date filter, site selector, export */}
-          <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+      <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
+        {/* Controls bar: date filter, export, site selector cards */}
+        <section className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+          <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             {/* Date filter dropdown */}
             <div ref={dateDropdownRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setDateDropdownOpen((prev) => !prev)}
-                className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-left backdrop-blur-sm transition-all hover:bg-white/15 lg:w-52"
+                className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-all duration-200 hover:border-blue-300 hover:shadow-sm lg:w-56"
               >
-                <CalendarRange size={15} className="shrink-0 text-blue-300" />
+                <CalendarRange size={15} className="shrink-0 text-blue-600" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Reporting period</span>
-                  <span className="block truncate text-sm font-semibold text-white">{activeDateRange.label}</span>
+                  <span className="block truncate text-sm font-bold text-slate-800">{activeDateRange.label}</span>
                 </span>
                 <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -353,33 +356,32 @@ export const OperationsDashboardPage: React.FC = () => {
               )}
             </div>
 
-            {/* Site selector */}
-            <div className="min-w-0 flex-1 lg:max-w-xs">
-              <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
-            </div>
-
             {/* Export controls */}
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={handleExportPdf}
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
               >
-                <Download size={14} className="text-blue-300" /> PDF
+                <Download size={14} className="text-blue-600" /> PDF
               </button>
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
               >
-                <FileSpreadsheet size={14} className="text-emerald-300" /> Excel
+                <FileSpreadsheet size={14} className="text-emerald-600" /> Excel
               </button>
             </div>
           </div>
-        </div>
-      </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
+          {/* Site selector cards */}
+          <div>
+            <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Project sites</span>
+            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+          </div>
+        </section>
+
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Viewing</span>
