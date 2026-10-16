@@ -35,9 +35,11 @@ export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, bl
     chartRef.current = Highcharts.chart(containerId, {
       chart: {
         type: 'bar',
+        inverted: true,
         height: chartHeight,
         backgroundColor: 'transparent',
         spacing: [8, 12, 8, 8],
+        options3d: { enabled: false },
       },
       title: { text: undefined },
       xAxis: {
@@ -46,6 +48,7 @@ export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, bl
         tickColor: '#cbd5e1',
         labels: {
           style: { fontSize: '11px', color: '#334155', fontWeight: '600' },
+          padding: 4,
         },
       },
       yAxis: {
@@ -110,7 +113,7 @@ export const EstateTopography: React.FC<EstateTopographyProps> = ({ siteName, bl
         <BarChart3 size={18} className="text-blue-600" />
         <h3 className="text-sm font-semibold text-slate-800">Estate Topography — {siteName}</h3>
       </div>
-      <div id={containerId} className="w-full" aria-label={`Estate occupancy chart for ${siteName}`} />
+      <div id={containerId} className="w-full" style={{ minHeight: chartHeight }} aria-label={`Estate occupancy chart for ${siteName}`} />
     </div>
   );
 };
