@@ -1,6 +1,7 @@
-import type { SiteData, DrillDownData, DashboardSite } from '../types/dashboard';
+import type { SiteData, DrillDownData, DashboardSite, IndividualSite, MetricData } from '../types/dashboard';
+import { DASHBOARD_SITES } from '../types/dashboard';
 
-const siteMetrics: Record<DashboardSite, SiteData> = {
+const siteMetrics: Record<IndividualSite, SiteData> = {
   Bacheli: {
     siteName: 'Bacheli',
     metrics: [
@@ -518,7 +519,41 @@ function generateDrillDownRecords(
   return records;
 }
 
+function aggregateAllSites(): SiteData {
+  const allMetrics: Record<string, MetricData> = {};
+
+  for (const site of DASHBOARD_SITES) {
+    const data = siteMetrics[site];
+    for (const metric of data.metrics) {
+      if (!allMetrics[metric.key]) {
+        allMetrics[metric.key] = {
+          ...metric,
+          total: 0,
+          details: metric.details.map((d) => ({ ...d, value: 0 })),
+        };
+      }
+      const agg = allMetrics[metric.key];
+      if (typeof metric.total === 'number') {
+        agg.total = (typeof agg.total === 'number' ? agg.total : 0) + metric.total;
+      }
+      for (let i = 0; i < metric.details.length; i++) {
+        const detail = metric.details[i];
+        const aggDetail = agg.details[i];
+        if (aggDetail && typeof detail.value === 'number' && typeof aggDetail.value === 'number') {
+          aggDetail.value += detail.value;
+        }
+      }
+    }
+  }
+
+  return {
+    siteName: 'All NMDC Sites',
+    metrics: Object.values(allMetrics),
+  };
+}
+
 export function getSiteData(site: DashboardSite): SiteData {
+  if (site === 'All NMDC Sites') return aggregateAllSites();
   return siteMetrics[site];
 }
 
@@ -528,7 +563,7 @@ export function getDrillDownData(
   breakdownLabel: string,
   count: number | string,
 ): DrillDownData {
-  const siteData = siteMetrics[site];
+  const siteData = getSiteData(site);
   const numCount = typeof count === 'number' ? count : 3;
   const records = generateDrillDownRecords(siteData.siteName, metricKey, breakdownLabel, numCount);
 

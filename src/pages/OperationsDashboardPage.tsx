@@ -1,12 +1,16 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
   BarChart3,
   Building2,
+  CalendarRange,
   CheckCircle2,
+  ChevronDown,
   CircleDot,
   ClipboardList,
+  Download,
+  FileSpreadsheet,
   Gauge,
   Table2,
 } from 'lucide-react';
@@ -18,8 +22,11 @@ import { Chart3DClusteredBar } from '../components/dashboard/Chart3DClusteredBar
 import { EstateTopography } from '../components/dashboard/EstateTopography';
 import { DrillDownModal } from '../components/dashboard/DrillDownModal';
 import { getDrillDownData, getSiteData } from '../services/dashboardService';
-import type { DashboardSite, DrillDownData, MetricData } from '../types/dashboard';
+import type { DashboardSite, DateRangeKey, DrillDownData, MetricData } from '../types/dashboard';
+import { DATE_RANGE_OPTIONS } from '../types/dashboard';
 import { useAuthStore } from '../stores/authStore';
+import { ROLE_LABELS } from '../constants/roles';
+import { downloadElementAsHtml } from '../utils/downloadHtml';
 
 type ViewMode = 'data' | 'chart';
 
@@ -81,6 +88,22 @@ function buildTopographyBlocks(siteName: string) {
     ],
   };
 
+  if (siteName === 'All NMDC Sites') {
+    const combined: Record<string, { name: string; total: number; occupied: number; maintenance: number }> = {};
+    for (const site of Object.keys(seedBlocks)) {
+      for (const block of seedBlocks[site]) {
+        const key = `${site} ${block.name}`;
+        if (!combined[key]) {
+          combined[key] = { name: key, total: 0, occupied: 0, maintenance: 0 };
+        }
+        combined[key].total += block.total;
+        combined[key].occupied += block.occupied;
+        combined[key].maintenance += block.maintenance;
+      }
+    }
+    return Object.values(combined).map((block) => ({ ...block, available: block.total - block.occupied - block.maintenance }));
+  }
+
   const blocks = seedBlocks[siteName] ?? seedBlocks.Bacheli;
   return blocks.map((block) => ({ ...block, available: block.total - block.occupied - block.maintenance }));
 }
@@ -95,10 +118,63 @@ function numericTotal(metric: MetricData | undefined): number {
 
 export const OperationsDashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [selectedSite, setSelectedSite] = useState<DashboardSite>('Bacheli');
+  const [selectedSite, setSelectedSite] = useState<DashboardSite>('All NMDC Sites');
   const [viewMode, setViewMode] = useState<ViewMode>('data');
   const [drillDown, setDrillDown] = useState<DrillDownData | null>(null);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [dateRangeKey, setDateRangeKey] = useState<DateRangeKey>('YTD 2026');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [exportToast, setExportToast] = useState<string | null>(null);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+  const dashboardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
+        setDateDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const activeDateRange = useMemo(() => {
+    if (dateRangeKey === 'Custom') {
+      return { label: `${customStart || 'Start'} – ${customEnd || 'End'}`, start: customStart, end: customEnd };
+    }
+    const opt = DATE_RANGE_OPTIONS.find((o) => o.key === dateRangeKey);
+    return { label: opt?.label ?? dateRangeKey, start: opt?.start ?? '', end: opt?.end ?? '' };
+  }, [dateRangeKey, customStart, customEnd]);
+
+  const welcomeDesignation = useMemo(() => {
+    if (user?.metadata?.serviceHistory?.length) {
+      const latest = user.metadata.serviceHistory[user.metadata.serviceHistory.length - 1];
+      if (latest.designation) return latest.designation;
+    }
+    if (user?.role) return ROLE_LABELS[user.role];
+    return 'Estate Operations';
+  }, [user]);
+
+  const welcomeName = user?.fullName || 'User';
+  const welcomeOrg = user?.govtDepartment || 'Enterprise Overview';
+
+  const handleExportPdf = useCallback(() => {
+    if (!dashboardRef.current) return;
+    const filename = `Operations_Dashboard_${selectedSite.replace(/\s+/g, '_')}_${dateRangeKey.replace(/\s+/g, '_')}`;
+    downloadElementAsHtml(dashboardRef.current, `Operations Dashboard — ${selectedSite} — ${activeDateRange.label}`, filename);
+    setExportToast('PDF export downloaded successfully.');
+    setTimeout(() => setExportToast(null), 3000);
+  }, [selectedSite, dateRangeKey, activeDateRange.label]);
+
+  const handleExportExcel = useCallback(() => {
+    if (!dashboardRef.current) return;
+    const filename = `Operations_Dashboard_${selectedSite.replace(/\s+/g, '_')}_${dateRangeKey.replace(/\s+/g, '_')}`;
+    downloadElementAsHtml(dashboardRef.current, `Operations Dashboard — ${selectedSite} — ${activeDateRange.label}`, filename);
+    setExportToast('Excel export downloaded successfully.');
+    setTimeout(() => setExportToast(null), 3000);
+  }, [selectedSite, dateRangeKey, activeDateRange.label]);
 
   const siteData = useMemo(() => getSiteData(selectedSite), [selectedSite]);
   const topographyBlocks = useMemo(() => buildTopographyBlocks(selectedSite), [selectedSite]);
@@ -181,16 +257,19 @@ export const OperationsDashboardPage: React.FC = () => {
   }, [handleBreakdownClick, siteData.metrics]);
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
+    <div ref={dashboardRef} className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
         <div className="relative mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
+          {/* Row 1: Welcome banner + view toggle */}
           <div className="flex min-h-12 items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <Activity size={15} className="shrink-0 text-blue-300" />
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
                 <h1 className="shrink-0 text-lg font-bold tracking-tight sm:text-xl">Operations Dashboard</h1>
-                <p className="hidden truncate text-xs text-slate-300 xl:block">Quarters, service demand, and resident operations across the selected project site.</p>
+                <p className="hidden truncate text-xs text-slate-300 xl:block">
+                  Welcome, {welcomeDesignation} {welcomeName} &mdash; {welcomeOrg}
+                </p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
@@ -216,21 +295,96 @@ export const OperationsDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Row 2: Global controls — date filter, site selector, export */}
+          <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+            {/* Date filter dropdown */}
+            <div ref={dateDropdownRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setDateDropdownOpen((prev) => !prev)}
+                className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-left backdrop-blur-sm transition-all hover:bg-white/15 lg:w-52"
+              >
+                <CalendarRange size={15} className="shrink-0 text-blue-300" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Reporting period</span>
+                  <span className="block truncate text-sm font-semibold text-white">{activeDateRange.label}</span>
+                </span>
+                <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {dateDropdownOpen && (
+                <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg lg:w-64">
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        setDateRangeKey(opt.key);
+                        setDateDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                        dateRangeKey === opt.key ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {opt.label}
+                      {dateRangeKey === opt.key && <CheckCircle2 size={15} className="text-blue-600" />}
+                    </button>
+                  ))}
+                  {dateRangeKey === 'Custom' && (
+                    <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2">
+                      <input
+                        type="date"
+                        value={customStart}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                        placeholder="Start"
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <input
+                        type="date"
+                        value={customEnd}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                        placeholder="End"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Site selector */}
+            <div className="min-w-0 flex-1 lg:max-w-xs">
+              <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+            </div>
+
+            {/* Export controls */}
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15"
+              >
+                <Download size={14} className="text-blue-300" /> PDF
+              </button>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/15"
+              >
+                <FileSpreadsheet size={14} className="text-emerald-300" /> Excel
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
-        <section className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
-          <span className="hidden shrink-0 px-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">Project sites</span>
-          <div className="min-w-0 flex-1">
-            <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
-          </div>
-        </section>
-
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Selected project site</span>
-            <h2 className="truncate text-base font-bold tracking-tight text-slate-900">· {selectedSite}</h2>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Viewing</span>
+            <h2 className="truncate text-base font-bold tracking-tight text-slate-900">{selectedSite}</h2>
+            <span className="shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{activeDateRange.label}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" /> Live snapshot
@@ -309,6 +463,13 @@ export const OperationsDashboardPage: React.FC = () => {
       </main>
 
       <DrillDownModal open={drillDownOpen} data={drillDown} onClose={() => setDrillDownOpen(false)} />
+
+      {exportToast && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-lg">
+          <CheckCircle2 size={16} />
+          {exportToast}
+        </div>
+      )}
     </div>
   );
 };
