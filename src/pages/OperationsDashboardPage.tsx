@@ -309,17 +309,17 @@ export const OperationsDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-3 text-sm sm:px-6 lg:px-8 lg:py-4">
+      <main className="mx-auto max-w-[1440px] px-3 py-2 text-[13px] sm:px-5 lg:px-7 lg:py-3">
         {/* Controls bar: one horizontal row for period, sites, and exports */}
-        <section className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max items-center gap-3">
+        <section className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
+          <div className="w-full overflow-hidden">
+            <div className="flex w-full min-w-0 items-center gap-2">
               {/* Date filter dropdown */}
             <div ref={dateDropdownRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setDateDropdownOpen((prev) => !prev)}
-                className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-all duration-200 hover:border-blue-300 hover:shadow-sm lg:w-56"
+                className="flex w-[clamp(8.5rem,17vw,14rem)] shrink items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left transition-all duration-200 hover:border-blue-300 hover:shadow-sm"
               >
                 <CalendarRange size={15} className="shrink-0 text-blue-600" />
                 <span className="min-w-0 flex-1">
@@ -369,21 +369,23 @@ export const OperationsDashboardPage: React.FC = () => {
               )}
             </div>
 
-              <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+              <div className="min-w-0 flex-1">
+                <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+              </div>
 
               {/* Export controls */}
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink items-center gap-1">
                 <button
                   type="button"
                   onClick={handleExportPdf}
-                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
+                  className="flex shrink items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
                 >
                   <Download size={13} className="text-blue-600" /> PDF
                 </button>
                 <button
                   type="button"
                   onClick={handleExportExcel}
-                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
+                  className="flex shrink items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
                 >
                   <FileSpreadsheet size={13} className="text-emerald-600" /> Excel
                 </button>

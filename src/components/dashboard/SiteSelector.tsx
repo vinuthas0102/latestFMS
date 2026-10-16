@@ -9,7 +9,7 @@ interface SiteSelectorProps {
 
 export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSelectSite }) => {
   return (
-    <div className="flex w-max min-w-0 shrink-0 gap-2 pb-1">
+    <div className="flex w-full min-w-0 gap-1 pb-0.5">
       {ALL_SITES.map((site) => {
         const isActive = site === selectedSite;
         const isAll = site === 'All NMDC Sites';
@@ -19,14 +19,14 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSele
             key={site}
             type="button"
             onClick={() => onSelectSite(site)}
-            className={`flex min-w-[156px] shrink-0 items-center gap-2 rounded-lg border-2 p-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+            className={`flex min-w-0 flex-1 items-center gap-1 rounded-lg border-2 p-1.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
               isActive
                 ? 'border-blue-600 bg-blue-50 text-blue-700'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
             }`}
           >
             <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
                 isActive
                   ? isAll
                     ? 'bg-blue-600 text-white'
@@ -36,13 +36,13 @@ export const SiteSelector: React.FC<SiteSelectorProps> = ({ selectedSite, onSele
                     : 'bg-slate-50 text-slate-400'
               }`}
             >
-              {isAll ? <Building2 size={16} /> : <MapPin size={16} />}
+              {isAll ? <Building2 size={14} /> : <MapPin size={14} />}
             </span>
             <span className="min-w-0">
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+              <span className="block truncate text-[8px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                 {isAll ? 'Overview' : 'Project site'}
               </span>
-              <span className={`block truncate text-sm font-bold ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>
+              <span className={`block truncate text-xs font-bold ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>
                 {site}
               </span>
             </span>
