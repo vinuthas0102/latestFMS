@@ -38,7 +38,7 @@ type MetricGroup = {
 
 const METRIC_GROUPS: MetricGroup[] = [
   {
-    label: 'Housing portfolio',
+    label: 'Quarter Details',
     description: 'Quarter inventory and occupancy position',
     keys: ['total_quarters', 'quarters_available', 'quarters_occupied'],
   },
