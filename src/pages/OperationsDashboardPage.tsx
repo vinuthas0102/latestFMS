@@ -301,7 +301,7 @@ export const OperationsDashboardPage: React.FC = () => {
                   onClick={() => setViewMode('chart')}
                   className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-all ${viewMode === 'chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-300 hover:text-white'}`}
                 >
-                  <BarChart3 size={14} /> Charts
+                  <BarChart3 size={14} /> Graphical View
                 </button>
               </div>
             </div>
