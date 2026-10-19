@@ -4,9 +4,7 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
-  CalendarRange,
   CheckCircle2,
-  ChevronDown,
   CircleDot,
   ClipboardList,
   Download,
@@ -22,11 +20,9 @@ import { Chart3DClusteredBar } from '../components/dashboard/Chart3DClusteredBar
 import { EstateTopography } from '../components/dashboard/EstateTopography';
 import { DrillDownModal } from '../components/dashboard/DrillDownModal';
 import { getDrillDownData, getSiteData } from '../services/dashboardService';
-import type { DashboardSite, DateRangeKey, DrillDownData, MetricData } from '../types/dashboard';
-import { DATE_RANGE_OPTIONS } from '../types/dashboard';
+import type { DashboardSite, DrillDownData, MetricData } from '../types/dashboard';
 import { useAuthStore } from '../stores/authStore';
 import { ROLE_LABELS } from '../constants/roles';
-import { downloadElementAsHtml } from '../utils/downloadHtml';
 
 type ViewMode = 'data' | 'chart';
 
@@ -116,49 +112,24 @@ function numericTotal(metric: MetricData | undefined): number {
   return typeof metric?.total === 'number' ? metric.total : 0;
 }
 
-function formatDateForDisplay(value: string): string {
-  if (!value) return '';
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}-${month}-${year}` : value;
-}
-
 export const OperationsDashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const [selectedSite, setSelectedSite] = useState<DashboardSite>('All NMDC Sites');
+  const [selectedSite, setSelectedSite] = useState<DashboardSite>('Bacheli');
   const [viewMode, setViewMode] = useState<ViewMode>('data');
   const [drillDown, setDrillDown] = useState<DrillDownData | null>(null);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
-  const [dateRangeKey, setDateRangeKey] = useState<DateRangeKey>('YTD 2026');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-  const [exportToast, setExportToast] = useState<string | null>(null);
-  const dateDropdownRef = useRef<HTMLDivElement>(null);
-  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [exportMenu, setExportMenu] = useState<'pdf' | 'excel' | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
-        setDateDropdownOpen(false);
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenu(null);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const activeDateRange = useMemo(() => {
-    if (dateRangeKey === 'Custom') {
-      return {
-        label: customStart && customEnd
-          ? `${formatDateForDisplay(customStart)} – ${formatDateForDisplay(customEnd)}`
-          : 'Custom Range',
-        start: customStart,
-        end: customEnd,
-      };
-    }
-    const opt = DATE_RANGE_OPTIONS.find((o) => o.key === dateRangeKey);
-    return { label: opt?.label ?? dateRangeKey, start: opt?.start ?? '', end: opt?.end ?? '' };
-  }, [dateRangeKey, customStart, customEnd]);
 
   const welcomeDesignation = useMemo(() => {
     if (user?.metadata?.serviceHistory?.length) {
@@ -172,21 +143,21 @@ export const OperationsDashboardPage: React.FC = () => {
   const welcomeName = user?.fullName || 'User';
   const welcomeOrg = user?.govtDepartment || 'Enterprise Overview';
 
-  const handleExportPdf = useCallback(() => {
-    if (!dashboardRef.current) return;
-    const filename = `Operations_Dashboard_${selectedSite.replace(/\s+/g, '_')}_${dateRangeKey.replace(/\s+/g, '_')}`;
-    downloadElementAsHtml(dashboardRef.current, `Operations Dashboard — ${selectedSite} — ${activeDateRange.label}`, filename);
-    setExportToast('PDF export downloaded successfully.');
-    setTimeout(() => setExportToast(null), 3000);
-  }, [selectedSite, dateRangeKey, activeDateRange.label]);
-
-  const handleExportExcel = useCallback(() => {
-    if (!dashboardRef.current) return;
-    const filename = `Operations_Dashboard_${selectedSite.replace(/\s+/g, '_')}_${dateRangeKey.replace(/\s+/g, '_')}`;
-    downloadElementAsHtml(dashboardRef.current, `Operations Dashboard — ${selectedSite} — ${activeDateRange.label}`, filename);
-    setExportToast('Excel export downloaded successfully.');
-    setTimeout(() => setExportToast(null), 3000);
-  }, [selectedSite, dateRangeKey, activeDateRange.label]);
+  const exportOptions = [
+    'Total Number of Quarters at the Site',
+    'Quarter Availability Details',
+    'Occupied Quarters Details',
+    'Quarters Under Maintenance',
+    'Total Maintenance Tickets Raised',
+    'Pending Maintenance Tickets',
+    'Total Grievances Raised',
+    'Pending Grievances',
+    'Hall Booking Details',
+    'Quarters Allotted to Non-NMDC Employees',
+    'Guest House Booking Details',
+    'Pending Rent Details',
+    'Rent Collection Details',
+  ];
 
   const siteData = useMemo(() => getSiteData(selectedSite), [selectedSite]);
   const topographyBlocks = useMemo(() => buildTopographyBlocks(selectedSite), [selectedSite]);
@@ -269,7 +240,7 @@ export const OperationsDashboardPage: React.FC = () => {
   }, [handleBreakdownClick, siteData.metrics]);
 
   return (
-    <div ref={dashboardRef} className="min-h-screen bg-[#f4f7fb] text-slate-900">
+    <div className="min-h-screen bg-[#f4f7fb] text-slate-900">
       <header className="relative overflow-hidden bg-slate-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.28),transparent_36%)]" />
         <div className="relative mx-auto max-w-[1440px] px-4 py-1.5 sm:px-6 lg:px-8">
@@ -310,86 +281,44 @@ export const OperationsDashboardPage: React.FC = () => {
       </header>
 
       <main className="mx-auto max-w-[1440px] px-3 py-2 text-[13px] sm:px-5 lg:px-7 lg:py-3">
-        {/* Controls bar: one horizontal row for period, sites, and exports */}
+        {/* Controls bar for sites and demo exports */}
         <section className="relative z-20 mb-3 overflow-visible rounded-xl border border-slate-200 bg-white p-2 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
-          <div className="w-full overflow-visible">
-            <div className="flex w-full min-w-0 items-center gap-2">
-              {/* Date filter dropdown */}
-            <div ref={dateDropdownRef} className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setDateDropdownOpen((prev) => !prev)}
-                className="flex w-[clamp(8.5rem,17vw,14rem)] shrink items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left transition-all duration-200 hover:border-blue-300 hover:shadow-sm"
-              >
-                <CalendarRange size={15} className="shrink-0 text-blue-600" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Reporting period</span>
-                  <span className="block truncate text-sm font-bold text-slate-800">{activeDateRange.label}</span>
-                </span>
-                <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform duration-200 ${dateDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {dateDropdownOpen && (
-                <div className="absolute left-0 z-50 mt-1 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
-                  {DATE_RANGE_OPTIONS.map((opt) => (
+          <div className="flex w-full min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
+            </div>
+            <div ref={exportMenuRef} className="relative flex shrink-0 items-center gap-1">
+              {(['pdf', 'excel'] as const).map((format) => {
+                const isPdf = format === 'pdf';
+                return (
+                  <button
+                    key={format}
+                    type="button"
+                    onClick={() => setExportMenu((current) => current === format ? null : format)}
+                    className="flex shrink items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
+                  >
+                    {isPdf ? <Download size={13} className="text-blue-600" /> : <FileSpreadsheet size={13} className="text-emerald-600" />}
+                    {isPdf ? 'PDF' : 'Excel'}
+                  </button>
+                );
+              })}
+              {exportMenu && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+                  <p className="border-b border-slate-100 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    Select a report
+                  </p>
+                  {exportOptions.map((option) => (
                     <button
-                      key={opt.key}
+                      key={option}
                       type="button"
-                      onClick={() => {
-                        setDateRangeKey(opt.key);
-                        setDateDropdownOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                        dateRangeKey === opt.key ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'
-                      }`}
+                      onClick={() => setExportMenu(null)}
+                      className="block w-full px-3 py-2 text-left text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
                     >
-                      {opt.label}
-                      {dateRangeKey === opt.key && <CheckCircle2 size={15} className="text-blue-600" />}
+                      {option}
                     </button>
                   ))}
-                  {dateRangeKey === 'Custom' && (
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-slate-100 px-3 py-2">
-                      <input
-                        type="date"
-                        value={customStart}
-                        onChange={(e) => setCustomStart(e.target.value)}
-                        className="min-w-0 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                        placeholder="Start"
-                      />
-                      <span className="text-xs text-slate-400">to</span>
-                      <input
-                        type="date"
-                        value={customEnd}
-                        onChange={(e) => setCustomEnd(e.target.value)}
-                        className="min-w-0 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                        placeholder="End"
-                      />
-                    </div>
-                  )}
                 </div>
               )}
-            </div>
-
-              <div className="min-w-0 flex-1">
-                <SiteSelector selectedSite={selectedSite} onSelectSite={setSelectedSite} />
-              </div>
-
-              {/* Export controls */}
-              <div className="flex shrink items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleExportPdf}
-                  className="flex shrink items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-700 transition-all hover:border-blue-300 hover:shadow-sm"
-                >
-                  <Download size={13} className="text-blue-600" /> PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportExcel}
-                  className="flex shrink items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:shadow-sm"
-                >
-                  <FileSpreadsheet size={13} className="text-emerald-600" /> Excel
-                </button>
-              </div>
             </div>
           </div>
         </section>
@@ -398,7 +327,6 @@ export const OperationsDashboardPage: React.FC = () => {
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Viewing</span>
             <h2 className="truncate text-base font-bold tracking-tight text-slate-900">{selectedSite}</h2>
-            <span className="shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{activeDateRange.label}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2 text-[11px] font-semibold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" /> Live snapshot
@@ -418,7 +346,7 @@ export const OperationsDashboardPage: React.FC = () => {
                 <div className="mb-2 flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 <h3 className="shrink-0 text-sm font-bold text-slate-900">Site performance indicators</h3>
-                <span className="hidden truncate text-xs text-slate-500 sm:block">· Expand a card to inspect the operational breakdown.</span>
+                <span className="hidden truncate text-xs text-slate-500 sm:block">· Expand a card to view operational breakdown.</span>
               </div>
               <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-400"><CircleDot size={13} /> {siteData.metrics.length} indicators</span>
             </div>
@@ -478,12 +406,6 @@ export const OperationsDashboardPage: React.FC = () => {
 
       <DrillDownModal open={drillDownOpen} data={drillDown} onClose={() => setDrillDownOpen(false)} />
 
-      {exportToast && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-lg">
-          <CheckCircle2 size={16} />
-          {exportToast}
-        </div>
-      )}
     </div>
   );
 };
